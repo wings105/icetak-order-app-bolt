@@ -10,7 +10,11 @@ import {
   fetchOrderItems,
   fetchProductionComponents,
   fetchPaymentSessions,
+  createPaymentSession,
+  updatePaymentSession,
+  uploadReceipt,
   fetchShipmentEvents,
+  createShipmentEvent,
   updateOrderStatus,
   createCustomer,
   createOrder,
@@ -398,30 +402,143 @@ async function loadDrawerTab(orderId: string) {
         : '<p class="text-slate-400 text-sm">No production components.</p>';
     } else if (drawerTab === 'payments') {
       const sessions = await fetchPaymentSessions(orderId);
-      body.innerHTML = sessions.length ? `<div class="space-y-3">${sessions.map((p) => `
-        <div class="card p-3">
-          <div class="flex items-center justify-between">
-            <p class="font-semibold text-sm text-slate-700">${fmt(p.expected_amount)}</p>
-            ${statusBadge(p.status)}
+      body.innerHTML = `
+        <div class="space-y-3">
+          ${sessions.length ? sessions.map((p) => `
+            <div class="card p-3" data-session-id="${p.id}">
+              <div class="flex items-center justify-between mb-1">
+                <p class="font-semibold text-sm text-slate-700">${fmt(p.expected_amount)}</p>
+                ${statusBadge(p.status)}
+              </div>
+              ${p.transaction_id ? `<p class="text-xs text-slate-400">Txn: ${p.transaction_id}</p>` : ''}
+              ${p.submitted_at ? `<p class="text-xs text-slate-400">Submitted: ${fmtDate(p.submitted_at)}</p>` : ''}
+              ${p.receipt_name ? `<p class="text-xs text-slate-500">Receipt: ${p.receipt_name}</p>` : ''}
+              ${p.status !== 'matched' ? `
+                <div class="mt-2 pt-2 border-t border-slate-100 flex flex-wrap gap-2">
+                  <label class="btn-ghost text-xs cursor-pointer">
+                    Upload Receipt
+                    <input type="file" accept="image/*,.pdf" class="hidden receipt-file" data-sid="${p.id}" />
+                  </label>
+                  ${p.status === 'pending' ? `<button class="btn-ghost text-xs mark-submitted" data-sid="${p.id}">Mark Submitted</button>` : ''}
+                  ${p.status === 'submitted' ? `<button class="btn-ghost text-xs text-green-600 mark-matched" data-sid="${p.id}">Mark Matched</button>` : ''}
+                </div>` : ''}
+            </div>`).join('') : '<p class="text-slate-400 text-sm">No payment sessions.</p>'}
+          <div class="card p-3 border-dashed">
+            <p class="text-xs font-semibold text-slate-500 mb-2">Add Payment Session</p>
+            <div class="grid grid-cols-2 gap-2 mb-2">
+              <div><label class="form-label">Base Amount (RM)</label><input id="ps-base" type="number" min="0" step="0.01" class="form-input" placeholder="0.00" /></div>
+              <div><label class="form-label">Discount (RM)</label><input id="ps-discount" type="number" min="0" step="0.01" class="form-input" placeholder="0.00" /></div>
+            </div>
+            <button id="ps-add" class="btn-primary text-xs w-full">+ Create Session</button>
+            <p id="ps-error" class="text-red-600 text-xs mt-1 hidden"></p>
           </div>
-          ${p.transaction_id ? `<p class="text-xs text-slate-400 mt-1">Txn: ${p.transaction_id}</p>` : ''}
-          ${p.submitted_at ? `<p class="text-xs text-slate-400">Submitted: ${fmtDate(p.submitted_at)}</p>` : ''}
-          ${p.receipt_name ? `<p class="text-xs text-slate-500 mt-1">Receipt: ${p.receipt_name}</p>` : ''}
-        </div>`).join('')}</div>`
-        : '<p class="text-slate-400 text-sm">No payment sessions.</p>';
+        </div>
+      `;
+
+      body.querySelectorAll('.receipt-file').forEach((input) => {
+        input.addEventListener('change', async (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          const sid = (e.target as HTMLInputElement).dataset.sid!;
+          if (!file) return;
+          const card = body.querySelector(`[data-session-id="${sid}"]`);
+          try {
+            const { path, name } = await uploadReceipt(sid, file);
+            await updatePaymentSession(sid, { receipt_path: path, receipt_name: name });
+            if (card) {
+              const p = document.createElement('p');
+              p.className = 'text-xs text-green-600 mt-1';
+              p.textContent = `Uploaded: ${name}`;
+              card.appendChild(p);
+            }
+            loadDrawerTab(orderId);
+          } catch (err: unknown) {
+            alert((err as Error).message);
+          }
+        });
+      });
+
+      body.querySelectorAll('.mark-submitted').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const sid = (btn as HTMLElement).dataset.sid!;
+          try {
+            await updatePaymentSession(sid, { status: 'submitted' });
+            loadDrawerTab(orderId);
+          } catch (err: unknown) { alert((err as Error).message); }
+        });
+      });
+
+      body.querySelectorAll('.mark-matched').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const sid = (btn as HTMLElement).dataset.sid!;
+          try {
+            await updatePaymentSession(sid, { status: 'matched' });
+            loadDrawerTab(orderId);
+            loadDrawerContent();
+          } catch (err: unknown) { alert((err as Error).message); }
+        });
+      });
+
+      document.getElementById('ps-add')?.addEventListener('click', async () => {
+        const base = parseFloat((document.getElementById('ps-base') as HTMLInputElement).value) || 0;
+        const discount = parseFloat((document.getElementById('ps-discount') as HTMLInputElement).value) || 0;
+        const errEl = document.getElementById('ps-error')!;
+        const btn = document.getElementById('ps-add') as HTMLButtonElement;
+        if (!base) { errEl.textContent = 'Base amount is required.'; errEl.classList.remove('hidden'); return; }
+        btn.disabled = true; btn.textContent = 'Creating…';
+        try {
+          await createPaymentSession({ order_id: orderId, base_amount: base, expected_amount: base - discount, discount: discount || undefined });
+          loadDrawerTab(orderId);
+        } catch (err: unknown) {
+          btn.disabled = false; btn.textContent = '+ Create Session';
+          errEl.textContent = (err as Error).message; errEl.classList.remove('hidden');
+        }
+      });
+
     } else if (drawerTab === 'shipments') {
       const events = await fetchShipmentEvents(orderId);
-      body.innerHTML = events.length ? `<div class="space-y-2">${events.map((ev) => `
-        <div class="flex items-start gap-3 py-2 border-b border-slate-50">
-          <div class="w-2 h-2 rounded-full bg-sky-400 mt-1.5 shrink-0"></div>
-          <div class="flex-1">
-            <p class="text-sm font-medium text-slate-700">${ev.event_name ?? ev.event_key ?? '—'}</p>
-            ${ev.tracking_no ? `<p class="text-xs text-slate-400">${ev.courier ?? ''} ${ev.tracking_no}</p>` : ''}
-            <p class="text-xs text-slate-400">${fmtDate(ev.event_time)}</p>
+      body.innerHTML = `
+        <div class="space-y-2">
+          ${events.length ? events.map((ev) => `
+            <div class="flex items-start gap-3 py-2 border-b border-slate-50">
+              <div class="w-2 h-2 rounded-full bg-sky-400 mt-1.5 shrink-0"></div>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-slate-700">${ev.event_name ?? ev.event_key ?? '—'}</p>
+                ${ev.tracking_no ? `<p class="text-xs text-slate-400">${ev.courier ?? ''} ${ev.tracking_no}</p>` : ''}
+                <p class="text-xs text-slate-400">${fmtDate(ev.event_time)}</p>
+              </div>
+              ${ev.status ? statusBadge(ev.status) : ''}
+            </div>`).join('') : '<p class="text-slate-400 text-sm pb-3">No shipment events.</p>'}
+          <div class="card p-3 border-dashed mt-2">
+            <p class="text-xs font-semibold text-slate-500 mb-2">Add Shipment Event</p>
+            <div class="grid grid-cols-2 gap-2 mb-2">
+              <div><label class="form-label">Event Name *</label><input id="se-name" class="form-input" placeholder="e.g. Dispatched" /></div>
+              <div><label class="form-label">Status</label><input id="se-status" class="form-input" placeholder="e.g. in_transit" /></div>
+              <div><label class="form-label">Tracking No</label><input id="se-tracking" class="form-input" placeholder="e.g. MY12345" /></div>
+              <div><label class="form-label">Courier</label><input id="se-courier" class="form-input" placeholder="e.g. J&T" /></div>
+            </div>
+            <button id="se-add" class="btn-primary text-xs w-full">+ Add Event</button>
+            <p id="se-error" class="text-red-600 text-xs mt-1 hidden"></p>
           </div>
-          ${ev.status ? statusBadge(ev.status) : ''}
-        </div>`).join('')}</div>`
-        : '<p class="text-slate-400 text-sm">No shipment events.</p>';
+        </div>
+      `;
+
+      document.getElementById('se-add')?.addEventListener('click', async () => {
+        const name = (document.getElementById('se-name') as HTMLInputElement).value.trim();
+        const status = (document.getElementById('se-status') as HTMLInputElement).value.trim();
+        const tracking_no = (document.getElementById('se-tracking') as HTMLInputElement).value.trim();
+        const courier = (document.getElementById('se-courier') as HTMLInputElement).value.trim();
+        const errEl = document.getElementById('se-error')!;
+        const btn = document.getElementById('se-add') as HTMLButtonElement;
+        if (!name) { errEl.textContent = 'Event name is required.'; errEl.classList.remove('hidden'); return; }
+        btn.disabled = true; btn.textContent = 'Adding…';
+        try {
+          await createShipmentEvent({ order_id: orderId, event_name: name, status: status || undefined, tracking_no: tracking_no || undefined, courier: courier || undefined });
+          loadDrawerTab(orderId);
+        } catch (err: unknown) {
+          btn.disabled = false; btn.textContent = '+ Add Event';
+          errEl.textContent = (err as Error).message; errEl.classList.remove('hidden');
+        }
+      });
     }
   } catch (e: unknown) {
     body.innerHTML = errHtml((e as Error).message);

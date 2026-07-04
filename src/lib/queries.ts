@@ -10,6 +10,28 @@ import type {
   OrderStatus,
 } from './types';
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+function fnUrl(slug: string) {
+  return `${SUPABASE_URL}/functions/v1/${slug}`;
+}
+
+async function callFn(slug: string, method: string, body?: unknown, path = ''): Promise<unknown> {
+  const res = await fetch(`${fnUrl(slug)}${path}`, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      'Apikey': SUPABASE_ANON_KEY,
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? `Request failed (${res.status})`);
+  return data;
+}
+
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {
@@ -109,24 +131,81 @@ export async function fetchProductionComponents(orderId: string): Promise<Produc
   return (data ?? []) as ProductionComponent[];
 }
 
+// ─── Payment Sessions (via Edge Function) ────────────────────────────────────
+
 export async function fetchPaymentSessions(orderId: string): Promise<PaymentSession[]> {
-  const { data, error } = await supabase
-    .from('payment_sessions')
-    .select('*')
-    .eq('order_id', orderId)
-    .order('created_at', { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as PaymentSession[];
+  const res = await fetch(`${fnUrl('payment-sessions')}?order_id=${encodeURIComponent(orderId)}`, {
+    headers: {
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Apikey': SUPABASE_ANON_KEY,
+    },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? `Request failed (${res.status})`);
+  return data as PaymentSession[];
 }
 
-export async function fetchShipmentEvents(orderId: string): Promise<ShipmentEvent[]> {
-  const { data, error } = await supabase
-    .from('shipment_events')
-    .select('*')
-    .eq('order_id', orderId)
-    .order('event_time', { ascending: true });
+export async function createPaymentSession(params: {
+  order_id: string;
+  expected_amount: number;
+  base_amount: number;
+  discount?: number;
+}): Promise<PaymentSession> {
+  return (await callFn('payment-sessions', 'POST', params)) as PaymentSession;
+}
+
+export async function updatePaymentSession(
+  id: string,
+  updates: {
+    status?: string;
+    transaction_id?: string;
+    receipt_path?: string;
+    receipt_name?: string;
+  },
+): Promise<PaymentSession> {
+  return (await callFn('payment-sessions', 'PATCH', updates, `/${id}`)) as PaymentSession;
+}
+
+export async function uploadReceipt(
+  sessionId: string,
+  file: File,
+): Promise<{ path: string; name: string }> {
+  const ext = file.name.split('.').pop() ?? 'jpg';
+  const path = `${sessionId}/${Date.now()}.${ext}`;
+
+  const { error } = await supabase.storage.from('receipts').upload(path, file, {
+    upsert: true,
+    contentType: file.type,
+  });
   if (error) throw error;
-  return (data ?? []) as ShipmentEvent[];
+
+  return { path, name: file.name };
+}
+
+// ─── Shipment Events (via Edge Function) ─────────────────────────────────────
+
+export async function fetchShipmentEvents(orderId: string): Promise<ShipmentEvent[]> {
+  const res = await fetch(`${fnUrl('shipment-events')}?order_id=${encodeURIComponent(orderId)}`, {
+    headers: {
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Apikey': SUPABASE_ANON_KEY,
+    },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? `Request failed (${res.status})`);
+  return data as ShipmentEvent[];
+}
+
+export async function createShipmentEvent(params: {
+  order_id: string;
+  event_key?: string;
+  tracking_no?: string;
+  courier?: string;
+  status?: string;
+  event_name?: string;
+  event_time?: string;
+}): Promise<ShipmentEvent> {
+  return (await callFn('shipment-events', 'POST', params)) as ShipmentEvent;
 }
 
 // ─── Customers ────────────────────────────────────────────────────────────────
