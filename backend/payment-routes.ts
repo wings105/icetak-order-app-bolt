@@ -1,81 +1,18 @@
-import { Router } from 'express';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from './index';
+import { createHash } from 'crypto';
+import { db, storage, json, error } from '@appdeploy/sdk';
+import { notifySubscribers } from './realtime-subscribers';
 
-export const paymentRouter = Router();
-
-// POST /api/payments/:orderId/sessions — create a payment session
-paymentRouter.post('/:orderId/sessions', async (req, res) => {
-  const { orderId } = req.params;
-  const { expected_amount, base_amount, discount } = req.body as {
-    expected_amount: number;
-    base_amount: number;
-    discount?: number;
-  };
-
-  if (!expected_amount || !base_amount) {
-    res.status(400).json({ error: 'expected_amount and base_amount are required' });
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from('payment_sessions')
-    .insert({
-      order_id: orderId,
-      expected_amount,
-      base_amount,
-      discount: discount ?? null,
-      status: 'pending',
-    })
-    .select()
-    .single();
-
-  if (error) { res.status(500).json({ error: error.message }); return; }
-  res.json(data);
-});
-
-// PATCH /api/payments/sessions/:id — update session status
-paymentRouter.patch('/sessions/:id', async (req, res) => {
-  const { id } = req.params;
-  const { status, transaction_id, receipt_path, receipt_name } = req.body as {
-    status?: string;
-    transaction_id?: string;
-    receipt_path?: string;
-    receipt_name?: string;
-  };
-
-  const updates: Record<string, unknown> = {};
-  if (status) updates.status = status;
-  if (transaction_id) updates.transaction_id = transaction_id;
-  if (receipt_path) updates.receipt_path = receipt_path;
-  if (receipt_name) updates.receipt_name = receipt_name;
-  if (status === 'submitted') updates.submitted_at = new Date().toISOString();
-  if (status === 'matched') updates.matched_at = new Date().toISOString();
-
-  const { data, error } = await supabase
-    .from('payment_sessions')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) { res.status(500).json({ error: error.message }); return; }
-  res.json(data);
-});
-
-// GET /api/payments/:orderId/sessions
-paymentRouter.get('/:orderId/sessions', async (req, res) => {
-  const { orderId } = req.params;
-  const { data, error } = await supabase
-    .from('payment_sessions')
-    .select('*')
-    .eq('order_id', orderId)
-    .order('created_at', { ascending: false });
-
-  if (error) { res.status(500).json({ error: error.message }); return; }
-  res.json(data);
-});
-
-export function createPaymentService(_client: SupabaseClient) {
-  return { paymentRouter };
-}
+type OrderRow={order_id:string;public_token:string;customer_token:string;total:number;payment:string;status:string;tab:string;admin_status?:string;delivery_phone?:string;delivery_name?:string};
+type PaymentSession={order_token:string;order_id:string;base_amount:number;expected_amount:number;discount:number;expires_at:number;status:string;transaction_id?:string;receipt_path?:string;receipt_name?:string;receipt_mime?:string;submitted_at?:number;matched_at?:number;created_at:number};
+const cents=(value:number)=>Math.round(Number(value)*100);
+const amount=(value:number)=>Number((value/100).toFixed(2));
+async function getOrder(token:string){const {items}=await db.list<OrderRow>('orders',{filter:{public_token:token}});return items[0]||null}
+async function latestSession(token:string){const {items}=await db.list<PaymentSession>('payment_sessions',{filter:{order_token:token}});return items.sort((a,b)=>b.created_at-a.created_at)[0]||null}
+async function shapeSession(session:(PaymentSession&{id:string})|null){if(!session)return null;let receipt_url='';if(session.receipt_path){const [file]=await storage.url([session.receipt_path]);receipt_url=file?.url||''}return {id:session.id,orderToken:session.order_token,orderId:session.order_id,baseAmount:session.base_amount,expectedAmount:session.expected_amount,discount:session.discount,expiresAt:session.expires_at,status:session.status,transactionId:session.transaction_id||'',receiptName:session.receipt_name||'',receiptUrl:receipt_url,submittedAt:session.submitted_at||0,matchedAt:session.matched_at||0}}
+async function markOrderPaid(order:OrderRow&{id:string},session:PaymentSession&{id:string},transactionId:string,source:string){if(order.payment==='Paid')return;const matchedAt=Date.now(),updatedSession={...session,status:'matched',transaction_id:transactionId,matched_at:matchedAt};await db.update('orders',[{id:order.id,record:{...order,payment:'Paid',status:'Ready to Process',tab:'progress',admin_status:'Ready to Process'}}]);await db.update('payment_sessions',[{id:session.id,record:updatedSession}]);await db.add('notification_outbox',[{event_type:'payment_received',channel:'whatsapp',phone:order.delivery_phone||'',customer_name:order.delivery_name||'',order_id:order.order_id,order_token:order.public_token,transaction_id:transactionId,amount:session.expected_amount,status:'pending',source,created_at:matchedAt}]);await notifySubscribers('payment',order.public_token,{paid:true,payment:await shapeSession({...updatedSession,id:session.id})})}
+export const paymentRoutes={
+ 'POST /api/orders/:token/payment-session':[async({params}:{params:Record<string,string>})=>{const order=await getOrder(params.token);if(!order)return error('Order not found',404);if(order.payment==='Cash at Counter')return error('Cash payment does not require QR',409);let session=await latestSession(params.token);if(session&&session.status==='matched')return json({payment:await shapeSession(session)});if(session&&session.expires_at>Date.now()&&['pending','receipt_submitted'].includes(session.status))return json({payment:await shapeSession(session)});const {items:active}=await db.list<PaymentSession>('payment_sessions');const used=new Set(active.filter(x=>x.order_token!==params.token&&x.expires_at>Date.now()&&['pending','receipt_submitted'].includes(x.status)).map(x=>cents(x.expected_amount)));const base=cents(order.total);let selected=base;for(let offset=0;offset<=99;offset++){const candidate=base-offset;if(candidate>0&&!used.has(candidate)){selected=candidate;break}}const now=Date.now(),record={order_token:order.public_token,order_id:order.order_id,base_amount:amount(base),expected_amount:amount(selected),discount:amount(base-selected),expires_at:now+10*60*1000,status:'pending',created_at:now};const [id]=await db.add('payment_sessions',[record]);if(!id)return error('Unable to create payment session',500);const [created]=await db.get<PaymentSession>('payment_sessions',[id]);return json({payment:await shapeSession(created?{...created,id}:null)})}],
+ 'GET /api/orders/:token/payment':[async({params}:{params:Record<string,string>})=>{const order=await getOrder(params.token);if(!order)return error('Order not found',404);return json({paid:order.payment==='Paid',payment:await shapeSession(await latestSession(params.token))})}],
+ 'POST /api/orders/:token/payment-receipt':[async({params,body}:{params:Record<string,string>;body:unknown})=>{const order=await getOrder(params.token);if(!order)return error('Order not found',404);const session=await latestSession(params.token);if(!session)return error('Create payment session first',409);const b=(body||{}) as {data?:string;mime_type?:string;file_name?:string};const mime=String(b.mime_type||''),data=String(b.data||'');if(!['image/jpeg','image/png','application/pdf'].includes(mime))return error('Only JPG, PNG or PDF allowed',400);if(!data||data.length>8_000_000)return error('Receipt file is missing or too large',400);const ext=mime==='application/pdf'?'pdf':mime==='image/png'?'png':'jpg',path=`payment-receipts/${order.order_id}/${Date.now()}.${ext}`;const [ok]=await storage.write([{path,content:data,contentType:mime}]);if(!ok)return error('Receipt upload failed',500);const updated={...session,receipt_path:path,receipt_name:String(b.file_name||`receipt.${ext}`),receipt_mime:mime,status:session.status==='matched'?'matched':'receipt_submitted',submitted_at:Date.now()};await db.update('payment_sessions',[{id:session.id,record:updated}]);await db.add('notification_outbox',[{event_type:'payment_receipt_submitted',channel:'internal',order_id:order.order_id,order_token:order.public_token,status:'pending',created_at:Date.now()}]);return json({ok:true,payment:await shapeSession({...updated,id:session.id})})}],
+ 'POST /api/webhooks/payment-match':[async({body,event}:{body:unknown;event:any})=>{const received=String(event.headers?.['x-webhook-key']||event.headers?.['X-Webhook-Key']||'');if(!received)return error('Unauthorized',401);const {items:settings}=await db.list<{key:string;key_hash:string}>('integration_settings',{filter:{key:'payment_webhook'}});const expectedHash=settings[0]?.key_hash||'',receivedHash=createHash('sha256').update(received).digest('hex');if(!expectedHash||receivedHash!==expectedHash)return error('Unauthorized',401);const b=(body||{}) as {amount?:number;transaction_id?:string;paid_at?:string;sender_name?:string;raw?:unknown};const transactionId=String(b.transaction_id||'').trim(),paidCents=cents(Number(b.amount));if(!transactionId||!paidCents)return error('amount and transaction_id are required',400);const {items:existing}=await db.list<PaymentSession>('payment_sessions',{filter:{transaction_id:transactionId}});if(existing[0])return json({ok:true,duplicate:true,order_id:existing[0].order_id});const {items:sessions}=await db.list<PaymentSession>('payment_sessions');const session=sessions.filter(x=>x.expires_at>=Date.now()&&['pending','receipt_submitted'].includes(x.status)&&cents(x.expected_amount)===paidCents).sort((a,b)=>a.created_at-b.created_at)[0];if(!session){await db.add('unmatched_payment_transactions',[{transaction_id:transactionId,amount:Number(b.amount),paid_at:b.paid_at||'',sender_name:b.sender_name||'',raw:b.raw||b,created_at:Date.now()}]);return json({ok:false,matched:false,reason:'No active payment session for this amount'},202)}const order=await getOrder(session.order_token);if(!order)return error('Matched order not found',404);await markOrderPaid(order,session,transactionId,'payment_webhook');return json({ok:true,matched:true,order_id:order.order_id,order_token:order.public_token,amount:session.expected_amount})}],
+};

@@ -1,65 +1,14 @@
-import { Router } from 'express';
-import { supabase } from './index';
+import { db, json, error, secrets } from '@appdeploy/sdk';
 
-export const shipmentRouter = Router();
+type OrderRow=Record<string,unknown>&{id:string;order_id:string;public_token:string;tracking?:string;delivery?:string};
+type ShipmentEvent=Record<string,unknown>&{id:string;event_key:string};
 
-// POST /api/shipments/:orderId/events — record a shipment event
-shipmentRouter.post('/:orderId/events', async (req, res) => {
-  const { orderId } = req.params;
-  const { event_key, tracking_no, courier, status, status_group, event_name, event_time } = req.body as {
-    event_key?: string;
-    tracking_no?: string;
-    courier?: string;
-    status?: string;
-    status_group?: string;
-    event_name?: string;
-    event_time?: string;
-  };
+function text(value:unknown){return value==null?'':String(value)}
+function eventTime(value:unknown){const parsed=value?new Date(String(value)).getTime():NaN;return Number.isFinite(parsed)?parsed:Date.now()}
+function nextState(status:string){const s=status.toLowerCase();if(s.includes('delivered'))return {status:'Delivered',tab:'completed'};if(s.includes('out for delivery'))return {status:'Out for Delivery',tab:'receive'};if(s.includes('pickup')||s.includes('picked'))return {status:'Shipped',tab:'receive'};if(s.includes('failed')||s.includes('exception'))return {status:'Delivery Issue',tab:'receive'};return {status:'In Transit',tab:'receive'}}
 
-  const { data, error } = await supabase
-    .from('shipment_events')
-    .insert({
-      order_id: orderId,
-      event_key: event_key ?? null,
-      tracking_no: tracking_no ?? null,
-      courier: courier ?? null,
-      status: status ?? null,
-      status_group: status_group ?? null,
-      event_name: event_name ?? null,
-      event_time: event_time ?? new Date().toISOString(),
-    })
-    .select()
-    .single();
-
-  if (error) { res.status(500).json({ error: error.message }); return; }
-  res.json(data);
-});
-
-// GET /api/shipments/:orderId/events
-shipmentRouter.get('/:orderId/events', async (req, res) => {
-  const { orderId } = req.params;
-  const { data, error } = await supabase
-    .from('shipment_events')
-    .select('*')
-    .eq('order_id', orderId)
-    .order('event_time', { ascending: true });
-
-  if (error) { res.status(500).json({ error: error.message }); return; }
-  res.json(data);
-});
-
-// PATCH /api/shipments/events/:id — update a shipment event
-shipmentRouter.patch('/events/:id', async (req, res) => {
-  const { id } = req.params;
-  const updates = req.body as Record<string, unknown>;
-
-  const { data, error } = await supabase
-    .from('shipment_events')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) { res.status(500).json({ error: error.message }); return; }
-  res.json(data);
-});
+export const shipmentRoutes={
+ 'GET /api/orders/:token/shipment':[async({params}:{params:Record<string,string>})=>{const {items:orders}=await db.list<OrderRow>('orders',{filter:{public_token:params.token}}),order=orders[0];if(!order)return error('Order not found',404);const {items:events}=await db.list<Record<string,unknown>>('shipment_events',{filter:{order_token:params.token}});return json({shipment:{tracking:text(order.tracking),courier:text(order.courier||order.delivery),trackingLink:text(order.tracking_link),connoteUrl:text(order.connote_url),status:text(order.shipment_status),statusGroup:text(order.shipment_status_group),updatedAt:Number(order.shipment_updated_at||0),events:events.sort((a,b)=>Number(b.event_time||0)-Number(a.event_time||0)).map(e=>({status:text(e.status),statusGroup:text(e.status_group),previousStatus:text(e.previous_status),event:text(e.event_name),eventTime:Number(e.event_time||e.created_at||0)}))}})}],
+ 'GET /api/integrations/status':[async()=>{const names=await secrets.listSecretNames();return json({shipmentWebhookConfigured:names.includes('SHIPMENT_WEBHOOK_SECRET'),clickupConfigured:names.includes('CLICKUP_API_TOKEN')})}],
+ 'POST /api/webhooks/parceldaily':[async({body,event}:{body:unknown;event:any})=>{const names=await secrets.listSecretNames();if(!names.includes('SHIPMENT_WEBHOOK_SECRET'))return error('Shipment webhook secret not configured',503);const expected=await secrets.readSecret('SHIPMENT_WEBHOOK_SECRET'),headers=(event?.headers||{}) as Record<string,string|undefined>,provided=headers['x-webhook-secret']||headers['X-Webhook-Secret'];if(!provided||provided!==expected)return error('Unauthorized',401);const entries=Array.isArray(body)?body:[body],results:Array<Record<string,unknown>>=[];for(const raw of entries){const outer=(raw||{}) as Record<string,unknown>,data=(outer.data&&typeof outer.data==='object'?outer.data:outer) as Record<string,unknown>,service=(data.serviceProviderInfo&&typeof data.serviceProviderInfo==='object'?data.serviceProviderInfo:{}) as Record<string,unknown>,tracking=text(data.consign_no||data.tracking_no),status=text(data.status||'Unknown'),statusGroup=text(data.statusGroup||data.status_group),reference=text(data.reference),courier=text(data.serviceProvider||data.courier),occurredAt=eventTime(data.event_time||data.updated_at||data.timestamp),eventName=text(data.event),eventKey=text(data.raw_event_id)||[tracking,status,statusGroup,eventName,text(data.event_time||data.updated_at||data.timestamp)].join('|');if(!tracking){results.push({ok:false,error:'tracking missing'});continue}const {items:dupes}=await db.list<ShipmentEvent>('shipment_events',{filter:{event_key:eventKey}});if(dupes[0]){results.push({ok:true,duplicate:true});continue}let order:OrderRow|undefined;if(reference){const found=await db.list<OrderRow>('orders',{filter:{order_id:reference}});order=found.items[0]}if(!order){const found=await db.list<OrderRow>('orders',{filter:{tracking}});order=found.items[0]}if(order){const next=nextState(status),[updated]=await db.update('orders',[{id:order.id,record:{...order,tracking,courier:courier||order.delivery||'',tracking_link:text(service.tracking_link||data.tracking_link),connote_url:text(data.connoteURL||data.connote_url),shipment_status:status,shipment_status_group:statusGroup,shipment_updated_at:occurredAt,status:next.status,tab:next.tab,admin_status:next.status}}]);if(!updated){results.push({ok:false,error:'order update failed'});continue}}await db.add('shipment_events',[{order_token:order?.public_token||'',order_id:order?.order_id||reference,tracking_no:tracking,courier,status,status_group:statusGroup,previous_status:text(data.previousStatus||data.previous_status),event_name:eventName,event_key:eventKey,event_time:occurredAt,raw_payload:raw,created_at:Date.now()}]);results.push({ok:true,matched:Boolean(order),order_id:order?.order_id||reference})}return json({ok:true,results})}]
+};

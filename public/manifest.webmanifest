@@ -1,12 +1,16 @@
 {
-  "name": "iCetak Order App",
-  "short_name": "iCetak",
-  "description": "Order management for iCetak printing",
-  "start_url": "/",
+  "name": "DecoCake.my",
+  "short_name": "DecoCake",
+  "description": "DecoCake.my custom cake decoration ordering and order tracking app",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#f1f5f9",
-  "theme_color": "#0f172a",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#f5f5f5",
+  "theme_color": "#ee4d2d",
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    {"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
   ]
 }

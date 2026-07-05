@@ -1,68 +1,10 @@
-import type { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
+import { db, ws, json, error } from '@appdeploy/sdk';
 
-let channel: RealtimeChannel | null = null;
-
-export function setupRealtimeSubscribers(supabase: SupabaseClient) {
-  if (channel) {
-    supabase.removeChannel(channel);
-  }
-
-  channel = supabase
-    .channel('backend-orders')
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'orders' },
-      (payload) => {
-        console.log('[realtime] new order:', payload.new);
-        handleNewOrder(supabase, payload.new as { id: string; order_no: string });
-      },
-    )
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'orders' },
-      (payload) => {
-        console.log('[realtime] order updated:', payload.new);
-      },
-    )
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'payment_sessions' },
-      (payload) => {
-        console.log('[realtime] payment session created:', payload.new);
-      },
-    )
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'payment_sessions' },
-      async (payload) => {
-        const session = payload.new as { id: string; order_id: string; status: string };
-        console.log('[realtime] payment session updated:', session);
-        if (session.status === 'matched') {
-          await syncOrderPaymentStatus(supabase, session.order_id);
-        }
-      },
-    )
-    .subscribe();
-
-  return channel;
-}
-
-async function handleNewOrder(supabase: SupabaseClient, order: { id: string; order_no: string }) {
-  console.log(`[backend] processing new order ${order.order_no}`);
-}
-
-async function syncOrderPaymentStatus(supabase: SupabaseClient, orderId: string) {
-  const { data: sessions, error } = await supabase
-    .from('payment_sessions')
-    .select('status, expected_amount')
-    .eq('order_id', orderId);
-
-  if (error) { console.error('[realtime] failed to fetch sessions:', error.message); return; }
-
-  const allMatched = sessions?.every((s) => s.status === 'matched');
-  const anyMatched = sessions?.some((s) => s.status === 'matched');
-  const paymentStatus = allMatched ? 'paid' : anyMatched ? 'partial' : 'unpaid';
-
-  await supabase.from('orders').update({ payment_status: paymentStatus }).eq('id', orderId);
-  console.log(`[realtime] order ${orderId} payment_status → ${paymentStatus}`);
-}
+type SubscriptionRecord={id:string;entity_type:string;entity_id:string;connection_id:string;created_at:number};
+async function listSubscriptions(){const {items}=await db.list<SubscriptionRecord>('entity_subscriptions');return items}
+export async function removeSubscriptionsByConnection(connectionId:string){const items=await listSubscriptions(),ids=items.filter(x=>x.connection_id===connectionId).map(x=>x.id);if(ids.length)await db.delete('entity_subscriptions',ids)}
+export async function notifySubscribers(entityType:string,entityId:string,data:unknown){const items=await listSubscriptions(),targets=Array.from(new Set(items.filter(x=>x.entity_type===entityType&&x.entity_id===entityId).map(x=>x.connection_id)));if(targets.length)await ws.send(targets,{v:1,type:'entity.update',payload:{entity_type:entityType,entity_id:entityId,data}})}
+export const realtimeSubscriptionRoutes={
+ 'POST /api/subscriptions':[async({body}:{body:unknown})=>{const b=(body||{}) as {entity_type?:string;entity_id?:string;connection_id?:string};if(!b.entity_type||!b.entity_id||!b.connection_id)return error('entity_type, entity_id and connection_id are required',400);const items=await listSubscriptions();if(!items.some(x=>x.entity_type===b.entity_type&&x.entity_id===b.entity_id&&x.connection_id===b.connection_id))await db.add('entity_subscriptions',[{entity_type:b.entity_type,entity_id:b.entity_id,connection_id:b.connection_id,created_at:Date.now()}]);return json({ok:true})}],
+ 'POST /api/subscriptions/remove':[async({body}:{body:unknown})=>{const b=(body||{}) as {entity_type?:string;entity_id?:string;connection_id?:string};if(!b.entity_type||!b.entity_id||!b.connection_id)return error('entity_type, entity_id and connection_id are required',400);const items=await listSubscriptions(),ids=items.filter(x=>x.entity_type===b.entity_type&&x.entity_id===b.entity_id&&x.connection_id===b.connection_id).map(x=>x.id);if(ids.length)await db.delete('entity_subscriptions',ids);return json({ok:true})}],
+};
