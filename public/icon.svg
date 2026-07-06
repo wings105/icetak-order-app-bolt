@@ -1,1 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#ee4d2d"/><circle cx="256" cy="238" r="132" fill="#fff7ed"/><path d="M154 257h204v92c0 27-22 49-49 49H203c-27 0-49-22-49-49z" fill="#fff"/><path d="M170 257c18-51 58-82 86-82s68 31 86 82" fill="none" stroke="#ee4d2d" stroke-width="26" stroke-linecap="round"/><circle cx="218" cy="191" r="13" fill="#f59e0b"/><circle cx="294" cy="191" r="13" fill="#f59e0b"/><text x="256" y="338" text-anchor="middle" font-family="Arial,sans-serif" font-size="62" font-weight="700" fill="#111827">DC</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#ee4d2d"/>
+  <circle cx="256" cy="238" r="150" fill="#fff7ed"/>
+  <path d="M142 270h228v82c0 34-28 62-62 62H204c-34 0-62-28-62-62z" fill="#fff"/>
+  <path d="M154 270c24-64 74-101 102-101s78 37 102 101" fill="none" stroke="#ee4d2d" stroke-width="28" stroke-linecap="round"/>
+  <path d="M172 291h168" stroke="#f59e0b" stroke-width="18" stroke-linecap="round"/>
+  <path d="M178 334h156" stroke="#ee4d2d" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="214" cy="200" r="15" fill="#f59e0b"/>
+  <circle cx="298" cy="200" r="15" fill="#f59e0b"/>
+  <path d="M256 118c18 22 18 43 0 64c-18-21-18-42 0-64z" fill="#ffd166"/>
+  <text x="256" y="462" text-anchor="middle" font-family="Arial,sans-serif" font-size="44" font-weight="800" fill="#fff">DecoCake</text>
+</svg>
