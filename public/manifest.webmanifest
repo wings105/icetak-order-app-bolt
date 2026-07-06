@@ -1,6 +1,6 @@
 {
   "name": "DecoCake.my",
-  "short_name": "DecoCake",
+  "short_name": "DecoCake.my",
   "description": "DecoCake.my custom cake decoration ordering and order tracking app",
   "id": "./",
   "start_url": "./",
