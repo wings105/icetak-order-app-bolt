@@ -6,6 +6,8 @@ const supabaseKey = env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || env.V
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+void import('./order-detail-enhancer').catch(() => undefined);
+
 async function paymentSession(path: string, body?: any) {
   const token = decodeURIComponent(path.split('/')[3] || '');
   const force = Boolean(body?.force_new);
@@ -64,54 +66,3 @@ export const ws = {
     };
   },
 };
-
-async function showPaymentIdOnOrderDetail() {
-  const app = document.querySelector('#app');
-  if (!app) return;
-  const text = app.textContent || '';
-  if (!text.includes('Order Detail')) return;
-  if (document.querySelector('[data-payment-id-box]')) return;
-
-  const orderMatch = text.match(/ICT-\d{8}-[A-Z0-9]+/);
-  const token = new URLSearchParams(location.search).get('order');
-  if (!orderMatch && !token) return;
-
-  let orderQuery = supabase.from('orders').select('id,order_no,payment_status,status,tab,public_token').limit(1);
-  const { data: orders } = token ? await orderQuery.eq('public_token', token) : await orderQuery.eq('order_no', orderMatch![0]);
-  const order = orders?.[0];
-  if (!order) return;
-
-  const paid = order.payment_status === 'paid' || order.status === 'payment_received';
-  if (!paid) return;
-
-  const { data: sessions } = await supabase
-    .from('payment_sessions')
-    .select('id,transaction_id,status,matched_at,expected_amount')
-    .eq('order_id', order.id)
-    .order('created_at', { ascending: false })
-    .limit(5);
-
-  const matched = (sessions || []).find((row: any) => row.status === 'matched') || sessions?.[0];
-
-  document.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
-    const label = (button.textContent || '').toLowerCase();
-    if (label.includes('pay') || label.includes('upload receipt')) {
-      button.disabled = true;
-      button.textContent = 'Payment Received';
-      button.style.display = 'none';
-    }
-  });
-
-  const target = document.querySelector('.order-detail-actions') || document.querySelector('.order-detail-page') || app;
-  const box = document.createElement('section');
-  box.setAttribute('data-payment-id-box', '1');
-  box.className = 'payment-box paid';
-  box.innerHTML = `<b>Payment: Paid ✅</b><p>Bayaran telah diterima. Order sudah masuk proses seterusnya.</p>${matched?.transaction_id ? `<p><small>Payment ID</small><br><b>${matched.transaction_id}</b></p>` : ''}${matched?.id ? `<p><small>Payment Session</small><br><b>${matched.id}</b></p>` : ''}`;
-  target.parentNode?.insertBefore(box, target);
-}
-
-if (typeof window !== 'undefined') {
-  const observer = new MutationObserver(() => showPaymentIdOnOrderDetail().catch(() => undefined));
-  observer.observe(document.documentElement, { childList: true, subtree: true });
-  window.addEventListener('load', () => showPaymentIdOnOrderDetail().catch(() => undefined));
-}
