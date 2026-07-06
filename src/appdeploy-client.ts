@@ -6,9 +6,6 @@ const supabaseKey = env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || env.V
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-void import('./order-detail-enhancer').catch(() => undefined);
-void import('./category-text-tabs').catch(() => undefined);
-
 async function paymentSession(path: string, body?: any) {
   const token = decodeURIComponent(path.split('/')[3] || '');
   const force = Boolean(body?.force_new);
