@@ -22,11 +22,18 @@ async function markPendingReview(path: string) {
   return { data: { payment: data }, status: 200 };
 }
 
+function functionForPath(path: string) {
+  if (path.startsWith('/admin/login') || path.startsWith('/admin/dashboard')) return 'api-admin';
+  return 'api';
+}
+
 async function request(method: string, path: string, body?: unknown) {
   if (method === 'POST' && path.includes('/payment-session')) return paymentSession(path, body);
   if (method === 'POST' && path.includes('/payment-receipt')) return markPendingReview(path);
 
-  const res = await fetch(`${supabaseUrl}/functions/v1/api${path}`, {
+  const functionName = functionForPath(path);
+  const edgePath = functionName === 'api-admin' ? path.replace(/^\/admin/, '') : path;
+  const res = await fetch(`${supabaseUrl}/functions/v1/${functionName}${edgePath}`, {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: body !== undefined ? JSON.stringify(body) : undefined,
