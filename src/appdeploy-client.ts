@@ -48,6 +48,12 @@ async function request(method: string, path: string, body?: unknown) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as any).error || `Request failed (${res.status})`);
+
+  if (functionName === 'api-admin-secure' && path.startsWith('/api/admin/dashboard')) {
+    const { data: shaped, error } = await supabase.rpc('icetak_admin_dashboard_for_current_user');
+    if (!error && shaped?.orders) (data as any).orders = shaped.orders;
+  }
+
   return { data, status: res.status };
 }
 
