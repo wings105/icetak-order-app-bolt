@@ -22,13 +22,28 @@ async function markPendingReview(path: string) {
   return { data: { payment: data }, status: 200 };
 }
 
+function functionForPath(path: string) {
+  if (path.startsWith('/api/admin/dashboard')) return 'api-admin-secure';
+  return 'api';
+}
+
+function functionPath(path: string, functionName: string) {
+  if (functionName === 'api-admin-secure') return '/dashboard';
+  return path;
+}
+
 async function request(method: string, path: string, body?: unknown) {
   if (method === 'POST' && path.includes('/payment-session')) return paymentSession(path, body);
   if (method === 'POST' && path.includes('/payment-receipt')) return markPendingReview(path);
 
-  const res = await fetch(`${supabaseUrl}/functions/v1/api${path}`, {
+  const functionName = functionForPath(path);
+  const token = sessionStorage.getItem('admin_access_token') || '';
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (functionName === 'api-admin-secure' && token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/${functionName}${functionPath(path, functionName)}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
