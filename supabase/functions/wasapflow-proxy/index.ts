@@ -17,6 +17,15 @@ async function setting(key: string) {
   return rows?.[0]?.secret_value || rows?.[0]?.text_value || '';
 }
 
+async function templateMeta(name: string, language: string) {
+  const response = await fetch(
+    `${U}/rest/v1/whatsapp_templates?name=eq.${encodeURIComponent(name)}&language=eq.${encodeURIComponent(language)}&status=eq.APPROVED&select=category,components&limit=1`,
+    { headers: { apikey: K, authorization: `Bearer ${K}` } },
+  );
+  const rows = await response.json().catch(() => []);
+  return rows?.[0] || null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
@@ -43,10 +52,32 @@ Deno.serve(async (req) => {
         headers:{...CORS,'content-type':'application/json'},
       });
     }
+
     const payload = await req.json().catch(() => ({}));
-    if (pathname === '/messages/template' && typeof payload?.template?.language === 'string') {
-      payload.template.language = { code: payload.template.language };
+    if (pathname === '/messages/template' && payload?.template) {
+      const languageCode = typeof payload.template.language === 'string'
+        ? payload.template.language
+        : payload.template.language?.code || 'ms';
+      payload.template.language = { code: languageCode };
+
+      const meta = await templateMeta(String(payload.template.name || ''), languageCode);
+      if (String(meta?.category || '').toUpperCase() === 'AUTHENTICATION') {
+        const components = Array.isArray(payload.template.components) ? payload.template.components : [];
+        const body = components.find((component: any) => String(component?.type || '').toLowerCase() === 'body');
+        const otp = body?.parameters?.[0]?.text;
+        const hasButton = components.some((component: any) => String(component?.type || '').toLowerCase() === 'button');
+        if (otp && !hasButton) {
+          components.push({
+            type: 'button',
+            sub_type: 'url',
+            index: '0',
+            parameters: [{ type: 'text', text: String(otp) }],
+          });
+        }
+        payload.template.components = components;
+      }
     }
+
     const upstream = await fetch(`${OFFICIAL}${pathname}`, {
       method:'POST',
       headers:{'content-type':'application/json','x-partner-key':partner,'x-waba-id':waba},
