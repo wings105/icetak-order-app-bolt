@@ -5,8 +5,13 @@ const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL || '';
 let running = false;
 let lastRun = 0;
 
-function accessToken() {
-  return sessionStorage.getItem('admin_access_token') || sessionStorage.getItem('admin_session') || '';
+async function accessToken() {
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session?.access_token) return '';
+  sessionStorage.setItem('admin_access_token', data.session.access_token);
+  sessionStorage.setItem('admin_refresh_token', data.session.refresh_token || '');
+  sessionStorage.setItem('admin_session', data.session.access_token);
+  return data.session.access_token;
 }
 
 async function finish(id: string, success: boolean, result: Record<string, unknown> = {}, error = '') {
@@ -19,7 +24,7 @@ async function finish(id: string, success: boolean, result: Record<string, unkno
 }
 
 export async function processWhatsAppQueue(force = false) {
-  const token = accessToken();
+  const token = await accessToken();
   if (!token || running) return;
   if (!force && Date.now() - lastRun < 10_000) return;
   running = true;
@@ -58,4 +63,5 @@ setInterval(() => void processWhatsAppQueue(), 15_000);
 window.addEventListener('load', () => void processWhatsAppQueue(true));
 window.addEventListener('focus', () => void processWhatsAppQueue());
 window.addEventListener('wf:process-queue', () => void processWhatsAppQueue(true));
+supabase.auth.onAuthStateChange(() => void processWhatsAppQueue(true));
 void processWhatsAppQueue(true);
