@@ -24,13 +24,21 @@ async function rpc(req: Request, name: string, args: unknown = {}) {
   return data;
 }
 
+function routePath(req: Request) {
+  const pathname = new URL(req.url).pathname;
+  return pathname
+    .replace(/^\/functions\/v1\/whatsapp-admin/, '')
+    .replace(/^\/whatsapp-admin/, '') || '/';
+}
+
 Deno.serve(async (req) => {
   try {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: C });
-    const path = new URL(req.url).pathname.replace(/^\/functions\/v1\/whatsapp-admin/, '') || '/';
+    const path = routePath(req);
 
     if (req.method === 'GET') {
       const snapshot = await rpc(req, 'icetak_admin_whatsapp_snapshot');
+      if (path === '/' || path === '/snapshot') return J({ ok: true, ...snapshot });
       if (path === '/status') return J({ ok: true, ...snapshot.status });
       if (path === '/rules') return J({ ok: true, rules: snapshot.rules || [] });
       if (path === '/templates') return J({ ok: true, templates: snapshot.templates || [] });
@@ -58,8 +66,10 @@ Deno.serve(async (req) => {
       });
       return J({ ok: true, synced });
     }
-    return J({ ok: false, error: 'Not found' }, 404);
+    return J({ ok: false, error: `Not found: ${path}` }, 404);
   } catch (error) {
-    return J({ ok: false, error: error instanceof Error ? error.message : String(error) }, 403);
+    const message = error instanceof Error ? error.message : String(error);
+    const status = /JWT|auth|permission|forbidden|admin/i.test(message) ? 403 : 500;
+    return J({ ok: false, error: message }, status);
   }
 });
