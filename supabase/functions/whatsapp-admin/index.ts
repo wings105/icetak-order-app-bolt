@@ -1,11 +1,65 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const U=Deno.env.get('SUPABASE_URL')||'';
-const K=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
-const C={'access-control-allow-origin':'*','access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type,authorization,apikey'};
-const json=(d:unknown,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{...C,'content-type':'application/json'}});
-async function rest(p:string,i:RequestInit={}){const r=await fetch(`${U}/rest/v1/${p}`,{...i,headers:{apikey:K,authorization:`Bearer ${K}`,'content-type':'application/json',prefer:'return=representation',...(i.headers||{})}});const d=await r.json().catch(()=>null);if(!r.ok)throw new Error(d?.message||d?.error||`HTTP ${r.status}`);return d}
-async function admin(req:Request){const t=(req.headers.get('authorization')||'').replace(/^Bearer\s+/i,'');if(!t)return null;const r=await fetch(`${U}/auth/v1/user`,{headers:{apikey:K,authorization:`Bearer ${t}`}});const u=await r.json().catch(()=>null);if(!r.ok||!u?.id)return null;const rows=await rest(`admin_users?auth_user_id=eq.${u.id}&is_active=eq.true&limit=1`).catch(()=>[]);if(!rows?.[0])return null;const perms=await rest(`admin_permissions?or=(auth_user_id.eq.${u.id},admin_user_id.eq.${rows[0].id},username.eq.${encodeURIComponent(rows[0].username)})&limit=1`).catch(()=>[]);const list=perms?.[0]?.permissions||[];if(!['owner','admin','super_admin'].includes(String(rows[0].role||'').toLowerCase())&&!list.includes('manage_whatsapp'))return null;return rows[0]}
-async function setting(key:string){const x=await rest(`whatsapp_settings?key=eq.${encodeURIComponent(key)}&limit=1`).catch(()=>[]);return x?.[0]?.secret_value||x?.[0]?.text_value||x?.[0]?.value?.url||''}
-async function wf(path:string){const base=await setting('base_url')||'https://officialapi.wasapflow.com/bridge/v1',pk=await setting('partner_key'),waba=await setting('waba_id');if(!pk||!waba)throw new Error('Partner Key atau WABA ID belum diisi');const r=await fetch(`${base}${path}`,{headers:{'x-partner-key':pk,'x-waba-id':waba}});const d=await r.json().catch(()=>({}));if(!r.ok||d.success===false)throw new Error(d?.error?.message||`WasapFlow HTTP ${r.status}`);return d}
-Deno.serve(async req=>{try{if(req.method==='OPTIONS')return new Response('ok',{headers:C});const a=await admin(req);if(!a)return json({ok:false,error:'Forbidden'},403);const path=new URL(req.url).pathname.replace(/^\/functions\/v1\/whatsapp-admin/,'').replace(/^\/whatsapp-admin/,'')||'/';if(req.method==='GET'&&path==='/status'){return json({ok:true,configured:{partner_key:Boolean(await setting('partner_key')),waba_id:Boolean(await setting('waba_id')),webhook_secret:Boolean(await setting('webhook_secret'))},base_url:await setting('base_url')||'https://officialapi.wasapflow.com/bridge/v1'})}if(req.method==='GET'&&path==='/rules')return json({ok:true,rules:await rest('whatsapp_notification_rules?order=sort_order.asc')});if(req.method==='GET'&&path==='/templates')return json({ok:true,templates:await rest('whatsapp_templates?order=name.asc')});if(req.method==='GET'&&path==='/outbox')return json({ok:true,outbox:await rest('whatsapp_outbox?order=created_at.desc&limit=100')});const b=await req.json().catch(()=>({}));if(req.method==='POST'&&path==='/settings'){for(const [key,value] of Object.entries(b)){if(value===undefined||value===null||value==='')continue;const secret=['partner_key','webhook_secret','unified_inbox_24h_key','dispatch_internal_key'].includes(key);await rest(`whatsapp_settings?on_conflict=key`,{method:'POST',headers:{prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify({provider:key==='customer_app_base_url'?'icetak':'wasapflow',key,text_value:secret?null:String(value),secret_value:secret?String(value):null,is_secret:secret,updated_at:new Date().toISOString()})})}return json({ok:true})}if(req.method==='POST'&&path==='/rules'){if(!b.event_type)return json({ok:false,error:'event_type required'},400);await rest(`whatsapp_notification_rules?event_type=eq.${encodeURIComponent(b.event_type)}`,{method:'PATCH',body:JSON.stringify({...b,updated_at:new Date().toISOString()})});return json({ok:true})}if(req.method==='POST'&&path==='/templates/sync'){const waba=await setting('waba_id'),data=await wf('/templates'),list=data.templates||[];for(const t of list){await rest('whatsapp_templates?on_conflict=waba_id,name,language',{method:'POST',headers:{prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify({waba_id:waba,name:t.name,language:t.language||'ms',category:t.category||null,status:t.status||null,components:t.components||[],raw_payload:t,synced_at:new Date().toISOString(),updated_at:new Date().toISOString()})})}return json({ok:true,synced:list.length})}return json({ok:false,error:`Not found: ${path}`},404)}catch(e){return json({ok:false,error:e instanceof Error?e.message:String(e)},500)}});
+const U = Deno.env.get('SUPABASE_URL') || '';
+const A = Deno.env.get('SUPABASE_ANON_KEY') || '';
+const C = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET,POST,OPTIONS',
+  'access-control-allow-headers': 'content-type,authorization,apikey',
+};
+const J = (data: unknown, status = 200) => new Response(JSON.stringify(data), {
+  status,
+  headers: { ...C, 'content-type': 'application/json' },
+});
+
+async function rpc(req: Request, name: string, args: unknown = {}) {
+  const auth = req.headers.get('authorization') || '';
+  const response = await fetch(`${U}/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    headers: { apikey: A, authorization: auth, 'content-type': 'application/json' },
+    body: JSON.stringify(args),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(data?.message || data?.error || `RPC ${response.status}`);
+  return data;
+}
+
+Deno.serve(async (req) => {
+  try {
+    if (req.method === 'OPTIONS') return new Response('ok', { headers: C });
+    const path = new URL(req.url).pathname.replace(/^\/functions\/v1\/whatsapp-admin/, '') || '/';
+
+    if (req.method === 'GET') {
+      const snapshot = await rpc(req, 'icetak_admin_whatsapp_snapshot');
+      if (path === '/status') return J({ ok: true, ...snapshot.status });
+      if (path === '/rules') return J({ ok: true, rules: snapshot.rules || [] });
+      if (path === '/templates') return J({ ok: true, templates: snapshot.templates || [] });
+      if (path === '/outbox') return J({ ok: true, outbox: snapshot.outbox || [] });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    if (req.method === 'POST' && path === '/settings') {
+      return J(await rpc(req, 'icetak_admin_whatsapp_save_settings', { p_payload: body }));
+    }
+    if (req.method === 'POST' && path === '/rules') {
+      return J(await rpc(req, 'icetak_admin_whatsapp_save_rule', { p_payload: body }));
+    }
+    if (req.method === 'POST' && path === '/templates/sync') {
+      const credentials = await rpc(req, 'icetak_admin_whatsapp_credentials');
+      if (!credentials.partner_key || !credentials.waba_id) throw new Error('Partner Key atau WABA ID belum diisi');
+      const response = await fetch(`${credentials.base_url}/templates`, {
+        headers: { 'x-partner-key': credentials.partner_key, 'x-waba-id': credentials.waba_id },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.success === false) throw new Error(data?.error?.message || `WasapFlow ${response.status}`);
+      const synced = await rpc(req, 'icetak_admin_whatsapp_upsert_templates', {
+        p_templates: data.templates || [],
+        p_waba_id: credentials.waba_id,
+      });
+      return J({ ok: true, synced });
+    }
+    return J({ ok: false, error: 'Not found' }, 404);
+  } catch (error) {
+    return J({ ok: false, error: error instanceof Error ? error.message : String(error) }, 403);
+  }
+});
