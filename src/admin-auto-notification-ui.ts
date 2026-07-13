@@ -1,3 +1,5 @@
+import './admin-ready-pickup-action';
+
 function cleanAdminOrderCreatedModal() {
   document.querySelectorAll<HTMLElement>('.modal').forEach(modal => {
     const copyButton = modal.querySelector('#copyOrderLink');
