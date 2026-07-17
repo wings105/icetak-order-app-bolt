@@ -3,6 +3,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const CAPTURE_TOKEN_SHA256 = "bf0045cafee30af53fc7cd3ffb060556ee6ce930c809e8b59f165eea8eb72e48";
+const UNIFIED_INBOX_CHAT_URL =
+  "https://uujcqcsfghqkukaydruc.supabase.co/functions/v1/shopee-chat-ingest";
 const MAX_BODY_BYTES = 1024 * 1024;
 
 const JSON_HEADERS = {
@@ -180,12 +182,68 @@ async function callCaptureRpc(payload: JsonRecord) {
   return responseText ? JSON.parse(responseText) : [];
 }
 
+async function setProcessingStatus(eventId: string, status: "processed" | "failed", error?: unknown) {
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/marketplace_webhook_events?id=eq.${encodeURIComponent(eventId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: SERVICE_KEY,
+        authorization: `Bearer ${SERVICE_KEY}`,
+        "content-type": "application/json",
+        prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        processing_status: status,
+        processed_at: status === "processed" ? new Date().toISOString() : null,
+        last_error: status === "failed"
+          ? (error instanceof Error ? error.message : String(error)).slice(0, 1000)
+          : null,
+      }),
+    },
+  );
+  if (!response.ok) {
+    console.error("Unable to update marketplace event processing status", response.status);
+  }
+}
+
+async function forwardShopeeChat(
+  eventId: string,
+  payload: unknown,
+  suppliedToken: string,
+  sourceReceivedAt: string,
+) {
+  try {
+    const response = await fetch(UNIFIED_INBOX_CHAT_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-webhook-token": suppliedToken,
+      },
+      body: JSON.stringify({
+        source_event_id: eventId,
+        source_received_at: sourceReceivedAt,
+        payload,
+        is_history: false,
+      }),
+    });
+    const responseText = await response.text();
+    if (!response.ok) {
+      throw new Error(`Unified Inbox ${response.status}: ${responseText.slice(0, 500)}`);
+    }
+    await setProcessingStatus(eventId, "processed");
+  } catch (error) {
+    console.error("Shopee chat forwarding failed", error);
+    await setProcessingStatus(eventId, "failed", error);
+  }
+}
+
 Deno.serve(async (request) => {
   try {
     if (request.method === "GET" || request.method === "HEAD") {
       return request.method === "HEAD"
         ? new Response(null, { status: 204, headers: JSON_HEADERS })
-        : json({ ok: true, service: "shopee-webhook", mode: "capture-only" });
+        : json({ ok: true, service: "shopee-webhook", mode: "capture-and-route" });
     }
     if (request.method !== "POST") {
       return json({ ok: false, error: "method_not_allowed" }, 405);
@@ -216,7 +274,7 @@ Deno.serve(async (request) => {
     );
     const region = stringValue(record?.region ?? deepFind(parsed, ["region"]))?.toUpperCase() ?? null;
     const shopId = stringValue(record?.shop_id ?? deepFind(parsed, ["shop_id", "to_shop_id"])) ;
-    const orderSn = stringValue(deepFind(parsed, ["order_sn", "ordersn"]));
+    const orderSn = stringValue(deepFind(parsed, ["order_sn", "ordersn", "orderno"]));
     const packageNumber = stringValue(deepFind(parsed, ["package_number"]));
     const conversationId = stringValue(deepFind(parsed, ["conversation_id"]));
     const messageId = stringValue(deepFind(parsed, ["message_id", "msg_id"]));
@@ -254,6 +312,14 @@ Deno.serve(async (request) => {
     });
 
     const capture = Array.isArray(result) ? result[0] : result;
+    if (eventCode === 10 && capture?.event_id && parsed !== null) {
+      EdgeRuntime.waitUntil(forwardShopeeChat(
+        String(capture.event_id),
+        parsed,
+        suppliedToken,
+        new Date().toISOString(),
+      ));
+    }
     return json({
       ok: true,
       captured: true,
@@ -269,4 +335,3 @@ Deno.serve(async (request) => {
     }, 500);
   }
 });
-
