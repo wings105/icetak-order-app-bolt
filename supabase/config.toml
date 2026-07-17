@@ -1,0 +1,3 @@
+[functions.shopee-webhook]
+verify_jwt = false
+
