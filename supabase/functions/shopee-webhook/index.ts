@@ -7,6 +7,8 @@ const UNIFIED_INBOX_CHAT_URL =
   "https://uujcqcsfghqkukaydruc.supabase.co/functions/v1/shopee-chat-ingest";
 const FINANCIAL_ENRICH_URL =
   `${SUPABASE_URL}/functions/v1/shopee-financial-enrich`;
+const MARKETPLACE_ORDER_SYNC_URL =
+  `${SUPABASE_URL}/functions/v1/sync-marketplace-orders-to-inbox`;
 const MAX_BODY_BYTES = 1024 * 1024;
 
 const JSON_HEADERS = {
@@ -228,6 +230,25 @@ async function triggerFinancialEnrichment() {
   }
 }
 
+async function triggerMarketplaceOrderSync(orderSn: string) {
+  try {
+    const response = await fetch(MARKETPLACE_ORDER_SYNC_URL, {
+      method: "POST",
+      headers: {
+        apikey: SERVICE_KEY,
+        authorization: `Bearer ${SERVICE_KEY}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ order_sn: orderSn }),
+    });
+    if (!response.ok) {
+      console.error("Marketplace order inbox sync failed", response.status, await response.text());
+    }
+  } catch (error) {
+    console.error("Marketplace order inbox sync failed", error);
+  }
+}
+
 async function forwardShopeeChat(
   eventId: string,
   payload: unknown,
@@ -334,6 +355,9 @@ Deno.serve(async (request) => {
     });
 
     const capture = Array.isArray(result) ? result[0] : result;
+    if (orderSn && !capture?.is_duplicate) {
+      EdgeRuntime.waitUntil(triggerMarketplaceOrderSync(orderSn));
+    }
     if (eventCode === 10 && capture?.event_id && parsed !== null) {
       EdgeRuntime.waitUntil(forwardShopeeChat(
         String(capture.event_id),
