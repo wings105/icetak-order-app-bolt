@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.shopee-financial-enrich]
 verify_jwt = true
+
+[functions.shopee-customer-match]
+verify_jwt = false
