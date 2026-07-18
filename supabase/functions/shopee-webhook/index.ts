@@ -5,6 +5,8 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const CAPTURE_TOKEN_SHA256 = "bf0045cafee30af53fc7cd3ffb060556ee6ce930c809e8b59f165eea8eb72e48";
 const UNIFIED_INBOX_CHAT_URL =
   "https://uujcqcsfghqkukaydruc.supabase.co/functions/v1/shopee-chat-ingest";
+const FINANCIAL_ENRICH_URL =
+  `${SUPABASE_URL}/functions/v1/shopee-financial-enrich`;
 const MAX_BODY_BYTES = 1024 * 1024;
 
 const JSON_HEADERS = {
@@ -207,6 +209,25 @@ async function setProcessingStatus(eventId: string, status: "processed" | "faile
   }
 }
 
+async function triggerFinancialEnrichment() {
+  try {
+    const response = await fetch(FINANCIAL_ENRICH_URL, {
+      method: "POST",
+      headers: {
+        apikey: SERVICE_KEY,
+        authorization: `Bearer ${SERVICE_KEY}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ limit: 10 }),
+    });
+    if (!response.ok) {
+      console.error("Financial enrichment trigger failed", response.status);
+    }
+  } catch (error) {
+    console.error("Financial enrichment trigger failed", error);
+  }
+}
+
 async function forwardShopeeChat(
   eventId: string,
   payload: unknown,
@@ -273,6 +294,7 @@ Deno.serve(async (request) => {
         deepFind(parsed, ["event_code", "notification_type"]),
     );
     const region = stringValue(record?.region ?? deepFind(parsed, ["region"]))?.toUpperCase() ?? null;
+    const orderStatus = stringValue(asRecord(record?.data)?.status)?.toUpperCase() ?? null;
     const shopId = stringValue(record?.shop_id ?? deepFind(parsed, ["shop_id", "to_shop_id"])) ;
     const orderSn = stringValue(deepFind(parsed, ["order_sn", "ordersn", "orderno"]));
     const packageNumber = stringValue(deepFind(parsed, ["package_number"]));
@@ -319,6 +341,9 @@ Deno.serve(async (request) => {
         suppliedToken,
         new Date().toISOString(),
       ));
+    }
+    if (eventCode === 3 && orderStatus === "COMPLETED") {
+      EdgeRuntime.waitUntil(triggerFinancialEnrichment());
     }
     return json({
       ok: true,
