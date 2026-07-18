@@ -1,3 +1,5 @@
 [functions.shopee-webhook]
 verify_jwt = false
 
+[functions.shopee-financial-enrich]
+verify_jwt = true
