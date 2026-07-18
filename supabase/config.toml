@@ -6,3 +6,6 @@ verify_jwt = true
 
 [functions.shopee-customer-match]
 verify_jwt = false
+
+[functions.sync-marketplace-orders-to-inbox]
+verify_jwt = true
