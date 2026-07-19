@@ -1,0 +1,280 @@
+openapi: 3.1.0
+info:
+  title: iCetak Shipping Agent API
+  version: 1.0.0
+  description: |
+    Secure API for AI agents and external systems to quote, create, pay,
+    retrieve AWB documents, and read ParcelDaily tracking events.
+servers:
+  - url: https://buivecgahhmrhlmfujgt.supabase.co/functions/v1/shipping-api
+security:
+  - ApiKeyAuth: []
+paths:
+  /:
+    post:
+      operationId: runShippingAction
+      summary: Run a shipping action
+      description: |
+        Send one action per request. Use a stable unique reference for shipment
+        creation. Reusing the same reference prevents a duplicate active shipment.
+        The get_public_tracking action is public and does not require X-API-Key.
+      security:
+        - ApiKeyAuth: []
+        - {}
+      parameters:
+        - in: header
+          name: X-API-Key
+          required: false
+          schema:
+            type: string
+          description: Required for every action except get_public_tracking.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShippingRequest'
+            examples:
+              directCreateAndBook:
+                summary: Create and book using a delivery address supplied by an AI
+                value:
+                  action: create_and_book_shipment
+                  reference: AI-ORDER-12345
+                  confidence: 0.98
+                  order_context:
+                    paid: true
+                    production_ready: true
+                    order_total_rm: 85
+                  delivery_address:
+                    fullName: Customer Name
+                    phone: '60123456789'
+                    line1: 12 Jalan Example
+                    line2: ''
+                    city: Kota Bharu
+                    postcode: '15000'
+                    state: Kelantan
+                    country: Malaysia
+                  parcel:
+                    weight_kg: 1
+                    content: decoration cake
+                    content_value_rm: 85
+                  options:
+                    courier_preference: auto
+              createFromExistingOrder:
+                summary: Create and book from an existing iCetak order
+                value:
+                  action: create_and_book_shipment
+                  order_reference:
+                    order_id: SHOPEE-ORDER-ID
+                  reference: SHOPEE-ORDER-ID
+                  confidence: 1
+                  options:
+                    courier_preference: auto
+              tracking:
+                value:
+                  action: get_tracking
+                  tracking_no: MY069538660237
+              awb:
+                value:
+                  action: get_awb
+                  tracking_no: MY069538660237
+              publicTracking:
+                value:
+                  action: get_public_tracking
+                  public_tracking_token: 00000000-0000-0000-0000-000000000000
+      responses:
+        '200':
+          description: Action completed or current state returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShippingResponse'
+        '202':
+          description: Accepted but AWB or tracking is not ready yet
+        '401':
+          description: Missing or invalid API key
+        '403':
+          description: API key lacks the required scope
+        '404':
+          description: Order or shipment was not found
+        '409':
+          description: Idempotency or duplicate processing conflict
+        '422':
+          description: Validation, confidence, address, payment, production, or courier policy blocked the action
+        '500':
+          description: Internal or provider error
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas:
+    ShippingRequest:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          enum:
+            - check_readiness
+            - get_quote
+            - create_shipment
+            - create_and_checkout
+            - create_and_book_shipment
+            - get_tracking
+            - list_events
+            - get_order_shipping
+            - get_awb
+            - refresh_awb
+            - cancel_shipment
+            - archive_shipment
+            - get_public_tracking
+        request_id:
+          type: string
+        reference:
+          type: string
+          description: Stable unique reference. Required for direct-address creation.
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Must be at least 0.95 for autonomous direct-address creation.
+        order_reference:
+          $ref: '#/components/schemas/OrderReference'
+        order_context:
+          $ref: '#/components/schemas/OrderContext'
+        delivery_address:
+          $ref: '#/components/schemas/DeliveryAddress'
+        parcel:
+          $ref: '#/components/schemas/Parcel'
+        options:
+          $ref: '#/components/schemas/Options'
+        shipment_id:
+          type: string
+          format: uuid
+        tracking_no:
+          type: string
+        provider_order_id:
+          type: string
+        public_tracking_token:
+          type: string
+          format: uuid
+    OrderReference:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_no:
+          type: string
+        order_id:
+          type: string
+        external_order_id:
+          type: string
+    OrderContext:
+      type: object
+      properties:
+        paid:
+          type: boolean
+        production_ready:
+          type: boolean
+        order_total_rm:
+          type: number
+    DeliveryAddress:
+      type: object
+      required:
+        - fullName
+        - phone
+        - line1
+        - city
+        - postcode
+        - state
+      properties:
+        fullName:
+          type: string
+        companyName:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        line1:
+          type: string
+        line2:
+          type: string
+        city:
+          type: string
+        postcode:
+          type: string
+        state:
+          type: string
+        country:
+          type: string
+          default: Malaysia
+    Parcel:
+      type: object
+      properties:
+        weight_kg:
+          type: number
+          default: 1
+        content:
+          type: string
+          default: decoration cake
+        content_value_rm:
+          type: number
+          default: 50
+        is_dropoff:
+          type: boolean
+          default: false
+    Options:
+      type: object
+      properties:
+        courier_preference:
+          type: string
+          default: auto
+        max_shipping_cost_rm:
+          type: number
+    ShippingResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        request_id:
+          type: string
+        run_id:
+          type: string
+          format: uuid
+        duplicate_prevented:
+          type: boolean
+        shipment:
+          type: object
+          additionalProperties: true
+        events:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        awb:
+          type: object
+          properties:
+            status:
+              type: string
+            pdf_url:
+              type: string
+            thermal_pdf_url:
+              type: string
+            storage_path:
+              type: string
+            expires_at:
+              type: string
+              format: date-time
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details: {}
