@@ -1,147 +1,162 @@
 # iCetak Shipping Agent
 
-## Purpose
+## Live endpoints
 
-This API lets a trusted AI agent or external system create and book ParcelDaily shipments without receiving the ParcelDaily token or merchant ID. Provider secrets stay inside Supabase Edge Function secrets.
+Authenticated agent actions:
 
-## API endpoint
+`POST https://buivecgahhmrhlmfujgt.supabase.co/rest/v1/rpc/shipping_api_gateway`
 
-`POST https://buivecgahhmrhlmfujgt.supabase.co/functions/v1/shipping-api`
+Public tracking:
 
-Authenticated actions use the `X-API-Key` header. The public tracking action uses a shipment `public_tracking_token` and does not require the API key.
+`POST https://buivecgahhmrhlmfujgt.supabase.co/rest/v1/rpc/shipping_public_tracking`
 
-## Autonomous creation rules
+The authenticated request uses these headers:
 
-A direct-address request is allowed to create and pay a shipment only when:
+```text
+apikey: SUPABASE_PUBLISHABLE_OR_ANON_KEY
+Authorization: Bearer SUPABASE_LEGACY_ANON_JWT
+X-API-Key: ICETAK_SHIPPING_API_KEY
+Content-Type: application/json
+```
+
+ParcelDaily token, merchant ID, service-role key, and webhook secret remain inside the backend and must never be given to an AI.
+
+## Autonomous rules
+
+A direct-address shipment is allowed only when:
 
 - `confidence >= 0.95`
 - `order_context.paid = true`
 - `order_context.production_ready = true`
-- recipient name, phone, address line 1, city, postcode, and state are present
-- an active shipment with the same stable `reference` does not already exist
-- the selected quote is allowed by the configured shipping policy
+- name, phone, address line 1, city, postcode, and state are complete
+- the same stable `reference` does not already have an active shipment
 
-The API creates a ready/paid internal order record for traceability, then calls the internal shipping agent.
+The database obtains a transaction-level advisory lock for the reference and checks the shipment again before calling the provider. This prevents concurrent agents from creating the same AWB twice.
 
 ## Defaults
 
-- Sender: read from `shipping_settings.origin_address`
+- Sender: `shipping_settings.origin_address`
 - Weight: `1 kg`
 - Description: `decoration cake`
-- Item value: request value, then order total, then `RM50`
-- Courier: cheapest available when `courier_preference = auto`
+- Item value priority: request value, order total, then `RM50`
+- Courier: cheapest available for `auto`
 - Agent mode: `automatic`
 - Minimum autonomous confidence: `0.95`
 
-## Create and book from a supplied address
+## Direct-address creation
 
 ```json
 {
-  "action": "create_and_book_shipment",
-  "reference": "AI-ORDER-12345",
-  "confidence": 0.98,
-  "order_context": {
-    "paid": true,
-    "production_ready": true,
-    "order_total_rm": 85
-  },
-  "delivery_address": {
-    "fullName": "Customer Name",
-    "phone": "60123456789",
-    "line1": "12 Jalan Example",
-    "line2": "",
-    "city": "Kota Bharu",
-    "postcode": "15000",
-    "state": "Kelantan",
-    "country": "Malaysia"
-  },
-  "parcel": {
-    "weight_kg": 1,
-    "content": "decoration cake",
-    "content_value_rm": 85
-  },
-  "options": {
-    "courier_preference": "auto"
+  "p_payload": {
+    "action": "create_and_book_shipment",
+    "reference": "AI-ORDER-12345",
+    "confidence": 0.98,
+    "order_context": {
+      "paid": true,
+      "production_ready": true,
+      "order_total_rm": 85
+    },
+    "delivery_address": {
+      "fullName": "Customer Name",
+      "phone": "60123456789",
+      "line1": "12 Jalan Example",
+      "line2": "",
+      "city": "Kota Bharu",
+      "postcode": "15000",
+      "state": "Kelantan",
+      "country": "Malaysia"
+    },
+    "parcel": {
+      "weight_kg": 1,
+      "content": "decoration cake",
+      "content_value_rm": 85
+    },
+    "options": {
+      "courier_preference": "auto"
+    }
   }
 }
 ```
 
-## Create and book from an existing order
+The gateway creates an internal paid and production-ready order for auditability, then calls the JWT-protected `shipping-agent` synchronously.
+
+## Existing-order creation
 
 ```json
 {
-  "action": "create_and_book_shipment",
-  "order_reference": {
-    "order_id": "EXTERNAL-ORDER-ID"
-  },
-  "reference": "EXTERNAL-ORDER-ID",
-  "confidence": 1,
-  "options": {
-    "courier_preference": "auto"
+  "p_payload": {
+    "action": "create_and_book_shipment",
+    "order_reference": {
+      "order_id": "EXTERNAL-ORDER-ID"
+    },
+    "reference": "EXTERNAL-ORDER-ID",
+    "confidence": 1,
+    "options": {
+      "courier_preference": "auto"
+    }
   }
 }
 ```
 
-## Retrieve tracking and events
+## Tracking and AWB lookup
 
 ```json
 {
-  "action": "get_tracking",
-  "tracking_no": "MY069538660237"
+  "p_payload": {
+    "action": "get_tracking",
+    "tracking_no": "MY069538660237"
+  }
 }
 ```
-
-The response contains the current shipment row and the ordered timeline from `shipment_events`.
-
-## Retrieve or regenerate AWB
 
 ```json
 {
-  "action": "get_awb",
-  "tracking_no": "MY069538660237"
+  "p_payload": {
+    "action": "get_awb",
+    "tracking_no": "MY069538660237"
+  }
 }
 ```
 
-Use `refresh_awb` to force a new ParcelDaily PDF download. The AWB service:
+The lookup returns:
 
-1. calls `POST /v1/partner/consign-pdf/` with `{ "connote": "TRACKING_NO" }`
-2. verifies the response is PDF
-3. retries up to three times
-4. uploads it into private bucket `shipping-labels`
-5. returns a signed URL valid for seven days
-6. stores the path and AWB state on `shipments`
+- current master shipment
+- ordered `shipment_events` timeline
+- ParcelDaily `connoteURL` when available
+- `thermalConnoteURL` when available
+- Supabase signed AWB URL when an archived PDF has been generated
+- AWB pending/error state
 
-ParcelDaily `connoteURL` and `thermalConnoteURL` are also stored when supplied by checkout status or webhook events.
+Webhook checkout and tracking events update the same shipment master. Events from orders created before this system are also auto-created and linked when ParcelDaily sends a later update.
 
 ## Public tracking
 
-Use the `public_tracking_token` returned with a shipment:
-
 ```json
 {
-  "action": "get_public_tracking",
-  "public_tracking_token": "SHIPMENT-PUBLIC-TOKEN"
+  "p_public_tracking_token": "SHIPMENT-PUBLIC-TOKEN"
 }
 ```
 
-This response excludes recipient address, sender address, phone number, prices, raw provider payloads, and internal logs.
+The public response excludes recipient address, sender address, phone numbers, prices, provider payloads, API keys, and internal agent logs.
 
 ## Duplicate protection
 
-- Shipment creation uses a stable `reference` and returns the existing active shipment when that reference already exists.
-- Webhooks are unique by `(provider, provider_event_id)`.
-- Timeline events are unique by `(provider, provider_event_id)`.
-- A repeated ParcelDaily webhook is acknowledged but not processed again.
+- Gateway lock by stable `reference`
+- Active shipment lookup before provider creation
+- Webhook uniqueness: `(provider, provider_event_id)`
+- Timeline uniqueness: `(provider, provider_event_id)`
+- Repeated provider webhooks are acknowledged without creating another event
 
-## Event storage
+## Data model
 
-- `shipments`: one current master record per shipment
-- `shipment_events`: normalized timeline
-- `shipping_webhook_events`: raw provider event inbox and processing state
-- `shipping_agent_runs`: agent decisions and result audit
-- `shipping_quotes`: provider quotes considered
+- `shipments`: current shipment master
+- `shipment_events`: normalized event timeline
+- `shipping_webhook_events`: raw webhook inbox and processing state
+- `shipping_agent_runs`: action and decision audit
+- `shipping_quotes`: quote options considered
 - `shipping_exceptions`: retryable or human-review issues
+- `shipping_api_clients`: hashed API clients and scopes
 
-## Security
+## Source code
 
-Never give an AI the ParcelDaily token, merchant ID, Supabase service-role key, or webhook secret. Give it only the scoped iCetak API key and the OpenAPI file.
+Full Edge Function source for `shipping-agent`, `shipping-api`, and PDF archival service `shipping-awb` is stored in this repository. The live RPC gateway is installed through Supabase migrations, so external AI integration does not depend on a custom-auth Edge Function deployment.
