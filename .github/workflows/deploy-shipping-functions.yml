@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - shipping-agent-complete-20260719
     paths:
       - 'supabase/functions/shipping-agent/**'
