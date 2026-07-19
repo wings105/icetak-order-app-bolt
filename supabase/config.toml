@@ -1,0 +1,13 @@
+project_id = "buivecgahhmrhlmfujgt"
+
+[functions.shipping-agent]
+verify_jwt = true
+
+[functions.shipping-awb]
+verify_jwt = true
+
+[functions.shipping-api]
+verify_jwt = false
+
+[functions.parceldaily-webhook]
+verify_jwt = false
