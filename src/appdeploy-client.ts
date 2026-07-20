@@ -44,7 +44,19 @@ function functionForPath(path: string) {
 
 function functionPath(path: string, functionName: string) {
   if (functionName === 'api-admin-secure') return '/dashboard';
+  if (functionName === 'api') return path.replace(/^\/api/, '');
   return path;
+}
+
+function normalizePublicOrders(data: any) {
+  const normalize = (order: any) => {
+    if (!order || typeof order !== 'object') return order;
+    if (String(order.delivery || '').toLowerCase().includes('pickup')) order.delivery = 'Pickup';
+    return order;
+  };
+  if (data?.order) data.order = normalize(data.order);
+  if (Array.isArray(data?.orders)) data.orders = data.orders.map(normalize);
+  return data;
 }
 
 async function request(method: string, path: string, body?: unknown) {
@@ -68,6 +80,7 @@ async function request(method: string, path: string, body?: unknown) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as any).error || `Request failed (${res.status})`);
 
+  if (functionName === 'api') normalizePublicOrders(data);
   if (functionName === 'api-admin-secure' && path.startsWith('/api/admin/dashboard')) {
     const { data: shaped, error } = await supabase.rpc('icetak_admin_dashboard_for_current_user');
     if (!error && shaped?.orders) (data as any).orders = shaped.orders;
