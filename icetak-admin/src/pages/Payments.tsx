@@ -1,91 +1,147 @@
-import { IconDollar, IconCart, IconUsers, IconArrowUp, IconArrowDown, IconDownload, IconMore } from '../components/Icons';
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { IconDownload, IconMore, IconRefresh } from '../components/Icons';
 
-const payments = [
-  { id: '#PAY-3421', order: '#ORD-7842', customer: 'Nurul Aisyah', method: 'Online Banking', amount: 'RM 120.00', status: 'success', date: '20 Jul 2026' },
-  { id: '#PAY-3420', order: '#ORD-7841', customer: 'Tan Wei Ming', method: 'Credit Card', amount: 'RM 85.00', status: 'success', date: '20 Jul 2026' },
-  { id: '#PAY-3419', order: '#ORD-7840', customer: 'Siti Khadijah', method: 'FPX', amount: 'RM 450.00', status: 'warning', date: '19 Jul 2026' },
-  { id: '#PAY-3418', order: '#ORD-7839', customer: 'Raj Kumar', method: 'E-Wallet', amount: 'RM 240.00', status: 'success', date: '19 Jul 2026' },
-  { id: '#PAY-3417', order: '#ORD-7838', customer: 'Lim Mei Ling', method: 'Credit Card', amount: 'RM 320.00', status: 'error', date: '18 Jul 2026' },
-];
-
-const statusMap: Record<string, { label: string; cls: string }> = {
-  success: { label: 'Paid', cls: 'badge-success' },
-  warning: { label: 'Pending', cls: 'badge-warning' },
-  error: { label: 'Failed', cls: 'badge-error' },
+type Session = {
+  id: string;
+  order_id: string | null;
+  transaction_id: string | null;
+  status: string | null;
+  base_amount: number | string | null;
+  discount: number | string | null;
+  expected_amount: number | string | null;
+  created_at: string;
+  submitted_at: string | null;
+  matched_at: string | null;
+  receipt_path: string | null;
 };
 
-const stats = [
-  { icon: IconDollar, color: 'green', value: 'RM 48,560', label: 'Total Revenue', trend: 'up', trendVal: '+12.5%' },
-  { icon: IconCart, color: 'blue', value: 'RM 9,820', label: 'This Month', trend: 'up', trendVal: '+5.8%' },
-  { icon: IconUsers, color: 'amber', value: 'RM 1,240', label: 'Pending', trend: 'down', trendVal: '-3.2%' },
-];
+const statusTag = (s: string | null) => {
+  const v = (s || '').toLowerCase();
+  if (v === 'matched' || v === 'paid') return { label: 'Matched', cls: 'badge-success' };
+  if (v === 'submitted') return { label: 'Submitted', cls: 'badge-info' };
+  if (v === 'expired') return { label: 'Expired', cls: 'badge-neutral' };
+  if (v === 'failed' || v === 'rejected') return { label: v, cls: 'badge-error' };
+  return { label: v || 'pending', cls: 'badge-warning' };
+};
 
 export default function Payments() {
+  const [rows, setRows] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setErr(null);
+    const { data, error } = await supabase
+      .from('payment_sessions')
+      .select('id, order_id, transaction_id, status, base_amount, discount, expected_amount, created_at, submitted_at, matched_at, receipt_path')
+      .order('created_at', { ascending: false })
+      .limit(60);
+    if (error) setErr(error.message);
+    else setRows(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const totals = rows.reduce(
+    (acc, r) => {
+      const amt = Number(r.expected_amount || 0);
+      acc.count += 1;
+      if ((r.status || '').toLowerCase() === 'matched' || (r.status || '').toLowerCase() === 'paid') acc.paid += amt;
+      else if ((r.status || '').toLowerCase() === 'submitted') acc.submitted += amt;
+      else acc.pending += amt;
+      return acc;
+    },
+    { count: 0, paid: 0, submitted: 0, pending: 0 },
+  );
+
   return (
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Payments</h1>
-          <p className="page-subtitle">Track transactions and payment status</p>
+          <h1 className="page-title">Payments Center</h1>
+          <p className="page-subtitle">Track payment sessions and receipts</p>
         </div>
-        <button className="btn btn-outline"><IconDownload size={16} /> Export Report</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-outline" onClick={load}><IconRefresh size={16} /> Refresh</button>
+          <button className="btn btn-outline"><IconDownload size={16} /> Export</button>
+        </div>
       </div>
 
       <div className="stats-grid">
-        {stats.map((s) => {
-          const Icon = s.icon;
-          return (
-            <div key={s.label} className="stat-card">
-              <div className="stat-header">
-                <div className={`stat-icon ${s.color}`}><Icon size={22} /></div>
-                <span className={`stat-trend ${s.trend}`}>
-                  {s.trend === 'up' ? <IconArrowUp size={12} /> : <IconArrowDown size={12} />}
-                  {s.trendVal}
-                </span>
-              </div>
-              <div className="stat-value">{s.value}</div>
-              <div className="stat-label">{s.label}</div>
-            </div>
-          );
-        })}
+        <div className="stat-card ready">
+          <div className="stat-label">Total Paid</div>
+          <div className="stat-value">RM {totals.paid.toFixed(2)}</div>
+          <div className="stat-hint">Matched transactions</div>
+        </div>
+        <div className="stat-card new">
+          <div className="stat-label">Submitted</div>
+          <div className="stat-value">RM {totals.submitted.toFixed(2)}</div>
+          <div className="stat-hint">Awaiting reconciliation</div>
+        </div>
+        <div className="stat-card pay">
+          <div className="stat-label">Pending</div>
+          <div className="stat-value">RM {totals.pending.toFixed(2)}</div>
+          <div className="stat-hint">Awaiting receipt</div>
+        </div>
+        <div className="stat-card cash">
+          <div className="stat-label">Sessions</div>
+          <div className="stat-value">{totals.count}</div>
+          <div className="stat-hint">Recent 60</div>
+        </div>
       </div>
 
       <div className="panel">
         <div className="panel-header">
-          <div className="panel-title">Transaction History</div>
+          <div>
+            <div className="panel-title">Payment Sessions</div>
+            <div className="panel-subtitle">Latest 60 records from Supabase</div>
+          </div>
         </div>
         <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Payment ID</th>
-                <th>Order</th>
-                <th>Customer</th>
-                <th>Method</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.map((p) => {
-                const st = statusMap[p.status];
-                return (
-                  <tr key={p.id} className="row-hover">
-                    <td className="cell-id">{p.id}</td>
-                    <td className="cell-sub">{p.order}</td>
-                    <td className="cell-name">{p.customer}</td>
-                    <td>{p.method}</td>
-                    <td className="cell-amount">{p.amount}</td>
-                    <td><span className={`badge ${st.cls}`}>{st.label}</span></td>
-                    <td className="cell-sub">{p.date}</td>
-                    <td><button className="icon-btn"><IconMore size={16} /></button></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          {loading ? (
+            <div className="loading"><span className="spinner" /> <span style={{ marginLeft: 8 }}>Loading…</span></div>
+          ) : err ? (
+            <div className="empty"><div className="empty-title">Failed to load</div><div>{err}</div></div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Session ID</th>
+                  <th>Order</th>
+                  <th>Transaction</th>
+                  <th>Base</th>
+                  <th>Discount</th>
+                  <th>Expected</th>
+                  <th>Status</th>
+                  <th>Receipt</th>
+                  <th>Created</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const st = statusTag(r.status);
+                  return (
+                    <tr key={r.id} className="row-hover">
+                      <td className="cell-id">{r.id.slice(0, 8)}</td>
+                      <td className="cell-sub">{r.order_id ? r.order_id.slice(0, 8) : '—'}</td>
+                      <td className="cell-sub">{r.transaction_id || '—'}</td>
+                      <td className="cell-amount">RM {Number(r.base_amount || 0).toFixed(2)}</td>
+                      <td className="cell-amount">RM {Number(r.discount || 0).toFixed(2)}</td>
+                      <td className="cell-amount">RM {Number(r.expected_amount || 0).toFixed(2)}</td>
+                      <td><span className={`badge ${st.cls}`}>{st.label}</span></td>
+                      <td>{r.receipt_path ? <span className="tag tag-ready">Uploaded</span> : <span className="tag tag-neutral">None</span>}</td>
+                      <td className="cell-sub">{new Date(r.created_at).toLocaleString()}</td>
+                      <td><button className="icon-btn"><IconMore size={16} /></button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
