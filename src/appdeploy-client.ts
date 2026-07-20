@@ -44,6 +44,7 @@ function functionForPath(path: string) {
 
 function functionPath(path: string, functionName: string) {
   if (functionName === 'api-admin-secure') return '/dashboard';
+  if (functionName === 'api') return path.replace(/^\/api/, '');
   return path;
 }
 
