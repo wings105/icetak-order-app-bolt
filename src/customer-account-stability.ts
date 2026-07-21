@@ -51,14 +51,15 @@ if (!window.__ICETAK_ACCOUNT_STABILITY__) {
     if (isPortal) location.assign(location.origin + location.pathname);
   }
 
-  function enhanceProfileDialog(root: ParentNode = document) {
-    root.querySelectorAll<HTMLElement>('.ca-profile-wrap .ca-dialog').forEach((dialog) => {
-      if (!dialog.querySelector('[data-ca-account-nav]')) {
+  function enhanceProfileDialog() {
+    document.querySelectorAll<HTMLElement>('.ca-profile-wrap .ca-dialog').forEach((dialog) => {
+      const header = dialog.querySelector('.ca-profile-head');
+      if (header && !dialog.querySelector('[data-ca-account-nav]')) {
         const nav = document.createElement('section');
         nav.dataset.caAccountNav = '1';
         nav.className = 'ca-account-nav';
         nav.innerHTML = '<button type="button" data-ca-my-orders>📦 My Orders</button><button type="button" data-ca-continue-shopping>🛍️ Continue Shopping</button>';
-        dialog.querySelector('.ca-profile-head')?.insertAdjacentElement('afterend', nav);
+        header.insertAdjacentElement('afterend', nav);
       }
 
       dialog.querySelectorAll<HTMLElement>('.ca-address').forEach((card) => {
@@ -108,12 +109,14 @@ if (!window.__ICETAK_ACCOUNT_STABILITY__) {
   style.textContent = `.ca-account-nav{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}.ca-account-nav button{border:1px solid #dbe3ec;background:#fff;border-radius:12px;padding:12px 10px;font-weight:900;color:#1f2937;cursor:pointer}.ca-account-nav button:first-child{background:#fff4f0;border-color:#ffb8a9;color:#d93c1c}.ca-confirmed-state{display:inline-flex;align-items:center;color:#15803d;background:#ecfdf3;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:900}@media(max-width:600px){.ca-account-nav{grid-template-columns:1fr}}`;
   document.head.append(style);
 
-  const nativeObserver = new MutationObserver((records) => {
-    for (const record of records) {
-      for (const node of Array.from(record.addedNodes)) {
-        if (node instanceof HTMLElement) enhanceProfileDialog(node);
-      }
-    }
+  let profileEnhanceQueued = false;
+  const nativeObserver = new MutationObserver(() => {
+    if (profileEnhanceQueued) return;
+    profileEnhanceQueued = true;
+    setTimeout(() => {
+      profileEnhanceQueued = false;
+      enhanceProfileDialog();
+    }, 0);
   });
   nativeObserver.observe(document.documentElement, { childList: true, subtree: true });
   enhanceProfileDialog();
