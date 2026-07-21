@@ -93,6 +93,9 @@ function clearSecureSession(clearCustomerToken = false) {
   loading = null;
   if (clearCustomerToken) localStorage.removeItem('customer_token');
 }
+function confirmedAddresses() {
+  return account?.addresses.filter((address) => address.isConfirmed) || [];
+}
 async function loadAccount(force = false) {
   const value = sessionValue();
   if (!value) return null;
@@ -104,9 +107,11 @@ async function loadAccount(force = false) {
       account = result;
       localStorage.removeItem('customer_profile');
       sessionStorage.removeItem('customer');
-      const exists = account.addresses.some((address) => address.id === selectedAddressId);
-      if (!exists) selectedAddressId = account.addresses.find((address) => address.isDefault)?.id || account.addresses[0]?.id || '';
+      const usable = confirmedAddresses();
+      const exists = usable.some((address) => address.id === selectedAddressId);
+      if (!exists) selectedAddressId = usable.find((address) => address.isDefault)?.id || usable[0]?.id || '';
       if (selectedAddressId) sessionStorage.setItem('customer_selected_address_id', selectedAddressId);
+      else sessionStorage.removeItem('customer_selected_address_id');
       return account;
     } catch (error) {
       clearSecureSession(false);
@@ -117,9 +122,10 @@ async function loadAccount(force = false) {
   return loading;
 }
 function selectedAddress() {
-  return account?.addresses.find((address) => address.id === selectedAddressId)
-    || account?.addresses.find((address) => address.isDefault)
-    || account?.addresses[0]
+  const usable = confirmedAddresses();
+  return usable.find((address) => address.id === selectedAddressId)
+    || usable.find((address) => address.isDefault)
+    || usable[0]
     || null;
 }
 function requireSecureLogin() {
@@ -134,8 +140,8 @@ function addressCard(address: Address) {
     <p>${esc(address.summary)}</p>
     <small>${esc(address.phone)}</small>
     <footer>
-      <button data-ca-edit-address="${esc(address.id)}">Edit</button>
-      ${address.isDefault ? '' : `<button data-ca-default="${esc(address.id)}">Set Default</button>`}
+      <button data-ca-edit-address="${esc(address.id)}">${imported ? 'Semak & Confirm' : 'Edit'}</button>
+      ${address.isDefault ? '' : `<button data-ca-default="${esc(address.id)}">${imported ? 'Confirm & Set Default' : 'Set Default'}</button>`}
       <button class="danger" data-ca-archive="${esc(address.id)}">Delete</button>
     </footer>
   </article>`;
@@ -172,7 +178,7 @@ function bindProfileEvents(wrap: HTMLElement) {
         account = result.account;
         selectedAddressId = button.dataset.caDefault || '';
         sessionStorage.setItem('customer_selected_address_id', selectedAddressId);
-        renderProfile(wrap); enhanceCheckout(); toast('Default address updated');
+        renderProfile(wrap); enhanceCheckout(); toast('Address confirmed and set as default');
       } catch (error) { button.disabled = false; toast(error instanceof Error ? error.message : 'Gagal update default', true); }
     };
   });
@@ -183,7 +189,10 @@ function bindProfileEvents(wrap: HTMLElement) {
       try {
         const result = await rpc<{ account: Account }>('icetak_customer_address_archive_rpc', { p_value: sessionValue(), p_address_id: button.dataset.caArchive });
         account = result.account;
-        if (!account.addresses.some((address) => address.id === selectedAddressId)) selectedAddressId = account.addresses.find((address) => address.isDefault)?.id || account.addresses[0]?.id || '';
+        const usable = confirmedAddresses();
+        if (!usable.some((address) => address.id === selectedAddressId)) selectedAddressId = usable.find((address) => address.isDefault)?.id || usable[0]?.id || '';
+        if (selectedAddressId) sessionStorage.setItem('customer_selected_address_id', selectedAddressId);
+        else sessionStorage.removeItem('customer_selected_address_id');
         renderProfile(wrap); enhanceCheckout(); toast('Address deleted');
       } catch (error) { button.disabled = false; toast(error instanceof Error ? error.message : 'Gagal delete address', true); }
     };
@@ -218,7 +227,7 @@ function openAddressForm(existing: Address | null, afterSave?: () => void) {
     addressLine1:'', addressLine2:'', city:'', postcode:'', state:'Kelantan', country:'Malaysia',
     isDefault:account.addresses.length === 0, isVerified:true, isConfirmed:true, source:'customer_portal', summary:'',
   };
-  const wrap = modal(`<button data-ca-close class="ca-x">×</button><h2>${existing ? 'Edit Address' : 'Add New Address'}</h2><form class="ca-form" data-ca-address-form>
+  const wrap = modal(`<button data-ca-close class="ca-x">×</button><h2>${existing && !existing.isConfirmed ? 'Semak & Confirm Address' : existing ? 'Edit Address' : 'Add New Address'}</h2>${existing && !existing.isConfirmed ? '<p>Alamat ini dijumpai daripada rekod lama. Semak semua maklumat sebelum simpan.</p>' : ''}<form class="ca-form" data-ca-address-form>
     <div class="ca-two"><label>Label<select name="label">${['Rumah','Tempat Kerja','Keluarga','Lain-lain'].map((label) => `<option ${address.label === label ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label>Recipient Name<input name="recipientName" required maxlength="120" value="${esc(address.recipientName)}"></label></div>
     <label>Recipient Phone<input name="phone" inputmode="tel" required value="${esc(address.phone)}"></label>
     <label>Address Line 1<input name="addressLine1" required maxlength="220" value="${esc(address.addressLine1)}"></label>
@@ -226,7 +235,7 @@ function openAddressForm(existing: Address | null, afterSave?: () => void) {
     <div class="ca-two"><label>City<input name="city" required maxlength="100" value="${esc(address.city)}"></label><label>Postcode<input name="postcode" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required value="${esc(address.postcode)}"></label></div>
     <label>State<select name="state">${STATES.map((state) => `<option ${address.state === state ? 'selected' : ''}>${state}</option>`).join('')}</select></label>
     <label class="ca-check"><input type="checkbox" name="isDefault" ${address.isDefault ? 'checked' : ''}><span>Set as default address</span></label>
-    <button class="ca-primary">${existing ? 'Save Changes' : 'Save Address'}</button></form>`);
+    <button class="ca-primary">${existing && !existing.isConfirmed ? 'Confirm & Save Address' : existing ? 'Save Changes' : 'Save Address'}</button></form>`);
   wrap.querySelector<HTMLFormElement>('[data-ca-address-form]')!.onsubmit = async (event) => {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
@@ -240,8 +249,8 @@ function openAddressForm(existing: Address | null, afterSave?: () => void) {
       account = result.account;
       selectedAddressId = result.address_id;
       sessionStorage.setItem('customer_selected_address_id', selectedAddressId);
-      wrap.remove(); afterSave?.(); enhanceCheckout(); toast(existing ? 'Address updated' : 'Address saved');
-    } catch (error) { button.disabled = false; button.textContent = existing ? 'Save Changes' : 'Save Address'; toast(error instanceof Error ? error.message : 'Gagal save address', true); }
+      wrap.remove(); afterSave?.(); enhanceCheckout(); toast(existing && !existing.isConfirmed ? 'Address confirmed' : existing ? 'Address updated' : 'Address saved');
+    } catch (error) { button.disabled = false; button.textContent = existing && !existing.isConfirmed ? 'Confirm & Save Address' : existing ? 'Save Changes' : 'Save Address'; toast(error instanceof Error ? error.message : 'Gagal save address', true); }
   };
 }
 async function logout(all: boolean) {
@@ -258,11 +267,18 @@ async function openAddressSelector() {
   const current = await loadAccount();
   if (!current) { requireSecureLogin(); return; }
   const wrap = modal(`<button data-ca-close class="ca-x">×</button><h2>Select Delivery Address</h2><div class="ca-selector-list">
-    ${current.addresses.length ? current.addresses.map((address) => `<button data-ca-select-address="${esc(address.id)}" class="${address.id === selectedAddressId ? 'selected' : ''}"><div><b>${esc(address.label)}${address.isDefault ? ' • Default' : ''}</b><strong>${esc(address.recipientName)}</strong><span>${esc(address.summary)}</span></div><i>${address.id === selectedAddressId ? '✓' : '›'}</i></button>`).join('') : '<div class="ca-empty-address"><b>Belum ada saved address</b></div>'}
+    ${current.addresses.length ? current.addresses.map((address) => `<button data-ca-select-address="${esc(address.id)}" data-ca-unconfirmed="${address.isConfirmed ? '0' : '1'}" class="${address.isConfirmed && address.id === selectedAddressId ? 'selected' : ''}"><div><b>${esc(address.label)}${address.isDefault ? ' • Default' : ''}${address.isConfirmed ? '' : ' • Semak dahulu'}</b><strong>${esc(address.recipientName)}</strong><span>${esc(address.summary)}</span></div><i>${address.isConfirmed && address.id === selectedAddressId ? '✓' : '›'}</i></button>`).join('') : '<div class="ca-empty-address"><b>Belum ada saved address</b></div>'}
     <button data-ca-add-from-selector class="ca-add-selector">＋ Add New Address</button></div>`);
   wrap.querySelectorAll<HTMLButtonElement>('[data-ca-select-address]').forEach((button) => {
     button.onclick = () => {
-      selectedAddressId = button.dataset.caSelectAddress || '';
+      const chosen = account?.addresses.find((address) => address.id === button.dataset.caSelectAddress) || null;
+      if (!chosen) return;
+      if (!chosen.isConfirmed || button.dataset.caUnconfirmed === '1') {
+        wrap.remove();
+        openAddressForm(chosen, () => toast('Address confirmed and selected'));
+        return;
+      }
+      selectedAddressId = chosen.id;
       sessionStorage.setItem('customer_selected_address_id', selectedAddressId);
       wrap.remove(); enhanceCheckout(); toast('Delivery address selected');
     };
@@ -289,7 +305,7 @@ function enhanceCheckout() {
     card.classList.toggle('empty-address', !address);
     card.innerHTML = address
       ? `<span>📍</span><div><b>${esc(address.label)}${address.isDefault ? ' <small>Default</small>' : ''}</b><p>${esc(address.recipientName)} • ${esc(address.summary)}</p></div><i>›</i>`
-      : `<span>📍</span><div><b>Add delivery address</b><p>Saved address diperlukan untuk courier checkout</p></div><i>›</i>`;
+      : `<span>📍</span><div><b>Add or confirm delivery address</b><p>Address lama perlu disemak sebelum courier checkout</p></div><i>›</i>`;
   }
   if (!main.querySelector('[data-ca-checkout-profile]')) {
     const profile = document.createElement('button');
@@ -318,7 +334,7 @@ async function beginLoggedCheckout() {
   if (!cart.length) { toast('Cart masih kosong', true); return; }
   const shipping = checkoutShipping();
   const address = selectedAddress();
-  if (shipping !== 'pickup' && !address) { await openAddressSelector(); return; }
+  if (shipping !== 'pickup' && !address) { toast('Tambah atau sahkan delivery address dahulu', true); await openAddressSelector(); return; }
   const date = document.querySelector<HTMLInputElement>('#date')?.value || sessionStorage.getItem('need_date') || '';
   if (!date) { toast('Pilih Date Need dahulu', true); document.querySelector<HTMLInputElement>('#date')?.focus(); return; }
   const payment = shipping === 'pickup' ? document.querySelector<HTMLButtonElement>('.pay-option.active[data-p]')?.dataset.p || 'QR Pay' : 'QR Pay';
