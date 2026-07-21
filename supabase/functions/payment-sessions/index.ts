@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
@@ -14,10 +14,26 @@ function json(data: unknown, status = 200) {
   });
 }
 
+function legacyShape(result: Record<string, unknown>, orderId: string) {
+  const expiresMs = Number(result.expiresAt || 0);
+  return {
+    id: result.id,
+    order_id: orderId,
+    order_token: result.orderToken,
+    expected_amount: Number(result.expectedAmount || 0),
+    base_amount: Number(result.baseAmount || 0),
+    discount: Number(result.discount || 0),
+    status: result.status || "pending",
+    expires_at: expiresMs ? new Date(expiresMs).toISOString() : null,
+    transaction_id: result.transactionId || null,
+    receipt_name: result.receiptName || null,
+    submitted_at: Number(result.submittedAt || 0) ? new Date(Number(result.submittedAt)).toISOString() : null,
+    matched_at: Number(result.matchedAt || 0) ? new Date(Number(result.matchedAt)).toISOString() : null,
+  };
+}
+
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 200, headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: corsHeaders });
 
   try {
     const supabase = createClient(
@@ -26,15 +42,9 @@ Deno.serve(async (req: Request) => {
     );
 
     const url = new URL(req.url);
-    // Routes:
-    //   GET  /payment-sessions?order_id=xxx          list sessions for an order
-    //   POST /payment-sessions                        create a payment session
-    //   PATCH /payment-sessions/:id                   update session (status, receipt, txn)
-
     const parts = url.pathname.replace(/^\/payment-sessions\/?/, "").split("/").filter(Boolean);
     const sessionId = parts[0] ?? null;
 
-    // GET — list sessions for an order
     if (req.method === "GET") {
       const orderId = url.searchParams.get("order_id");
       if (!orderId) return json({ error: "order_id query param required" }, 400);
@@ -49,40 +59,40 @@ Deno.serve(async (req: Request) => {
       return json(data);
     }
 
-    // POST — create a session
     if (req.method === "POST") {
-      const body = await req.json() as {
-        order_id: string;
-        expected_amount: number;
-        base_amount: number;
-        discount?: number;
+      const body = await req.json().catch(() => ({})) as {
+        order_id?: string;
+        force_new?: boolean;
       };
 
-      if (!body.order_id || !body.expected_amount || !body.base_amount) {
-        return json({ error: "order_id, expected_amount, and base_amount are required" }, 400);
+      if (!body.order_id) return json({ error: "order_id is required" }, 400);
+
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .select("id,public_token,total")
+        .eq("id", body.order_id)
+        .maybeSingle();
+
+      if (orderError) return json({ error: orderError.message }, 500);
+      if (!order?.public_token) return json({ error: "Order not found" }, 404);
+
+      const { data, error } = await supabase.rpc("icetak_prepare_payment", {
+        p_order_token: order.public_token,
+        p_force_new: Boolean(body.force_new),
+      });
+
+      if (error) {
+        const status = error.message.includes("temporarily full") ? 409 : 500;
+        return json({ error: error.message }, status);
       }
 
-      const { data, error } = await supabase
-        .from("payment_sessions")
-        .insert({
-          order_id: body.order_id,
-          expected_amount: body.expected_amount,
-          base_amount: body.base_amount,
-          discount: body.discount ?? null,
-          status: "pending",
-        })
-        .select()
-        .single();
-
-      if (error) return json({ error: error.message }, 500);
-      return json(data, 201);
+      return json(legacyShape(data as Record<string, unknown>, order.id), 201);
     }
 
-    // PATCH — update a session
     if (req.method === "PATCH") {
       if (!sessionId) return json({ error: "Session ID required in path" }, 400);
 
-      const body = await req.json() as {
+      const body = await req.json().catch(() => ({})) as {
         status?: string;
         transaction_id?: string;
         receipt_path?: string;
@@ -111,9 +121,6 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Method not allowed" }, 405);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: message }, 500);
   }
 });
