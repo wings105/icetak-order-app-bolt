@@ -12,6 +12,7 @@ if (!window.__ICETAK_ACCOUNT_STABILITY__) {
   const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
   const nativeGet = descriptor?.get;
   const nativeSet = descriptor?.set;
+  const lastAddressCardHtml = new WeakMap<Element, string>();
 
   if (nativeGet && nativeSet) {
     Object.defineProperty(Element.prototype, 'innerHTML', {
@@ -19,14 +20,12 @@ if (!window.__ICETAK_ACCOUNT_STABILITY__) {
       enumerable: descriptor.enumerable,
       get: nativeGet,
       set(value: string) {
-        // customer-account.ts enhances the checkout address card from a
-        // MutationObserver. Re-applying identical HTML creates a childList
-        // mutation loop that can starve all click handlers.
+        const next = String(value);
         if (this instanceof HTMLElement && this.classList.contains('address-card')) {
-          const current = nativeGet.call(this);
-          if (current === String(value)) return;
+          if (lastAddressCardHtml.get(this) === next) return;
+          lastAddressCardHtml.set(this, next);
         }
-        nativeSet.call(this, value);
+        nativeSet.call(this, next);
       },
     });
   }
@@ -49,8 +48,7 @@ if (!window.__ICETAK_ACCOUNT_STABILITY__) {
   function continueShopping() {
     removeAccountModals();
     const isPortal = Boolean(document.querySelector('main.history-page,main.order-detail-page,[data-full-portal="1"]'));
-    if (!isPortal) return;
-    location.assign(location.origin + location.pathname);
+    if (isPortal) location.assign(location.origin + location.pathname);
   }
 
   function enhanceProfileDialog(root: ParentNode = document) {
@@ -60,19 +58,23 @@ if (!window.__ICETAK_ACCOUNT_STABILITY__) {
         nav.dataset.caAccountNav = '1';
         nav.className = 'ca-account-nav';
         nav.innerHTML = '<button type="button" data-ca-my-orders>📦 My Orders</button><button type="button" data-ca-continue-shopping>🛍️ Continue Shopping</button>';
-        const header = dialog.querySelector('.ca-profile-head');
-        header?.insertAdjacentElement('afterend', nav);
+        dialog.querySelector('.ca-profile-head')?.insertAdjacentElement('afterend', nav);
       }
 
-      dialog.querySelectorAll<HTMLElement>('.ca-address:not(:has([data-ca-edit-address*="unconfirmed"]))').forEach(() => {
-        // Confirmation state is already displayed by customer-account.ts.
-        // No additional mutation is needed here.
+      dialog.querySelectorAll<HTMLElement>('.ca-address').forEach((card) => {
+        const confirmed = card.querySelector('header small')?.textContent?.includes('Disahkan customer');
+        const footer = card.querySelector('footer');
+        if (confirmed && footer && !footer.querySelector('[data-ca-confirmed-state]')) {
+          const state = document.createElement('span');
+          state.dataset.caConfirmedState = '1';
+          state.className = 'ca-confirmed-state';
+          state.textContent = '✓ Address Confirmed';
+          footer.prepend(state);
+        }
       });
     });
   }
 
-  // Capture phase makes close work even when another listener or a busy
-  // component stops the bubbling phase.
   document.addEventListener('click', (event) => {
     const target = event.target as HTMLElement | null;
     if (!target) return;
@@ -103,7 +105,7 @@ if (!window.__ICETAK_ACCOUNT_STABILITY__) {
   }, true);
 
   const style = document.createElement('style');
-  style.textContent = `.ca-account-nav{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}.ca-account-nav button{border:1px solid #dbe3ec;background:#fff;border-radius:12px;padding:12px 10px;font-weight:900;color:#1f2937;cursor:pointer}.ca-account-nav button:first-child{background:#fff4f0;border-color:#ffb8a9;color:#d93c1c}@media(max-width:600px){.ca-account-nav{grid-template-columns:1fr}}`;
+  style.textContent = `.ca-account-nav{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}.ca-account-nav button{border:1px solid #dbe3ec;background:#fff;border-radius:12px;padding:12px 10px;font-weight:900;color:#1f2937;cursor:pointer}.ca-account-nav button:first-child{background:#fff4f0;border-color:#ffb8a9;color:#d93c1c}.ca-confirmed-state{display:inline-flex;align-items:center;color:#15803d;background:#ecfdf3;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:900}@media(max-width:600px){.ca-account-nav{grid-template-columns:1fr}}`;
   document.head.append(style);
 
   const nativeObserver = new MutationObserver((records) => {
