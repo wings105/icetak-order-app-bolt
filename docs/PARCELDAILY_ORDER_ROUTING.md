@@ -34,6 +34,43 @@ clickup_tasks.clickup_list_id   = 18375902
 production_components.clickup_task_id = ClickUp task ID
 ```
 
+Activepieces should call the service-role-only RPC instead of writing tables directly:
+
+```http
+POST /rest/v1/rpc/link_clickup_production_task
+Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>
+apikey: <SUPABASE_SERVICE_ROLE_KEY>
+Content-Type: application/json
+```
+
+```json
+{
+  "p_order_reference": "<orders.id or order number>",
+  "p_component_id": "<production_components.id>",
+  "p_clickup_task_id": "<ClickUp task ID>",
+  "p_clickup_list_id": "18375902",
+  "p_task_url": "https://app.clickup.com/t/...",
+  "p_status": "new custom"
+}
+```
+
+For the one order-level record in **Order database**, call:
+
+```http
+POST /rest/v1/rpc/link_clickup_order_record
+```
+
+```json
+{
+  "p_order_reference": "<orders.id or order number>",
+  "p_clickup_task_id": "<Order database ClickUp task ID>",
+  "p_clickup_list_id": "901600842214",
+  "p_task_url": "https://app.clickup.com/t/..."
+}
+```
+
+Both RPCs are idempotent for the same component/order and automatically reconcile a ParcelDaily shipment that arrived before the ClickUp mapping.
+
 The reference resolver accepts, in order:
 
 1. `orders.id`
