@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { IconMore, IconRefresh, IconTrend, IconBox, IconShipping } from '../components/Icons';
+import { IconMore, IconRefresh, IconShipping } from '../components/Icons';
 
 type Shipment = {
   id: string;
@@ -161,5 +161,3 @@ export default function Shipping() {
   );
 }
 
-// Silence unused-import warning
-void IconTrend; void IconBox;

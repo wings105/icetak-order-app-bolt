@@ -11,32 +11,34 @@ import Integrations from './pages/Integrations';
 import StaffRoles from './pages/StaffRoles';
 import Settings from './pages/Settings';
 
-type PageInfo = { title: string; crumb: string };
-
-const pageInfo: Record<string, PageInfo> = {
-  dashboard: { title: 'Order Control Tower', crumb: 'Main / Order Control Tower' },
-  payments: { title: 'Payments Center', crumb: 'Operations / Payments' },
-  shipping: { title: 'Shipping & Delivery', crumb: 'Operations / Shipping' },
-  'whatsapp-control': { title: 'WhatsApp Control', crumb: 'Operations / WhatsApp / Control' },
-  'whatsapp-templates': { title: 'WhatsApp Templates', crumb: 'Operations / WhatsApp / Templates' },
-  'whatsapp-outbox': { title: 'WhatsApp Outbox', crumb: 'Operations / WhatsApp / Outbox' },
-  integrations: { title: 'Integrations', crumb: 'Control / Integrations' },
-  staff: { title: 'Staff & Roles', crumb: 'Control / Staff & Roles' },
-  settings: { title: 'Settings', crumb: 'Control / Settings' },
+const pageMap: Record<string, { title: string; subtitle?: string }> = {
+  dashboard: { title: 'Order Control Tower', subtitle: 'Business Overview' },
+  orders: { title: 'Orders', subtitle: 'All orders' },
+  payments: { title: 'Payments Center', subtitle: 'Transactions' },
+  shipping: { title: 'Shipping & Delivery', subtitle: 'Parcels' },
+  'whatsapp-control': { title: 'WhatsApp Control', subtitle: 'Pipeline' },
+  'whatsapp-templates': { title: 'WhatsApp Templates' },
+  'whatsapp-outbox': { title: 'WhatsApp Outbox' },
+  integrations: { title: 'Integrations', subtitle: 'Third-party' },
+  staff: { title: 'Staff / Roles' },
+  settings: { title: 'Settings' },
 };
 
 export default function App() {
-  const [active, setActive] = useState('dashboard');
+  const [page, setPage] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const handleNavigate = (key: string) => {
-    setActive(key);
+  const navigate = (key: string) => {
+    setPage(key);
     setMobileOpen(false);
   };
 
+  const info = pageMap[page] || pageMap.dashboard;
+
   const renderPage = () => {
-    switch (active) {
+    switch (page) {
       case 'dashboard': return <Dashboard />;
+      case 'orders': return <Dashboard />;
       case 'payments': return <Payments />;
       case 'shipping': return <Shipping />;
       case 'whatsapp-control': return <WhatsAppControl />;
@@ -49,23 +51,21 @@ export default function App() {
     }
   };
 
-  const info = pageInfo[active] || pageInfo.dashboard;
-
   return (
-    <div className="app">
+    <div className="app-layout">
       <Sidebar
-        active={active}
-        onNavigate={handleNavigate}
+        active={page}
+        onNavigate={navigate}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
       />
-      <div className="main">
+      <div className="main-content">
         <Topbar
           title={info.title}
-          crumb={info.crumb}
+          subtitle={info.subtitle}
           onOpenMobile={() => setMobileOpen(true)}
         />
-        <div className="content">
+        <div className="content-area">
           {renderPage()}
         </div>
       </div>

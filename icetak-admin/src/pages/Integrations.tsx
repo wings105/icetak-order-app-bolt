@@ -41,10 +41,11 @@ export default function Integrations() {
 
   useEffect(() => { load(); }, []);
 
-  const grouped = rows.reduce<Record<string, Row[]>>((acc, r) => {
-    (acc[r.provider] ||= []).push(r);
-    return acc;
-  }, {});
+  const grouped: Record<string, Row[]> = {};
+  for (const r of rows) {
+    if (!grouped[r.provider]) grouped[r.provider] = [];
+    grouped[r.provider].push(r);
+  }
 
   return (
     <div className="fade-in">

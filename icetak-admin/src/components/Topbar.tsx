@@ -1,37 +1,33 @@
-import { IconMenu, IconRefresh, IconBell } from './Icons';
+import { IconBell, IconRefresh, IconMenu } from './Icons';
 
 type Props = {
   title: string;
-  crumb: string;
+  subtitle?: string;
   onOpenMobile: () => void;
   onRefresh?: () => void;
-  refreshing?: boolean;
 };
 
-export default function Topbar({ title, crumb, onOpenMobile, onRefresh, refreshing }: Props) {
+export default function Topbar({ title, subtitle, onOpenMobile, onRefresh }: Props) {
   return (
     <header className="topbar">
-      <button className="topbar-icon-btn" onClick={onOpenMobile} style={{ display: 'none' }} id="mobile-menu-btn">
+      <button className="topbar-mobile-btn" onClick={onOpenMobile}>
         <IconMenu size={20} />
       </button>
-
-      <div style={{ minWidth: 0 }}>
-        <div className="topbar-title">{title}</div>
-        <div className="topbar-crumb">{crumb}</div>
+      <div className="topbar-left">
+        <h1 className="topbar-title">{title}</h1>
+        {subtitle && <span className="topbar-subtitle">{subtitle}</span>}
       </div>
-
-      <span className="topbar-live">Live</span>
-
-      <div className="topbar-actions">
+      <div className="topbar-right">
         {onRefresh && (
-          <button className="topbar-icon-btn" onClick={onRefresh} disabled={refreshing} title="Refresh">
-            <IconRefresh size={16} style={{ animation: refreshing ? 'spin 0.7s linear infinite' : undefined }} />
+          <button className="topbar-btn" onClick={onRefresh} title="Refresh">
+            <IconRefresh size={16} />
           </button>
         )}
-        <button className="topbar-icon-btn" title="Notifications">
+        <button className="topbar-btn" title="Notifications">
           <IconBell size={18} />
+          <span className="topbar-dot" />
         </button>
-        <div className="topbar-avatar" title="Admin User">AD</div>
+        <div className="topbar-avatar">AD</div>
       </div>
     </header>
   );
