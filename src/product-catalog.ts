@@ -69,6 +69,29 @@ function rowToProduct(row: SearchRow): CatalogProduct {
     source: row.source || 'supabase',
   };
 }
+async function shareProduct(title: string, text: string, url: string, button?: HTMLButtonElement) {
+  if (typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ title, text, url });
+      return;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      console.warn('Native product share failed, using link fallback', error);
+    }
+  }
+
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable');
+    await navigator.clipboard.writeText(url);
+    if (button) {
+      const original = button.textContent || 'Kongsi produk';
+      button.textContent = 'Link disalin ✓';
+      window.setTimeout(() => { button.textContent = original; }, 1800);
+    }
+  } catch {
+    window.prompt('Salin link produk:', url);
+  }
+}
 function queryRoute() {
   const url = new URL(location.href);
   if (url.searchParams.has('order') || url.searchParams.has('confirm') || url.searchParams.has('login')) return { kind: 'none' as const, value: '' };
@@ -199,13 +222,17 @@ async function renderCatalogProduct(slug: string) {
   try {
     const product = await getProduct(slug);
     setMeta(`${product.displayTitle} | DecoCake.my`, product.description || product.title);
-    const wa = `https://wa.me/60179860656?text=${encodeURIComponent(`Hi iCetak, saya berminat dengan produk ini:\n${product.displayTitle}\n${location.href}`)}`;
-    root.innerHTML = shell(product.displayTitle, `<main class="catalog-route-main"><article class="catalog-product-detail"><img src="${esc(product.imageUrl)}" alt="${esc(product.displayTitle)}"><div class="catalog-detail-copy"><span>${esc(product.category)}</span><h2>${esc(product.displayTitle)}</h2><p>${esc(product.description || product.title)}</p>${product.parentSku ? `<small>Parent SKU: ${esc(product.parentSku)}</small>` : ''}<div class="catalog-detail-actions"><a class="primary" href="${wa}" target="_blank" rel="noopener">Tanya melalui WhatsApp</a>${product.shopeeUrl ? `<a href="${esc(product.shopeeUrl)}" target="_blank" rel="noopener">Buka di Shopee</a>` : ''}<button id="copyCatalogLink">Salin link produk</button></div></div></article><section class="catalog-custom-cta"><b>Tak jumpa design tepat?</b><p>Gunakan servis Cake Topper Custom dan hantarkan contoh kepada kami.</p><a href="${esc(productUrl(BASIC.printed))}">Buka Cake Topper Custom</a></section></main>`);
+    const url = productUrl(product.slug);
+    const wa = `https://wa.me/60179860656?text=${encodeURIComponent(`Hi iCetak, saya berminat dengan produk ini:\n${product.displayTitle}\n${url}`)}`;
+    root.innerHTML = shell(product.displayTitle, `<main class="catalog-route-main"><article class="catalog-product-detail"><img src="${esc(product.imageUrl)}" alt="${esc(product.displayTitle)}"><div class="catalog-detail-copy"><span>${esc(product.category)}</span><h2>${esc(product.displayTitle)}</h2><p>${esc(product.description || product.title)}</p>${product.parentSku ? `<small>Parent SKU: ${esc(product.parentSku)}</small>` : ''}<div class="catalog-detail-actions"><a class="primary" href="${wa}" target="_blank" rel="noopener">Tanya melalui WhatsApp</a>${product.shopeeUrl ? `<a href="${esc(product.shopeeUrl)}" target="_blank" rel="noopener">Buka di Shopee</a>` : ''}<button id="shareCatalogProduct" type="button">Kongsi produk</button></div></div></article><section class="catalog-custom-cta"><b>Tak jumpa design tepat?</b><p>Gunakan servis Cake Topper Custom dan hantarkan contoh kepada kami.</p><a href="${esc(productUrl(BASIC.printed))}">Buka Cake Topper Custom</a></section></main>`);
     bindShell();
-    document.querySelector<HTMLButtonElement>('#copyCatalogLink')!.onclick = async () => {
-      await navigator.clipboard.writeText(location.href);
-      document.querySelector<HTMLButtonElement>('#copyCatalogLink')!.textContent = 'Link disalin ✓';
-    };
+    const shareButton = document.querySelector<HTMLButtonElement>('#shareCatalogProduct')!;
+    shareButton.onclick = () => void shareProduct(
+      product.displayTitle,
+      product.description || product.title,
+      url,
+      shareButton,
+    );
   } catch (error) {
     console.error('Supabase catalogue product failed', error);
     root.innerHTML = shell('Produk tidak dijumpai', '<main class="catalog-route-main"><section class="catalog-empty"><b>Link produk tidak sah atau produk sudah tidak aktif.</b><button id="catalogHomeFromError">Kembali ke katalog</button></section></main>');
@@ -246,13 +273,20 @@ function injectBasicShare() {
   if (route.kind !== 'product' || !BASIC_BY_SLUG[route.value]) return;
   const detailCard = document.querySelector<HTMLElement>('.detail-page .detail-card');
   if (!detailCard || detailCard.querySelector('.basic-share-link')) return;
+  const key = BASIC_BY_SLUG[route.value];
+  const title = BASIC_LABEL[key];
+  const url = productUrl(route.value);
   const button = document.createElement('button');
   button.className = 'basic-share-link';
-  button.textContent = 'Salin link produk';
-  button.onclick = async () => {
-    await navigator.clipboard.writeText(productUrl(route.value));
-    button.textContent = 'Link disalin ✓';
-  };
+  button.type = 'button';
+  button.textContent = 'Kongsi produk';
+  button.setAttribute('aria-label', `Kongsi ${title}`);
+  button.onclick = () => void shareProduct(
+    title,
+    `${title} custom daripada DecoCake.my.`,
+    url,
+    button,
+  );
   detailCard.append(button);
 }
 function applyRoute() {
