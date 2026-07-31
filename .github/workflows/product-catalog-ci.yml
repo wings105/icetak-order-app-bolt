@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/supabase-product-catalog-runtime
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -53,6 +56,7 @@ jobs:
           ! test -e cron.json
 
       - name: Commit cleanup
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: |
           if git diff --quiet; then
             echo "No cleanup changes needed"
@@ -62,4 +66,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "fix: remove AppDeploy catalogue runtime [skip ci]"
-          git push
+          git push origin HEAD:fix/supabase-product-catalog-runtime
