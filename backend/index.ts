@@ -33,7 +33,8 @@ const SUPABASE_PROJECT_REF='buivecgahhmrhlmfujgt';
 const SUPABASE_PROJECT_URL='https://buivecgahhmrhlmfujgt.supabase.co';
 async function checkSupabaseBridge(){try{const response=await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/icetak-bridge`);return {configured:true,projectRef:SUPABASE_PROJECT_REF,bridge:'icetak-bridge',reachable:response.status<500,status:response.status}}catch{return {configured:true,projectRef:SUPABASE_PROJECT_REF,bridge:'icetak-bridge',reachable:false,status:0}}}
 async function adminOrders(){const {items}=await db.list<OrderRow>('orders');const {items:customers}=await db.list<CustomerRow>('customers');const {items:audits}=await db.list<AuditRow>('admin_audit');const customerMap=new Map(customers.map(c=>[c.public_token,c]));const latestAudit=new Map<string,AuditRow>();audits.sort((a,b)=>b.created_at-a.created_at).forEach(a=>{if(!latestAudit.has(a.order_db_id))latestAudit.set(a.order_db_id,a)});return Promise.all(items.sort((a,b)=>b.created_at-a.created_at).map(async o=>{const customer=customerMap.get(o.customer_token),audit=latestAudit.get(o.id);const shaped=await shapeOrder(o);return {...shaped,dbId:o.id,customerToken:o.customer_token,customerName:customer?.name||'Customer',customerPhone:customer?.phone||'',adminStatus:o.admin_status||o.status,lastAction:audit?`${audit.action} by ${audit.actor} • ${dateText(audit.created_at)}`:''}}))}
-export const handler=router({
+export const productCatalogSyncHandler=async()=>{const result=await syncProductCatalog();return {statusCode:200,body:JSON.stringify(result)}};
+export const handler = router({
  ...shipmentRoutes,
  ...paymentRoutes,
  ...realtimeSubscriptionRoutes,
