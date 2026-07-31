@@ -1,46 +1,26 @@
-name: Product Catalogue Supabase Cleanup
+name: Product Catalogue Supabase CI
 
 on:
   push:
     branches:
-      - fix/supabase-product-catalog-runtime
+      - main
   pull_request:
     branches:
       - main
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  clean-and-build:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: fix/supabase-product-catalog-runtime
-
-      - name: Remove AppDeploy catalogue runtime
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          backend = Path('backend/index.ts')
-          source = backend.read_text()
-          source = source.replace("import { productCatalogRoutes, syncProductCatalog } from './product-catalog-routes';\n", '')
-          source = source.replace("export const productCatalogSyncHandler=async()=>{const result=await syncProductCatalog();return {statusCode:200,body:JSON.stringify(result)}};\n", '')
-          source = source.replace(' ...productCatalogRoutes,\n', '')
-          backend.write_text(source)
-
-          frontend = Path('src/product-catalog.ts')
-          catalogue = frontend.read_text().replace("import { supabase } from './appdeploy-client';", "import { supabase } from './supabase-client';")
-          frontend.write_text(catalogue)
-          PY
-          rm -f backend/product-catalog-routes.ts cron.json tests/tests.txt
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -49,26 +29,15 @@ jobs:
       - name: Build Vite frontend
         run: npm run build
 
-      - name: Verify Supabase catalogue runtime
+      - name: Verify Supabase catalogue architecture
         run: |
           test -f src/supabase-client.ts
           test -f supabase/functions/product-catalog-sync/index.ts
           test -f supabase/migrations/20260731114500_product_catalog_supabase_runtime.sql
           grep -q "search_product_catalog" src/product-catalog.ts
           grep -q "from './supabase-client'" src/product-catalog.ts
+          grep -q "x-ap-secret" supabase/functions/product-catalog-sync/index.ts
           ! grep -q "productCatalogRoutes" backend/index.ts
           ! test -e backend/product-catalog-routes.ts
           ! test -e cron.json
-
-      - name: Commit cleanup
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        run: |
-          if git diff --quiet; then
-            echo "No cleanup changes needed"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix: complete Supabase catalogue cleanup [skip ci]"
-          git push origin HEAD:fix/supabase-product-catalog-runtime
+          ! test -e tests/tests.txt
