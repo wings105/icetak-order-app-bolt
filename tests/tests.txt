@@ -1,0 +1,49 @@
+# Tests
+
+## Test 1 - Search link shows matching products [sanity]
+Viewport: desktop
+Covers: shareable search URL, catalogue search, Spider-Man spelling normalization
+Description: Verifies a customer can open a shared search URL and immediately see matching products.
+
+Steps:
+1. Navigate to the app with query parameter q=spiderman
+2. Wait for the catalogue results to load
+3. Inspect the visible product cards
+
+Expected: The page heading shows results for spiderman and at least one visible product card contains Spider-Man or Spiderman.
+
+## Test 2 - Basic acrylic slug opens the existing order flow
+Viewport: mobile
+Covers: shareable basic-product slug, direct product routing, existing Buy Now workflow
+Description: Verifies the Acrylic Cake Topper slug opens the original configurable product page.
+
+Steps:
+1. Navigate to the app with hash route #/product/acrylic-cake-topper
+2. Wait for the product page to load
+3. Inspect the bottom product actions
+
+Expected: Acrylic Cake Topper is visible together with Add to Cart and Buy Now actions.
+
+## Test 3 - Unknown search has a useful empty state
+Viewport: mobile
+Covers: no-result guardrail, custom-service recovery links
+Description: Verifies a customer is not left on a blank page when a keyword has no matching products.
+
+Steps:
+1. Navigate to the app with query parameter q=zzznoproduct999
+2. Wait for search to finish
+3. Inspect the empty-state actions
+
+Expected: A no-product message is visible and links to basic custom services are offered.
+
+## Test 4 - Catalogue product detail provides contact actions
+Viewport: desktop
+Covers: catalogue product route, WhatsApp enquiry, share-link action
+Description: Verifies a search result can be opened and shared or discussed with iCetak.
+
+Steps:
+1. Navigate to the app with query parameter q=spiderman
+2. Open the first visible Spider-Man product card
+3. Inspect the product actions
+
+Expected: The product detail shows a WhatsApp enquiry action and a Salin link produk button.
