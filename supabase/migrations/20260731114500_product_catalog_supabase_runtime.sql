@@ -66,28 +66,33 @@ as $$
         or similarity(lower(p.search_text), params.q) >= 0.18
       )
   ),
-  counted as (
-    select matches.*, count(*) over () as total_count
+  ranked as (
+    select
+      matches.*,
+      count(*) over () as total_count,
+      row_number() over (
+        order by matches.search_rank desc, matches.source_updated_at desc nulls last, matches.display_title
+      ) as row_no
     from matches
   )
   select
-    counted.slug,
-    counted.display_title,
-    counted.title,
-    counted.description,
-    counted.category,
-    counted.parent_sku,
-    counted.shopee_product_id,
-    counted.image_url,
-    counted.shopee_url,
-    counted.clickup_task_id,
-    counted.source,
-    counted.total_count
-  from counted
+    ranked.slug,
+    ranked.display_title,
+    ranked.title,
+    ranked.description,
+    ranked.category,
+    ranked.parent_sku,
+    ranked.shopee_product_id,
+    ranked.image_url,
+    ranked.shopee_url,
+    ranked.clickup_task_id,
+    ranked.source,
+    ranked.total_count
+  from ranked
   cross join params
-  order by counted.search_rank desc, counted.source_updated_at desc nulls last, counted.display_title
-  limit params.take
-  offset params.skip;
+  where ranked.row_no > params.skip
+    and ranked.row_no <= params.skip + params.take
+  order by ranked.row_no;
 $$;
 
 revoke all on function public.search_product_catalog(text, integer, integer) from public;
