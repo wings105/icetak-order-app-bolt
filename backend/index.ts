@@ -4,6 +4,7 @@ import { shipmentRoutes } from './shipment-routes';
 import { paymentRoutes } from './payment-routes';
 import { notifySubscribers, realtimeSubscriptionRoutes } from './realtime-subscribers';
 import { getProductionStatus, setProductionUrl, queueProduction } from './production-integration';
+import { productCatalogRoutes, syncProductCatalog } from './product-catalog-routes';
 
 type InputItem={k:string;title:string;process:string;review?:string;size:string;style:string;customText?:string;price:number;qty:number};
 type Customer={name:string;address_line1:string;city:string;postcode:string;state:string;phone:string;phone_masked:string;address_masked:string};
@@ -38,6 +39,7 @@ export const handler = router({
  ...shipmentRoutes,
  ...paymentRoutes,
  ...realtimeSubscriptionRoutes,
+ ...productCatalogRoutes,
  'GET /api/_healthcheck':[async()=>json({message:'Success'})],
  'GET /api/supabase/status':[async()=>json(await checkSupabaseBridge())],
  'GET /api/migration/appdeploy-counts':[async()=>{const tables=['customers','orders','order_items','production_components','payment_sessions','shipment_events','integration_settings','integration_outbox','notification_outbox','admin_sessions','admin_permissions','login_tokens','entity_subscriptions','unmatched_payment_transactions'];const counts:Record<string,number>={};for(const table of tables){try{const {items}=await db.list(table);counts[table]=items.length}catch{counts[table]=-1}}return json({ok:true,source:'appdeploy',counts})}],
