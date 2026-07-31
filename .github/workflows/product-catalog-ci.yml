@@ -34,6 +34,8 @@ jobs:
           test -f src/supabase-client.ts
           test -f src/catalog-configurator.ts
           test -f src/catalog-configurator.css
+          test -f src/customer-catalog-dashboard.ts
+          test -f src/customer-catalog-dashboard.css
           test -f supabase/functions/product-catalog-sync/index.ts
           test -f supabase/functions/clickup-events-ingest/index.ts
           test -f supabase/functions/clickup-production-outbox/index.ts
@@ -47,6 +49,8 @@ jobs:
           grep -q "product_order_profiles" src/catalog-configurator.ts
           grep -q "catalog_clickup_task_id" src/catalog-configurator.ts
           grep -q "wording_mode" src/catalog-configurator.ts
+          grep -q "icetak_customer_order_dashboard" src/customer-catalog-dashboard.ts
+          grep -q "product_snapshot" src/customer-catalog-dashboard.ts
           grep -q "x-ap-secret" supabase/functions/product-catalog-sync/index.ts
           grep -q "901604488980" supabase/functions/clickup-events-ingest/index.ts
           grep -q "task_description" supabase/functions/clickup-production-outbox/index.ts
