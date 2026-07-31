@@ -1,5 +1,5 @@
 import './product-catalog.css';
-import { supabase } from './appdeploy-client';
+import { supabase } from './supabase-client';
 
 type BasicKey = 'edible' | 'burnaway' | 'wafer' | 'printed' | 'mirror' | 'acrylic';
 type CatalogProduct = {
