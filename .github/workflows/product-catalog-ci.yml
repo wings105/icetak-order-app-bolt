@@ -25,12 +25,16 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          path = Path('backend/index.ts')
-          source = path.read_text()
+          backend = Path('backend/index.ts')
+          source = backend.read_text()
           source = source.replace("import { productCatalogRoutes, syncProductCatalog } from './product-catalog-routes';\n", '')
           source = source.replace("export const productCatalogSyncHandler=async()=>{const result=await syncProductCatalog();return {statusCode:200,body:JSON.stringify(result)}};\n", '')
           source = source.replace(' ...productCatalogRoutes,\n', '')
-          path.write_text(source)
+          backend.write_text(source)
+
+          frontend = Path('src/product-catalog.ts')
+          catalogue = frontend.read_text().replace("import { supabase } from './appdeploy-client';", "import { supabase } from './supabase-client';")
+          frontend.write_text(catalogue)
           PY
           rm -f backend/product-catalog-routes.ts cron.json tests/tests.txt
 
@@ -47,10 +51,11 @@ jobs:
 
       - name: Verify Supabase catalogue runtime
         run: |
+          test -f src/supabase-client.ts
           test -f supabase/functions/product-catalog-sync/index.ts
           test -f supabase/migrations/20260731114500_product_catalog_supabase_runtime.sql
           grep -q "search_product_catalog" src/product-catalog.ts
-          grep -q "from './appdeploy-client'" src/product-catalog.ts
+          grep -q "from './supabase-client'" src/product-catalog.ts
           ! grep -q "productCatalogRoutes" backend/index.ts
           ! test -e backend/product-catalog-routes.ts
           ! test -e cron.json
@@ -65,5 +70,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "fix: remove AppDeploy catalogue runtime [skip ci]"
+          git commit -m "fix: complete Supabase catalogue cleanup [skip ci]"
           git push origin HEAD:fix/supabase-product-catalog-runtime
