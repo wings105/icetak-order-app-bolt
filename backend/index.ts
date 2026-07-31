@@ -4,7 +4,6 @@ import { shipmentRoutes } from './shipment-routes';
 import { paymentRoutes } from './payment-routes';
 import { notifySubscribers, realtimeSubscriptionRoutes } from './realtime-subscribers';
 import { getProductionStatus, setProductionUrl, queueProduction } from './production-integration';
-import { productCatalogRoutes, syncProductCatalog } from './product-catalog-routes';
 
 type InputItem={k:string;title:string;process:string;review?:string;size:string;style:string;customText?:string;price:number;qty:number};
 type Customer={name:string;address_line1:string;city:string;postcode:string;state:string;phone:string;phone_masked:string;address_masked:string};
@@ -34,12 +33,10 @@ const SUPABASE_PROJECT_REF='buivecgahhmrhlmfujgt';
 const SUPABASE_PROJECT_URL='https://buivecgahhmrhlmfujgt.supabase.co';
 async function checkSupabaseBridge(){try{const response=await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/icetak-bridge`);return {configured:true,projectRef:SUPABASE_PROJECT_REF,bridge:'icetak-bridge',reachable:response.status<500,status:response.status}}catch{return {configured:true,projectRef:SUPABASE_PROJECT_REF,bridge:'icetak-bridge',reachable:false,status:0}}}
 async function adminOrders(){const {items}=await db.list<OrderRow>('orders');const {items:customers}=await db.list<CustomerRow>('customers');const {items:audits}=await db.list<AuditRow>('admin_audit');const customerMap=new Map(customers.map(c=>[c.public_token,c]));const latestAudit=new Map<string,AuditRow>();audits.sort((a,b)=>b.created_at-a.created_at).forEach(a=>{if(!latestAudit.has(a.order_db_id))latestAudit.set(a.order_db_id,a)});return Promise.all(items.sort((a,b)=>b.created_at-a.created_at).map(async o=>{const customer=customerMap.get(o.customer_token),audit=latestAudit.get(o.id);const shaped=await shapeOrder(o);return {...shaped,dbId:o.id,customerToken:o.customer_token,customerName:customer?.name||'Customer',customerPhone:customer?.phone||'',adminStatus:o.admin_status||o.status,lastAction:audit?`${audit.action} by ${audit.actor} • ${dateText(audit.created_at)}`:''}}))}
-export const productCatalogSyncHandler=async()=>{const result=await syncProductCatalog();return {statusCode:200,body:JSON.stringify(result)}};
 export const handler = router({
  ...shipmentRoutes,
  ...paymentRoutes,
  ...realtimeSubscriptionRoutes,
- ...productCatalogRoutes,
  'GET /api/_healthcheck':[async()=>json({message:'Success'})],
  'GET /api/supabase/status':[async()=>json(await checkSupabaseBridge())],
  'GET /api/migration/appdeploy-counts':[async()=>{const tables=['customers','orders','order_items','production_components','payment_sessions','shipment_events','integration_settings','integration_outbox','notification_outbox','admin_sessions','admin_permissions','login_tokens','entity_subscriptions','unmatched_payment_transactions'];const counts:Record<string,number>={};for(const table of tables){try{const {items}=await db.list(table);counts[table]=items.length}catch{counts[table]=-1}}return json({ok:true,source:'appdeploy',counts})}],

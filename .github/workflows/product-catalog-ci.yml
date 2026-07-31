@@ -1,10 +1,9 @@
-name: Product Catalogue CI
+name: Product Catalogue Supabase CI
 
 on:
   push:
     branches:
-      - feature/product-slugs-search
-      - fix/product-catalog-backend-wiring
+      - main
   pull_request:
     branches:
       - main
@@ -21,17 +20,24 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build frontend
+      - name: Build Vite frontend
         run: npm run build
 
-      - name: Verify backend catalogue wiring
+      - name: Verify Supabase catalogue architecture
         run: |
-          grep -q "productCatalogRoutes, syncProductCatalog" backend/index.ts
-          grep -q "\.\.\.productCatalogRoutes" backend/index.ts
-          grep -q "productCatalogSyncHandler" backend/index.ts
+          test -f src/supabase-client.ts
+          test -f supabase/functions/product-catalog-sync/index.ts
+          test -f supabase/migrations/20260731114500_product_catalog_supabase_runtime.sql
+          grep -q "search_product_catalog" src/product-catalog.ts
+          grep -q "from './supabase-client'" src/product-catalog.ts
+          grep -q "x-ap-secret" supabase/functions/product-catalog-sync/index.ts
+          ! grep -q "productCatalogRoutes" backend/index.ts
+          ! test -e backend/product-catalog-routes.ts
+          ! test -e cron.json
+          ! test -e tests/tests.txt
