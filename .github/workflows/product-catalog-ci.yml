@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/product-slugs-search
+      - fix/product-catalog-backend-wiring
   pull_request:
     branches:
       - main
@@ -28,3 +29,9 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+      - name: Verify backend catalogue wiring
+        run: |
+          grep -q "productCatalogRoutes, syncProductCatalog" backend/index.ts
+          grep -q "\.\.\.productCatalogRoutes" backend/index.ts
+          grep -q "productCatalogSyncHandler" backend/index.ts
