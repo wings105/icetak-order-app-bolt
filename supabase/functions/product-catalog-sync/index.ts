@@ -11,12 +11,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
   headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
 });
 const text = (value: unknown) => value == null ? '' : String(value).trim();
-const normalize = (value: string) => value
-  .toLowerCase()
-  .normalize('NFKD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .replace(/[^a-z0-9]+/g, ' ')
-  .trim();
+const normalize = (value: string) => value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 const slugify = (value: string) => normalize(value).replace(/\s+/g, '-').replace(/^-+|-+$/g, '').slice(0, 150);
 const aliasText = (value: string) => value.replace(/spider[-\s]?man/gi, 'spiderman spider man spider-man');
 
@@ -31,16 +26,25 @@ function fieldValue(item?: Record<string, unknown>) {
   const match = options.find((option) => text(option.id) === text(item.value) || Number(option.orderindex) === Number(item.value));
   return text(match?.name || item.value);
 }
+function inferCategory(title: string) {
+  const value = title.toLowerCase();
+  if (value.includes('edible image') || value.includes('printing ei')) return 'Edible Image';
+  if (value.includes('custom name') || value.includes('cake topper')) return 'CUSTOM NAME - Topper';
+  return 'Other';
+}
 function shortTitle(title: string, category: string) {
   let value = title
     .replace(/\[(?:CUSTOM NAME|CUSTOM GAMBAR|CUSTOM NAME\]\[CUSTOM GAMBAR)[^\]]*\]/gi, ' ')
     .replace(/\bREADY STOCK\b/gi, ' ')
     .replace(/\bHappy Birthday Cake Topper\b/gi, ' ')
     .replace(/\bDecoration Set Party Accessories(?: Banner)? Hiasan Kek(?: Design)?\b/gi, ' ')
+    .replace(/\bPrint Cake Photo Icing Paper Birthday Sticker Kek Topper Sheet\b/gi, ' ')
+    .replace(/^Printing EI\s*/i, '')
     .replace(/\s+/g, ' ')
     .trim();
   if (!value) value = title;
   if (/custom name/i.test(category) && !/custom name/i.test(value)) value += ' Custom Name';
+  if (/edible/i.test(category) && !/edible/i.test(value)) value += ' Edible Image';
   if (!/topper|edible|wafer|acrylic/i.test(value)) value += ' Cake Topper';
   return value.slice(0, 100);
 }
@@ -66,52 +70,45 @@ Deno.serve(async (request) => {
     const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
     const providedSecret = request.headers.get('x-ap-secret') || '';
-    const { data: settings, error: settingsError } = await admin
-      .from('clickup_integration_settings')
-      .select('value')
-      .eq('setting_key', 'black_box')
-      .maybeSingle();
+    const { data: settings, error: settingsError } = await admin.from('clickup_integration_settings').select('value').eq('setting_key', 'black_box').maybeSingle();
     if (settingsError) throw settingsError;
     const config = (settings?.value || {}) as Record<string, unknown>;
     const expectedHash = text(config.secret_sha256);
-    if (!providedSecret || !expectedHash || await sha256(providedSecret) !== expectedHash) {
-      return json({ error: 'Unauthorized' }, 401);
-    }
+    if (!providedSecret || !expectedHash || await sha256(providedSecret) !== expectedHash) return json({ error: 'Unauthorized' }, 401);
 
     const payload = await request.json().catch(() => ({})) as Record<string, unknown>;
-    const tasks = Array.isArray(payload.tasks) ? payload.tasks as Array<Record<string, unknown>> : [];
-    if (!tasks.length) return json({ error: 'tasks array is required' }, 400);
+    const singleTask = payload.task && typeof payload.task === 'object' ? payload.task as Record<string, unknown> : null;
+    const tasks = Array.isArray(payload.tasks)
+      ? payload.tasks as Array<Record<string, unknown>>
+      : singleTask
+        ? [singleTask]
+        : text(payload.id)
+          ? [payload]
+          : [];
+    if (!tasks.length) return json({ error: 'tasks array, task object or task payload is required' }, 400);
     if (tasks.length > 200) return json({ error: 'Maximum 200 tasks per batch' }, 413);
 
     const allowedIds = Array.isArray(config.allowed_list_ids) ? config.allowed_list_ids.map(text) : [];
     const targetListId = text(payload.list_id || '901604488980');
-    if (allowedIds.length && !allowedIds.includes(targetListId) && targetListId !== '901604488980') {
-      return json({ error: 'List is not allowed' }, 403);
-    }
+    if (allowedIds.length && !allowedIds.includes(targetListId) && targetListId !== '901604488980') return json({ error: 'List is not allowed' }, 403);
 
-    const categoryNames = new Set<string>();
-    for (const task of tasks) {
-      const category = fieldValue(field(task, 'categories ')) || fieldValue(field(task, 'categories')) || 'Other';
-      categoryNames.add(category);
-    }
-    const categoryRows = Array.from(categoryNames).map((name) => ({ name, slug: slugify(name) || 'other', active: true, updated_at: new Date().toISOString() }));
-    const { data: categories, error: categoryError } = await admin
-      .from('product_categories')
-      .upsert(categoryRows, { onConflict: 'slug' })
-      .select('id,slug');
+    const normalizedTasks = tasks.map((task) => {
+      const sourceTitle = text(field(task, 'title product')?.value || task.name);
+      const category = fieldValue(field(task, 'categories ')) || fieldValue(field(task, 'categories')) || inferCategory(sourceTitle);
+      return { task, sourceTitle, category };
+    });
+    const categoryRows = Array.from(new Set(normalizedTasks.map((item) => item.category))).map((name) => ({ name, slug: slugify(name) || 'other', active: true, updated_at: new Date().toISOString() }));
+    const { data: categories, error: categoryError } = await admin.from('product_categories').upsert(categoryRows, { onConflict: 'slug' }).select('id,slug');
     if (categoryError) throw categoryError;
     const categoryMap = new Map((categories || []).map((item) => [item.slug, item.id]));
 
     const now = new Date().toISOString();
-    const rows = tasks.map((task) => {
+    const rows = normalizedTasks.map(({ task, sourceTitle, category }) => {
       const taskId = text(task.id);
       if (!taskId) throw new Error('ClickUp task id is required');
       const taskList = task.list && typeof task.list === 'object' ? task.list as Record<string, unknown> : {};
       const taskListId = text(taskList.id || targetListId);
       if (taskListId && taskListId !== targetListId) throw new Error(`Task ${taskId} belongs to another list`);
-
-      const sourceTitle = text(field(task, 'title product')?.value || task.name);
-      const category = fieldValue(field(task, 'categories ')) || fieldValue(field(task, 'categories')) || 'Other';
       const productStatus = fieldValue(field(task, 'status product'));
       const active = !Boolean(task.archived) && (!productStatus || /normal|active|open/i.test(productStatus));
       const parentSku = text(field(task, 'Parent SKU')?.value);
@@ -124,7 +121,6 @@ Deno.serve(async (request) => {
       const displayName = shortTitle(sourceTitle, category);
       const categorySlug = slugify(category) || 'other';
       const searchText = normalize(aliasText([sourceTitle, displayName, parentSku, shopeeProductId, category].join(' ')));
-
       return {
         slug: slugify(`${displayName}-${parentSku || taskId}`),
         product_kind: /ready stock/i.test(category) ? 'ready_stock' : 'catalog_design',
@@ -144,44 +140,29 @@ Deno.serve(async (request) => {
         has_dimension: Boolean(field(task, 'ada demention')?.value),
         is_basic: false,
         is_published: active,
-        is_indexable: active,
+        is_indexable: false,
         search_text: searchText,
         metadata: {
           clickup_url: text(task.url),
           clickup_list_id: taskListId,
           clickup_status: text((task.status as Record<string, unknown> | undefined)?.status || task.status),
           product_status: productStatus,
-          imported_by: 'activepieces',
+          imported_by: tasks.length === 1 ? 'clickup_auto_sync' : 'activepieces_batch',
         },
         source_updated_at: isoDate(task.date_updated),
         updated_at: now,
       };
     });
 
-    const { data: batch, error: batchError } = await admin
-      .from('product_import_batches')
-      .insert({ source: 'clickup', status: 'processing', row_count: rows.length, summary: { list_id: targetListId } })
-      .select('id')
-      .single();
+    const { data: batch, error: batchError } = await admin.from('product_import_batches').insert({ source: 'clickup', status: 'processing', row_count: rows.length, summary: { list_id: targetListId, mode: rows.length === 1 ? 'single' : 'batch' } }).select('id').single();
     if (batchError) throw batchError;
-
-    const { data: products, error: productError } = await admin
-      .from('products')
-      .upsert(rows, { onConflict: 'clickup_task_id' })
-      .select('id,clickup_task_id,slug');
+    const { data: products, error: productError } = await admin.from('products').upsert(rows, { onConflict: 'clickup_task_id' }).select('id,clickup_task_id,slug,order_profile_id');
     if (productError) {
       await admin.from('product_import_batches').update({ status: 'failed', error_count: rows.length, summary: { error: productError.message } }).eq('id', batch.id);
       throw productError;
     }
-
-    await admin.from('product_import_batches').update({
-      status: 'completed',
-      inserted_count: products?.length || 0,
-      completed_at: new Date().toISOString(),
-      summary: { list_id: targetListId, upserted: products?.length || 0 },
-    }).eq('id', batch.id);
-
-    return json({ ok: true, source: 'clickup', list_id: targetListId, received: tasks.length, upserted: products?.length || 0, batch_id: batch.id });
+    await admin.from('product_import_batches').update({ status: 'completed', inserted_count: products?.length || 0, completed_at: new Date().toISOString(), summary: { list_id: targetListId, mode: rows.length === 1 ? 'single' : 'batch', upserted: products?.length || 0 } }).eq('id', batch.id);
+    return json({ ok: true, source: 'clickup', mode: rows.length === 1 ? 'single' : 'batch', list_id: targetListId, received: tasks.length, upserted: products?.length || 0, products, batch_id: batch.id });
   } catch (error) {
     console.error('product-catalog-sync error', error);
     return json({ error: error instanceof Error ? error.message : 'Server error' }, 500);
