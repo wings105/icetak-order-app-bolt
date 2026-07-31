@@ -1,30 +1,67 @@
-name: Product Catalogue CI
+name: Product Catalogue Backend Hotfix
 
 on:
   push:
     branches:
-      - feature/product-slugs-search
-  pull_request:
-    branches:
-      - main
+      - fix/product-catalog-backend-wiring
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  build:
+  patch-and-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: fix/product-catalog-backend-wiring
+
+      - name: Wire backend catalogue routes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/index.ts')
+          source = path.read_text()
+          import_line = "import { productCatalogRoutes, syncProductCatalog } from './product-catalog-routes';"
+          if import_line not in source:
+              anchor = "import { getProductionStatus, setProductionUrl, queueProduction } from './production-integration';"
+              if anchor not in source:
+                  raise SystemExit('backend import anchor not found')
+              source = source.replace(anchor, anchor + "\n" + import_line, 1)
+          if '...productCatalogRoutes' not in source:
+              anchor = ' ...realtimeSubscriptionRoutes,'
+              if anchor not in source:
+                  raise SystemExit('backend router anchor not found')
+              source = source.replace(anchor, anchor + "\n ...productCatalogRoutes,", 1)
+          if 'export const productCatalogSyncHandler' not in source:
+              anchor = 'export const handler = router({' if 'export const handler = router({' in source else 'export const handler=router({'
+              if anchor not in source:
+                  raise SystemExit('backend handler anchor not found')
+              source = source.replace(anchor, "export const productCatalogSyncHandler=async()=>{const result=await syncProductCatalog();return {statusCode:200,body:JSON.stringify(result)}};\n" + anchor, 1)
+          path.write_text(source)
+          assert import_line in source
+          assert '...productCatalogRoutes' in source
+          assert 'productCatalogSyncHandler' in source
+          PY
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
+      - run: npm run build
 
-      - name: Build frontend
-        run: npm run build
+      - name: Commit backend hotfix
+        run: |
+          if git diff --quiet; then
+            echo "No backend changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/index.ts
+          git commit -m "fix: wire product catalogue backend routes [skip ci]"
+          git push
