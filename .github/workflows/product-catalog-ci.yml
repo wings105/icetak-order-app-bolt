@@ -1,23 +1,35 @@
-name: Product Catalogue CI
+name: Product Catalogue Supabase Cleanup
 
 on:
   push:
     branches:
-      - feature/product-slugs-search
-      - fix/product-catalog-backend-wiring
-  pull_request:
-    branches:
-      - main
+      - fix/supabase-product-catalog-runtime
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  build:
+  clean-and-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: fix/supabase-product-catalog-runtime
+
+      - name: Remove AppDeploy catalogue runtime
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/index.ts')
+          source = path.read_text()
+          source = source.replace("import { productCatalogRoutes, syncProductCatalog } from './product-catalog-routes';\n", '')
+          source = source.replace("export const productCatalogSyncHandler=async()=>{const result=await syncProductCatalog();return {statusCode:200,body:JSON.stringify(result)}};\n", '')
+          source = source.replace(' ...productCatalogRoutes,\n', '')
+          path.write_text(source)
+          PY
+          rm -f backend/product-catalog-routes.ts cron.json tests/tests.txt
 
       - uses: actions/setup-node@v4
         with:
@@ -27,11 +39,27 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build frontend
+      - name: Build Vite frontend
         run: npm run build
 
-      - name: Verify backend catalogue wiring
+      - name: Verify Supabase catalogue runtime
         run: |
-          grep -q "productCatalogRoutes, syncProductCatalog" backend/index.ts
-          grep -q "\.\.\.productCatalogRoutes" backend/index.ts
-          grep -q "productCatalogSyncHandler" backend/index.ts
+          test -f supabase/functions/product-catalog-sync/index.ts
+          test -f supabase/migrations/20260731114500_product_catalog_supabase_runtime.sql
+          grep -q "search_product_catalog" src/product-catalog.ts
+          grep -q "from './appdeploy-client'" src/product-catalog.ts
+          ! grep -q "productCatalogRoutes" backend/index.ts
+          ! test -e backend/product-catalog-routes.ts
+          ! test -e cron.json
+
+      - name: Commit cleanup
+        run: |
+          if git diff --quiet; then
+            echo "No cleanup changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: remove AppDeploy catalogue runtime [skip ci]"
+          git push
