@@ -1,9 +1,0 @@
-[
-  {
-    "name": "sync-product-catalog",
-    "cron": "0 */6 * * *",
-    "handler": "productCatalogSyncHandler",
-    "timezone": "Asia/Kuala_Lumpur",
-    "payload": {}
-  }
-]
