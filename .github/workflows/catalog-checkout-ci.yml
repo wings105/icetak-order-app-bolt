@@ -1,0 +1,37 @@
+name: Catalogue Checkout CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-guards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build Vite frontend
+        run: npm run build
+      - name: Verify configurable catalogue checkout
+        run: |
+          grep -q "icetak_catalog_product_config" src/product-catalog.ts
+          grep -q "icetak_create_order" src/product-catalog.ts
+          grep -q "catalog-checkout" src/product-catalog.ts
+          grep -q "navigator.share" src/product-catalog.ts
+          test -f supabase/migrations/20260801015000_catalog_configurable_products.sql
+          test -f supabase/migrations/20260801021000_catalog_checkout_capture.sql
+          test -f supabase/migrations/20260801023000_catalog_customer_order_detail.sql
+          test -f supabase/migrations/20260801024000_catalog_checkout_total_guard.sql
+          test -f supabase/functions/product-catalog-pull/index.ts
+          grep -q "task_description" supabase/functions/clickup-production-outbox/index.ts
+          grep -q "CLICKUP_API_TOKEN" supabase/functions/product-catalog-pull/index.ts
