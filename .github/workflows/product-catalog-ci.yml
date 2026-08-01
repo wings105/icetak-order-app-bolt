@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/complete-clickup-component-sync
   pull_request:
     branches:
       - main
@@ -54,6 +55,7 @@ jobs:
           test -f supabase/migrations/20260801012200_catalog_customization_server_validation.sql
           test -f supabase/migrations/20260801012300_customer_dashboard_catalog_item_details.sql
           test -f supabase/migrations/20260801193000_clickup_component_customer_stage_contract.sql
+          test -f supabase/migrations/20260801194500_clickup_review_status_override.sql
 
           grep -q "search_product_catalog" src/product-catalog.ts
           grep -q "from './supabase-client'" src/product-catalog.ts
@@ -67,6 +69,7 @@ jobs:
           grep -q "link_clickup_production_task" supabase/functions/clickup-task-created-callback/index.ts
           grep -q "customer_stage" supabase/migrations/20260801193000_clickup_component_customer_stage_contract.sql
           grep -q "replay_clickup_observed_events" supabase/migrations/20260801193000_clickup_component_customer_stage_contract.sql
+          grep -q "waiting_customer_review" supabase/migrations/20260801194500_clickup_review_status_override.sql
 
           ! grep -R "8ab71fa9c33743fd70.v2.appdeploy.ai" src supabase docs || exit 1
           ! grep -q "productCatalogRoutes" backend/index.ts
