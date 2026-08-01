@@ -1,5 +1,5 @@
--- Admin WhatsApp manual-QR paid order flow, ClickUp production handoff,
--- and shipment-to-ClickUp outbox. All changes are idempotent.
+-- Legacy optional admin QR fields retained for schema compatibility.
+-- The active runtime remains the Bolt order system backed by Supabase.
 
 alter table public.orders
   add column if not exists delivery_fee numeric not null default 0,
@@ -21,10 +21,9 @@ create index if not exists orders_payment_transaction_id_idx
   where payment_transaction_id is not null;
 
 insert into public.system_settings(key,value)
-values ('public_app', jsonb_build_object('base_url','https://8ab71fa9c33743fd70.v2.appdeploy.ai'))
+values ('order_app','{}'::jsonb)
 on conflict(key) do nothing;
 
--- Existing owner keeps working after the new verification permission is enforced.
 update public.admin_permissions p
 set permissions=(
   select array_agg(distinct permission order by permission)
@@ -42,10 +41,10 @@ stable
 security definer
 set search_path to 'public','pg_temp'
 as $$
-  select rtrim(coalesce(
-    (select value->>'base_url' from public.system_settings where key='public_app' limit 1),
-    'https://8ab71fa9c33743fd70.v2.appdeploy.ai'
-  ),'/');
+  select nullif(rtrim(coalesce(
+    (select value->>'base_url' from public.system_settings where key='order_app' limit 1),
+    ''
+  ),'/'),'');
 $$;
 
 create or replace function public.icetak_order_links(p_order_id uuid)
@@ -56,20 +55,25 @@ security definer
 set search_path to 'public','pg_temp'
 as $$
   with target as (
-    select o.*, public.icetak_public_app_base_url() base_url
+    select o.*,public.icetak_public_app_base_url() base_url
     from public.orders o where o.id=p_order_id
   )
   select coalesce((
     select jsonb_build_object(
-      'order_link',t.base_url || '/?order=' || t.public_token,
-      'customer_history_link',t.base_url || '/?c=' || coalesce(t.customer_token,''),
-      'admin_order_link',t.base_url || '/?admin=1&order=' || t.public_token,
+      'order_path','/?order='||t.public_token,
+      'customer_history_path','/?c='||coalesce(t.customer_token,''),
+      'admin_order_path','/?admin=1&order='||t.public_token,
+      'order_link',case when t.base_url is null then null else t.base_url||'/?order='||t.public_token end,
+      'customer_history_link',case when t.base_url is null then null else t.base_url||'/?c='||coalesce(t.customer_token,'') end,
+      'admin_order_link',case when t.base_url is null then null else t.base_url||'/?admin=1&order='||t.public_token end,
       'components',coalesce((
         select jsonb_agg(jsonb_build_object(
           'id',pc.id,
           'label',pc.label,
-          'customer_link',t.base_url || '/?order=' || t.public_token || '#component-' || pc.id::text,
-          'system_link',t.base_url || '/?admin=1&order=' || t.public_token || '&component=' || pc.id::text,
+          'customer_path','/?order='||t.public_token||'#component-'||pc.id::text,
+          'system_path','/?admin=1&order='||t.public_token||'&component='||pc.id::text,
+          'customer_link',case when t.base_url is null then null else t.base_url||'/?order='||t.public_token||'#component-'||pc.id::text end,
+          'system_link',case when t.base_url is null then null else t.base_url||'/?admin=1&order='||t.public_token||'&component='||pc.id::text end,
           'clickup_task_id',pc.clickup_task_id,
           'clickup_status',pc.clickup_status
         ) order by pc.created_at,pc.id)
