@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - fix/complete-clickup-component-sync
   pull_request:
     branches:
       - main
