@@ -25,6 +25,9 @@ async function markPendingReview(path: string) {
 async function secureAdminRpc(path: string, body?: any) {
   const routes: Record<string, { name: string; args?: Record<string, unknown> }> = {
     '/api/admin/orders': { name: 'icetak_admin_create_order', args: { p_payload: body || {} } },
+    '/api/admin/whatsapp-paid-order': { name: 'icetak_admin_create_whatsapp_paid_order', args: { p_payload: body || {} } },
+    '/api/admin/customer-lookup': { name: 'icetak_admin_customer_lookup', args: { p_query: String(body?.query || '') } },
+    '/api/admin/order-sync-status': { name: 'icetak_admin_order_sync_status', args: { p_order_id: String(body?.order_id || '') } },
     '/api/admin/order-action': { name: 'icetak_admin_order_action', args: { p_payload: body || {} } },
     '/api/admin/order-update': { name: 'icetak_admin_order_update', args: { p_payload: body || {} } },
     '/api/admin/permissions': { name: 'icetak_admin_save_permissions', args: { p_payload: body || {} } },
