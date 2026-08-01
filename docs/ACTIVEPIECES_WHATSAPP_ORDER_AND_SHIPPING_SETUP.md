@@ -1,6 +1,16 @@
-# Activepieces setup — WhatsApp paid orders, ClickUp production, and shipping
+# Activepieces setup — ClickUp component production sync
 
-The application and Supabase backend are the source of truth. Activepieces only creates/updates ClickUp tasks and acknowledges outbox events.
+## Scope
+
+This guide covers only the iCetak Order System in:
+
+- GitHub: `wings105/icetak-order-app-bolt`
+- Supabase: `buivecgahhmrhlmfujgt`
+- ClickUp production list: `18375902`
+
+Supabase is the source of truth. Activepieces only creates ClickUp tasks, sends task updates back to Supabase, and calls the task-link callback.
+
+Shipping-to-ClickUp and manual WhatsApp QR-order automation are deferred until production component sync is stable.
 
 ## Fixed ClickUp locations
 
@@ -10,21 +20,28 @@ The application and Supabase backend are the source of truth. Activepieces only 
 - Production ORDER LIST: `18375902`
 - Completed list: `901612769752`
 
-Existing automation that moves `complete` tasks to the completed list must remain enabled.
+Keep the existing ClickUp automation that moves status `complete` tasks to the completed list.
 
 ## Shared authentication
 
-All three Supabase endpoints below use the same existing header:
+All Supabase endpoints below use the existing header:
 
 ```text
 x-ap-secret: <existing shared secret>
 ```
 
-Never store the Supabase service-role key in Activepieces.
+Never put the Supabase service-role key in Activepieces.
+
+## Safety state before testing
+
+- ClickUp integration mode must remain `observe`.
+- Do not backfill or claim historical July orders.
+- Begin with one new controlled order/component only.
+- Flow A must search by `Webapp Component ID` before creating a task.
 
 ---
 
-## Flow A — Create or reconcile production tasks
+## Flow A — Supabase component to ClickUp task
 
 ### Trigger
 
@@ -37,23 +54,35 @@ GET https://buivecgahhmrhlmfujgt.supabase.co/functions/v1/clickup-production-out
 x-ap-secret: ...
 ```
 
-Loop through `body.events`, then `event.components`.
+Loop through:
 
-### Step 2: prevent duplicates
+```text
+body.events
+→ event.components
+```
 
-Before creating a task, search the Production ORDER LIST for the exact custom field:
+A normal response also includes:
+
+```text
+mode = observe
+order_app_configured = true | false
+```
+
+When `order_app_configured=false`, use the relative `admin_order_path` and `customer_order_path`; do not substitute an AppDeploy URL.
+
+### Step 2: duplicate reconciliation
+
+Search list `18375902` using the exact custom field:
 
 ```text
 Webapp Component ID = component.webapp_component_id
 ```
 
-If a matching task exists, skip creation and use that task in Step 4. This is required to recover safely if ClickUp created a task but the callback previously failed.
+- Match found: reuse that task and continue to callback.
+- No match: create one new task.
+- More than one match: stop the flow and flag a duplicate; do not create another task.
 
-### Step 3: create ClickUp task when no match exists
-
-List: `18375902`
-
-Recommended mapping:
+### Step 3: create task
 
 | ClickUp value | Payload |
 |---|---|
@@ -64,10 +93,11 @@ Recommended mapping:
 | Webapp Component ID | `component.webapp_component_id` |
 | date needed | `event.order.date_needed` |
 | phone | `event.order.customer_phone` |
-| set | only when `component.awb_primary=true` |
-| System Link | `component.admin_order_link` |
-| Customer Link | `component.customer_order_link` |
 | External Key | `component.task_external_key` |
+| System Link | `component.admin_order_link` when not null |
+| Customer Link | `component.customer_order_link` when not null |
+| System Path | `component.admin_order_path` |
+| Customer Path | `component.customer_order_path` |
 
 Known existing custom-field IDs:
 
@@ -77,11 +107,17 @@ Known existing custom-field IDs:
 - phone: `1a42fde0-d52a-4911-827d-d89e7bd3b7bd`
 - set: `2670446d-5e5a-48ac-931d-c2be790d6b3b`
 
-Create text/URL fields for `System Link`, `Customer Link`, and `External Key` if they do not already exist.
+Recommended additional fields:
 
-### Step 4: link task to Supabase
+- External Key — Text
+- System Link — Website
+- Customer Link — Website
+- System Path — Text
+- Customer Path — Text
 
-For both a newly created task and a task found during duplicate reconciliation:
+### Step 4: callback
+
+Call this for both newly created tasks and tasks found during duplicate reconciliation:
 
 ```http
 POST https://buivecgahhmrhlmfujgt.supabase.co/functions/v1/clickup-task-created-callback
@@ -101,11 +137,11 @@ x-ap-secret: ...
 }
 ```
 
-The callback is idempotent. It marks the production outbox processed only after all components are linked.
+The callback is idempotent. The outbox becomes `processed` only after all components in the order are linked.
 
 ---
 
-## Flow B — ClickUp progress back to the customer dashboard
+## Flow B — ClickUp task status to Supabase
 
 ### Trigger
 
@@ -116,10 +152,13 @@ Allowed lists:
 - `18375902`
 - `901612769752`
 
+The Supabase ingest endpoint rejects other lists before creating a queue event.
+
 ### Steps
 
-1. Get the full ClickUp task, including custom fields.
-2. POST the complete task/update payload:
+1. Use ClickUp `Get Task` to retrieve the complete current task.
+2. Include the full `custom_fields`, list, folder and current status.
+3. POST the complete task payload:
 
 ```http
 POST https://buivecgahhmrhlmfujgt.supabase.co/functions/v1/clickup-events-ingest
@@ -128,73 +167,85 @@ x-ap-secret: ...
 x-process-now: true
 ```
 
-The backend is intentionally kept in `observe` mode during testing. After verified events are `observed_linked`, change to `apply` only with owner approval.
+Required identity fields on the ClickUp task:
+
+```text
+Webapp Order ID
+Webapp Component ID
+```
+
+### Observe-mode result
+
+The event should become:
+
+```text
+processing_status = observed_linked
+```
+
+Its processing result contains:
+
+```json
+{
+  "customer_projection": {
+    "stage": "Design Editing",
+    "label": "Design edible image sedang disediakan",
+    "progress": 25
+  }
+}
+```
+
+Observe mode does not update customer-visible workflow.
 
 ---
 
-## Flow C — AWB/tracking updates back to ClickUp
+## Status contract
 
-### Trigger
-
-Schedule every minute.
-
-### Step 1: claim shipping updates
-
-```http
-GET https://buivecgahhmrhlmfujgt.supabase.co/functions/v1/clickup-shipping-outbox?limit=10
-x-ap-secret: ...
-```
-
-Loop through `body.events`, then `event.tasks`.
-
-### Step 2: update every linked task
-
-Recommended task fields/comment:
-
-| ClickUp value | Payload |
+| ClickUp status | Customer stage |
 |---|---|
-| Courier | `event.shipment.courier` |
-| Tracking No | `event.shipment.tracking_no` |
-| Tracking Link | `event.shipment.tracking_link` |
-| AWB Link | `event.shipment.awb_pdf_url` |
-| Shipping Status | `event.shipment.normalized_status` or `event.shipment.status` |
-| Customer Order Link | `event.order.customer_order_link` |
+| prospect | Order Received |
+| new custom | Design Editing |
+| acrylic | Design Editing |
+| design edible image | Design Editing |
+| design editing -topper | Design Editing |
+| wafer paper | Design Editing |
+| review | Waiting Review |
+| cake topper - printing | Production |
+| edible image -printing | Production |
+| wafer - printing | Production |
+| ready stock | Finishing |
+| edible print ready stock | Finishing |
+| print alamat | Finishing |
+| complete + pickup | Ready |
+| complete + courier | Finishing — production selesai, menunggu penghantaran |
 
-`event.tasks[].awb_primary` identifies the main task for AWB-specific fields. All linked tasks may receive tracking status.
-
-### Step 3: acknowledge the event
-
-Success:
-
-```http
-POST https://buivecgahhmrhlmfujgt.supabase.co/functions/v1/clickup-shipping-outbox
-Content-Type: application/json
-x-ap-secret: ...
-```
-
-```json
-{ "event_id": "{{event.event_id}}", "ok": true }
-```
-
-Failure:
-
-```json
-{ "event_id": "{{event.event_id}}", "ok": false, "error": "{{error message}}" }
-```
-
-Failed events return to `retry`. Processing leases older than 10 minutes are recovered automatically.
+Technical status remains in `production_components.clickup_status`. Customer-visible stage is stored separately and `workflow` uses the generic stage expected by the Bolt customer portal.
 
 ---
 
-## Acceptance test
+## Controlled acceptance test
 
-1. Admin creates one WhatsApp Manual QR Paid order.
-2. Confirm `payment_transactions.provider=manual_qr`.
-3. Confirm one production outbox event exists.
-4. Run Flow A and confirm one ClickUp task per component.
-5. Confirm each component contains `clickup_task_id`.
-6. Change task status and confirm the event becomes `observed_linked`.
-7. Create AWB using the order number as reference.
-8. Confirm tracking appears on the customer order link.
-9. Run Flow C and confirm tracking fields appear on ClickUp.
-10. Repeat Flow A and Flow C; no duplicate ClickUp task or duplicate shipment should be created.
+1. Create one new controlled paid and confirmed order in the Order System.
+2. Confirm only that new order produces a pending `clickup.production.create` event.
+3. Run Flow A once.
+4. Confirm exactly one ClickUp task per component.
+5. Confirm `production_components.clickup_task_id` and `clickup_tasks` are linked.
+6. Run Flow A again and confirm no duplicate task is created.
+7. Change the task status to its design status.
+8. Run Flow B and confirm `observed_linked` plus the expected customer projection.
+9. Test `review`, printing and `complete` statuses while still in observe mode.
+10. Confirm no customer workflow changed yet.
+11. After all mappings pass, change mode to `apply` with owner approval.
+12. Replay observed events using the server-side `replay_clickup_observed_events` RPC.
+13. Confirm the Bolt customer dashboard stage changes correctly.
+14. Repeat the same event and confirm it is idempotent.
+
+## Activation gate
+
+Do not switch to `apply` until all of these are true:
+
+- Every test component has one ClickUp task.
+- No duplicate `Webapp Component ID` exists in ClickUp.
+- All test events are `observed_linked`.
+- Component scope mapping is correct.
+- Customer stages match expected values.
+- Historical July orders remain untouched.
