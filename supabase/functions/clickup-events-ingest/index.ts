@@ -57,6 +57,12 @@ Deno.serve(async (req) => {
     if (!taskId) return json({ error: 'task_id_required' }, 400);
     const taskName = txt(root.task_name, task.name, data.task_name);
     const listId = txt(root.list_id, (list as any).id, data.list_id);
+    const allowedLists = Array.isArray(setting?.value?.allowed_list_ids)
+      ? setting.value.allowed_list_ids.map((value: unknown) => txt(value)).filter(Boolean)
+      : [];
+    if (allowedLists.length && (!listId || !allowedLists.includes(listId))) {
+      return json({ ok: true, ignored: true, reason: listId ? 'list_not_allowed' : 'list_id_missing', task_id: taskId, list_id: listId || null });
+    }
 
     if (listId === '901604488980') {
       const taskPayload = {
