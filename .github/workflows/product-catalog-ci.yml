@@ -1,4 +1,4 @@
-name: Product Catalogue Supabase CI
+name: Order System Supabase CI
 
 on:
   push:
@@ -29,32 +29,46 @@ jobs:
       - name: Build Vite frontend
         run: npm run build
 
-      - name: Verify Supabase catalogue architecture
+      - name: Verify Bolt and Supabase source parity
         run: |
           test -f src/supabase-client.ts
+          test -f src/product-catalog.ts
+          test -f src/product-catalog.css
           test -f src/catalog-configurator.ts
           test -f src/catalog-configurator.css
+          test -f src/customer-portal.ts
           test -f src/customer-catalog-dashboard.ts
           test -f src/customer-catalog-dashboard.css
+          test -f src/customer-address-validation.ts
+          test -f src/customer-address-validation.css
+
+          test -f supabase/functions/api/index.ts
           test -f supabase/functions/product-catalog-sync/index.ts
           test -f supabase/functions/clickup-events-ingest/index.ts
           test -f supabase/functions/clickup-production-outbox/index.ts
+          test -f supabase/functions/clickup-task-created-callback/index.ts
+
           test -f supabase/migrations/20260731114500_product_catalog_supabase_runtime.sql
           test -f supabase/migrations/20260801012000_catalog_order_profiles.sql
           test -f supabase/migrations/20260801012100_catalog_order_checkout_rpc.sql
           test -f supabase/migrations/20260801012200_catalog_customization_server_validation.sql
           test -f supabase/migrations/20260801012300_customer_dashboard_catalog_item_details.sql
+          test -f supabase/migrations/20260801193000_clickup_component_customer_stage_contract.sql
+
           grep -q "search_product_catalog" src/product-catalog.ts
           grep -q "from './supabase-client'" src/product-catalog.ts
           grep -q "product_order_profiles" src/catalog-configurator.ts
           grep -q "catalog_clickup_task_id" src/catalog-configurator.ts
-          grep -q "wording_mode" src/catalog-configurator.ts
           grep -q "icetak_customer_order_dashboard" src/customer-catalog-dashboard.ts
-          grep -q "product_snapshot" src/customer-catalog-dashboard.ts
           grep -q "x-ap-secret" supabase/functions/product-catalog-sync/index.ts
-          grep -q "901604488980" supabase/functions/clickup-events-ingest/index.ts
-          grep -q "task_description" supabase/functions/clickup-production-outbox/index.ts
+          grep -q "allowed_list_ids" supabase/functions/clickup-events-ingest/index.ts
+          grep -q "task_external_key" supabase/functions/clickup-production-outbox/index.ts
+          grep -q "order_app_configured" supabase/functions/clickup-production-outbox/index.ts
+          grep -q "link_clickup_production_task" supabase/functions/clickup-task-created-callback/index.ts
+          grep -q "customer_stage" supabase/migrations/20260801193000_clickup_component_customer_stage_contract.sql
+          grep -q "replay_clickup_observed_events" supabase/migrations/20260801193000_clickup_component_customer_stage_contract.sql
+
+          ! grep -R "8ab71fa9c33743fd70.v2.appdeploy.ai" src supabase docs || exit 1
           ! grep -q "productCatalogRoutes" backend/index.ts
           ! test -e backend/product-catalog-routes.ts
           ! test -e cron.json
-          ! test -e tests/tests.txt
