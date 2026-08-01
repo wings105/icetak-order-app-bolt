@@ -74,7 +74,8 @@ function paymentLabel(order: any) {
   return 'Unpaid';
 }
 
-const latest = (rows: any[]) => [...(rows || [])].sort((a, b) => millis(b.updated_at || b.created_at) - millis(a.updated_at || a.created_at))[0] || null;
+const latest = (rows: any[]) => [...(rows || [])]
+  .sort((a, b) => millis(b.updated_at || b.created_at) - millis(a.updated_at || a.created_at))[0] || null;
 
 function orderStatus(order: any, payment: string, components: any[], shipment: any, actions: number) {
   const raw = key(order.status || order.admin_status);
@@ -89,11 +90,13 @@ function orderStatus(order: any, payment: string, components: any[], shipment: a
   const stages = components.map((component) => customerWorkflow(component.workflow, order.delivery || order.delivery_method));
   if (stages.some((stage) => stage === 'Finishing')) return 'Finishing';
   if (stages.some((stage) => stage === 'Production')) return 'In Production';
-  if (stages.some((stage) => stage === 'Approved' || stage === 'Design Editing' || stage === 'Waiting Review')) return 'Design / Production';
+  if (stages.some((stage) => ['Approved', 'Design Editing', 'Waiting Review'].includes(stage))) return 'Design / Production';
   if (stages.length && stages.every((stage) => ['Ready', 'Delivered'].includes(stage))) {
     return key(order.delivery || order.delivery_method).includes('pickup') ? 'Ready for Pickup' : 'Ready to Ship';
   }
-  return payment === 'Paid' || payment === 'Cash at Counter' ? 'Ready to Process' : text(order.status || 'Order Received').replaceAll('_', ' ');
+  return payment === 'Paid' || payment === 'Cash at Counter'
+    ? 'Ready to Process'
+    : text(order.status || 'Order Received').replaceAll('_', ' ');
 }
 
 function historyTab(order: any, payment: string, shipment: any, actions: number) {
@@ -107,6 +110,7 @@ function historyTab(order: any, payment: string, shipment: any, actions: number)
 }
 
 const findOrder = async (token: string) => (await db(`orders?public_token=eq.${encodeURIComponent(token)}&limit=1`))?.[0] || null;
+const latestPayment = async (orderId: string) => latest(await db(`payment_sessions?order_id=eq.${orderId}&order=created_at.desc`).catch(() => []));
 
 async function shapeOrder(order: any) {
   const [items, components, shipments] = await Promise.all([
@@ -224,6 +228,62 @@ async function shipmentFor(order: any) {
   };
 }
 
+async function signedStorageUrl(path: string, bucket = receiptBucket) {
+  if (!path) return '';
+  const response = await fetch(`${url}/storage/v1/object/sign/${bucket}/${path}`, {
+    method: 'POST',
+    headers: {
+      apikey: serviceRole,
+      authorization: `Bearer ${serviceRole}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ expiresIn: 3600 }),
+  });
+  const data = await response.json().catch(() => ({}));
+  return response.ok && data.signedURL ? `${url}/storage/v1${data.signedURL}` : '';
+}
+
+async function shapePayment(order: any, session: any) {
+  if (!session) return null;
+  return {
+    id: session.id,
+    orderToken: order.public_token,
+    orderId: order.order_id || order.order_no,
+    baseAmount: Number(session.base_amount || order.total || 0),
+    expectedAmount: Number(session.expected_amount || order.total || 0),
+    discount: Number(session.discount || 0),
+    expiresAt: millis(session.expires_at),
+    status: session.status || 'pending',
+    transactionId: session.transaction_id || '',
+    receiptName: session.receipt_name || '',
+    receiptUrl: await signedStorageUrl(session.receipt_path, session.receipt_bucket || receiptBucket),
+    submittedAt: millis(session.submitted_at),
+    matchedAt: millis(session.matched_at),
+  };
+}
+
+function decodeBase64(value: string) {
+  const encoded = value.includes(',') ? value.split(',').pop() || '' : value;
+  const binary = atob(encoded.replace(/\s/g, ''));
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+async function uploadReceipt(path: string, bytes: Uint8Array, mime: string) {
+  const response = await fetch(`${url}/storage/v1/object/${receiptBucket}/${path}`, {
+    method: 'POST',
+    headers: {
+      apikey: serviceRole,
+      authorization: `Bearer ${serviceRole}`,
+      'content-type': mime,
+      'x-upsert': 'false',
+    },
+    body: bytes,
+  });
+  if (!response.ok) throw new Error((await response.text()) || 'Receipt upload failed');
+}
+
 async function reviewAction(order: any, componentId: string, requestEdit: boolean, comment = '') {
   const rows = await db(`production_components?id=eq.${encodeURIComponent(componentId)}&order_id=eq.${order.id}&limit=1`);
   const component = rows?.[0];
@@ -232,6 +292,7 @@ async function reviewAction(order: any, componentId: string, requestEdit: boolea
   const now = new Date().toISOString();
   const workflow = requestEdit ? 'Design Editing' : 'Approved';
   const reviewStatus = requestEdit ? 'edit_requested' : 'approved';
+
   await db(`production_components?id=eq.${component.id}`, {
     method: 'PATCH',
     body: JSON.stringify({ workflow, review_status: reviewStatus, updated_at: now }),
@@ -250,6 +311,32 @@ async function reviewAction(order: any, componentId: string, requestEdit: boolea
       created_at: now,
     }),
   }).catch(() => null);
+
+  const siblings = await db(`production_components?order_id=eq.${order.id}&order_item_id=eq.${component.order_item_id}`);
+  const allApproved = (siblings || []).every((sibling: any) =>
+    !sibling.review_required || (sibling.id === component.id ? !requestEdit : key(sibling.review_status) === 'approved')
+  );
+  await db(`order_items?id=eq.${component.order_item_id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      workflow: requestEdit ? 'Design Editing' : allApproved ? 'Approved' : 'Waiting Review',
+      updated_at: now,
+    }),
+  });
+
+  const allOrderComponents = await db(`production_components?order_id=eq.${order.id}`);
+  const pending = (allOrderComponents || []).filter((entry: any) =>
+    entry.review_required && (entry.id === component.id ? requestEdit : key(entry.review_status) !== 'approved')
+  ).length;
+  await db(`orders?id=eq.${order.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      status: requestEdit ? 'Design Revision Requested' : pending ? 'Waiting Design Review' : 'Design Approved',
+      admin_status: requestEdit ? 'Customer Requested Edit' : pending ? 'Waiting Customer Review' : 'Design Approved',
+      tab: 'progress',
+      updated_at: now,
+    }),
+  });
 }
 
 Deno.serve(async (request) => {
@@ -286,12 +373,81 @@ Deno.serve(async (request) => {
       }) });
     }
 
+    match = path.match(/^\/orders\/([^/]+)\/payment$/);
+    if (request.method === 'GET' && match) {
+      const order = await findOrder(decodeURIComponent(match[1]));
+      if (!order) return fail('Order not found', 404);
+      return output({
+        paid: paymentLabel(order) === 'Paid',
+        payment: await shapePayment(order, await latestPayment(order.id)),
+      });
+    }
+
+    match = path.match(/^\/orders\/([^/]+)\/payment-receipt$/);
+    if (request.method === 'POST' && match) {
+      const order = await findOrder(decodeURIComponent(match[1]));
+      if (!order) return fail('Order not found', 404);
+      const session = await latestPayment(order.id);
+      if (!session) return fail('Create payment session first', 409);
+      const payload = await body();
+      const mime = text(payload.mime_type);
+      const raw = text(payload.data);
+      if (!['image/jpeg', 'image/png', 'application/pdf'].includes(mime)) return fail('Only JPG, PNG or PDF allowed', 400);
+      if (!raw) return fail('Receipt file is missing', 400);
+      const bytes = decodeBase64(raw);
+      if (bytes.byteLength > 5 * 1024 * 1024) return fail('Receipt maksimum 5MB', 413);
+      const extension = mime === 'application/pdf' ? 'pdf' : mime === 'image/png' ? 'png' : 'jpg';
+      const fileName = text(payload.file_name).replace(/[^a-zA-Z0-9._-]/g, '_').slice(-90) || `receipt.${extension}`;
+      const storagePath = `${order.id}/${Date.now()}-${fileName}`;
+      await uploadReceipt(storagePath, bytes, mime);
+      const now = new Date().toISOString();
+      const updated = (await db(`payment_sessions?id=eq.${session.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          receipt_bucket: receiptBucket,
+          receipt_path: storagePath,
+          receipt_name: fileName,
+          receipt_mime: mime,
+          submitted_at: now,
+          status: key(session.status) === 'matched' ? 'matched' : 'receipt_submitted',
+        }),
+      }))?.[0];
+      await db(`orders?id=eq.${order.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ payment_status: 'pending_review', admin_status: 'Pending Admin Check', updated_at: now }),
+      });
+      return output({
+        ok: true,
+        payment: await shapePayment(order, updated || {
+          ...session,
+          receipt_path: storagePath,
+          receipt_name: fileName,
+          receipt_bucket: receiptBucket,
+          submitted_at: now,
+          status: 'receipt_submitted',
+        }),
+      });
+    }
+
     match = path.match(/^\/orders\/([^/]+)\/components\/([^/]+)\/(approve|request-edit)$/);
     if (request.method === 'POST' && match) {
       const order = await findOrder(decodeURIComponent(match[1]));
       if (!order) return fail('Order not found', 404);
       const payload = await body();
       await reviewAction(order, decodeURIComponent(match[2]), match[3] === 'request-edit', text(payload.comment));
+      return output({ ok: true, action: match[3] });
+    }
+
+    match = path.match(/^\/orders\/([^/]+)\/items\/([^/]+)\/(approve|request-edit)$/);
+    if (request.method === 'POST' && match) {
+      const order = await findOrder(decodeURIComponent(match[1]));
+      if (!order) return fail('Order not found', 404);
+      const payload = await body();
+      const components = await db(`production_components?order_id=eq.${order.id}&order_item_id=eq.${encodeURIComponent(decodeURIComponent(match[2]))}`);
+      if (!components?.length) return fail('Component not found', 404);
+      for (const component of components) {
+        await reviewAction(order, component.id, match[3] === 'request-edit', text(payload.comment));
+      }
       return output({ ok: true, action: match[3] });
     }
 
@@ -309,6 +465,37 @@ Deno.serve(async (request) => {
       return output({ orders: await Promise.all((orders || []).map(shapeOrder)) });
     }
 
+    match = path.match(/^\/customers\/([^/]+)\/profile$/);
+    if (request.method === 'GET' && match) {
+      const token = decodeURIComponent(match[1]);
+      let customers = await db(`customers?public_token=eq.${encodeURIComponent(token)}&limit=1`);
+      if (!customers?.[0] && /^[0-9a-f-]{36}$/i.test(token)) {
+        customers = await db(`customers?id=eq.${encodeURIComponent(token)}&limit=1`);
+      }
+      const customer = customers?.[0];
+      if (!customer) return fail('Customer not found', 404);
+      const orders = await db(`orders?customer_id=eq.${customer.id}&order=created_at.desc`).catch(() => []);
+      const deliveryOrder = (orders || []).find((entry: any) =>
+        !key(entry.delivery || entry.delivery_method).includes('pickup') && entry.delivery_address
+      );
+      const phone = text(customer.phone);
+      const digits = phone.replace(/\D/g, '');
+      const line = text(deliveryOrder?.delivery_address);
+      const city = text(deliveryOrder?.delivery_city);
+      const postcode = text(deliveryOrder?.delivery_postcode);
+      const state = text(deliveryOrder?.delivery_state);
+      return output({ customer: {
+        name: deliveryOrder?.delivery_name || customer.name || 'Customer',
+        phone,
+        phone_masked: digits ? `+${digits.slice(0, 3)}***${digits.slice(-4)}` : '',
+        address_line1: line,
+        city,
+        postcode,
+        state,
+        address_masked: line ? `${line}, ${postcode} ${city}, ${state}` : '',
+      } });
+    }
+
     match = path.match(/^\/orders\/([^/]+)\/cancel$/);
     if (request.method === 'POST' && match) {
       const order = await findOrder(decodeURIComponent(match[1]));
@@ -319,7 +506,10 @@ Deno.serve(async (request) => {
       await db(`orders?id=eq.${order.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
-          status: 'Cancelled', admin_status: 'Cancelled by Customer', tab: 'completed', updated_at: new Date().toISOString(),
+          status: 'Cancelled',
+          admin_status: 'Cancelled by Customer',
+          tab: 'completed',
+          updated_at: new Date().toISOString(),
         }),
       });
       return output({ ok: true });
