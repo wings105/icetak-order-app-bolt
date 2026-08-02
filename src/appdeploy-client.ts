@@ -51,10 +51,67 @@ function functionPath(path: string, functionName: string) {
   return path;
 }
 
+function normalizedKey(value: unknown) {
+  return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
+
+function lifecycleTab(order: any) {
+  const status = normalizedKey(order?.status || order?.adminStatus || order?.admin_status);
+  const payment = normalizedKey(order?.payment || order?.paymentStatus || order?.payment_status);
+  const delivery = normalizedKey(order?.delivery || order?.delivery_method);
+  const shipping = normalizedKey(
+    order?.shipment?.statusGroup
+      || order?.shipment?.status
+      || order?.shipmentStatusGroup
+      || order?.shipment_status_group
+      || order?.shipmentStatus
+      || order?.shipment_status,
+  );
+  const stage = normalizedKey(order?.fulfillmentStage || order?.fulfillment_stage);
+
+  const terminal = [
+    'completed', 'delivered', 'cancelled', 'customer_collected', 'pickup_collected',
+  ].some((value) => status === value || stage === value || shipping === value)
+    || Boolean(order?.pickupCollectedAt || order?.pickup_collected_at || order?.deliveredAt || order?.delivered_at);
+  if (terminal) return 'completed';
+
+  const unpaid = !payment
+    || payment.startsWith('unpaid')
+    || ['pending', 'pending_review', 'receipt_submitted', 'waiting_payment', 'to_pay'].includes(payment);
+  if (unpaid) return 'to_pay';
+
+  if (delivery.includes('pickup')) {
+    const ready = status.includes('ready_for_pickup')
+      || status.includes('ready_pickup')
+      || stage === 'ready_for_pickup'
+      || Boolean(order?.pickupReadyAt || order?.pickup_ready_at);
+    return ready ? 'receive' : 'progress';
+  }
+
+  const courierHasParcel = [
+    'picked_up', 'shipped', 'in_transit', 'out_for_delivery',
+    'delivery_failed', 'failed', 'exception', 'returned', 'return_to_sender',
+  ].some((value) => shipping === value || status === value || stage === value);
+  if (courierHasParcel) return 'receive';
+
+  // Tracking/AWB creation alone means parcel is prepared but not yet received by courier.
+  if (
+    ['awb_created', 'shipment_created', 'ready_to_ship'].includes(shipping)
+    || ['awb_created', 'shipment_created', 'ready_to_ship'].includes(status)
+    || ['awb_created', 'ready_to_ship'].includes(stage)
+    || order?.tracking
+  ) return 'progress';
+
+  return ['to_pay', 'progress', 'receive', 'completed'].includes(normalizedKey(order?.tab))
+    ? normalizedKey(order.tab)
+    : 'progress';
+}
+
 function normalizePublicOrders(data: any) {
   const normalize = (order: any) => {
     if (!order || typeof order !== 'object') return order;
     if (String(order.delivery || '').toLowerCase().includes('pickup')) order.delivery = 'Pickup';
+    order.tab = lifecycleTab(order);
     return order;
   };
   if (data?.order) data.order = normalize(data.order);
