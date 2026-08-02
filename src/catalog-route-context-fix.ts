@@ -9,26 +9,37 @@ declare global {
 if (!window.__ICETAK_CATALOG_ROUTE_CONTEXT_FIX__) {
   window.__ICETAK_CATALOG_ROUTE_CONTEXT_FIX__ = true;
 
-  const CONTEXT_PARAMS = [
-    'order',
-    'c',
-    'confirm',
-    'login',
-    'magic_token',
-    'token',
-    'q',
-    'product',
-  ];
+  const SESSION_PARAMS = ['order', 'c', 'confirm', 'login', 'magic_token', 'token'];
+  const HOME_PARAMS = [...SESSION_PARAMS, 'q', 'product'];
+
+  function currentState() {
+    return history.state && typeof history.state === 'object' ? history.state : {};
+  }
 
   function rememberCustomerToken(url = new URL(location.href)) {
     const token = url.searchParams.get('c');
     if (token) localStorage.setItem('customer_token', token);
   }
 
-  function cleanCatalogHomeUrl() {
-    const url = new URL(location.href);
+  function routeKind(url = new URL(location.href)) {
+    const hash = decodeURIComponent(url.hash.replace(/^#\/?/, ''));
+    const path = decodeURIComponent(url.pathname.replace(/^\//, ''));
+    if (url.searchParams.get('q') || /^search\/.+/.test(hash) || /^search\/.+/.test(path)) return 'search';
+    if (url.searchParams.get('product') || /^product\/.+/.test(hash) || /^product\/.+/.test(path)) return 'product';
+    return 'none';
+  }
+
+  function cleanRouteUrl(source = new URL(location.href)) {
+    const url = new URL(source);
     rememberCustomerToken(url);
-    CONTEXT_PARAMS.forEach((key) => url.searchParams.delete(key));
+    SESSION_PARAMS.forEach((key) => url.searchParams.delete(key));
+    return url;
+  }
+
+  function cleanCatalogHomeUrl(source = new URL(location.href)) {
+    const url = new URL(source);
+    rememberCustomerToken(url);
+    HOME_PARAMS.forEach((key) => url.searchParams.delete(key));
     url.hash = '';
     return url;
   }
@@ -36,8 +47,33 @@ if (!window.__ICETAK_CATALOG_ROUTE_CONTEXT_FIX__) {
   function replaceWithCleanCatalogUrl() {
     const clean = cleanCatalogHomeUrl();
     if (clean.toString() === location.href) return;
-    const current = (history.state && typeof history.state === 'object') ? history.state : {};
-    history.replaceState({ ...current, page: 'catalog', orderToken: '' }, '', clean);
+    history.replaceState({ ...currentState(), page: 'catalog', orderToken: '' }, '', clean);
+  }
+
+  function primeDirectCatalogRoute() {
+    const source = new URL(location.href);
+    const kind = routeKind(source);
+    if (kind === 'none') return;
+
+    const target = cleanRouteUrl(source);
+    const state = currentState();
+
+    if (state.catalogBackPrimed) {
+      if (target.toString() !== location.href) history.replaceState(state, '', target);
+      return;
+    }
+
+    const home = cleanCatalogHomeUrl(target);
+    history.replaceState(
+      { ...state, page: 'catalog', orderToken: '', catalogHome: true },
+      '',
+      home,
+    );
+    history.pushState(
+      { ...state, page: 'catalog', orderToken: '', catalogRoute: kind, catalogBackPrimed: true },
+      '',
+      target,
+    );
   }
 
   function buildSearchUrl(query: string) {
@@ -46,7 +82,18 @@ if (!window.__ICETAK_CATALOG_ROUTE_CONTEXT_FIX__) {
     return url;
   }
 
+  function dedupeSearchForms(catalog: HTMLElement) {
+    const forms = Array.from(catalog.querySelectorAll<HTMLFormElement>('.catalog-home-search'));
+    if (forms.length <= 1) return;
+    const native = forms.find((form) => !form.dataset.catalogContextSearch);
+    const keep = native || forms[0];
+    forms.forEach((form) => {
+      if (form !== keep) form.remove();
+    });
+  }
+
   function injectSearchFallback(catalog: HTMLElement) {
+    dedupeSearchForms(catalog);
     if (catalog.querySelector('.catalog-home-search')) return;
 
     const form = document.createElement('form');
@@ -59,14 +106,23 @@ if (!window.__ICETAK_CATALOG_ROUTE_CONTEXT_FIX__) {
       if (!query) return;
       location.assign(buildSearchUrl(query).toString());
     };
+    catalog.dataset.searchReady = '1';
     catalog.prepend(form);
   }
 
   function enhanceCatalogHome() {
     const catalog = document.querySelector<HTMLElement>('main.catalog');
     if (!catalog) return;
+
     replaceWithCleanCatalogUrl();
-    injectSearchFallback(catalog);
+    dedupeSearchForms(catalog);
+
+    window.setTimeout(() => {
+      if (!document.body.contains(catalog)) return;
+      dedupeSearchForms(catalog);
+      injectSearchFallback(catalog);
+      dedupeSearchForms(catalog);
+    }, 180);
   }
 
   document.addEventListener('click', (event) => {
@@ -82,10 +138,8 @@ if (!window.__ICETAK_CATALOG_ROUTE_CONTEXT_FIX__) {
     const productControl = target.closest('[data-k],[data-cat],[data-jump],[data-catalog-product]');
     if (!productControl) return;
 
-    const url = new URL(location.href);
-    rememberCustomerToken(url);
-    ['order', 'c', 'confirm', 'login', 'magic_token', 'token'].forEach((key) => url.searchParams.delete(key));
-    if (url.toString() !== location.href) history.replaceState(history.state, '', url);
+    const url = cleanRouteUrl();
+    if (url.toString() !== location.href) history.replaceState(currentState(), '', url);
   }, true);
 
   let scheduled = false;
@@ -97,6 +151,8 @@ if (!window.__ICETAK_CATALOG_ROUTE_CONTEXT_FIX__) {
       enhanceCatalogHome();
     }, 0);
   }
+
+  primeDirectCatalogRoute();
 
   const observer = new MutationObserver(schedule);
   observer.observe(document.querySelector('#app') || document.body, { childList: true, subtree: true });
