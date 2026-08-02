@@ -1,0 +1,537 @@
+import { api, supabase } from './appdeploy-client';
+
+export {};
+
+type PaymentSession = {
+  status: string;
+  orderId: string;
+  expectedAmount: number;
+  expiresAt: number;
+  transactionId?: string;
+};
+
+type ComponentState = {
+  id: string;
+  progressPercent: number;
+  progressStage: number;
+  workflow: string;
+  customerStage: string;
+  clickupStatus: string;
+};
+
+type OrderState = {
+  id: string;
+  status: string;
+  adminStatus: string;
+  fulfillmentStage: string;
+  pickupReadyAt: string;
+  pickupCollectedAt: string;
+  payment: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  delivery: string;
+  components: ComponentState[];
+};
+
+const QR_URL = 'https://t3747262.p.clickup-attachments.com/t3747262/836016e0-e613-447b-b61a-291fddd3f83d_large.png';
+let scheduled = false;
+let loading = false;
+let cachedToken = '';
+let cachedAt = 0;
+let cachedState: OrderState | null = null;
+let paymentPoll = 0;
+
+function normalize(value: unknown) {
+  return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
+
+function selectedOrderToken() {
+  return new URL(location.href).searchParams.get('order') || '';
+}
+
+function money(value: number) {
+  const amount = Number(value || 0);
+  return `RM${Number.isInteger(amount) ? amount : amount.toFixed(2)}`;
+}
+
+function toast(message: string, bad = false) {
+  document.querySelector('[data-pickup-payment-toast]')?.remove();
+  const element = document.createElement('div');
+  element.dataset.pickupPaymentToast = '1';
+  element.textContent = message;
+  Object.assign(element.style, {
+    position: 'fixed',
+    left: '50%',
+    bottom: '24px',
+    transform: 'translateX(-50%)',
+    zIndex: '150000',
+    maxWidth: 'calc(100vw - 32px)',
+    padding: '12px 16px',
+    borderRadius: '12px',
+    background: bad ? '#b42318' : '#157f3b',
+    color: '#fff',
+    fontWeight: '800',
+    textAlign: 'center',
+    boxShadow: '0 10px 32px rgba(0,0,0,.24)',
+  });
+  document.body.append(element);
+  window.setTimeout(() => element.remove(), 3200);
+}
+
+function exactReady(state: OrderState) {
+  const status = normalize(state.status);
+  const stage = normalize(state.fulfillmentStage);
+  return Boolean(state.pickupReadyAt)
+    || stage === 'ready_for_pickup'
+    || ['ready_for_pickup', 'ready_pickup'].includes(status);
+}
+
+function isCompleted(state: OrderState) {
+  const status = normalize(state.status);
+  const stage = normalize(state.fulfillmentStage);
+  return Boolean(state.pickupCollectedAt)
+    || ['completed', 'customer_collected', 'collected'].includes(status)
+    || ['completed', 'customer_collected', 'collected'].includes(stage);
+}
+
+function isPaid(state: OrderState) {
+  const payment = normalize(state.payment);
+  const paymentStatus = normalize(state.paymentStatus);
+  return payment === 'paid' || ['paid', 'matched', 'payment_received'].includes(paymentStatus);
+}
+
+function isPayAtPickup(state: OrderState) {
+  const values = [state.payment, state.paymentStatus, state.paymentMethod].map(normalize);
+  return values.some((value) => ['cash_at_counter', 'cash_counter', 'pay_at_pickup'].includes(value));
+}
+
+function isPickup(state: OrderState) {
+  return normalize(state.delivery).includes('pickup');
+}
+
+function componentComplete(component: ComponentState) {
+  const workflow = normalize(component.workflow || component.customerStage || component.clickupStatus);
+  return component.progressPercent >= 100
+    || ['complete', 'completed', 'production_complete', 'ready', 'ready_for_pickup', 'delivered'].includes(workflow);
+}
+
+function allComponentsComplete(state: OrderState) {
+  return state.components.length > 0 && state.components.every(componentComplete);
+}
+
+function mapApiState(raw: any): OrderState | null {
+  const payload = raw?.data ?? raw;
+  const order = payload?.order ?? payload?.data?.order;
+  if (!order) return null;
+  const components = (Array.isArray(order.items) ? order.items : []).flatMap((item: any) =>
+    (Array.isArray(item?.components) ? item.components : []).map((component: any) => ({
+      id: String(component?.id || ''),
+      progressPercent: Number(component?.progressPercent ?? 0),
+      progressStage: Number(component?.progressStage ?? 0),
+      workflow: String(component?.workflow || ''),
+      customerStage: String(component?.customerStage || component?.workflow || ''),
+      clickupStatus: String(component?.clickupStatus || ''),
+    })),
+  );
+  return {
+    id: String(order.id || ''),
+    status: String(order.status || ''),
+    adminStatus: String(order.adminStatus || ''),
+    fulfillmentStage: String(order.fulfillmentStage || ''),
+    pickupReadyAt: String(order.pickupReadyAt || ''),
+    pickupCollectedAt: String(order.pickupCollectedAt || ''),
+    payment: String(order.payment || ''),
+    paymentStatus: String(order.paymentStatus || ''),
+    paymentMethod: String(order.paymentMethod || ''),
+    delivery: String(order.delivery || order.deliveryMethod || ''),
+    components,
+  };
+}
+
+async function loadState(force = false): Promise<OrderState | null> {
+  const token = selectedOrderToken();
+  if (!token) return null;
+  if (!force && cachedToken === token && cachedState && Date.now() - cachedAt < 2500) return cachedState;
+  if (loading) return cachedState;
+  loading = true;
+  try {
+    let apiState: OrderState | null = null;
+    try {
+      apiState = mapApiState(await api.get(`/api/orders/${encodeURIComponent(token)}`));
+    } catch {
+      apiState = null;
+    }
+
+    const { data: orderRows } = await supabase
+      .from('orders')
+      .select('id,order_no,status,admin_status,fulfillment_stage,pickup_ready_at,pickup_collected_at,payment,payment_status,payment_method,delivery_method,delivery')
+      .eq('public_token', token)
+      .limit(1);
+    const row: any = orderRows?.[0];
+    if (!row) {
+      cachedState = apiState;
+      cachedToken = token;
+      cachedAt = Date.now();
+      return cachedState;
+    }
+
+    const { data: componentRows } = await supabase
+      .from('production_components')
+      .select('id,progress_percent,progress_stage,workflow,customer_stage,clickup_status')
+      .eq('order_id', row.id)
+      .order('created_at', { ascending: true });
+
+    cachedState = {
+      id: String(row.order_no || apiState?.id || ''),
+      status: String(row.status || apiState?.status || ''),
+      adminStatus: String(row.admin_status || apiState?.adminStatus || ''),
+      fulfillmentStage: String(row.fulfillment_stage || apiState?.fulfillmentStage || ''),
+      pickupReadyAt: String(row.pickup_ready_at || ''),
+      pickupCollectedAt: String(row.pickup_collected_at || ''),
+      payment: String(row.payment || apiState?.payment || ''),
+      paymentStatus: String(row.payment_status || apiState?.paymentStatus || ''),
+      paymentMethod: String(row.payment_method || apiState?.paymentMethod || ''),
+      delivery: String(row.delivery_method || row.delivery || apiState?.delivery || ''),
+      components: (componentRows || []).map((component: any) => ({
+        id: String(component.id || ''),
+        progressPercent: Number(component.progress_percent || 0),
+        progressStage: Number(component.progress_stage || 0),
+        workflow: String(component.workflow || ''),
+        customerStage: String(component.customer_stage || ''),
+        clickupStatus: String(component.clickup_status || ''),
+      })),
+    };
+    cachedToken = token;
+    cachedAt = Date.now();
+    return cachedState;
+  } finally {
+    loading = false;
+  }
+}
+
+function stageLabel(component: ComponentState) {
+  if (component.progressPercent >= 100) return 'Ready';
+  if (component.progressPercent >= 83) return 'Finishing';
+  if (component.progressPercent >= 67) return 'Production';
+  if (component.progressPercent >= 50) return 'Approved';
+  if (component.progressPercent >= 33) return 'Waiting Review';
+  if (component.progressPercent >= 17) return 'Design Editing';
+  return 'Order Received';
+}
+
+function stepIndex(percent: number, stepCount: number) {
+  if (stepCount >= 7) {
+    if (percent >= 100) return 6;
+    if (percent >= 83) return 5;
+    if (percent >= 67) return 4;
+    if (percent >= 50) return 3;
+    if (percent >= 33) return 2;
+    if (percent >= 17) return 1;
+    return 0;
+  }
+  if (percent >= 100) return Math.max(0, stepCount - 1);
+  if (percent >= 83) return Math.min(3, stepCount - 1);
+  if (percent >= 67) return Math.min(2, stepCount - 1);
+  if (percent >= 17) return Math.min(1, stepCount - 1);
+  return 0;
+}
+
+function applyProgress(detail: HTMLElement, state: OrderState) {
+  const cards = Array.from(detail.querySelectorAll<HTMLElement>('.cp-component'));
+  if (!cards.length || !state.components.length) return;
+  cards.forEach((card, index) => {
+    const component = state.components[index];
+    if (!component) return;
+    const heading = card.querySelector<HTMLElement>('.cp-component-head span');
+    if (heading) heading.textContent = stageLabel(component);
+    const steps = Array.from(card.querySelectorAll<HTMLElement>('.cp-step'));
+    const current = stepIndex(component.progressPercent, steps.length);
+    steps.forEach((step, stepNumber) => {
+      step.classList.toggle('done', stepNumber < current);
+      step.classList.toggle('current', stepNumber === current);
+      const icon = step.querySelector<HTMLElement>('i');
+      if (icon) icon.textContent = stepNumber <= current ? '✓' : '';
+    });
+  });
+
+  const overall = Math.round(state.components.reduce((sum, component) => sum + component.progressPercent, 0) / state.components.length);
+  const value = detail.querySelector<HTMLElement>('.cp-overall > div:first-child span');
+  const bar = detail.querySelector<HTMLElement>('.cp-overall-bar i');
+  if (value) value.textContent = `${overall}% • ${state.components.length} proses`;
+  if (bar) bar.style.width = `${overall}%`;
+}
+
+function pickupGuard(card: HTMLElement) {
+  let guard = card.querySelector<HTMLElement>('[data-customer-confirm-pickup][data-payment-guard]');
+  if (!guard) {
+    guard = document.createElement('span');
+    guard.dataset.customerConfirmPickup = '1';
+    guard.dataset.paymentGuard = '1';
+    guard.hidden = true;
+    card.append(guard);
+  }
+}
+
+async function confirmPickup(button: HTMLButtonElement) {
+  const token = selectedOrderToken();
+  if (!token) return;
+  if (!window.confirm('Sahkan barang sudah diterima daripada staff?')) return;
+  const original = button.textContent || '';
+  button.disabled = true;
+  button.textContent = 'Mengesahkan…';
+  const { data, error } = await supabase.rpc('icetak_customer_confirm_pickup', { p_order_token: token });
+  if (error || !data?.ok) {
+    button.disabled = false;
+    button.textContent = original;
+    toast(error?.message || 'Pengesahan pickup gagal', true);
+    return;
+  }
+  toast('Pickup disahkan. Order telah Completed.');
+  window.setTimeout(() => location.reload(), 700);
+}
+
+function applyPickup(detail: HTMLElement, state: OrderState) {
+  const card = detail.querySelector<HTMLElement>('.cp-pickup-card');
+  if (!card || !isPickup(state)) return;
+  const heading = card.querySelector<HTMLElement>('h3');
+  const icon = card.querySelector<HTMLElement>('header > span');
+  const helper = card.querySelector<HTMLElement>('small:last-child');
+  card.querySelectorAll('[data-lifecycle-note="pickup-confirmation"], [data-customer-confirm-pickup]:not([data-payment-guard])').forEach((node) => node.remove());
+  card.querySelector('[data-payment-guard]')?.remove();
+
+  if (isCompleted(state)) {
+    card.classList.add('ready');
+    if (heading) heading.textContent = 'Barang Telah Diambil';
+    if (icon) icon.textContent = '✅';
+    if (helper) helper.textContent = 'Pickup telah disahkan. Terima kasih.';
+    return;
+  }
+
+  const ready = exactReady(state);
+  const paid = isPaid(state);
+  const complete = allComponentsComplete(state);
+
+  if (!ready || !complete) {
+    card.classList.remove('ready');
+    if (heading) heading.textContent = 'Pickup di Kedai';
+    if (icon) icon.textContent = '📍';
+    if (helper) helper.textContent = 'Status akan berubah kepada Ready for Pickup selepas production dan packing selesai.';
+    return;
+  }
+
+  card.classList.add('ready');
+  if (heading) heading.textContent = 'Order Ready for Pickup';
+  if (icon) icon.textContent = '✅';
+
+  if (!paid) {
+    if (helper) helper.textContent = 'Barang sudah siap. Selesaikan bayaran sebelum sahkan pickup.';
+    pickupGuard(card);
+    return;
+  }
+
+  if (helper) helper.textContent = 'Bawa Order ID semasa pickup.';
+  const note = document.createElement('p');
+  note.dataset.lifecycleNote = 'pickup-confirmation';
+  note.textContent = 'Tekan butang di bawah hanya selepas barang sudah diterima daripada staff.';
+  Object.assign(note.style, {
+    padding: '10px 12px',
+    borderRadius: '10px',
+    background: '#fff3cd',
+    color: '#7a4b00',
+    fontWeight: '700',
+  });
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.dataset.customerConfirmPickup = '1';
+  button.textContent = '✓ Saya Dah Ambil Barang';
+  Object.assign(button.style, {
+    width: '100%',
+    marginTop: '12px',
+    padding: '13px 16px',
+    border: '0',
+    borderRadius: '12px',
+    background: '#16883f',
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: '15px',
+    cursor: 'pointer',
+  });
+  button.onclick = () => void confirmPickup(button);
+  card.append(note, button);
+}
+
+function closePaymentModal() {
+  if (paymentPoll) window.clearInterval(paymentPoll);
+  paymentPoll = 0;
+  document.querySelector('[data-qr-switch-modal]')?.remove();
+}
+
+function paymentModal(session: PaymentSession) {
+  closePaymentModal();
+  const wrap = document.createElement('div');
+  wrap.dataset.qrSwitchModal = '1';
+  Object.assign(wrap.style, {
+    position: 'fixed',
+    inset: '0',
+    zIndex: '160000',
+    background: 'rgba(0,0,0,.58)',
+    display: 'grid',
+    placeItems: 'center',
+    padding: '16px',
+  });
+  const panel = document.createElement('section');
+  Object.assign(panel.style, {
+    width: 'min(100%, 430px)',
+    maxHeight: 'calc(100vh - 32px)',
+    overflow: 'auto',
+    background: '#fff',
+    borderRadius: '18px',
+    padding: '18px',
+    textAlign: 'center',
+    boxShadow: '0 24px 80px rgba(0,0,0,.3)',
+  });
+
+  const paint = () => {
+    const left = Math.max(0, Number(session.expiresAt || 0) - Date.now());
+    const mm = String(Math.floor(left / 60000)).padStart(2, '0');
+    const ss = String(Math.floor((left % 60000) / 1000)).padStart(2, '0');
+    panel.innerHTML = `<button data-close-qr style="float:right;border:0;border-radius:999px;width:36px;height:36px;font-size:18px">✕</button>
+      <small>Order ${session.orderId}</small>
+      <h2 style="margin:8px 0">Bayar QR Sekarang</h2>
+      <p>Scan DuitNow QR dan bayar jumlah tepat.</p>
+      <img src="${QR_URL}" alt="DuitNow QR" style="display:block;width:min(100%,310px);margin:12px auto;border-radius:12px">
+      <button data-copy-amount style="width:100%;padding:14px;border:1px solid #ee4d2d;border-radius:12px;background:#fff;color:#ee4d2d;font-weight:800">
+        Jumlah Tepat: ${money(session.expectedAmount)}
+      </button>
+      <p style="margin:12px 0 0">Session: <b data-countdown>${mm}:${ss}</b></p>
+      <small>Status bayaran akan dikesan automatik. Progress task tidak berubah.</small>`;
+    panel.querySelector<HTMLButtonElement>('[data-close-qr]')!.onclick = () => {
+      closePaymentModal();
+      location.reload();
+    };
+    panel.querySelector<HTMLButtonElement>('[data-copy-amount]')!.onclick = async () => {
+      await navigator.clipboard.writeText(Number(session.expectedAmount || 0).toFixed(2));
+      toast('Jumlah disalin');
+    };
+  };
+
+  paint();
+  wrap.append(panel);
+  wrap.onclick = (event) => {
+    if (event.target === wrap) {
+      closePaymentModal();
+      location.reload();
+    }
+  };
+  document.body.append(wrap);
+
+  const token = selectedOrderToken();
+  paymentPoll = window.setInterval(async () => {
+    const countdown = panel.querySelector<HTMLElement>('[data-countdown]');
+    const left = Math.max(0, Number(session.expiresAt || 0) - Date.now());
+    if (countdown) countdown.textContent = `${String(Math.floor(left / 60000)).padStart(2, '0')}:${String(Math.floor((left % 60000) / 1000)).padStart(2, '0')}`;
+    try {
+      const response: any = await api.post(`/api/orders/${encodeURIComponent(token)}/payment-session`, {});
+      const next = response?.data?.payment ?? response?.payment ?? response?.data ?? response;
+      if (normalize(next?.status) === 'matched') {
+        closePaymentModal();
+        toast('Bayaran diterima ✅');
+        window.setTimeout(() => location.reload(), 650);
+      }
+    } catch {
+      // Next poll can recover.
+    }
+  }, 5000);
+}
+
+async function switchToQr(button: HTMLButtonElement) {
+  const token = selectedOrderToken();
+  if (!token) return;
+  const original = button.textContent || '';
+  button.disabled = true;
+  button.textContent = 'Menyediakan QR…';
+  try {
+    const response: any = await api.post(`/api/orders/${encodeURIComponent(token)}/payment-session`, {});
+    const payment = response?.data?.payment ?? response?.payment ?? response?.data ?? response;
+    paymentModal({
+      status: String(payment?.status || 'pending'),
+      orderId: String(payment?.orderId || cachedState?.id || ''),
+      expectedAmount: Number(payment?.expectedAmount || 0),
+      expiresAt: Number(payment?.expiresAt || Date.now() + 600000),
+      transactionId: String(payment?.transactionId || ''),
+    });
+    cachedAt = 0;
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = original;
+    toast(error instanceof Error ? error.message : 'QR Pay gagal disediakan', true);
+  }
+}
+
+function applyPayment(detail: HTMLElement, state: OrderState) {
+  const card = detail.querySelector<HTMLElement>('.cp-payment');
+  if (!card) return;
+  const heading = card.querySelector<HTMLElement>('b');
+  const paragraph = card.querySelector<HTMLElement>('p');
+  card.querySelector('[data-switch-to-qr]')?.remove();
+
+  if (isPaid(state)) {
+    if (heading) heading.textContent = 'Payment: Paid ✅';
+    if (paragraph) paragraph.textContent = 'Bayaran telah diterima.';
+    return;
+  }
+
+  if (!isPayAtPickup(state)) return;
+  if (heading) heading.textContent = 'Payment: Bayar Semasa Pickup';
+  if (paragraph) paragraph.textContent = 'Boleh bayar di kedai semasa ambil, atau tukar kepada QR Pay sekarang.';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.dataset.switchToQr = '1';
+  button.textContent = '▣ Bayar QR Sekarang';
+  Object.assign(button.style, {
+    width: '100%',
+    marginTop: '12px',
+    padding: '13px 16px',
+    border: '0',
+    borderRadius: '12px',
+    background: '#ee4d2d',
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: '15px',
+    cursor: 'pointer',
+  });
+  button.onclick = () => void switchToQr(button);
+  card.append(button);
+}
+
+async function enhance(force = false) {
+  scheduled = false;
+  const detail = document.querySelector<HTMLElement>('.order-detail-page');
+  if (!detail || !selectedOrderToken()) return;
+  const state = await loadState(force);
+  if (!state || !document.body.contains(detail)) return;
+  applyProgress(detail, state);
+  applyPayment(detail, state);
+  applyPickup(detail, state);
+}
+
+function schedule() {
+  if (scheduled) return;
+  scheduled = true;
+  window.setTimeout(() => void enhance(), 80);
+}
+
+const observer = new MutationObserver(schedule);
+observer.observe(document.querySelector('#app') || document.body, { childList: true, subtree: true });
+window.addEventListener('DOMContentLoaded', schedule);
+window.addEventListener('popstate', () => {
+  cachedAt = 0;
+  schedule();
+});
+document.addEventListener('click', (event) => {
+  if ((event.target as HTMLElement)?.closest('[data-cp-refresh-order],[data-cp-refresh-bottom]')) {
+    cachedAt = 0;
+    window.setTimeout(() => void enhance(true), 500);
+  }
+});
+schedule();
