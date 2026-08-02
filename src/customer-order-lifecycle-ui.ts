@@ -2,6 +2,23 @@ function normalizeLifecycleValue(value: unknown) {
   return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
 }
 
+function addLifecycleNote(card: HTMLElement, key: string, message: string, warning = false) {
+  if (card.querySelector(`[data-lifecycle-note="${key}"]`)) return;
+  const note = document.createElement('p');
+  note.dataset.lifecycleNote = key;
+  note.textContent = message;
+  if (warning) {
+    Object.assign(note.style, {
+      padding: '10px 12px',
+      borderRadius: '10px',
+      background: '#fff3cd',
+      color: '#7a4b00',
+      fontWeight: '700',
+    });
+  }
+  card.append(note);
+}
+
 function enhanceOrderLifecycleUi() {
   const detail = document.querySelector<HTMLElement>('.order-detail-page');
   if (!detail) return;
@@ -46,14 +63,27 @@ function enhanceOrderLifecycleUi() {
   if (!shipmentCard) return;
   const heading = shipmentCard.querySelector<HTMLElement>('h3');
   const status = normalizeLifecycleValue(heading?.textContent);
+
   if (['awb_created', 'shipment_created'].includes(status)) {
-    const explanation = shipmentCard.querySelector<HTMLElement>('[data-lifecycle-awb-note]');
-    if (!explanation) {
-      const note = document.createElement('p');
-      note.dataset.lifecycleAwbNote = '1';
-      note.textContent = 'Parcel telah disediakan. Menunggu courier pickup.';
-      shipmentCard.append(note);
-    }
+    addLifecycleNote(shipmentCard, 'awb', 'Parcel telah disediakan. Menunggu courier pickup.');
+  }
+
+  if (['delivery_failed', 'failed', 'exception'].includes(status)) {
+    addLifecycleNote(
+      shipmentCard,
+      'delivery-issue',
+      'Penghantaran menghadapi masalah. Sila semak tracking atau hubungi kami untuk tindakan lanjut.',
+      true,
+    );
+  }
+
+  if (['returned', 'return_to_sender'].includes(status)) {
+    addLifecycleNote(
+      shipmentCard,
+      'returned',
+      'Parcel sedang atau telah dipulangkan kepada pengirim. Hubungi kami untuk susunan penghantaran semula.',
+      true,
+    );
   }
 }
 
