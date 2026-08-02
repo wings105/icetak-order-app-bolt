@@ -58,6 +58,7 @@ function enhanceDesignPreviews(detail: HTMLElement) {
     previewLink.setAttribute('aria-label', 'Buka design penuh');
     Object.assign(previewLink.style, {
       display: 'block',
+      gridColumn: '1 / -1',
       width: '100%',
       marginBottom: '10px',
       borderRadius: '12px',
@@ -80,7 +81,6 @@ function enhanceDesignPreviews(detail: HTMLElement) {
     image.onerror = () => previewLink.remove();
     previewLink.append(image);
 
-    panel.style.flexWrap = 'wrap';
     panel.prepend(previewLink);
     sourceLink.textContent = 'Buka Design Penuh';
   });
