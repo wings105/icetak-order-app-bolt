@@ -18,6 +18,22 @@ const headers = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers });
 
+const text = (value: unknown) => value == null ? '' : String(value).trim();
+
+function errorText(error: any) {
+  if (error instanceof Error) return error.message;
+  return text(error?.message)
+    || text(error?.details)
+    || text(error?.hint)
+    || (() => {
+      try {
+        return JSON.stringify(error);
+      } catch {
+        return String(error);
+      }
+    })();
+}
+
 async function authorized(req: Request) {
   const supplied = req.headers.get('x-qrpay-ai-token') || '';
   if (!supplied) return false;
@@ -92,12 +108,23 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, result: data });
     }
 
+    if (action === 'create_pickup_order') {
+      const token = req.headers.get('x-qrpay-ai-token') || '';
+      const requestKey = String(body.request_key || '').trim();
+      if (!requestKey) return json({ error: 'request_key required' }, 400);
+
+      const { data, error } = await db.rpc('icetak_auto_create_pickup_ai_order', {
+        p_request_key: requestKey,
+        p_payload: body.payload || {},
+        p_internal_token: token,
+      });
+      if (error) throw error;
+      return json({ ok: true, result: data });
+    }
+
     return json({ error: 'Unsupported action' }, 400);
   } catch (error) {
     console.error('qrpay-ai-order-bridge', error);
-    return json({
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-    }, 500);
+    return json({ ok: false, error: errorText(error) }, 500);
   }
 });
