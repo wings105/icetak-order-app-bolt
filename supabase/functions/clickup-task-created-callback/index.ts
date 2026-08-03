@@ -30,15 +30,15 @@ Deno.serve(async (req) => {
     if (!await authorized(req)) return json({ error: 'invalid_ap_secret' }, 401);
     const body = await req.json();
     const eventId = text(body.event_id);
-    const orderId = text(body.order_id);
+    const orderReference = text(body.order_id);
     const componentId = text(body.component_id);
     const taskId = text(body.clickup_task_id);
-    if (!orderId || !componentId || !taskId) {
+    if (!orderReference || !componentId || !taskId) {
       return json({ error: 'order_id_component_id_clickup_task_id_required' }, 400);
     }
 
-    const { data, error } = await db.rpc('link_clickup_production_task', {
-      p_order_reference: orderId,
+    const { data: linked, error } = await db.rpc('link_clickup_production_task', {
+      p_order_reference: orderReference,
       p_component_id: componentId,
       p_clickup_task_id: taskId,
       p_clickup_list_id: text(body.clickup_list_id) || '18375902',
@@ -47,14 +47,19 @@ Deno.serve(async (req) => {
     });
     if (error) throw error;
 
+    const resolvedOrderId = text((linked as any)?.order_id);
+    if (!resolvedOrderId) throw new Error('resolved_order_id_missing');
+
     let remaining = 0;
     if (eventId) {
-      const { count } = await db
+      const { count, error: countError } = await db
         .from('production_components')
         .select('id', { count: 'exact', head: true })
-        .eq('order_id', orderId)
+        .eq('order_id', resolvedOrderId)
         .is('clickup_task_id', null);
+      if (countError) throw countError;
       remaining = count || 0;
+
       const update = remaining === 0
         ? {
             status: 'processed',
@@ -70,14 +75,21 @@ Deno.serve(async (req) => {
             next_attempt_at: new Date().toISOString(),
             last_error: null,
             error: null,
-            payload: { order_id: orderId, event_type: 'clickup.production.create', remaining_components: remaining },
+            payload: { order_id: resolvedOrderId, event_type: 'clickup.production.create', remaining_components: remaining },
           };
-      await db.from('integration_outbox').update(update).eq('id', eventId).eq('order_id', orderId);
+
+      const { error: outboxError } = await db
+        .from('integration_outbox')
+        .update(update)
+        .eq('id', eventId)
+        .eq('order_id', resolvedOrderId);
+      if (outboxError) throw outboxError;
     }
 
     return json({
       ok: true,
-      linked: data,
+      linked,
+      resolved_order_id: resolvedOrderId,
       remaining_components: remaining,
       outbox_status: remaining === 0 ? 'processed' : 'retry',
     });
