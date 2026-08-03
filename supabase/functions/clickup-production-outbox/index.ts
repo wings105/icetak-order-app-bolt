@@ -18,15 +18,20 @@ async function sha256(value: string) {
 }
 
 async function integrationSettings() {
-  const [{ data: clickup, error }, { data: app }] = await Promise.all([
+  const [{ data: clickup, error }, { data: app }, { data: setManifest }, { data: statusRows, error: statusError }] = await Promise.all([
     db.from('clickup_integration_settings').select('value').eq('setting_key', 'black_box').single(),
     db.from('system_settings').select('value').eq('key', 'order_app').maybeSingle(),
+    db.from('system_settings').select('value').eq('key', 'clickup_component_set_manifest').maybeSingle(),
+    db.from('clickup_status_mapping').select('status_name,component_scope').eq('active', true),
   ]);
   if (error) throw error;
+  if (statusError) throw statusError;
   const configuredBase = text(Deno.env.get('ORDER_APP_BASE_URL')) || text(app?.value?.base_url);
   return {
     clickup: clickup?.value || {},
     baseUrl: configuredBase ? trimSlash(configuredBase) : '',
+    setManifest: setManifest?.value || {},
+    activeStatuses: new Set((statusRows || []).map((row: any) => text(row.status_name).toLowerCase()).filter(Boolean)),
   };
 }
 
@@ -34,14 +39,20 @@ async function authorized(req: Request, expectedHash: string) {
   return Boolean(expectedHash) && await sha256(req.headers.get('x-ap-secret') || '') === expectedHash;
 }
 
-function initialStatus(component: any, item: any) {
+function initialStatus(component: any, item: any, activeStatuses: Set<string>) {
   const combined = `${text(component.component_type)} ${text(component.label)} ${text(item.product_type)} ${text(item.title)}`.toLowerCase();
   const review = Boolean(component.review_required ?? item.review_required);
-  if (combined.includes('mirror gold') || combined.includes('artpaper') || combined.includes('acrylic')) return 'acrylic';
-  if (combined.includes('wafer')) return 'wafer paper';
-  if (combined.includes('edible')) return review ? 'design edible image' : 'edible print ready stock';
-  if (combined.includes('topper') || combined.includes('printed')) return review ? 'design editing -topper' : 'ready stock';
-  return review ? 'design editing -topper' : 'ready stock';
+  let desired: string;
+  if (combined.includes('mirror gold') || combined.includes('artpaper') || combined.includes('acrylic')) desired = 'acrylic';
+  else if (combined.includes('wafer')) desired = 'wafer paper';
+  else if (combined.includes('edible')) desired = 'design edible image';
+  else if (combined.includes('topper') || combined.includes('printed')) desired = review ? 'design editing -topper' : 'ready stock';
+  else desired = review ? 'design editing -topper' : 'ready stock';
+
+  if (!activeStatuses.has(desired.toLowerCase())) {
+    throw new Error(`unmapped_initial_clickup_status:${desired}`);
+  }
+  return desired;
 }
 
 function links(baseUrl: string, order: any, componentId?: string) {
@@ -61,15 +72,17 @@ function links(baseUrl: string, order: any, componentId?: string) {
   };
 }
 
-function componentDescription(baseUrl: string, order: any, component: any, item: any) {
+function componentDescription(baseUrl: string, order: any, component: any, item: any, totalComponents: number) {
   const snapshot = item.product_snapshot && typeof item.product_snapshot === 'object' ? item.product_snapshot : {};
   const componentLinks = links(baseUrl, order, text(component.id));
+  const setIndex = Number(component.set_index || 0);
   const lines = [
     `Order: ${text(order.order_no || order.order_id)}`,
     `Customer: ${text(order.delivery_name)}`,
     `Phone: ${text(order.delivery_phone)}`,
     `Date Need: ${text(order.date_need)}`,
     `Delivery: ${text(order.delivery_method || order.delivery)}`,
+    setIndex ? `Order Component: set${setIndex} of ${totalComponents}` : `Order Components: ${totalComponents}`,
     `Product: ${text(item.title || component.label)}`,
     text(snapshot.parent_sku) ? `Parent SKU: ${text(snapshot.parent_sku)}` : '',
     text(item.catalog_slug) ? `Catalog slug: ${text(item.catalog_slug)}` : '',
@@ -111,15 +124,16 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      const { data: components, error: componentError } = await db
+      const { data: allComponents, error: componentError } = await db
         .from('production_components')
         .select('*,order_items(*)')
         .eq('order_id', event.order_id)
-        .is('clickup_task_id', null)
+        .order('set_index', { ascending: true, nullsFirst: false })
         .order('created_at');
       if (componentError) throw componentError;
 
-      if (!(components || []).length) {
+      const components = (allComponents || []).filter((component: any) => !text(component.clickup_task_id));
+      if (!components.length) {
         await db.from('integration_outbox').update({
           status: 'processed',
           processed_at: new Date().toISOString(),
@@ -131,11 +145,9 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      const totalOrderComponents = await db
-        .from('production_components')
-        .select('id', { count: 'exact', head: true })
-        .eq('order_id', event.order_id);
+      const totalComponents = (allComponents || []).length;
       const orderLinks = links(settings.baseUrl, order);
+      const setFieldId = text(settings.setManifest?.field_id);
 
       results.push({
         event_id: event.id,
@@ -155,21 +167,30 @@ Deno.serve(async (req: Request) => {
           delivery_city: order.delivery_city,
           delivery_postcode: order.delivery_postcode,
           delivery_state: order.delivery_state,
-          total_components: totalOrderComponents.count || (components || []).length,
+          total_components: totalComponents,
+          shipping_guard: {
+            required_components: totalComponents,
+            block_until_all_components_ready: totalComponents > 1,
+            minimum_progress_stage: 6,
+          },
           ...orderLinks,
         },
-        components: (components || []).map((component: any, index: number) => {
+        components: components.map((component: any, pendingIndex: number) => {
           const item = component.order_items || {};
           const wording = text(item.wording || item.custom_text);
           const orderNo = text(order.order_no || order.order_id);
-          const taskTitle = `${orderNo} — ${Number(item.qty || 1)}x ${text(item.title || component.label || `Component ${index + 1}`)}${wording ? ` — ${wording}` : ''}`;
+          const setIndex = Number(component.set_index || ((allComponents || []).findIndex((row: any) => row.id === component.id) + 1));
+          const setLabel = text(component.set_label) || `set${setIndex}`;
+          const setOptionId = text(component.clickup_set_option_id) || text(settings.setManifest?.options?.[String(setIndex)]);
+          const taskTitle = `${orderNo} — ${setLabel}/${totalComponents} — ${Number(item.qty || 1)}x ${text(item.title || component.label || `Component ${pendingIndex + 1}`)}${wording ? ` — ${wording}` : ''}`;
           const componentLinks = links(settings.baseUrl, order, text(component.id));
+          const customFields = setFieldId && setOptionId ? [{ id: setFieldId, value: [setOptionId] }] : [];
           return {
             id: component.id,
             order_item_id: component.order_item_id,
-            title: component.label || item.title || `Component ${index + 1}`,
+            title: component.label || item.title || `Component ${pendingIndex + 1}`,
             task_name: taskTitle,
-            task_description: componentDescription(settings.baseUrl, order, component, item),
+            task_description: componentDescription(settings.baseUrl, order, component, item, totalComponents),
             task_external_key: `icetak-component:${component.id}`,
             component_type: component.component_type,
             quantity: item.qty || 1,
@@ -183,8 +204,14 @@ Deno.serve(async (req: Request) => {
             product_snapshot: item.product_snapshot || {},
             customization: item.customization || {},
             review_required: Boolean(component.review_required ?? item.review_required),
-            initial_clickup_status: initialStatus(component, item),
-            awb_primary: index === 0,
+            initial_clickup_status: initialStatus(component, item, settings.activeStatuses),
+            set_index: setIndex,
+            set_label: setLabel,
+            set_option_id: setOptionId || null,
+            set_custom_field_id: setFieldId || null,
+            set_manifest_complete: Boolean(setFieldId && setOptionId),
+            custom_fields: customFields,
+            awb_primary: setIndex === 1,
             webapp_order_id: order.id,
             webapp_component_id: component.id,
             ...componentLinks,
