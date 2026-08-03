@@ -3,6 +3,7 @@ import './admin-quick-arrange.css';
 import './admin-quick-arrange-entry.css';
 
 type ProductKind = 'edible' | 'burnaway' | 'printed' | 'acrylic' | 'custom';
+type DeliveryKind = 'pickup' | 'spx' | 'jnt' | 'ninja';
 type ItemDraft = {
   id: string;
   kind: ProductKind;
@@ -49,6 +50,13 @@ const PRODUCT: Record<ProductKind, { label: string; icon: string; k: string; tit
   custom: { label: 'New Custom Design Topper', icon: '✏️', k: 'printed', title: 'New Custom Design Topper', price: 10, size: '1 pc', style: 'Custom' },
 };
 
+const DELIVERY: Record<DeliveryKind, { label: string; fee: number }> = {
+  pickup: { label: 'Pickup', fee: 0 },
+  spx: { label: 'Pos SPX', fee: 4.5 },
+  jnt: { label: 'J&T', fee: 5.9 },
+  ninja: { label: 'Ninja Van', fee: 6.9 },
+};
+
 const e = (value: unknown) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
 }[char] || char));
@@ -90,7 +98,7 @@ export function mountQuickArrange(options: MountOptions) {
   }
 
   let items: ItemDraft[] = [];
-  let delivery = 'pickup';
+  let delivery: DeliveryKind = 'pickup';
   let payment = '';
   let result: QuickResult | null = null;
   let status: SyncStatus | undefined;
@@ -99,7 +107,7 @@ export function mountQuickArrange(options: MountOptions) {
   const requestId = makeId();
   let formDraft = { name: '', phone: '', dateNeed: '', source: 'Walk-in', address: '', note: '', notifyWhatsapp: false };
 
-  const total = () => items.reduce((sum, item) => sum + item.qty * item.price, 0) + (delivery === 'spx' ? 4.5 : 0);
+  const total = () => items.reduce((sum, item) => sum + item.qty * item.price, 0) + DELIVERY[delivery].fee;
 
   function readForm() {
     const form = root.querySelector<HTMLFormElement>('#qaForm');
@@ -166,8 +174,8 @@ export function mountQuickArrange(options: MountOptions) {
             <label>No. WhatsApp *<input name="phone" autocomplete="tel" inputmode="tel" value="${e(formDraft.phone)}" required placeholder="0123456789"></label>
             <label>Date need *<input name="date_need" type="date" min="${new Date().toISOString().slice(0, 10)}" value="${e(formDraft.dateNeed)}" required></label>
             <label>Order source<select name="source">${['Walk-in','WhatsApp','Phone','POS'].map((source) => `<option${formDraft.source === source ? ' selected' : ''}>${source}</option>`).join('')}</select></label>
-          </div><fieldset class="qa-choice"><legend>Method *</legend><button type="button" data-delivery="pickup" class="${delivery === 'pickup' ? 'active' : ''}">Pickup</button><button type="button" data-delivery="spx" class="${delivery === 'spx' ? 'active' : ''}">Pos SPX (+RM4.50)</button></fieldset>
-          <div id="qaAddress" class="${delivery === 'spx' ? '' : 'qa-hidden'}"><label>Alamat penghantaran *<textarea name="address" rows="2" placeholder="Alamat penuh, postcode, bandar dan negeri">${e(formDraft.address)}</textarea></label></div>
+          </div><fieldset class="qa-choice"><legend>Method *</legend>${(Object.keys(DELIVERY) as DeliveryKind[]).map((method) => `<button type="button" data-delivery="${method}" class="${delivery === method ? 'active' : ''}">${e(DELIVERY[method].label)}${DELIVERY[method].fee ? ` (+${money(DELIVERY[method].fee)})` : ''}</button>`).join('')}</fieldset>
+          <div id="qaAddress" class="${delivery !== 'pickup' ? '' : 'qa-hidden'}"><label>Alamat penghantaran *<textarea name="address" rows="2" placeholder="Alamat penuh, postcode, bandar dan negeri">${e(formDraft.address)}</textarea></label></div>
           <fieldset class="qa-choice"><legend>Payment *</legend><button type="button" data-payment="Paid" class="${payment === 'Paid' ? 'active' : ''}">Paid</button><button type="button" data-payment="Unpaid" class="${payment === 'Unpaid' ? 'active' : ''}">Pending</button><button type="button" data-payment="Cash Counter" class="${payment === 'Cash Counter' ? 'active' : ''}">Cash Counter</button></fieldset>
           <label class="qa-check"><input name="notify_whatsapp" type="checkbox" ${formDraft.notifyWhatsapp ? 'checked' : ''}><span><b>Notify customer via WhatsApp</b><small>Off by default untuk order counter cepat.</small></span></label></section>
           <section class="qa-card"><div class="qa-section-title"><span>3</span><div><h2>Detail produk</h2><p>Setiap item/component akan ikut mapping ClickUp sedia ada.</p></div></div><div id="qaItems">${items.length ? items.map(itemCard).join('') : '<div class="qa-empty"><span>＋</span><b>Belum ada produk</b><p>Tekan pilihan produk di bahagian atas.</p></div>'}</div><label>Nota admin<textarea name="note" rows="3" placeholder="Urgent, pickup time atau arahan staff">${e(formDraft.note)}</textarea></label></section>
@@ -180,7 +188,7 @@ export function mountQuickArrange(options: MountOptions) {
     root.querySelectorAll<HTMLButtonElement>('[data-add-kind]').forEach((button) => button.onclick = () => { readForm(); captureItemInputs(); items.push(newItem(button.dataset.addKind as ProductKind)); render(); });
     root.querySelectorAll<HTMLButtonElement>('[data-remove]').forEach((button) => button.onclick = () => { readForm(); captureItemInputs(); items = items.filter((item) => item.id !== button.dataset.remove); render(); });
     root.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-qa-item] input, [data-qa-item] select').forEach((input) => input.addEventListener('input', captureItemInputs));
-    root.querySelectorAll<HTMLButtonElement>('[data-delivery]').forEach((button) => button.onclick = () => { readForm(); captureItemInputs(); delivery = button.dataset.delivery || 'pickup'; render(); });
+    root.querySelectorAll<HTMLButtonElement>('[data-delivery]').forEach((button) => button.onclick = () => { readForm(); captureItemInputs(); delivery = (button.dataset.delivery as DeliveryKind) || 'pickup'; render(); });
     root.querySelectorAll<HTMLButtonElement>('[data-payment]').forEach((button) => button.onclick = () => { payment = button.dataset.payment || ''; root.querySelectorAll('[data-payment]').forEach((node) => node.classList.toggle('active', node === button)); });
     root.querySelector<HTMLButtonElement>('#qaOpenOrder')?.addEventListener('click', () => result && onOpenOrder(result.order_token));
     root.querySelector<HTMLButtonElement>('#qaNew')?.addEventListener('click', () => location.reload());
@@ -226,13 +234,13 @@ export function mountQuickArrange(options: MountOptions) {
     if (!phone) { notify('Nombor WhatsApp Malaysia tidak sah'); return; }
     if (!payment) { notify('Pilih payment: Paid, Pending atau Cash Counter'); return; }
     if (payment === 'Cash Counter' && delivery !== 'pickup') { notify('Cash Counter hanya untuk Pickup'); return; }
-    if (delivery === 'spx' && !values.address) { notify('Isi alamat penghantaran SPX'); return; }
+    if (delivery !== 'pickup' && !values.address) { notify(`Isi alamat penghantaran ${DELIVERY[delivery].label}`); return; }
     if (!values.name || !values.dateNeed) { notify('Lengkapkan nama customer dan Date Need'); return; }
 
     const button = root.querySelector<HTMLButtonElement>('#qaSubmit')!;
     button.disabled = true;
     button.textContent = 'Creating securely…';
-    const note = [`Source: ${values.source}`, values.note, delivery === 'spx' ? `Address: ${values.address}` : ''].filter(Boolean).join('\n');
+    const note = [`Source: ${values.source}`, values.note, delivery !== 'pickup' ? `Address: ${values.address}` : ''].filter(Boolean).join('\n');
     try {
       const response = await api.post('/api/admin/quick-arrange', {
         request_id: requestId,
@@ -252,7 +260,7 @@ export function mountQuickArrange(options: MountOptions) {
         })),
         date_need: values.dateNeed,
         delivery,
-        delivery_fee: delivery === 'spx' ? 4.5 : 0,
+        delivery_fee: DELIVERY[delivery].fee,
         payment,
         admin_remark: note,
         notify_whatsapp: values.notifyWhatsapp,
