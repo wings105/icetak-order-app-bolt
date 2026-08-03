@@ -287,6 +287,11 @@ function quickToast(message: string) {
 async function installQuickArrange() {
   const root = document.querySelector<HTMLElement>('#app');
   const requested = new URLSearchParams(location.search).get('admin') === 'quick-arrange';
+  const quickArrangeVisible = Boolean(root?.querySelector('.qa-head'));
+
+  // The legacy dashboard finishes its own async render after route restoration.
+  // If that late render replaces Quick Arrange, allow this installer to mount it again.
+  if (requested && autoMounted && !quickArrangeVisible) autoMounted = false;
 
   document.querySelectorAll<HTMLElement>('.admin-users section').forEach((section) => {
     if (section.querySelector('input[value="quick_arrange"]')) return;
@@ -313,10 +318,13 @@ async function installQuickArrange() {
     createOrderButton.insertAdjacentElement('afterend', button);
   }
 
-  if (!requested || autoMounted || dashboardLoading || !root || !sessionStorage.getItem('admin_access_token')) return;
+  const sessionToken = sessionStorage.getItem('admin_access_token') || sessionStorage.getItem('admin_session') || '';
+  if (!requested || quickArrangeVisible || autoMounted || dashboardLoading || !root || !sessionToken) return;
   dashboardLoading = true;
   try {
-    const response = await api.post('/api/admin/dashboard', { session_token: sessionStorage.getItem('admin_session') || '' });
+    // Keep both keys in sync for browsers that still have the older admin_session key.
+    if (!sessionStorage.getItem('admin_access_token')) sessionStorage.setItem('admin_access_token', sessionToken);
+    const response = await api.post('/api/admin/dashboard', { session_token: sessionToken });
     const admin = response.data?.admin as { username?: string; permissions?: string[] } | undefined;
     autoMounted = true;
     mountQuickArrange({
@@ -336,8 +344,9 @@ async function installQuickArrange() {
       },
       notify: quickToast,
     });
-  } catch {
-    // The existing secure admin login remains visible when the session is absent/expired.
+  } catch (error) {
+    autoMounted = false;
+    console.error('[Quick Arrange] route mount failed', error);
   } finally {
     dashboardLoading = false;
   }
