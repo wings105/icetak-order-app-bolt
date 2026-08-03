@@ -1,0 +1,10 @@
+.qa-admin-entry {
+  margin-left: 8px !important;
+  background: #ed7421 !important;
+}
+
+@media (max-width: 640px) {
+  .qa-admin-entry {
+    margin: 8px 0 0 !important;
+  }
+}
