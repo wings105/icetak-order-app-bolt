@@ -66,7 +66,8 @@ async function mountAdminV2() {
     // The standalone prototype still creates its own client when run by itself.
     (globalThis as typeof globalThis & { __ICETAK_SUPABASE__?: typeof supabase }).__ICETAK_SUPABASE__ = supabase;
 
-    const [{ createRoot }, { default: AdminV2 }] = await Promise.all([
+    const [{ createElement }, { createRoot }, { default: AdminV2 }] = await Promise.all([
+      import('react'),
       import('react-dom/client'),
       import('../icetak-admin/src/App'),
       import('../icetak-admin/src/index.css'),
@@ -74,12 +75,10 @@ async function mountAdminV2() {
 
     root.innerHTML = '';
     adminV2Root = createRoot(root);
-    adminV2Root.render(
-      <AdminV2
-        onSwitchToV1={() => goToAdmin('1')}
-        adminData={dashboard.data}
-      />,
-    );
+    adminV2Root.render(createElement(AdminV2, {
+      onSwitchToV1: () => goToAdmin('1'),
+      adminData: dashboard.data,
+    }));
     document.title = 'iCetak ERP — Admin V2';
   } catch (error) {
     mountFailed = true;
