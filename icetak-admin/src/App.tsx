@@ -24,14 +24,7 @@ const pageMap: Record<string, { title: string; subtitle?: string }> = {
   settings: { title: 'Settings' },
 };
 
-type Props = {
-  onSwitchToV1?: () => void;
-  adminData?: {
-    orders?: React.ComponentProps<typeof Dashboard>['adminOrders'];
-  };
-};
-
-export default function App({ onSwitchToV1, adminData }: Props) {
+export default function App() {
   const [page, setPage] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -44,8 +37,8 @@ export default function App({ onSwitchToV1, adminData }: Props) {
 
   const renderPage = () => {
     switch (page) {
-      case 'dashboard': return <Dashboard adminOrders={adminData?.orders} />;
-      case 'orders': return <Dashboard adminOrders={adminData?.orders} />;
+      case 'dashboard': return <Dashboard />;
+      case 'orders': return <Dashboard />;
       case 'payments': return <Payments />;
       case 'shipping': return <Shipping />;
       case 'whatsapp-control': return <WhatsAppControl />;
@@ -54,7 +47,7 @@ export default function App({ onSwitchToV1, adminData }: Props) {
       case 'integrations': return <Integrations />;
       case 'staff': return <StaffRoles />;
       case 'settings': return <Settings />;
-      default: return <Dashboard adminOrders={adminData?.orders} />;
+      default: return <Dashboard />;
     }
   };
 
@@ -71,7 +64,6 @@ export default function App({ onSwitchToV1, adminData }: Props) {
           title={info.title}
           subtitle={info.subtitle}
           onOpenMobile={() => setMobileOpen(true)}
-          onSwitchAdmin={onSwitchToV1}
         />
         <div className="content-area">
           {renderPage()}

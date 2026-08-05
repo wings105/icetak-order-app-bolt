@@ -1,18 +1,18 @@
 import { api } from './appdeploy-client';
-import { ADMIN_PRODUCTS, adminProductPrice, adminProductStyles, type AdminProductKind, type ProductReview } from './admin-product-config';
 import './admin-quick-arrange.css';
-import './admin-quick-arrange-products.css';
 import './admin-quick-arrange-entry.css';
 
+type ProductKind = 'edible' | 'burnaway' | 'printed' | 'acrylic' | 'custom';
 type DeliveryKind = 'pickup' | 'spx' | 'jnt' | 'ninja';
 type ItemDraft = {
   id: string;
-  kind: AdminProductKind;
+  kind: ProductKind;
+  title: string;
   qty: number;
-  process: string;
+  price: number;
   size: string;
   style: string;
-  review: ProductReview;
+  review: 'No Review' | 'Need Review';
   wording: string;
   referenceUrl: string;
 };
@@ -42,6 +42,14 @@ type MountOptions = {
   notify: (message: string) => void;
 };
 
+const PRODUCT: Record<ProductKind, { label: string; icon: string; k: string; title: string; price: number; size: string; style: string }> = {
+  edible: { label: 'Edible Image', icon: '🎂', k: 'edible', title: 'Edible Image', price: 6, size: '3 inch', style: 'Round / Bulat' },
+  burnaway: { label: 'Wafer + Edible Combo', icon: '🔥', k: 'burnaway', title: 'Burn Away Combo', price: 12, size: '3 inch', style: 'Round / Bulat' },
+  printed: { label: 'Cake Topper', icon: '🎉', k: 'printed', title: 'Cake Topper', price: 10, size: '1 pc', style: 'Custom Name' },
+  acrylic: { label: 'Acrylic Topper', icon: '✨', k: 'acrylic', title: 'Acrylic Cake Topper', price: 12, size: 'A7 Mini', style: 'Gold' },
+  custom: { label: 'New Custom Design Topper', icon: '✏️', k: 'printed', title: 'New Custom Design Topper', price: 10, size: '1 pc', style: 'Custom' },
+};
+
 const DELIVERY: Record<DeliveryKind, { label: string; fee: number }> = {
   pickup: { label: 'Pickup', fee: 0 },
   spx: { label: 'Pos SPX', fee: 4.5 },
@@ -61,22 +69,9 @@ const normalizePhone = (value: string) => {
   return /^601\d{8,9}$/.test(normalized) ? `+${normalized}` : '';
 };
 
-function newItem(kind: AdminProductKind): ItemDraft {
-  const product = ADMIN_PRODUCTS[kind];
-  return { id: makeId(), kind, qty: 1, process: product.process[0], size: product.defaultSize, style: product.defaultStyle, review: product.defaultReview, wording: '', referenceUrl: '' };
-}
-
-function itemPrice(item: ItemDraft) {
-  return adminProductPrice(item.kind, item.process, item.size, item.style, item.review);
-}
-
-function payloadStyle(item: ItemDraft) {
-  return item.kind === 'burnaway' ? `${item.style} • Edible Image + Wafer Paper` : item.style;
-}
-
-function choiceButtons(item: ItemDraft, group: 'process' | 'review' | 'size' | 'style', values: string[]) {
-  const selected = item[group];
-  return `<div class="qa-item-choices">${values.map((value) => `<button type="button" data-item-choice="${item.id}" data-group="${group}" data-value="${e(value)}" class="${selected === value ? 'active' : ''}">${e(value)}</button>`).join('')}</div>`;
+function newItem(kind: ProductKind): ItemDraft {
+  const p = PRODUCT[kind];
+  return { id: makeId(), kind, title: p.title, qty: 1, price: p.price, size: p.size, style: p.style, review: 'No Review', wording: '', referenceUrl: '' };
 }
 
 function syncSummary(status: SyncStatus | undefined) {
@@ -112,7 +107,7 @@ export function mountQuickArrange(options: MountOptions) {
   const requestId = makeId();
   let formDraft = { name: '', phone: '', dateNeed: '', source: 'Walk-in', address: '', note: '', notifyWhatsapp: false };
 
-  const total = () => items.reduce((sum, item) => sum + item.qty * itemPrice(item), 0) + DELIVERY[delivery].fee;
+  const total = () => items.reduce((sum, item) => sum + item.qty * item.price, 0) + DELIVERY[delivery].fee;
 
   function readForm() {
     const form = root.querySelector<HTMLFormElement>('#qaForm');
@@ -134,7 +129,13 @@ export function mountQuickArrange(options: MountOptions) {
     root.querySelectorAll<HTMLElement>('[data-qa-item]').forEach((card) => {
       const item = items.find((candidate) => candidate.id === card.dataset.qaItem);
       if (!item) return;
-      const get = (name: string) => card.querySelector<HTMLInputElement>(`[name="${name}"]`);
+      const get = (name: string) => card.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${name}"]`);
+      item.title = get('title')?.value.trim() || item.title;
+      item.qty = Math.max(1, Number(get('qty')?.value || 1));
+      item.price = Math.max(0, Number(get('price')?.value || 0));
+      item.size = get('size')?.value.trim() || '';
+      item.style = get('style')?.value.trim() || '';
+      item.review = get('review')?.value === 'Need Review' ? 'Need Review' : 'No Review';
       item.wording = get('wording')?.value.trim() || '';
       item.referenceUrl = get('reference_url')?.value.trim() || '';
     });
@@ -143,23 +144,18 @@ export function mountQuickArrange(options: MountOptions) {
   }
 
   function itemCard(item: ItemDraft, index: number) {
-    const product = ADMIN_PRODUCTS[item.kind];
-    const styles = adminProductStyles(item.kind, item.size);
-    if (!styles.includes(item.style)) item.style = styles[0];
-    const showStandardOptions = item.kind !== 'printed';
+    const p = PRODUCT[item.kind];
     return `<article class="qa-item" data-qa-item="${item.id}">
-      <header><div><img src="${product.image}" alt=""><div><small>Item ${index + 1} • ${e(product.tag)}</small><strong>${e(product.label)}</strong><b>${money(itemPrice(item))}</b></div></div><button type="button" data-remove="${item.id}" aria-label="Remove item">×</button></header>
-      <div class="qa-item-options">
-        ${showStandardOptions ? `<section><h3>Process</h3>${choiceButtons(item, 'process', product.process)}<small>Urgent: Same Day, perlu confirm dan bayar sebelum 12 PM, tertakluk kepada slot.</small></section>
-        <section><h3>Review</h3>${choiceButtons(item, 'review', ['No Review', 'Need Review'])}</section>
-        <section><h3>Size</h3>${choiceButtons(item, 'size', product.sizes)}</section>` : '<p class="qa-fixed-option">Pre-order • Need Review • 1 pc</p>'}
-        <section><h3>${item.kind === 'acrylic' || item.kind === 'mirror' ? 'Shape / Colour' : item.kind === 'printed' ? 'Tema' : 'Shape'}</h3>${choiceButtons(item, 'style', styles)}</section>
-        ${item.kind === 'burnaway' ? '<p class="qa-layer-note"><b>2 layer:</b> Edible Image (bottom) + Wafer Paper (top)</p>' : ''}
-        <div class="qa-quantity"><span>Quantity</span><div><button type="button" data-item-qty="${item.id}" data-delta="-1">−</button><b>${item.qty}</b><button type="button" data-item-qty="${item.id}" data-delta="1">＋</button></div></div>
-        <div class="qa-grid qa-grid-item">
-          <label class="qa-wide">Wording / design detail<input name="wording" value="${e(item.wording)}" placeholder="Nama, umur, tema dan arahan ringkas"></label>
-          <label class="qa-wide">Reference image link (optional)<input name="reference_url" type="url" value="${e(item.referenceUrl)}" placeholder="https://…"></label>
-        </div>
+      <header><div><span>${p.icon}</span><div><small>Item ${index + 1}</small><strong>${e(p.label)}</strong></div></div><button type="button" data-remove="${item.id}" aria-label="Remove item">×</button></header>
+      <div class="qa-grid qa-grid-item">
+        <label class="qa-wide">Task / item name<input name="title" value="${e(item.title)}" required></label>
+        <label>Qty<input name="qty" type="number" min="1" step="1" value="${item.qty}" required></label>
+        <label>Unit price (RM)<input name="price" type="number" min="0" step="0.01" value="${item.price}" required></label>
+        <label>Size<input name="size" value="${e(item.size)}" placeholder="5 inch / A6"></label>
+        <label>Shape / colour<input name="style" value="${e(item.style)}" placeholder="Round / Gold"></label>
+        <label>Design review<select name="review"><option${item.review === 'No Review' ? ' selected' : ''}>No Review</option><option${item.review === 'Need Review' ? ' selected' : ''}>Need Review</option></select></label>
+        <label class="qa-wide">Wording / design detail<input name="wording" value="${e(item.wording)}" placeholder="Nama, umur, tema dan arahan ringkas"></label>
+        <label class="qa-wide">Reference image link (optional)<input name="reference_url" type="url" value="${e(item.referenceUrl)}" placeholder="https://…"></label>
       </div>
     </article>`;
   }
@@ -172,7 +168,7 @@ export function mountQuickArrange(options: MountOptions) {
         <section class="qa-intro"><div><span>⚡</span><div><h2>Arrange order cepat</h2><p>Tekan produk, isi detail penting dan terus hantar ke order system + ClickUp.</p></div></div><small>Secure admin session required</small></section>
         ${result ? `<section class="qa-result ${summary.tone}"><span>${summary.tone === 'success' ? '✓' : summary.tone === 'error' ? '!' : '↻'}</span><div><small>Order ${e(result.order_id)}</small><h2>${e(summary.title)}</h2><p>${e(summary.detail)}</p><div class="qa-result-actions"><button id="qaRefresh" type="button">Refresh status</button>${summary.tone === 'error' ? '<button id="qaRetry" type="button">Retry ClickUp</button>' : ''}<button id="qaOpenOrder" type="button">Open order</button><button id="qaNew" type="button">New arrange</button></div></div></section>` : ''}
         <form id="qaForm">
-          <section class="qa-card"><div class="qa-section-title"><span>1</span><div><h2>Pilih produk iCetak</h2><p>6 produk sebenar. Tekan untuk tambah dan pilih variasi seperti customer app.</p></div></div><div class="qa-products">${(Object.keys(ADMIN_PRODUCTS) as AdminProductKind[]).map((kind) => `<button type="button" data-add-kind="${kind}"><img src="${ADMIN_PRODUCTS[kind].image}" alt=""><span><b>${e(ADMIN_PRODUCTS[kind].shortLabel)}</b><small>${e(ADMIN_PRODUCTS[kind].tag)}</small></span></button>`).join('')}</div></section>
+          <section class="qa-card"><div class="qa-section-title"><span>1</span><div><h2>Pilih jenis order</h2><p>Boleh tambah lebih daripada satu produk.</p></div></div><div class="qa-products">${(Object.keys(PRODUCT) as ProductKind[]).map((kind) => `<button type="button" data-add-kind="${kind}"><span>${PRODUCT[kind].icon}</span>${e(PRODUCT[kind].label)}</button>`).join('')}</div></section>
           <section class="qa-card"><div class="qa-section-title"><span>2</span><div><h2>Customer & payment</h2><p>Medan bertanda * diperlukan untuk create order.</p></div></div><div class="qa-grid">
             <label>Nama customer *<input name="name" autocomplete="name" value="${e(formDraft.name)}" required placeholder="Contoh: Nikhafawati"></label>
             <label>No. WhatsApp *<input name="phone" autocomplete="tel" inputmode="tel" value="${e(formDraft.phone)}" required placeholder="0123456789"></label>
@@ -189,25 +185,9 @@ export function mountQuickArrange(options: MountOptions) {
 
     root.querySelector<HTMLButtonElement>('#qaBack')!.onclick = onBack;
     root.querySelector<HTMLButtonElement>('#qaCopyLink')!.onclick = async () => { await navigator.clipboard.writeText(location.href); notify('Quick Arrange link copied'); };
-    root.querySelectorAll<HTMLButtonElement>('[data-add-kind]').forEach((button) => button.onclick = () => { readForm(); captureItemInputs(); items.push(newItem(button.dataset.addKind as AdminProductKind)); render(); });
+    root.querySelectorAll<HTMLButtonElement>('[data-add-kind]').forEach((button) => button.onclick = () => { readForm(); captureItemInputs(); items.push(newItem(button.dataset.addKind as ProductKind)); render(); });
     root.querySelectorAll<HTMLButtonElement>('[data-remove]').forEach((button) => button.onclick = () => { readForm(); captureItemInputs(); items = items.filter((item) => item.id !== button.dataset.remove); render(); });
-    root.querySelectorAll<HTMLInputElement>('[data-qa-item] input').forEach((input) => input.addEventListener('input', captureItemInputs));
-    root.querySelectorAll<HTMLButtonElement>('[data-item-choice]').forEach((button) => button.onclick = () => {
-      readForm(); captureItemInputs();
-      const item = items.find((candidate) => candidate.id === button.dataset.itemChoice);
-      const group = button.dataset.group as 'process' | 'review' | 'size' | 'style';
-      if (!item || !group) return;
-      if (group === 'review') item.review = button.dataset.value === 'Need Review' ? 'Need Review' : 'No Review';
-      else item[group] = button.dataset.value || item[group];
-      render();
-    });
-    root.querySelectorAll<HTMLButtonElement>('[data-item-qty]').forEach((button) => button.onclick = () => {
-      readForm(); captureItemInputs();
-      const item = items.find((candidate) => candidate.id === button.dataset.itemQty);
-      if (!item) return;
-      item.qty = Math.max(1, item.qty + Number(button.dataset.delta || 0));
-      render();
-    });
+    root.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-qa-item] input, [data-qa-item] select').forEach((input) => input.addEventListener('input', captureItemInputs));
     root.querySelectorAll<HTMLButtonElement>('[data-delivery]').forEach((button) => button.onclick = () => { readForm(); captureItemInputs(); delivery = (button.dataset.delivery as DeliveryKind) || 'pickup'; render(); });
     root.querySelectorAll<HTMLButtonElement>('[data-payment]').forEach((button) => button.onclick = () => { payment = button.dataset.payment || ''; root.querySelectorAll('[data-payment]').forEach((node) => node.classList.toggle('active', node === button)); });
     root.querySelector<HTMLButtonElement>('#qaOpenOrder')?.addEventListener('click', () => result && onOpenOrder(result.order_token));
@@ -266,14 +246,14 @@ export function mountQuickArrange(options: MountOptions) {
         request_id: requestId,
         customer: { name: values.name, phone, address_line1: values.address, city: '', postcode: '', state: '', phone_masked: '', address_masked: '' },
         items: items.map((item) => ({
-          k: item.kind,
-          title: ADMIN_PRODUCTS[item.kind].label,
-          process: item.process,
+          k: PRODUCT[item.kind].k,
+          title: item.title,
+          process: 'Pre-order',
           review: item.review,
           size: item.size,
-          style: payloadStyle(item),
+          style: item.style,
           customText: item.wording,
-          price: itemPrice(item),
+          price: item.price,
           qty: item.qty,
           product_snapshot: item.referenceUrl ? { image_url: item.referenceUrl, quick_arrange_kind: item.kind } : { quick_arrange_kind: item.kind },
           customization: item.referenceUrl ? { reference_url: item.referenceUrl } : {},

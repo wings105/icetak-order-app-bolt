@@ -5,10 +5,9 @@ type Props = {
   subtitle?: string;
   onOpenMobile: () => void;
   onRefresh?: () => void;
-  onSwitchAdmin?: () => void;
 };
 
-export default function Topbar({ title, subtitle, onOpenMobile, onRefresh, onSwitchAdmin }: Props) {
+export default function Topbar({ title, subtitle, onOpenMobile, onRefresh }: Props) {
   return (
     <header className="topbar">
       <button className="topbar-mobile-btn" onClick={onOpenMobile}>
@@ -19,11 +18,6 @@ export default function Topbar({ title, subtitle, onOpenMobile, onRefresh, onSwi
         {subtitle && <span className="topbar-subtitle">{subtitle}</span>}
       </div>
       <div className="topbar-right">
-        {onSwitchAdmin && (
-          <button className="topbar-admin-switch" onClick={onSwitchAdmin} title="Return to the current production admin">
-            Admin V1
-          </button>
-        )}
         {onRefresh && (
           <button className="topbar-btn" onClick={onRefresh} title="Refresh">
             <IconRefresh size={16} />

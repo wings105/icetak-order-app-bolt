@@ -49,55 +49,7 @@ function formatDate(d: string | null): string {
   return new Date(d).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-type AdminDashboardOrder = {
-  dbId?: string;
-  id?: string;
-  status?: string;
-  adminStatus?: string;
-  payment?: string;
-  total?: number | string;
-  dateNeedRaw?: string;
-  dateNeed?: string;
-  delivery?: string;
-  created?: string;
-  customerName?: string;
-  customerPhone?: string;
-  items?: Array<{
-    title?: string;
-    qty?: number;
-    price?: number | string;
-    k?: string;
-  }>;
-};
-
-function fromAdminDashboard(order: AdminDashboardOrder): Order {
-  return {
-    id: order.dbId || order.id || crypto.randomUUID(),
-    order_no: order.id || null,
-    status: order.status || order.adminStatus || null,
-    payment_status: order.payment || null,
-    total: order.total ?? 0,
-    date_need: order.dateNeedRaw || order.dateNeed || null,
-    delivery_method: order.delivery || null,
-    created_at: order.created || new Date().toISOString(),
-    customers: {
-      name: order.customerName || null,
-      phone: order.customerPhone || null,
-    },
-    order_items: (order.items || []).map((item) => ({
-      title: item.title || item.k || 'Item',
-      qty: Number(item.qty || 1),
-      price: Number(item.price || 0),
-      product_type: item.k || '',
-    })),
-  };
-}
-
-type Props = {
-  adminOrders?: AdminDashboardOrder[];
-};
-
-export default function Dashboard({ adminOrders }: Props) {
+export default function Dashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterKey>('all');
@@ -105,11 +57,6 @@ export default function Dashboard({ adminOrders }: Props) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    if (adminOrders) {
-      setOrders(adminOrders.map(fromAdminDashboard));
-      setLoading(false);
-      return;
-    }
     const { data } = await supabase
       .from('orders')
       .select('id, order_no, status, payment_status, total, date_need, delivery_method, created_at, customers(name, phone), order_items(title, qty, price, product_type)')
@@ -117,7 +64,7 @@ export default function Dashboard({ adminOrders }: Props) {
       .limit(80);
     setOrders((data as unknown as Order[]) || []);
     setLoading(false);
-  }, [adminOrders]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
