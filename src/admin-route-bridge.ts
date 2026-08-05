@@ -17,10 +17,14 @@ function cleanAdminQuery() {
   history.replaceState({}, '', url);
 }
 
+function isPersistentAdminRoute() {
+  return ['quick-arrange', 'v2'].includes(new URLSearchParams(location.search).get('admin') || '');
+}
+
 function markAdminIntent() {
   sessionStorage.setItem(OPEN_FLAG, '1');
   const url = new URL(location.href);
-  if (url.searchParams.get('admin') !== 'quick-arrange') url.searchParams.set('admin', '1');
+  if (!['quick-arrange', 'v2'].includes(url.searchParams.get('admin') || '')) url.searchParams.set('admin', '1');
   history.replaceState({}, '', url);
 }
 
@@ -33,7 +37,7 @@ function openAdminPage() {
 
   if (document.querySelector('.admin-head')) {
     sessionStorage.removeItem(OPEN_FLAG);
-    if (new URLSearchParams(location.search).get('admin') !== 'quick-arrange') cleanAdminQuery();
+    if (!isPersistentAdminRoute()) cleanAdminQuery();
     routing = false;
     return;
   }
@@ -61,7 +65,7 @@ async function restoreSecureAdminSession() {
 
   storeSession(session);
 
-  if (['1', 'quick-arrange'].includes(new URLSearchParams(location.search).get('admin') || '')) {
+  if (['1', 'quick-arrange', 'v2'].includes(new URLSearchParams(location.search).get('admin') || '')) {
     sessionStorage.setItem(OPEN_FLAG, '1');
   }
 
@@ -89,7 +93,7 @@ const observer = new MutationObserver(() => {
 });
 observer.observe(document.body, { childList: true, subtree: true });
 window.addEventListener('load', () => void restoreSecureAdminSession());
-if (['1', 'quick-arrange'].includes(new URLSearchParams(location.search).get('admin') || '')) {
+if (['1', 'quick-arrange', 'v2'].includes(new URLSearchParams(location.search).get('admin') || '')) {
   sessionStorage.setItem(OPEN_FLAG, '1');
 }
 void restoreSecureAdminSession();
