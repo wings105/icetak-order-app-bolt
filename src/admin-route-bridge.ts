@@ -21,6 +21,10 @@ function isPersistentAdminRoute() {
   return ['quick-arrange', 'v2'].includes(new URLSearchParams(location.search).get('admin') || '');
 }
 
+function isAdminV2Route() {
+  return new URLSearchParams(location.search).get('admin') === 'v2';
+}
+
 function markAdminIntent() {
   sessionStorage.setItem(OPEN_FLAG, '1');
   const url = new URL(location.href);
@@ -29,6 +33,11 @@ function markAdminIntent() {
 }
 
 function openAdminPage() {
+  if (isAdminV2Route()) {
+    sessionStorage.removeItem(OPEN_FLAG);
+    routing = false;
+    return;
+  }
   if (routing || sessionStorage.getItem(OPEN_FLAG) !== '1') return;
 
   const now = Date.now();
@@ -65,7 +74,12 @@ async function restoreSecureAdminSession() {
 
   storeSession(session);
 
-  if (['1', 'quick-arrange', 'v2'].includes(new URLSearchParams(location.search).get('admin') || '')) {
+  if (isAdminV2Route()) {
+    sessionStorage.removeItem(OPEN_FLAG);
+    return;
+  }
+
+  if (['1', 'quick-arrange'].includes(new URLSearchParams(location.search).get('admin') || '')) {
     sessionStorage.setItem(OPEN_FLAG, '1');
   }
 
@@ -76,8 +90,12 @@ supabase.auth.onAuthStateChange((event, session) => {
   if (session) {
     storeSession(session);
     if (event === 'SIGNED_IN') {
-      markAdminIntent();
-      window.setTimeout(openAdminPage, 100);
+      if (isAdminV2Route()) {
+        sessionStorage.removeItem(OPEN_FLAG);
+      } else {
+        markAdminIntent();
+        window.setTimeout(openAdminPage, 100);
+      }
     }
   } else if (event === 'SIGNED_OUT') {
     sessionStorage.removeItem('admin_access_token');
@@ -93,7 +111,9 @@ const observer = new MutationObserver(() => {
 });
 observer.observe(document.body, { childList: true, subtree: true });
 window.addEventListener('load', () => void restoreSecureAdminSession());
-if (['1', 'quick-arrange', 'v2'].includes(new URLSearchParams(location.search).get('admin') || '')) {
+if (['1', 'quick-arrange'].includes(new URLSearchParams(location.search).get('admin') || '')) {
   sessionStorage.setItem(OPEN_FLAG, '1');
+} else if (isAdminV2Route()) {
+  sessionStorage.removeItem(OPEN_FLAG);
 }
 void restoreSecureAdminSession();

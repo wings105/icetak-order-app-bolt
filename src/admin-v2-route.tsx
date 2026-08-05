@@ -15,6 +15,7 @@ function goToAdmin(version: '1' | 'v2') {
   const url = new URL(location.href);
   ['order', 'confirm', 'login', 'c'].forEach((key) => url.searchParams.delete(key));
   url.searchParams.set('admin', version);
+  if (version === 'v2') sessionStorage.removeItem('admin_open_after_reload');
   location.assign(url);
 }
 
