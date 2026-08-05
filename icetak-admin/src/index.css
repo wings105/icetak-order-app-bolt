@@ -193,6 +193,17 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   margin-left: 12px;
 }
 .topbar-right { display: flex; align-items: center; gap: 8px; }
+.topbar-admin-switch {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  color: #1a1b23;
+  background: var(--sidebar-active);
+  font-size: 12px;
+  font-weight: 800;
+  transition: transform 0.15s, background 0.15s;
+}
+.topbar-admin-switch:hover { background: #ffd866; transform: translateY(-1px); }
 .topbar-btn {
   width: 36px;
   height: 36px;
