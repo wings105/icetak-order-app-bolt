@@ -21,12 +21,15 @@
 <body>
     <div id="app"></div>
     <script type="module">
-        const params = new URLSearchParams(window.location.search);
-        const trackingToken = params.get('tracking');
+        void (async () => {
+            const params = new URLSearchParams(window.location.search);
+            const trackingToken = params.get('tracking');
 
-        if (trackingToken) {
-            await import('./src/tracking-page.ts');
-        } else {
+            if (trackingToken) {
+                await import('./src/tracking-page.ts');
+                return;
+            }
+
             await import('./src/legacy-customer-token-compat.ts');
             await import('./src/main.ts');
             await import('./src/product-catalog.ts');
@@ -52,7 +55,7 @@
             await import('./src/customer-address-validation.ts');
             await import('./src/secure-customer-address-validation.ts');
             await import('./src/shipping-dashboard.ts');
-        }
+        })();
     </script>
 </body>
 </html>
