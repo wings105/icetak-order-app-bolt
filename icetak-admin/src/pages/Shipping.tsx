@@ -44,6 +44,8 @@ type DashboardPayload = {
   rows?: TrackingRow[];
 };
 
+type BadgeInfo = { label: string; cls: string };
+
 const defaultSettings: TrackingSettings = {
   auto_send_enabled: false,
   provider_mode: 'manual_whatsapp_link',
@@ -71,20 +73,50 @@ const normalizePhone = (value: string | null) => {
   return digits;
 };
 
-const shipmentStatus = (value: string | null) => {
-  const status = String(value || '').toLowerCase();
-  if (status.includes('deliver')) return { label: 'Delivered', cls: 'badge-success' };
-  if (status.includes('cancel') || status.includes('fail') || status.includes('exception')) {
+const slug = (value: string | null) => String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+
+const shipmentStatus = (normalizedStatus: string | null, rawStatus: string | null): BadgeInfo => {
+  const normalized = slug(normalizedStatus);
+  const raw = String(rawStatus || '').trim().toLowerCase();
+
+  if (
+    normalized === 'cancelled' || normalized === 'canceled' || normalized === 'failed' ||
+    normalized === 'exception' || raw.includes('cancel') || raw.includes('fail') || raw.includes('exception')
+  ) {
     return { label: 'Problem', cls: 'badge-error' };
   }
-  if (status.includes('pickup') || status.includes('transit') || status.includes('shipped')) {
+
+  if (
+    normalized === 'delivered' || raw === 'delivered' ||
+    raw === 'parcel has been received' || raw.includes('successfully delivered')
+  ) {
+    return { label: 'Delivered', cls: 'badge-success' };
+  }
+
+  if (
+    normalized === 'out_for_delivery' || raw === 'delivering' ||
+    raw.includes('on its way for delivery') || raw.includes('out for delivery')
+  ) {
+    return { label: 'Out for Delivery', cls: 'badge-warning' };
+  }
+
+  if (
+    ['picked_up', 'accepted_by_courier', 'in_transit', 'shipped'].includes(normalized) ||
+    raw.includes('in transit') || raw.includes('picked up') || raw.includes('departed to hub') || raw.includes('arrived hub')
+  ) {
     return { label: 'In Transit', cls: 'badge-info' };
   }
-  return { label: status || 'Pending', cls: 'badge-warning' };
+
+  if (['shipment_created', 'awb_created', 'pending_pickup', 'pending'].includes(normalized)) {
+    return { label: 'Pending Pickup', cls: 'badge-neutral' };
+  }
+
+  const fallback = rawStatus || normalizedStatus || 'Pending';
+  return { label: fallback, cls: 'badge-neutral' };
 };
 
-const sendStatus = (value: TrackingRow['send_status']) => {
-  const map: Record<TrackingRow['send_status'], { label: string; cls: string }> = {
+const sendStatus = (value: TrackingRow['send_status']): BadgeInfo => {
+  const map: Record<TrackingRow['send_status'], BadgeInfo> = {
     not_ready: { label: 'Waiting First Scan', cls: 'badge-neutral' },
     blocked: { label: 'Needs Attention', cls: 'badge-error' },
     ready: { label: 'Ready to Send', cls: 'badge-info' },
@@ -102,6 +134,14 @@ const blockedReason = (value: string | null) => {
     UNSUPPORTED_TRACKING_FORMAT: 'Format tracking tidak dikenali',
   };
   return value ? map[value] || value : '';
+};
+
+const unavailableActionLabel = (row: TrackingRow) => {
+  if (!row.first_scan_at) return 'Waiting First Scan';
+  if (!row.recipient_phone) return 'Phone Missing';
+  if (!row.tracking_link) return 'Tracking Link Missing';
+  if (row.send_status === 'blocked') return 'Needs Attention';
+  return 'Send Tracking';
 };
 
 export default function Shipping() {
@@ -171,6 +211,7 @@ export default function Shipping() {
         row.recipient_name,
         row.reference,
         row.status,
+        row.normalized_status,
         row.first_scan_status,
       ].some((value) => String(value || '').toLowerCase().includes(search));
     });
@@ -200,14 +241,18 @@ export default function Shipping() {
 
   const openManualWhatsApp = (row: TrackingRow) => {
     const phone = normalizePhone(row.recipient_phone);
-    if (!phone || !row.first_scan_at || !row.tracking_link) {
+    if (!phone || !row.first_scan_at || !row.tracking_link || row.send_status === 'blocked') {
       setError('Tracking belum boleh dihantar. Semak phone, tracking format dan first courier scan.');
       return;
     }
 
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(row.message_body)}`;
     const opened = window.open(url, '_blank');
-    if (opened) opened.opener = null;
+    if (!opened) {
+      setError('Browser menyekat tab WhatsApp. Benarkan pop-up dan cuba semula.');
+      return;
+    }
+    opened.opener = null;
     void trackingAction(row, 'opened');
   };
 
@@ -332,10 +377,12 @@ export default function Shipping() {
               </thead>
               <tbody>
                 {filtered.map((row) => {
-                  const parcel = shipmentStatus(row.normalized_status || row.status);
+                  const parcel = shipmentStatus(row.normalized_status, row.status);
                   const delivery = sendStatus(row.send_status);
                   const busy = busyId === row.id;
-                  const canSend = Boolean(row.first_scan_at && row.recipient_phone && row.tracking_link && row.send_status !== 'blocked');
+                  const canSend = Boolean(
+                    row.first_scan_at && row.recipient_phone && row.tracking_link && row.send_status !== 'blocked',
+                  );
                   return (
                     <tr key={row.id} className="row-hover">
                       <td>
@@ -367,10 +414,15 @@ export default function Shipping() {
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', minWidth: 190 }}>
                           {row.send_status !== 'sent' ? (
                             <>
-                              <button className="btn btn-primary" disabled={!canSend || busy} onClick={() => openManualWhatsApp(row)}>
-                                <IconMessage size={14} /> Send Tracking
+                              <button
+                                className={`btn ${canSend ? 'btn-primary' : 'btn-outline'}`}
+                                disabled={!canSend || busy}
+                                title={!canSend ? unavailableActionLabel(row) : 'Open WhatsApp with tracking message'}
+                                onClick={() => openManualWhatsApp(row)}
+                              >
+                                <IconMessage size={14} /> {canSend ? 'Send Tracking' : unavailableActionLabel(row)}
                               </button>
-                              {(row.send_status === 'opened' || row.send_status === 'ready') && (
+                              {(row.send_status === 'opened' || row.send_status === 'ready') && canSend && (
                                 <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'sent')}>
                                   <IconCheck size={14} /> Mark Sent
                                 </button>
