@@ -16,6 +16,7 @@ const navItems: NavItem[] = [
   { key: 'orders', label: 'Orders', icon: IconOrders },
   { key: 'payments', label: 'Payments', icon: IconPayments },
   { key: 'shipping', label: 'Shipping', icon: IconShipping },
+  { key: 'tracking-messages', label: 'Tracking Messages', icon: IconShipping },
   {
     key: 'whatsapp',
     label: 'WhatsApp Templates',
