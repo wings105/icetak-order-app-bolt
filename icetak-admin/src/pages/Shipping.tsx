@@ -1,154 +1,388 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { IconMore, IconRefresh, IconShipping } from '../components/Icons';
+import {
+  IconAlert, IconCheck, IconMessage, IconRefresh, IconSearch, IconShipping,
+} from '../components/Icons';
 
-type Shipment = {
+type TrackingSettings = {
+  auto_send_enabled: boolean;
+  provider_mode: string;
+  provider_ready: boolean;
+  updated_at: string | null;
+};
+
+type TrackingRow = {
   id: string;
   order_id: string | null;
+  reference: string | null;
+  tracking_no: string;
   courier: string | null;
-  tracking_no: string | null;
   tracking_link: string | null;
   status: string | null;
   normalized_status: string | null;
   provider: string | null;
   service_provider: string | null;
-  quoted_amount: number | string | null;
-  charged_amount: number | string | null;
-  parcel_weight_kg: number | string | null;
+  recipient_phone: string | null;
+  recipient_name: string | null;
+  recipient_address_text: string | null;
   shipped_at: string | null;
   delivered_at: string | null;
   created_at: string;
+  updated_at: string;
+  first_scan_at: string | null;
+  first_scan_status: string | null;
+  send_status: 'not_ready' | 'blocked' | 'ready' | 'opened' | 'sent' | 'failed';
+  blocked_reason: string | null;
+  manual_opened_at: string | null;
+  sent_at: string | null;
+  send_method: string | null;
+  message_body: string;
 };
 
-const statusTag = (s: string | null) => {
-  const v = (s || '').toLowerCase();
-  if (v.includes('deliver')) return { label: 'Delivered', cls: 'badge-success' };
-  if (v.includes('transit') || v.includes('shipped')) return { label: 'In Transit', cls: 'badge-info' };
-  if (v.includes('pickup') || v.includes('booked') || v.includes('pending')) return { label: 'Pending Pickup', cls: 'badge-warning' };
-  if (v.includes('cancel') || v.includes('fail')) return { label: 'Cancelled', cls: 'badge-error' };
-  return { label: v || 'draft', cls: 'badge-neutral' };
+type DashboardPayload = {
+  settings?: Partial<TrackingSettings>;
+  rows?: TrackingRow[];
+};
+
+const defaultSettings: TrackingSettings = {
+  auto_send_enabled: false,
+  provider_mode: 'manual_whatsapp_link',
+  provider_ready: false,
+  updated_at: null,
+};
+
+const formatDate = (value: string | null) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('ms-MY', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'Asia/Kuala_Lumpur',
+  }).format(date);
+};
+
+const normalizePhone = (value: string | null) => {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('60')) return digits;
+  if (digits.startsWith('0')) return `6${digits}`;
+  if (digits.startsWith('1')) return `60${digits}`;
+  return digits;
+};
+
+const shipmentStatus = (value: string | null) => {
+  const status = String(value || '').toLowerCase();
+  if (status.includes('deliver')) return { label: 'Delivered', cls: 'badge-success' };
+  if (status.includes('cancel') || status.includes('fail') || status.includes('exception')) {
+    return { label: 'Problem', cls: 'badge-error' };
+  }
+  if (status.includes('pickup') || status.includes('transit') || status.includes('shipped')) {
+    return { label: 'In Transit', cls: 'badge-info' };
+  }
+  return { label: status || 'Pending', cls: 'badge-warning' };
+};
+
+const sendStatus = (value: TrackingRow['send_status']) => {
+  const map: Record<TrackingRow['send_status'], { label: string; cls: string }> = {
+    not_ready: { label: 'Waiting First Scan', cls: 'badge-neutral' },
+    blocked: { label: 'Needs Attention', cls: 'badge-error' },
+    ready: { label: 'Ready to Send', cls: 'badge-info' },
+    opened: { label: 'WhatsApp Opened', cls: 'badge-warning' },
+    sent: { label: 'Sent', cls: 'badge-success' },
+    failed: { label: 'Failed', cls: 'badge-error' },
+  };
+  return map[value] || map.not_ready;
+};
+
+const blockedReason = (value: string | null) => {
+  const map: Record<string, string> = {
+    MISSING_RECIPIENT_PHONE: 'Phone customer tiada',
+    MISSING_TRACKING_NUMBER: 'Tracking number tiada',
+    UNSUPPORTED_TRACKING_FORMAT: 'Format tracking tidak dikenali',
+  };
+  return value ? map[value] || value : '';
 };
 
 export default function Shipping() {
-  const [rows, setRows] = useState<Shipment[]>([]);
+  const [rows, setRows] = useState<TrackingRow[]>([]);
+  const [settings, setSettings] = useState<TrackingSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [settingBusy, setSettingBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [courierFilter, setCourierFilter] = useState('all');
 
-  const load = async () => {
-    setLoading(true);
-    setErr(null);
-    const { data, error } = await supabase
-      .from('shipments')
-      .select('id, order_id, courier, tracking_no, tracking_link, status, normalized_status, provider, service_provider, quoted_amount, charged_amount, parcel_weight_kg, shipped_at, delivered_at, created_at')
-      .order('created_at', { ascending: false })
-      .limit(60);
-    if (error) setErr(error.message);
-    else setRows(data || []);
-    setLoading(false);
+  const load = async (quiet = false) => {
+    if (!quiet) setLoading(true);
+    setError(null);
+
+    const { data, error: loadError } = await supabase.rpc('icetak_admin_tracking_dashboard', {
+      p_search: null,
+      p_limit: 1000,
+    });
+
+    if (loadError) {
+      setError(loadError.message);
+    } else {
+      const payload = (data || {}) as DashboardPayload;
+      setRows(Array.isArray(payload.rows) ? payload.rows : []);
+      setSettings({ ...defaultSettings, ...(payload.settings || {}) });
+    }
+
+    if (!quiet) setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    void load();
+    const timer = window.setInterval(() => void load(true), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
-  const stats = rows.reduce(
-    (acc, s) => {
-      const v = ((s.normalized_status || s.status) || '').toLowerCase();
-      if (v.includes('deliver')) acc.delivered += 1;
-      else if (v.includes('transit') || v.includes('shipped')) acc.transit += 1;
-      else if (v.includes('cancel') || v.includes('fail')) acc.cancelled += 1;
-      else acc.pending += 1;
-      return acc;
-    },
-    { delivered: 0, transit: 0, pending: 0, cancelled: 0 },
-  );
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), 2500);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  const stats = useMemo(() => ({
+    total: rows.length,
+    firstScan: rows.filter((row) => Boolean(row.first_scan_at)).length,
+    ready: rows.filter((row) => row.send_status === 'ready' || row.send_status === 'opened').length,
+    sent: rows.filter((row) => row.send_status === 'sent').length,
+  }), [rows]);
+
+  const couriers = useMemo(() => Array.from(new Set(
+    rows.map((row) => String(row.courier || '').toLowerCase()).filter(Boolean),
+  )).sort(), [rows]);
+
+  const filtered = useMemo(() => {
+    const search = query.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (statusFilter !== 'all' && row.send_status !== statusFilter) return false;
+      if (courierFilter !== 'all' && String(row.courier || '').toLowerCase() !== courierFilter) return false;
+      if (!search) return true;
+      return [
+        row.tracking_no,
+        row.recipient_phone,
+        row.recipient_name,
+        row.reference,
+        row.status,
+        row.first_scan_status,
+      ].some((value) => String(value || '').toLowerCase().includes(search));
+    });
+  }, [rows, query, statusFilter, courierFilter]);
+
+  const trackingAction = async (row: TrackingRow, action: 'opened' | 'sent' | 'reopen') => {
+    setBusyId(row.id);
+    setError(null);
+    const { error: actionError } = await supabase.rpc('icetak_admin_tracking_action', {
+      p_shipment_id: row.id,
+      p_action: action,
+    });
+
+    if (actionError) {
+      setError(actionError.message);
+    } else {
+      const messages = {
+        opened: 'WhatsApp dibuka dengan mesej tracking.',
+        sent: 'Tracking ditanda sudah dihantar.',
+        reopen: 'Tracking dibuka semula.',
+      };
+      setNotice(messages[action]);
+      await load(true);
+    }
+    setBusyId(null);
+  };
+
+  const openManualWhatsApp = (row: TrackingRow) => {
+    const phone = normalizePhone(row.recipient_phone);
+    if (!phone || !row.first_scan_at || !row.tracking_link) {
+      setError('Tracking belum boleh dihantar. Semak phone, tracking format dan first courier scan.');
+      return;
+    }
+
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(row.message_body)}`;
+    const opened = window.open(url, '_blank');
+    if (opened) opened.opener = null;
+    void trackingAction(row, 'opened');
+  };
+
+  const toggleAutoSend = async () => {
+    setSettingBusy(true);
+    setError(null);
+    const next = !settings.auto_send_enabled;
+    const { data, error: settingError } = await supabase.rpc('icetak_admin_set_tracking_auto_send', {
+      p_enabled: next,
+    });
+
+    if (settingError) {
+      setError(settingError.message);
+    } else {
+      setSettings({ ...settings, ...((data || {}) as Partial<TrackingSettings>) });
+      setNotice(`Auto Send Tracking ${next ? 'ON' : 'OFF'}.`);
+    }
+    setSettingBusy(false);
+  };
 
   return (
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Shipping & Delivery</h1>
-          <p className="page-subtitle">Track parcels across couriers</p>
+          <h1 className="page-title">Shipping & Tracking</h1>
+          <p className="page-subtitle">Semua tracking ParcelDaily dalam satu tempat</p>
         </div>
-        <button className="btn btn-outline" onClick={load}><IconRefresh size={16} /> Refresh</button>
+        <button className="btn btn-outline" onClick={() => void load()} disabled={loading}>
+          <IconRefresh size={16} /> Refresh
+        </button>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <div>
+            <div className="panel-title">Auto Send Tracking</div>
+            <div className="panel-subtitle" style={{ marginTop: 4 }}>
+              Setting utama untuk semua tracking. Manual Send menggunakan WhatsApp link dan tidak menggunakan Wasapflow API.
+            </div>
+            {!settings.provider_ready && settings.auto_send_enabled && (
+              <div style={{ marginTop: 8, color: '#b54708', fontWeight: 700 }}>
+                Auto Send disimpan sebagai ON, tetapi provider automatik belum disambungkan. Tiada mesej API akan dihantar.
+              </div>
+            )}
+          </div>
+          <button
+            className={`btn ${settings.auto_send_enabled ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => void toggleAutoSend()}
+            disabled={settingBusy}
+            aria-pressed={settings.auto_send_enabled}
+          >
+            {settings.auto_send_enabled ? <IconCheck size={15} /> : <IconAlert size={15} />}
+            Auto Send: {settings.auto_send_enabled ? 'ON' : 'OFF'}
+          </button>
+        </div>
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card new">
-          <div className="stat-label">In Transit</div>
-          <div className="stat-value">{stats.transit}</div>
-          <div className="stat-hint">Currently on the road</div>
-        </div>
-        <div className="stat-card pay">
-          <div className="stat-label">Pending Pickup</div>
-          <div className="stat-value">{stats.pending}</div>
-          <div className="stat-hint">Awaiting courier</div>
-        </div>
-        <div className="stat-card ready">
-          <div className="stat-label">Delivered</div>
-          <div className="stat-value">{stats.delivered}</div>
-          <div className="stat-hint">Completed successfully</div>
-        </div>
-        <div className="stat-card problem">
-          <div className="stat-label">Cancelled / Failed</div>
-          <div className="stat-value">{stats.cancelled}</div>
-          <div className="stat-hint">Requires attention</div>
-        </div>
+        <div className="stat-card new"><div className="stat-label">Total Tracking</div><div className="stat-value">{stats.total}</div><div className="stat-hint">Semua rekod DB</div></div>
+        <div className="stat-card pay"><div className="stat-label">First Scan</div><div className="stat-value">{stats.firstScan}</div><div className="stat-hint">Courier sudah scan</div></div>
+        <div className="stat-card problem"><div className="stat-label">Ready to Send</div><div className="stat-value">{stats.ready}</div><div className="stat-hint">Perlu tindakan staff</div></div>
+        <div className="stat-card ready"><div className="stat-label">Sent</div><div className="stat-value">{stats.sent}</div><div className="stat-hint">Sudah ditanda hantar</div></div>
       </div>
 
       <div className="panel">
-        <div className="panel-header">
+        <div className="panel-header" style={{ gap: 12, flexWrap: 'wrap' }}>
           <div>
-            <div className="panel-title">Recent Shipments</div>
-            <div className="panel-subtitle">Latest 60 records</div>
+            <div className="panel-title">Tracking List</div>
+            <div className="panel-subtitle">{filtered.length} daripada {rows.length} tracking · auto refresh 30 saat</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginLeft: 'auto' }}>
+            <label style={{ position: 'relative' }}>
+              <IconSearch size={15} style={{ position: 'absolute', left: 10, top: 10, color: 'var(--text-muted)' }} />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Tracking, phone, nama..."
+                style={{ minWidth: 230, padding: '9px 12px 9px 32px' }}
+              />
+            </label>
+            <select value={courierFilter} onChange={(event) => setCourierFilter(event.target.value)}>
+              <option value="all">All couriers</option>
+              {couriers.map((courier) => <option key={courier} value={courier}>{courier.toUpperCase()}</option>)}
+            </select>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="all">All send statuses</option>
+              <option value="not_ready">Waiting First Scan</option>
+              <option value="blocked">Needs Attention</option>
+              <option value="ready">Ready to Send</option>
+              <option value="opened">WhatsApp Opened</option>
+              <option value="sent">Sent</option>
+              <option value="failed">Failed</option>
+            </select>
           </div>
         </div>
+
+        {notice && <div style={{ margin: '0 18px 12px', padding: '10px 12px', borderRadius: 10, background: '#ecfdf3', color: '#067647', fontWeight: 700 }}>{notice}</div>}
+        {error && <div style={{ margin: '0 18px 12px', padding: '10px 12px', borderRadius: 10, background: '#fef3f2', color: '#b42318' }}>{error}</div>}
+
         <div className="table-wrap">
           {loading ? (
-            <div className="loading"><span className="spinner" /> <span style={{ marginLeft: 8 }}>Loading…</span></div>
-          ) : err ? (
-            <div className="empty"><div className="empty-title">Failed to load</div><div>{err}</div></div>
-          ) : rows.length === 0 ? (
+            <div className="loading"><span className="spinner" /><span style={{ marginLeft: 8 }}>Loading tracking…</span></div>
+          ) : filtered.length === 0 ? (
             <div className="empty">
               <div className="empty-icon"><IconShipping size={22} /></div>
-              <div className="empty-title">No shipments yet</div>
-              <div>Bookings will appear here once created.</div>
+              <div className="empty-title">Tiada tracking dijumpai</div>
+              <div>Semak filter atau carian.</div>
             </div>
           ) : (
             <table>
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Order</th>
-                  <th>Courier</th>
+                  <th>Customer</th>
                   <th>Tracking</th>
-                  <th>Provider</th>
-                  <th>Weight</th>
-                  <th>Charged</th>
-                  <th>Status</th>
+                  <th>Courier</th>
+                  <th>Parcel Status</th>
+                  <th>First Scan</th>
+                  <th>Send Status</th>
                   <th>Created</th>
-                  <th></th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((s) => {
-                  const st = statusTag(s.normalized_status || s.status);
+                {filtered.map((row) => {
+                  const parcel = shipmentStatus(row.normalized_status || row.status);
+                  const delivery = sendStatus(row.send_status);
+                  const busy = busyId === row.id;
+                  const canSend = Boolean(row.first_scan_at && row.recipient_phone && row.tracking_link && row.send_status !== 'blocked');
                   return (
-                    <tr key={s.id} className="row-hover">
-                      <td className="cell-id">{s.id.slice(0, 8)}</td>
-                      <td className="cell-sub">{s.order_id ? s.order_id.slice(0, 8) : '—'}</td>
-                      <td>{s.courier || '—'}</td>
-                      <td className="cell-sub">
-                        {s.tracking_link ? (
-                          <a href={s.tracking_link} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>{s.tracking_no || 'Link'}</a>
-                        ) : (
-                          s.tracking_no || '—'
-                        )}
+                    <tr key={row.id} className="row-hover">
+                      <td>
+                        <div style={{ fontWeight: 700 }}>{row.recipient_name || 'Nama tiada'}</div>
+                        <div className="cell-sub">{row.recipient_phone || 'Phone tiada'}</div>
+                        {row.reference && <div className="cell-id" style={{ marginTop: 3 }}>{row.reference}</div>}
                       </td>
-                      <td>{s.provider || s.service_provider || '—'}</td>
-                      <td className="cell-sub">{s.parcel_weight_kg ? `${Number(s.parcel_weight_kg)} kg` : '—'}</td>
-                      <td className="cell-amount">{s.charged_amount ? `RM ${Number(s.charged_amount).toFixed(2)}` : '—'}</td>
-                      <td><span className={`badge ${st.cls}`}>{st.label}</span></td>
-                      <td className="cell-sub">{new Date(s.created_at).toLocaleString()}</td>
-                      <td><button className="icon-btn"><IconMore size={16} /></button></td>
+                      <td>
+                        <a href={row.tracking_link || '#'} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 700 }}>
+                          {row.tracking_no}
+                        </a>
+                      </td>
+                      <td>{row.courier ? row.courier.toUpperCase() : '—'}</td>
+                      <td>
+                        <span className={`badge ${parcel.cls}`}>{parcel.label}</span>
+                        <div className="cell-sub" style={{ marginTop: 5 }}>{row.status || row.normalized_status || '—'}</div>
+                      </td>
+                      <td>
+                        <div>{formatDate(row.first_scan_at)}</div>
+                        {row.first_scan_status && <div className="cell-sub" style={{ marginTop: 5 }}>{row.first_scan_status}</div>}
+                      </td>
+                      <td>
+                        <span className={`badge ${delivery.cls}`}>{delivery.label}</span>
+                        {row.blocked_reason && <div style={{ marginTop: 5, color: '#b42318', fontSize: 12 }}>{blockedReason(row.blocked_reason)}</div>}
+                        {row.sent_at && <div className="cell-sub" style={{ marginTop: 5 }}>{formatDate(row.sent_at)}</div>}
+                      </td>
+                      <td className="cell-sub">{formatDate(row.created_at)}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', minWidth: 190 }}>
+                          {row.send_status !== 'sent' ? (
+                            <>
+                              <button className="btn btn-primary" disabled={!canSend || busy} onClick={() => openManualWhatsApp(row)}>
+                                <IconMessage size={14} /> Send Tracking
+                              </button>
+                              {(row.send_status === 'opened' || row.send_status === 'ready') && (
+                                <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'sent')}>
+                                  <IconCheck size={14} /> Mark Sent
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'reopen')}>
+                              Reopen
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -160,4 +394,3 @@ export default function Shipping() {
     </div>
   );
 }
-
