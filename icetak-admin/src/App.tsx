@@ -4,6 +4,7 @@ import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
 import Payments from './pages/Payments';
 import Shipping from './pages/Shipping';
+import ShipmentMessages from './pages/ShipmentMessages';
 import WhatsAppControl from './pages/WhatsAppControl';
 import WhatsAppTemplates from './pages/WhatsAppTemplates';
 import WhatsAppOutbox from './pages/WhatsAppOutbox';
@@ -16,6 +17,7 @@ const pageMap: Record<string, { title: string; subtitle?: string }> = {
   orders: { title: 'Orders', subtitle: 'All orders' },
   payments: { title: 'Payments Center', subtitle: 'Transactions' },
   shipping: { title: 'Shipping & Delivery', subtitle: 'Parcels' },
+  'tracking-messages': { title: 'Tracking Messages', subtitle: 'Manual customer message preparation' },
   'whatsapp-control': { title: 'WhatsApp Control', subtitle: 'Pipeline' },
   'whatsapp-templates': { title: 'WhatsApp Templates' },
   'whatsapp-outbox': { title: 'WhatsApp Outbox' },
@@ -48,6 +50,7 @@ export default function App({ onSwitchToV1, adminData }: Props) {
       case 'orders': return <Dashboard adminOrders={adminData?.orders} />;
       case 'payments': return <Payments />;
       case 'shipping': return <Shipping />;
+      case 'tracking-messages': return <ShipmentMessages />;
       case 'whatsapp-control': return <WhatsAppControl />;
       case 'whatsapp-templates': return <WhatsAppTemplates />;
       case 'whatsapp-outbox': return <WhatsAppOutbox />;
