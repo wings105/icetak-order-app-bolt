@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
-  IconAlert, IconCheck, IconMessage, IconRefresh, IconSearch, IconShipping,
+  IconAlert, IconCheck, IconMessage, IconRefresh, IconSearch, IconShipping, IconX,
 } from '../components/Icons';
+
+type SendStatus = 'not_ready' | 'blocked' | 'ready' | 'opened' | 'sent' | 'failed' | 'cancelled';
+type TrackingAction = 'opened' | 'sent' | 'reopen' | 'cancel' | 'restore';
 
 type TrackingSettings = {
   auto_send_enabled: boolean;
@@ -13,29 +16,22 @@ type TrackingSettings = {
 
 type TrackingRow = {
   id: string;
-  order_id: string | null;
   reference: string | null;
   tracking_no: string;
   courier: string | null;
   tracking_link: string | null;
   status: string | null;
   normalized_status: string | null;
-  provider: string | null;
-  service_provider: string | null;
   recipient_phone: string | null;
   recipient_name: string | null;
-  recipient_address_text: string | null;
-  shipped_at: string | null;
-  delivered_at: string | null;
   created_at: string;
-  updated_at: string;
   first_scan_at: string | null;
   first_scan_status: string | null;
-  send_status: 'not_ready' | 'blocked' | 'ready' | 'opened' | 'sent' | 'failed';
+  send_status: SendStatus;
   blocked_reason: string | null;
-  manual_opened_at: string | null;
   sent_at: string | null;
-  send_method: string | null;
+  manual_cancelled_at: string | null;
+  manual_cancel_reason: string | null;
   message_body: string;
 };
 
@@ -44,7 +40,7 @@ type DashboardPayload = {
   rows?: TrackingRow[];
 };
 
-type BadgeInfo = { label: string; cls: string };
+type Badge = { label: string; cls: string };
 
 const defaultSettings: TrackingSettings = {
   auto_send_enabled: false,
@@ -75,68 +71,52 @@ const normalizePhone = (value: string | null) => {
 
 const slug = (value: string | null) => String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
 
-const shipmentStatus = (normalizedStatus: string | null, rawStatus: string | null): BadgeInfo => {
-  const normalized = slug(normalizedStatus);
-  const raw = String(rawStatus || '').trim().toLowerCase();
+const parcelBadge = (row: TrackingRow): Badge => {
+  if (row.send_status === 'cancelled') return { label: 'Cancelled', cls: 'badge-error' };
+
+  const normalized = slug(row.normalized_status);
+  const raw = String(row.status || '').trim().toLowerCase();
 
   if (
-    normalized === 'cancelled' || normalized === 'canceled' || normalized === 'failed' ||
-    normalized === 'exception' || raw.includes('cancel') || raw.includes('fail') || raw.includes('exception')
-  ) {
-    return { label: 'Problem', cls: 'badge-error' };
-  }
+    ['cancelled', 'canceled', 'failed', 'exception'].includes(normalized) ||
+    raw.includes('cancel') || raw.includes('fail') || raw.includes('exception')
+  ) return { label: 'Problem', cls: 'badge-error' };
 
   if (
     normalized === 'delivered' || raw === 'delivered' ||
     raw === 'parcel has been received' || raw.includes('successfully delivered')
-  ) {
-    return { label: 'Delivered', cls: 'badge-success' };
-  }
+  ) return { label: 'Delivered', cls: 'badge-success' };
 
   if (
     normalized === 'out_for_delivery' || raw === 'delivering' ||
     raw.includes('on its way for delivery') || raw.includes('out for delivery')
-  ) {
-    return { label: 'Out for Delivery', cls: 'badge-warning' };
-  }
+  ) return { label: 'Out for Delivery', cls: 'badge-warning' };
 
   if (
     ['picked_up', 'accepted_by_courier', 'in_transit', 'shipped'].includes(normalized) ||
-    raw.includes('in transit') || raw.includes('picked up') || raw.includes('departed to hub') || raw.includes('arrived hub')
-  ) {
-    return { label: 'In Transit', cls: 'badge-info' };
-  }
+    raw.includes('in transit') || raw.includes('picked up') ||
+    raw.includes('departed to hub') || raw.includes('arrived hub')
+  ) return { label: 'In Transit', cls: 'badge-info' };
 
   if (['shipment_created', 'awb_created', 'pending_pickup', 'pending'].includes(normalized)) {
     return { label: 'Pending Pickup', cls: 'badge-neutral' };
   }
 
-  const fallback = rawStatus || normalizedStatus || 'Pending';
-  return { label: fallback, cls: 'badge-neutral' };
+  return { label: row.status || row.normalized_status || 'Pending', cls: 'badge-neutral' };
 };
 
-const sendStatus = (value: TrackingRow['send_status']): BadgeInfo => {
-  const map: Record<TrackingRow['send_status'], BadgeInfo> = {
-    not_ready: { label: 'Waiting First Scan', cls: 'badge-neutral' },
-    blocked: { label: 'Needs Attention', cls: 'badge-error' },
-    ready: { label: 'Ready to Send', cls: 'badge-info' },
-    opened: { label: 'WhatsApp Opened', cls: 'badge-warning' },
-    sent: { label: 'Sent', cls: 'badge-success' },
-    failed: { label: 'Failed', cls: 'badge-error' },
-  };
-  return map[value] || map.not_ready;
-};
+const sendBadge = (status: SendStatus): Badge => ({
+  not_ready: { label: 'Waiting First Scan', cls: 'badge-neutral' },
+  blocked: { label: 'Needs Attention', cls: 'badge-error' },
+  ready: { label: 'Ready to Send', cls: 'badge-info' },
+  opened: { label: 'WhatsApp Opened', cls: 'badge-warning' },
+  sent: { label: 'Sent', cls: 'badge-success' },
+  failed: { label: 'Failed', cls: 'badge-error' },
+  cancelled: { label: 'Cancelled', cls: 'badge-error' },
+})[status];
 
-const blockedReason = (value: string | null) => {
-  const map: Record<string, string> = {
-    MISSING_RECIPIENT_PHONE: 'Phone customer tiada',
-    MISSING_TRACKING_NUMBER: 'Tracking number tiada',
-    UNSUPPORTED_TRACKING_FORMAT: 'Format tracking tidak dikenali',
-  };
-  return value ? map[value] || value : '';
-};
-
-const unavailableActionLabel = (row: TrackingRow) => {
+const unavailableLabel = (row: TrackingRow) => {
+  if (row.send_status === 'cancelled') return 'Tracking Cancelled';
   if (!row.first_scan_at) return 'Waiting First Scan';
   if (!row.recipient_phone) return 'Phone Missing';
   if (!row.tracking_link) return 'Tracking Link Missing';
@@ -146,7 +126,7 @@ const unavailableActionLabel = (row: TrackingRow) => {
 
 export default function Shipping() {
   const [rows, setRows] = useState<TrackingRow[]>([]);
-  const [settings, setSettings] = useState<TrackingSettings>(defaultSettings);
+  const [settings, setSettings] = useState(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [settingBusy, setSettingBusy] = useState(false);
@@ -159,20 +139,17 @@ export default function Shipping() {
   const load = async (quiet = false) => {
     if (!quiet) setLoading(true);
     setError(null);
-
     const { data, error: loadError } = await supabase.rpc('icetak_admin_tracking_dashboard', {
       p_search: null,
       p_limit: 1000,
     });
 
-    if (loadError) {
-      setError(loadError.message);
-    } else {
+    if (loadError) setError(loadError.message);
+    else {
       const payload = (data || {}) as DashboardPayload;
       setRows(Array.isArray(payload.rows) ? payload.rows : []);
       setSettings({ ...defaultSettings, ...(payload.settings || {}) });
     }
-
     if (!quiet) setLoading(false);
   };
 
@@ -205,19 +182,19 @@ export default function Shipping() {
       if (statusFilter !== 'all' && row.send_status !== statusFilter) return false;
       if (courierFilter !== 'all' && String(row.courier || '').toLowerCase() !== courierFilter) return false;
       if (!search) return true;
-      return [
-        row.tracking_no,
-        row.recipient_phone,
-        row.recipient_name,
-        row.reference,
-        row.status,
-        row.normalized_status,
-        row.first_scan_status,
-      ].some((value) => String(value || '').toLowerCase().includes(search));
+      return [row.tracking_no, row.recipient_phone, row.recipient_name, row.reference, row.status]
+        .some((value) => String(value || '').toLowerCase().includes(search));
     });
   }, [rows, query, statusFilter, courierFilter]);
 
-  const trackingAction = async (row: TrackingRow, action: 'opened' | 'sent' | 'reopen') => {
+  const trackingAction = async (row: TrackingRow, action: TrackingAction) => {
+    if (action === 'cancel') {
+      const confirmed = window.confirm(
+        `Cancel tracking ${row.tracking_no} dalam sistem iCetak?\n\nTracking ini tidak akan boleh dihantar kepada customer.`,
+      );
+      if (!confirmed) return;
+    }
+
     setBusyId(row.id);
     setError(null);
     const { error: actionError } = await supabase.rpc('icetak_admin_tracking_action', {
@@ -225,13 +202,14 @@ export default function Shipping() {
       p_action: action,
     });
 
-    if (actionError) {
-      setError(actionError.message);
-    } else {
-      const messages = {
+    if (actionError) setError(actionError.message);
+    else {
+      const messages: Record<TrackingAction, string> = {
         opened: 'WhatsApp dibuka dengan mesej tracking.',
         sent: 'Tracking ditanda sudah dihantar.',
         reopen: 'Tracking dibuka semula.',
+        cancel: 'Tracking dibatalkan dalam sistem iCetak.',
+        restore: 'Tracking dipulihkan semula.',
       };
       setNotice(messages[action]);
       await load(true);
@@ -241,13 +219,18 @@ export default function Shipping() {
 
   const openManualWhatsApp = (row: TrackingRow) => {
     const phone = normalizePhone(row.recipient_phone);
-    if (!phone || !row.first_scan_at || !row.tracking_link || row.send_status === 'blocked') {
-      setError('Tracking belum boleh dihantar. Semak phone, tracking format dan first courier scan.');
+    if (
+      !phone || !row.first_scan_at || !row.tracking_link ||
+      row.send_status === 'blocked' || row.send_status === 'cancelled'
+    ) {
+      setError('Tracking belum boleh dihantar. Semak status, phone, tracking format dan first courier scan.');
       return;
     }
 
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(row.message_body)}`;
-    const opened = window.open(url, '_blank');
+    const opened = window.open(
+      `https://wa.me/${phone}?text=${encodeURIComponent(row.message_body)}`,
+      '_blank',
+    );
     if (!opened) {
       setError('Browser menyekat tab WhatsApp. Benarkan pop-up dan cuba semula.');
       return;
@@ -264,9 +247,8 @@ export default function Shipping() {
       p_enabled: next,
     });
 
-    if (settingError) {
-      setError(settingError.message);
-    } else {
+    if (settingError) setError(settingError.message);
+    else {
       setSettings({ ...settings, ...((data || {}) as Partial<TrackingSettings>) });
       setNotice(`Auto Send Tracking ${next ? 'ON' : 'OFF'}.`);
     }
@@ -302,7 +284,6 @@ export default function Shipping() {
             className={`btn ${settings.auto_send_enabled ? 'btn-primary' : 'btn-outline'}`}
             onClick={() => void toggleAutoSend()}
             disabled={settingBusy}
-            aria-pressed={settings.auto_send_enabled}
           >
             {settings.auto_send_enabled ? <IconCheck size={15} /> : <IconAlert size={15} />}
             Auto Send: {settings.auto_send_enabled ? 'ON' : 'OFF'}
@@ -345,6 +326,7 @@ export default function Shipping() {
               <option value="opened">WhatsApp Opened</option>
               <option value="sent">Sent</option>
               <option value="failed">Failed</option>
+              <option value="cancelled">Cancelled</option>
             </select>
           </div>
         </div>
@@ -365,24 +347,21 @@ export default function Shipping() {
             <table>
               <thead>
                 <tr>
-                  <th>Customer</th>
-                  <th>Tracking</th>
-                  <th>Courier</th>
-                  <th>Parcel Status</th>
-                  <th>First Scan</th>
-                  <th>Send Status</th>
-                  <th>Created</th>
-                  <th>Action</th>
+                  <th>Customer</th><th>Tracking</th><th>Courier</th><th>Parcel Status</th>
+                  <th>First Scan</th><th>Send Status</th><th>Created</th><th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((row) => {
-                  const parcel = shipmentStatus(row.normalized_status, row.status);
-                  const delivery = sendStatus(row.send_status);
+                  const cancelled = row.send_status === 'cancelled';
+                  const parcel = parcelBadge(row);
+                  const delivery = sendBadge(row.send_status);
                   const busy = busyId === row.id;
                   const canSend = Boolean(
-                    row.first_scan_at && row.recipient_phone && row.tracking_link && row.send_status !== 'blocked',
+                    row.first_scan_at && row.recipient_phone && row.tracking_link &&
+                    row.send_status !== 'blocked' && !cancelled,
                   );
+
                   return (
                     <tr key={row.id} className="row-hover">
                       <td>
@@ -398,7 +377,9 @@ export default function Shipping() {
                       <td>{row.courier ? row.courier.toUpperCase() : '—'}</td>
                       <td>
                         <span className={`badge ${parcel.cls}`}>{parcel.label}</span>
-                        <div className="cell-sub" style={{ marginTop: 5 }}>{row.status || row.normalized_status || '—'}</div>
+                        <div className="cell-sub" style={{ marginTop: 5 }}>
+                          {cancelled ? `PD: ${row.status || row.normalized_status || '—'}` : (row.status || row.normalized_status || '—')}
+                        </div>
                       </td>
                       <td>
                         <div>{formatDate(row.first_scan_at)}</div>
@@ -406,32 +387,49 @@ export default function Shipping() {
                       </td>
                       <td>
                         <span className={`badge ${delivery.cls}`}>{delivery.label}</span>
-                        {row.blocked_reason && <div style={{ marginTop: 5, color: '#b42318', fontSize: 12 }}>{blockedReason(row.blocked_reason)}</div>}
-                        {row.sent_at && <div className="cell-sub" style={{ marginTop: 5 }}>{formatDate(row.sent_at)}</div>}
+                        {row.blocked_reason && <div style={{ marginTop: 5, color: '#b42318', fontSize: 12 }}>{row.blocked_reason}</div>}
+                        {row.sent_at && !cancelled && <div className="cell-sub" style={{ marginTop: 5 }}>{formatDate(row.sent_at)}</div>}
+                        {row.manual_cancelled_at && <div style={{ marginTop: 5, color: '#b42318', fontSize: 12 }}>{formatDate(row.manual_cancelled_at)}</div>}
                       </td>
                       <td className="cell-sub">{formatDate(row.created_at)}</td>
                       <td>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', minWidth: 190 }}>
-                          {row.send_status !== 'sent' ? (
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', minWidth: 230 }}>
+                          {cancelled ? (
+                            <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'restore')}>
+                              <IconRefresh size={14} /> Restore
+                            </button>
+                          ) : (
                             <>
-                              <button
-                                className={`btn ${canSend ? 'btn-primary' : 'btn-outline'}`}
-                                disabled={!canSend || busy}
-                                title={!canSend ? unavailableActionLabel(row) : 'Open WhatsApp with tracking message'}
-                                onClick={() => openManualWhatsApp(row)}
-                              >
-                                <IconMessage size={14} /> {canSend ? 'Send Tracking' : unavailableActionLabel(row)}
-                              </button>
-                              {(row.send_status === 'opened' || row.send_status === 'ready') && canSend && (
-                                <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'sent')}>
-                                  <IconCheck size={14} /> Mark Sent
+                              {row.send_status !== 'sent' ? (
+                                <>
+                                  <button
+                                    className={`btn ${canSend ? 'btn-primary' : 'btn-outline'}`}
+                                    disabled={!canSend || busy}
+                                    title={!canSend ? unavailableLabel(row) : 'Open WhatsApp with tracking message'}
+                                    onClick={() => openManualWhatsApp(row)}
+                                  >
+                                    <IconMessage size={14} /> {canSend ? 'Send Tracking' : unavailableLabel(row)}
+                                  </button>
+                                  {(row.send_status === 'ready' || row.send_status === 'opened') && canSend && (
+                                    <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'sent')}>
+                                      <IconCheck size={14} /> Mark Sent
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'reopen')}>
+                                  Reopen
                                 </button>
                               )}
+                              <button
+                                className="btn btn-outline"
+                                disabled={busy}
+                                style={{ color: '#b42318', borderColor: '#fecdca' }}
+                                onClick={() => void trackingAction(row, 'cancel')}
+                              >
+                                <IconX size={14} /> Cancel
+                              </button>
                             </>
-                          ) : (
-                            <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'reopen')}>
-                              Reopen
-                            </button>
                           )}
                         </div>
                       </td>
