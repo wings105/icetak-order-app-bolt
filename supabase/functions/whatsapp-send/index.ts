@@ -133,9 +133,7 @@ Deno.serve(async (req) => {
 
     if (eventType === 'shipment_auto_tracking') {
       const preflight = await trackingAutoPreflight(body);
-      if (preflight.duplicate) {
-        return json({ ok: true, duplicate: true, mode: 'auto', decision_reason: 'tracking_already_sent' });
-      }
+      if (preflight.duplicate) return json({ ok: true, duplicate: true, mode: 'auto', decision_reason: 'tracking_already_sent' });
       if (!preflight.ok) return json({ ok: false, error: preflight.error }, 409);
     }
 
@@ -167,14 +165,11 @@ Deno.serve(async (req) => {
       if (!name) return json({ ok: false, error: 'template_name_required' }, 400);
 
       const approved = await rest(`whatsapp_templates?name=eq.${encodeURIComponent(name)}&language=eq.${encodeURIComponent(language)}&status=eq.APPROVED&limit=1`).catch(() => []);
-      if (!approved?.[0]) {
-        return json({ ok: false, error: `template_not_approved:${name}:${language}`, decision_reason: decisionReason, window }, 409);
-      }
+      if (!approved?.[0]) return json({ ok: false, error: `template_not_approved:${name}:${language}`, decision_reason: decisionReason, window }, 409);
 
       const keys = Array.isArray(body.template_params)
         ? body.template_params
         : Array.isArray(rule.template_params) ? rule.template_params : [];
-
       payload = {
         to: phone,
         template: {
@@ -191,33 +186,24 @@ Deno.serve(async (req) => {
     const idempotencyKey = body.idempotency_key || null;
     if (idempotencyKey) {
       const old = await rest(`whatsapp_outbox?idempotency_key=eq.${encodeURIComponent(idempotencyKey)}&status=eq.sent&limit=1`).catch(() => []);
-      if (old?.[0]) {
-        return json({ ok: true, duplicate: true, mode: old[0].mode, message_id: old[0].provider_message_id, decision_reason: old[0].decision_reason });
-      }
+      if (old?.[0]) return json({ ok: true, duplicate: true, mode: old[0].mode, message_id: old[0].provider_message_id, decision_reason: old[0].decision_reason });
+    }
+
+    if (eventType === 'shipment_auto_tracking') {
+      const finalPreflight = await trackingAutoPreflight(body);
+      if (finalPreflight.duplicate) return json({ ok: true, duplicate: true, mode: 'auto', decision_reason: 'tracking_already_sent' });
+      if (!finalPreflight.ok) return json({ ok: false, error: finalPreflight.error }, 409);
     }
 
     const baseLog = {
-      phone,
-      event_type: eventType,
-      customer_name: vars.customer_name || null,
-      order_no: vars.order_id || null,
-      order_token: vars.order_token || null,
-      mode,
-      message_type: mode === 'template' ? 'template' : 'text',
-      body: payload.text || null,
-      template_name: payload.template?.name || null,
-      template_language: templateLanguage,
-      template_components: payload.template?.components || null,
-      can_send_freeform: canSendFreeform,
-      status: 'processing',
-      request_payload: payload,
-      response_payload: {},
-      source: body.source || 'system',
-      idempotency_key: idempotencyKey,
-      attempt_count: 1,
-      last_attempt_at: new Date().toISOString(),
-      decision_reason: decisionReason,
-      window_payload: window,
+      phone, event_type: eventType, customer_name: vars.customer_name || null,
+      order_no: vars.order_id || null, order_token: vars.order_token || null,
+      mode, message_type: mode === 'template' ? 'template' : 'text', body: payload.text || null,
+      template_name: payload.template?.name || null, template_language: templateLanguage,
+      template_components: payload.template?.components || null, can_send_freeform: canSendFreeform,
+      status: 'processing', request_payload: payload, response_payload: {}, source: body.source || 'system',
+      idempotency_key: idempotencyKey, attempt_count: 1, last_attempt_at: new Date().toISOString(),
+      decision_reason: decisionReason, window_payload: window,
     };
 
     const logged = await logOutbox(baseLog);
@@ -234,19 +220,14 @@ Deno.serve(async (req) => {
           }),
         });
       }
-      return json({
-        ok: true, mode, to: phone, message_id: sent.message_id || sent.id || null,
-        can_send_freeform: canSendFreeform, decision_reason: decisionReason, window,
-      });
+      return json({ ok: true, mode, to: phone, message_id: sent.message_id || sent.id || null, can_send_freeform: canSendFreeform, decision_reason: decisionReason, window });
     } catch (error) {
       if (logId) {
         await rest(`whatsapp_outbox?id=eq.${logId}`, {
           method: 'PATCH',
           body: JSON.stringify({
-            status: 'failed', error_code: 'provider_error',
-            error_message: error instanceof Error ? error.message : String(error),
-            response_payload: { error: error instanceof Error ? error.message : String(error) },
-            updated_at: new Date().toISOString(),
+            status: 'failed', error_code: 'provider_error', error_message: error instanceof Error ? error.message : String(error),
+            response_payload: { error: error instanceof Error ? error.message : String(error) }, updated_at: new Date().toISOString(),
           }),
         });
       }
