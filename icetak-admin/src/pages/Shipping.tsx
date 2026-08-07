@@ -4,14 +4,26 @@ import {
   IconAlert, IconCheck, IconMessage, IconRefresh, IconSearch, IconShipping, IconX,
 } from '../components/Icons';
 
-type SendStatus = 'not_ready' | 'blocked' | 'ready' | 'opened' | 'sent' | 'failed' | 'cancelled';
-type TrackingAction = 'opened' | 'sent' | 'reopen' | 'cancel' | 'restore';
+type SendStatus = 'not_ready' | 'blocked' | 'ready' | 'queued' | 'opened' | 'sent' | 'failed' | 'cancelled';
+type TrackingAction = 'opened' | 'sent' | 'reopen' | 'cancel' | 'restore' | 'retry_auto';
+
+type ProviderStatus = {
+  ready?: boolean;
+  provider?: string;
+  template_name?: string;
+  checks?: Record<string, boolean>;
+};
 
 type TrackingSettings = {
   auto_send_enabled: boolean;
   provider_mode: string;
+  provider_name: string;
   provider_ready: boolean;
+  template_name: string;
+  auto_send_activated_at: string | null;
   updated_at: string | null;
+  provider_error: string | null;
+  provider_status?: ProviderStatus;
 };
 
 type TrackingRow = {
@@ -30,8 +42,17 @@ type TrackingRow = {
   send_status: SendStatus;
   blocked_reason: string | null;
   sent_at: string | null;
+  send_method: string | null;
   manual_cancelled_at: string | null;
   manual_cancel_reason: string | null;
+  auto_queue_id: string | null;
+  auto_queued_at: string | null;
+  auto_attempted_at: string | null;
+  provider_message_id: string | null;
+  auto_queue_status: string | null;
+  auto_attempts: number | null;
+  auto_next_retry_at: string | null;
+  last_error: string | null;
   message_body: string;
 };
 
@@ -44,9 +65,13 @@ type Badge = { label: string; cls: string };
 
 const defaultSettings: TrackingSettings = {
   auto_send_enabled: false,
-  provider_mode: 'manual_whatsapp_link',
+  provider_mode: 'external_provider',
+  provider_name: 'wasapflow',
   provider_ready: false,
+  template_name: 'tracking_update',
+  auto_send_activated_at: null,
   updated_at: null,
+  provider_error: null,
 };
 
 const formatDate = (value: string | null) => {
@@ -73,7 +98,6 @@ const slug = (value: string | null) => String(value || '').trim().toLowerCase().
 
 const parcelBadge = (row: TrackingRow): Badge => {
   if (row.send_status === 'cancelled') return { label: 'Cancelled', cls: 'badge-error' };
-
   const normalized = slug(row.normalized_status);
   const raw = String(row.status || '').trim().toLowerCase();
 
@@ -101,7 +125,6 @@ const parcelBadge = (row: TrackingRow): Badge => {
   if (['shipment_created', 'awb_created', 'pending_pickup', 'pending'].includes(normalized)) {
     return { label: 'Pending Pickup', cls: 'badge-neutral' };
   }
-
   return { label: row.status || row.normalized_status || 'Pending', cls: 'badge-neutral' };
 };
 
@@ -109,14 +132,16 @@ const sendBadge = (status: SendStatus): Badge => ({
   not_ready: { label: 'Waiting First Scan', cls: 'badge-neutral' },
   blocked: { label: 'Needs Attention', cls: 'badge-error' },
   ready: { label: 'Ready to Send', cls: 'badge-info' },
+  queued: { label: 'Auto Queued', cls: 'badge-warning' },
   opened: { label: 'WhatsApp Opened', cls: 'badge-warning' },
   sent: { label: 'Sent', cls: 'badge-success' },
-  failed: { label: 'Failed', cls: 'badge-error' },
+  failed: { label: 'Auto Failed', cls: 'badge-error' },
   cancelled: { label: 'Cancelled', cls: 'badge-error' },
 })[status];
 
 const unavailableLabel = (row: TrackingRow) => {
   if (row.send_status === 'cancelled') return 'Tracking Cancelled';
+  if (row.send_status === 'queued') return 'Auto Queued';
   if (!row.first_scan_at) return 'Waiting First Scan';
   if (!row.recipient_phone) return 'Phone Missing';
   if (!row.tracking_link) return 'Tracking Link Missing';
@@ -126,7 +151,7 @@ const unavailableLabel = (row: TrackingRow) => {
 
 export default function Shipping() {
   const [rows, setRows] = useState<TrackingRow[]>([]);
-  const [settings, setSettings] = useState(defaultSettings);
+  const [settings, setSettings] = useState<TrackingSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [settingBusy, setSettingBusy] = useState(false);
@@ -161,14 +186,14 @@ export default function Shipping() {
 
   useEffect(() => {
     if (!notice) return;
-    const timer = window.setTimeout(() => setNotice(null), 2500);
+    const timer = window.setTimeout(() => setNotice(null), 3500);
     return () => window.clearTimeout(timer);
   }, [notice]);
 
   const stats = useMemo(() => ({
     total: rows.length,
     firstScan: rows.filter((row) => Boolean(row.first_scan_at)).length,
-    ready: rows.filter((row) => row.send_status === 'ready' || row.send_status === 'opened').length,
+    pending: rows.filter((row) => ['ready', 'queued', 'opened', 'failed'].includes(row.send_status)).length,
     sent: rows.filter((row) => row.send_status === 'sent').length,
   }), [rows]);
 
@@ -210,6 +235,7 @@ export default function Shipping() {
         reopen: 'Tracking dibuka semula.',
         cancel: 'Tracking dibatalkan dalam sistem iCetak.',
         restore: 'Tracking dipulihkan semula.',
+        retry_auto: 'Auto Send dimasukkan semula ke queue.',
       };
       setNotice(messages[action]);
       await load(true);
@@ -221,7 +247,7 @@ export default function Shipping() {
     const phone = normalizePhone(row.recipient_phone);
     if (
       !phone || !row.first_scan_at || !row.tracking_link ||
-      row.send_status === 'blocked' || row.send_status === 'cancelled'
+      ['blocked', 'cancelled', 'queued'].includes(row.send_status)
     ) {
       setError('Tracking belum boleh dihantar. Semak status, phone, tracking format dan first courier scan.');
       return;
@@ -240,9 +266,14 @@ export default function Shipping() {
   };
 
   const toggleAutoSend = async () => {
+    const next = !settings.auto_send_enabled;
+    const confirmed = window.confirm(next
+      ? 'Aktifkan Auto Send Tracking melalui Wasapflow?\n\nHanya first scan baharu selepas switch ON akan dihantar. Tracking lama tidak akan dihantar semula.'
+      : 'Matikan Auto Send Tracking?\n\nSemua auto job yang masih pending akan dihentikan.');
+    if (!confirmed) return;
+
     setSettingBusy(true);
     setError(null);
-    const next = !settings.auto_send_enabled;
     const { data, error: settingError } = await supabase.rpc('icetak_admin_set_tracking_auto_send', {
       p_enabled: next,
     });
@@ -251,9 +282,12 @@ export default function Shipping() {
     else {
       setSettings({ ...settings, ...((data || {}) as Partial<TrackingSettings>) });
       setNotice(`Auto Send Tracking ${next ? 'ON' : 'OFF'}.`);
+      await load(true);
     }
     setSettingBusy(false);
   };
+
+  const providerLabel = settings.provider_ready ? 'Wasapflow Ready' : 'Wasapflow Not Ready';
 
   return (
     <div className="fade-in">
@@ -272,18 +306,26 @@ export default function Shipping() {
           <div>
             <div className="panel-title">Auto Send Tracking</div>
             <div className="panel-subtitle" style={{ marginTop: 4 }}>
-              Setting utama untuk semua tracking. Manual Send menggunakan WhatsApp link dan tidak menggunakan Wasapflow API.
+              Bila ON, first courier scan baharu dihantar sekali sahaja melalui Wasapflow. Tracking Cancelled tidak akan dihantar.
             </div>
-            {!settings.provider_ready && settings.auto_send_enabled && (
-              <div style={{ marginTop: 8, color: '#b54708', fontWeight: 700 }}>
-                Auto Send disimpan sebagai ON, tetapi provider automatik belum disambungkan. Tiada mesej API akan dihantar.
+            <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className={`badge ${settings.provider_ready ? 'badge-success' : 'badge-error'}`}>{providerLabel}</span>
+              <span className="cell-sub">Template fallback: {settings.template_name || 'tracking_update'}</span>
+              {settings.auto_send_activated_at && settings.auto_send_enabled && (
+                <span className="cell-sub">ON sejak {formatDate(settings.auto_send_activated_at)}</span>
+              )}
+            </div>
+            {!settings.provider_ready && (
+              <div style={{ marginTop: 8, color: '#b42318', fontWeight: 700 }}>
+                {settings.provider_error || 'Credential, dispatcher atau approved tracking template belum lengkap.'}
               </div>
             )}
           </div>
           <button
             className={`btn ${settings.auto_send_enabled ? 'btn-primary' : 'btn-outline'}`}
             onClick={() => void toggleAutoSend()}
-            disabled={settingBusy}
+            disabled={settingBusy || (!settings.provider_ready && !settings.auto_send_enabled)}
+            aria-pressed={settings.auto_send_enabled}
           >
             {settings.auto_send_enabled ? <IconCheck size={15} /> : <IconAlert size={15} />}
             Auto Send: {settings.auto_send_enabled ? 'ON' : 'OFF'}
@@ -294,8 +336,8 @@ export default function Shipping() {
       <div className="stats-grid">
         <div className="stat-card new"><div className="stat-label">Total Tracking</div><div className="stat-value">{stats.total}</div><div className="stat-hint">Semua rekod DB</div></div>
         <div className="stat-card pay"><div className="stat-label">First Scan</div><div className="stat-value">{stats.firstScan}</div><div className="stat-hint">Courier sudah scan</div></div>
-        <div className="stat-card problem"><div className="stat-label">Ready to Send</div><div className="stat-value">{stats.ready}</div><div className="stat-hint">Perlu tindakan staff</div></div>
-        <div className="stat-card ready"><div className="stat-label">Sent</div><div className="stat-value">{stats.sent}</div><div className="stat-hint">Sudah ditanda hantar</div></div>
+        <div className="stat-card problem"><div className="stat-label">Pending Send</div><div className="stat-value">{stats.pending}</div><div className="stat-hint">Ready, queue atau failed</div></div>
+        <div className="stat-card ready"><div className="stat-label">Sent</div><div className="stat-value">{stats.sent}</div><div className="stat-hint">Manual atau Wasapflow</div></div>
       </div>
 
       <div className="panel">
@@ -307,12 +349,7 @@ export default function Shipping() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginLeft: 'auto' }}>
             <label style={{ position: 'relative' }}>
               <IconSearch size={15} style={{ position: 'absolute', left: 10, top: 10, color: 'var(--text-muted)' }} />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Tracking, phone, nama..."
-                style={{ minWidth: 230, padding: '9px 12px 9px 32px' }}
-              />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tracking, phone, nama..." style={{ minWidth: 230, padding: '9px 12px 9px 32px' }} />
             </label>
             <select value={courierFilter} onChange={(event) => setCourierFilter(event.target.value)}>
               <option value="all">All couriers</option>
@@ -323,9 +360,10 @@ export default function Shipping() {
               <option value="not_ready">Waiting First Scan</option>
               <option value="blocked">Needs Attention</option>
               <option value="ready">Ready to Send</option>
+              <option value="queued">Auto Queued</option>
               <option value="opened">WhatsApp Opened</option>
               <option value="sent">Sent</option>
-              <option value="failed">Failed</option>
+              <option value="failed">Auto Failed</option>
               <option value="cancelled">Cancelled</option>
             </select>
           </div>
@@ -338,56 +376,34 @@ export default function Shipping() {
           {loading ? (
             <div className="loading"><span className="spinner" /><span style={{ marginLeft: 8 }}>Loading tracking…</span></div>
           ) : filtered.length === 0 ? (
-            <div className="empty">
-              <div className="empty-icon"><IconShipping size={22} /></div>
-              <div className="empty-title">Tiada tracking dijumpai</div>
-              <div>Semak filter atau carian.</div>
-            </div>
+            <div className="empty"><div className="empty-icon"><IconShipping size={22} /></div><div className="empty-title">Tiada tracking dijumpai</div><div>Semak filter atau carian.</div></div>
           ) : (
             <table>
-              <thead>
-                <tr>
-                  <th>Customer</th><th>Tracking</th><th>Courier</th><th>Parcel Status</th>
-                  <th>First Scan</th><th>Send Status</th><th>Created</th><th>Action</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Customer</th><th>Tracking</th><th>Courier</th><th>Parcel Status</th><th>First Scan</th><th>Send Status</th><th>Created</th><th>Action</th></tr></thead>
               <tbody>
                 {filtered.map((row) => {
                   const cancelled = row.send_status === 'cancelled';
+                  const queued = row.send_status === 'queued';
                   const parcel = parcelBadge(row);
                   const delivery = sendBadge(row.send_status);
                   const busy = busyId === row.id;
                   const canSend = Boolean(
                     row.first_scan_at && row.recipient_phone && row.tracking_link &&
-                    row.send_status !== 'blocked' && !cancelled,
+                    !['blocked', 'cancelled', 'queued', 'sent'].includes(row.send_status),
                   );
 
                   return (
                     <tr key={row.id} className="row-hover">
-                      <td>
-                        <div style={{ fontWeight: 700 }}>{row.recipient_name || 'Nama tiada'}</div>
-                        <div className="cell-sub">{row.recipient_phone || 'Phone tiada'}</div>
-                        {row.reference && <div className="cell-id" style={{ marginTop: 3 }}>{row.reference}</div>}
-                      </td>
-                      <td>
-                        <a href={row.tracking_link || '#'} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 700 }}>
-                          {row.tracking_no}
-                        </a>
-                      </td>
+                      <td><div style={{ fontWeight: 700 }}>{row.recipient_name || 'Nama tiada'}</div><div className="cell-sub">{row.recipient_phone || 'Phone tiada'}</div>{row.reference && <div className="cell-id" style={{ marginTop: 3 }}>{row.reference}</div>}</td>
+                      <td><a href={row.tracking_link || '#'} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 700 }}>{row.tracking_no}</a></td>
                       <td>{row.courier ? row.courier.toUpperCase() : '—'}</td>
-                      <td>
-                        <span className={`badge ${parcel.cls}`}>{parcel.label}</span>
-                        <div className="cell-sub" style={{ marginTop: 5 }}>
-                          {cancelled ? `PD: ${row.status || row.normalized_status || '—'}` : (row.status || row.normalized_status || '—')}
-                        </div>
-                      </td>
-                      <td>
-                        <div>{formatDate(row.first_scan_at)}</div>
-                        {row.first_scan_status && <div className="cell-sub" style={{ marginTop: 5 }}>{row.first_scan_status}</div>}
-                      </td>
+                      <td><span className={`badge ${parcel.cls}`}>{parcel.label}</span><div className="cell-sub" style={{ marginTop: 5 }}>{cancelled ? `PD: ${row.status || row.normalized_status || '—'}` : (row.status || row.normalized_status || '—')}</div></td>
+                      <td><div>{formatDate(row.first_scan_at)}</div>{row.first_scan_status && <div className="cell-sub" style={{ marginTop: 5 }}>{row.first_scan_status}</div>}</td>
                       <td>
                         <span className={`badge ${delivery.cls}`}>{delivery.label}</span>
-                        {row.blocked_reason && <div style={{ marginTop: 5, color: '#b42318', fontSize: 12 }}>{row.blocked_reason}</div>}
+                        {row.send_method && row.send_status === 'sent' && <div className="cell-sub" style={{ marginTop: 5 }}>{row.send_method === 'wasapflow_api' ? 'Wasapflow API' : 'Manual WhatsApp'}</div>}
+                        {row.auto_attempts ? <div className="cell-sub" style={{ marginTop: 5 }}>Attempt: {row.auto_attempts}</div> : null}
+                        {row.last_error && <div style={{ marginTop: 5, color: '#b42318', fontSize: 12, maxWidth: 230 }}>{row.last_error}</div>}
                         {row.sent_at && !cancelled && <div className="cell-sub" style={{ marginTop: 5 }}>{formatDate(row.sent_at)}</div>}
                         {row.manual_cancelled_at && <div style={{ marginTop: 5, color: '#b42318', fontSize: 12 }}>{formatDate(row.manual_cancelled_at)}</div>}
                       </td>
@@ -395,40 +411,27 @@ export default function Shipping() {
                       <td>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', minWidth: 230 }}>
                           {cancelled ? (
-                            <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'restore')}>
-                              <IconRefresh size={14} /> Restore
-                            </button>
+                            <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'restore')}><IconRefresh size={14} /> Restore</button>
                           ) : (
                             <>
-                              {row.send_status !== 'sent' ? (
+                              {queued ? (
+                                <button className="btn btn-outline" disabled><IconRefresh size={14} /> Auto Queued</button>
+                              ) : row.send_status === 'sent' ? (
+                                <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'reopen')}>Reopen</button>
+                              ) : (
                                 <>
-                                  <button
-                                    className={`btn ${canSend ? 'btn-primary' : 'btn-outline'}`}
-                                    disabled={!canSend || busy}
-                                    title={!canSend ? unavailableLabel(row) : 'Open WhatsApp with tracking message'}
-                                    onClick={() => openManualWhatsApp(row)}
-                                  >
+                                  <button className={`btn ${canSend ? 'btn-primary' : 'btn-outline'}`} disabled={!canSend || busy} title={!canSend ? unavailableLabel(row) : 'Open WhatsApp with tracking message'} onClick={() => openManualWhatsApp(row)}>
                                     <IconMessage size={14} /> {canSend ? 'Send Tracking' : unavailableLabel(row)}
                                   </button>
                                   {(row.send_status === 'ready' || row.send_status === 'opened') && canSend && (
-                                    <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'sent')}>
-                                      <IconCheck size={14} /> Mark Sent
-                                    </button>
+                                    <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'sent')}><IconCheck size={14} /> Mark Sent</button>
+                                  )}
+                                  {row.send_status === 'failed' && settings.auto_send_enabled && (
+                                    <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'retry_auto')}><IconRefresh size={14} /> Retry Auto</button>
                                   )}
                                 </>
-                              ) : (
-                                <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'reopen')}>
-                                  Reopen
-                                </button>
                               )}
-                              <button
-                                className="btn btn-outline"
-                                disabled={busy}
-                                style={{ color: '#b42318', borderColor: '#fecdca' }}
-                                onClick={() => void trackingAction(row, 'cancel')}
-                              >
-                                <IconX size={14} /> Cancel
-                              </button>
+                              <button className="btn btn-outline" disabled={busy} style={{ color: '#b42318', borderColor: '#fecdca' }} onClick={() => void trackingAction(row, 'cancel')}><IconX size={14} /> Cancel</button>
                             </>
                           )}
                         </div>
