@@ -50,6 +50,26 @@ async function setting(key: string) {
   return rows?.[0]?.secret_value || rows?.[0]?.text_value || rows?.[0]?.value?.url || '';
 }
 
+async function trackingAutoPreflight(body: Record<string, any>) {
+  const shipmentId = String(body.shipment_id || body?.vars?.shipment_id || '').trim();
+  if (!shipmentId) return { ok: false, error: 'tracking_shipment_id_required' };
+
+  const settings = await rest('tracking_system_settings?singleton=eq.true&select=auto_send_enabled,provider_ready&limit=1').catch(() => []);
+  const config = settings?.[0];
+  if (!config?.auto_send_enabled) return { ok: false, error: 'tracking_auto_disabled' };
+  if (!config?.provider_ready) return { ok: false, error: 'tracking_provider_not_ready' };
+
+  const states = await rest(`shipment_tracking_state?shipment_id=eq.${encodeURIComponent(shipmentId)}&select=send_status,manual_cancelled_at&limit=1`).catch(() => []);
+  const state = states?.[0];
+  if (!state) return { ok: false, error: 'tracking_state_missing' };
+  if (state.send_status === 'cancelled' || state.manual_cancelled_at) return { ok: false, error: 'tracking_cancelled' };
+  if (state.send_status === 'sent') return { ok: true, duplicate: true };
+  if (!['queued', 'ready', 'failed'].includes(String(state.send_status || ''))) {
+    return { ok: false, error: `tracking_not_sendable:${state.send_status || 'unknown'}` };
+  }
+  return { ok: true, duplicate: false };
+}
+
 async function windowStatus(phone: string) {
   const url = await setting('unified_inbox_24h_url');
   if (!url) return { ok: false, can_send_freeform: false, reason: 'missing_24h_url' };
@@ -111,6 +131,14 @@ Deno.serve(async (req) => {
     if (vars.otp && !vars.otp_code) vars.otp_code = vars.otp;
     if (!vars.expiry_minutes) vars.expiry_minutes = '10';
 
+    if (eventType === 'shipment_auto_tracking') {
+      const preflight = await trackingAutoPreflight(body);
+      if (preflight.duplicate) {
+        return json({ ok: true, duplicate: true, mode: 'auto', decision_reason: 'tracking_already_sent' });
+      }
+      if (!preflight.ok) return json({ ok: false, error: preflight.error }, 409);
+    }
+
     const rule = (await rest(`whatsapp_notification_rules?event_type=eq.${encodeURIComponent(eventType)}&limit=1`).catch(() => []))?.[0] || {};
     if (rule.enabled === false) return json({ ok: false, error: `notification_disabled:${eventType}` }, 409);
 
@@ -121,7 +149,7 @@ Deno.serve(async (req) => {
       : canSendFreeform && rule.freeform_enabled !== false ? 'text' : 'template';
     const decisionReason = mode === 'text' ? '24h_window_open' : '24h_window_closed_or_unavailable';
 
-    let payload: Record<string, unknown>;
+    let payload: Record<string, any>;
     let endpoint = '';
     let templateLanguage: string | null = null;
 
@@ -201,30 +229,21 @@ Deno.serve(async (req) => {
         await rest(`whatsapp_outbox?id=eq.${logId}`, {
           method: 'PATCH',
           body: JSON.stringify({
-            status: 'sent',
-            provider_message_id: sent.message_id || sent.id || null,
-            response_payload: sent,
-            sent_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            status: 'sent', provider_message_id: sent.message_id || sent.id || null,
+            response_payload: sent, sent_at: new Date().toISOString(), updated_at: new Date().toISOString(),
           }),
         });
       }
       return json({
-        ok: true,
-        mode,
-        to: phone,
-        message_id: sent.message_id || sent.id || null,
-        can_send_freeform: canSendFreeform,
-        decision_reason: decisionReason,
-        window,
+        ok: true, mode, to: phone, message_id: sent.message_id || sent.id || null,
+        can_send_freeform: canSendFreeform, decision_reason: decisionReason, window,
       });
     } catch (error) {
       if (logId) {
         await rest(`whatsapp_outbox?id=eq.${logId}`, {
           method: 'PATCH',
           body: JSON.stringify({
-            status: 'failed',
-            error_code: 'provider_error',
+            status: 'failed', error_code: 'provider_error',
             error_message: error instanceof Error ? error.message : String(error),
             response_payload: { error: error instanceof Error ? error.message : String(error) },
             updated_at: new Date().toISOString(),
