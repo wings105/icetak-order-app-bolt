@@ -38,6 +38,8 @@ async function authorized(req: Request) {
 async function updateJob(id: string, payload: Record<string, unknown>) {
   await rest(`notification_queue?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
 }
+const isTrackingSafetyStop = (message: string) => /tracking_(auto_disabled|cancelled|already_sent|not_sendable|state_missing|shipment_id_required)/i.test(message);
+
 Deno.serve(async (req) => {
   try {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -66,13 +68,23 @@ Deno.serve(async (req) => {
         });
         results.push({ id: job.id, status: 'sent', mode: result.mode, message_id: result.message_id });
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (isTrackingSafetyStop(message)) {
+          await updateJob(job.id, {
+            status: 'cancelled', processed_at: new Date().toISOString(), locked_at: null,
+            last_error: message, decision_reason: 'tracking_safety_stop',
+          });
+          results.push({ id: job.id, status: 'cancelled', reason: message });
+          continue;
+        }
+
         const attempts = Number(job.attempts || 1);
         const terminal = attempts >= 5;
         const delayMinutes = [1, 5, 15, 60, 240][Math.min(attempts - 1, 4)];
         const nextRetry = new Date(Date.now() + delayMinutes * 60000).toISOString();
         await updateJob(job.id, {
           status: terminal ? 'failed' : 'pending', scheduled_at: nextRetry, locked_at: null,
-          last_error: error instanceof Error ? error.message : String(error),
+          last_error: message,
         });
         results.push({ id: job.id, status: terminal ? 'failed' : 'retry', next_retry_at: terminal ? null : nextRetry });
       }
