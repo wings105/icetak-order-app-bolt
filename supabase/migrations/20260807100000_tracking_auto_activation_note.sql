@@ -1,1 +1,0 @@
--- Auto Send Tracking remains disabled until an authenticated admin enables it from Shipping & Tracking.
