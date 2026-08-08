@@ -98,7 +98,6 @@ let activeHistoryTab: HistoryTab = 'progress';
 let historyRequest = 0;
 let orderRequest = 0;
 let paymentPoll = 0;
-let orderLivePoll = 0;
 let observerBusy = false;
 
 function money(value: number) {
@@ -127,20 +126,6 @@ function selectedOrderToken() {
   const queryToken = new URL(location.href).searchParams.get('order');
   const stateToken = (history.state as { orderToken?: string } | null)?.orderToken;
   return queryToken || stateToken || '';
-}
-
-function clearOrderLivePoll() {
-  if (orderLivePoll) window.clearInterval(orderLivePoll);
-  orderLivePoll = 0;
-}
-function startOrderLivePoll(token: string) {
-  clearOrderLivePoll();
-  if (!token) return;
-  orderLivePoll = window.setInterval(() => {
-    if (document.hidden || selectedOrderToken() !== token) return;
-    const main = document.querySelector<HTMLElement>('main.order-detail-page');
-    if (main) void loadFullOrder(main, token, true);
-  }, 15000);
 }
 
 function orderUrl(token: string) {
@@ -289,7 +274,6 @@ function renderHistory(main: HTMLElement, orders: Order[]) {
 }
 
 async function loadFullHistory(main: HTMLElement) {
-  clearOrderLivePoll();
   const token = customerToken();
   if (!token) return;
   const request = ++historyRequest;
@@ -429,10 +413,10 @@ function renderOrderLoading(main: HTMLElement) {
   main.innerHTML = `<section class="cp-loading-card"><span class="cp-spinner"></span><b>Loading order…</b></section>`;
 }
 
-async function loadFullOrder(main: HTMLElement, token: string, silent = false) {
+async function loadFullOrder(main: HTMLElement, token: string) {
   if (!token) return;
   const request = ++orderRequest;
-  if (!silent) renderOrderLoading(main);
+  renderOrderLoading(main);
   try {
     const [orderResponse, shipmentResponse] = await Promise.all([
       edgeGet<{ order: Order }>(`/api/orders/${encodeURIComponent(token)}`),
@@ -456,7 +440,7 @@ function renderOrderShell(token: string) {
     app.querySelector<HTMLButtonElement>('#back')!.onclick = () => history.back();
     main = app.querySelector<HTMLElement>('main.order-detail-page');
   }
-  if (main) { startOrderLivePoll(token); void loadFullOrder(main, token); }
+  if (main) void loadFullOrder(main, token);
 }
 
 async function reviewAction(order: Order, main: HTMLElement, button: HTMLButtonElement, requestEdit: boolean) {
@@ -646,7 +630,7 @@ function enhanceCurrentView() {
     }
     const orderMain = document.querySelector<HTMLElement>('main.order-detail-page');
     const token = selectedOrderToken();
-    if (orderMain && token) { startOrderLivePoll(token); if (orderMain.dataset.fullPortal !== '1') void loadFullOrder(orderMain, token); }
+    if (orderMain && orderMain.dataset.fullPortal !== '1' && token) void loadFullOrder(orderMain, token);
   });
 }
 
@@ -666,7 +650,6 @@ document.addEventListener('click', (event) => {
 
 window.addEventListener('popstate', () => {
   clearPaymentPoll();
-  clearOrderLivePoll();
   setTimeout(enhanceCurrentView, 0);
 });
 

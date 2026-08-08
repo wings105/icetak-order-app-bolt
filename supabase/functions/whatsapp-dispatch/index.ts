@@ -38,7 +38,7 @@ async function authorized(req: Request) {
 async function updateJob(id: string, payload: Record<string, unknown>) {
   await rest(`notification_queue?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
 }
-const isAutomationSafetyStop = (message: string) => /tracking_(auto_disabled|cancelled|already_sent|not_sendable|state_missing|shipment_id_required)|pickup_(auto_disabled|provider_not_ready|order_id_required|order_missing|not_pickup|order_not_ready|collected|cancelled|historical_ready)/i.test(message);
+const isTrackingSafetyStop = (message: string) => /tracking_(auto_disabled|cancelled|already_sent|not_sendable|state_missing|shipment_id_required)/i.test(message);
 
 Deno.serve(async (req) => {
   try {
@@ -69,10 +69,10 @@ Deno.serve(async (req) => {
         results.push({ id: job.id, status: 'sent', mode: result.mode, message_id: result.message_id });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        if (isAutomationSafetyStop(message)) {
+        if (isTrackingSafetyStop(message)) {
           await updateJob(job.id, {
             status: 'cancelled', processed_at: new Date().toISOString(), locked_at: null,
-            last_error: message, decision_reason: 'automation_safety_stop',
+            last_error: message, decision_reason: 'tracking_safety_stop',
           });
           results.push({ id: job.id, status: 'cancelled', reason: message });
           continue;
