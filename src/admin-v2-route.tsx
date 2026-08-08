@@ -1,105 +1,98 @@
 import type { Root } from 'react-dom/client';
 import { api, supabase } from './appdeploy-client';
-import './admin-v2-switch.css';
 
 const V2_ROUTE = 'v2';
-let adminV2Root: Root | null = null;
+let rootHandle: Root | null = null;
 let mounting = false;
-let mountFailed = false;
 
-function adminRoute() {
-  return new URLSearchParams(location.search).get('admin') || '';
-}
+function adminRoute() { return new URLSearchParams(location.search).get('admin') || ''; }
 
-function goToAdmin(version: '1' | 'v2') {
+function goV2() {
   const url = new URL(location.href);
-  ['order', 'confirm', 'login', 'c'].forEach((key) => url.searchParams.delete(key));
-  url.searchParams.set('admin', version);
-  if (version === 'v2') sessionStorage.removeItem('admin_open_after_reload');
+  ['confirm','login','c'].forEach((key) => url.searchParams.delete(key));
+  url.searchParams.set('admin', V2_ROUTE);
   location.assign(url);
 }
 
-function installV2Switch() {
-  if (adminRoute() === V2_ROUTE || document.querySelector('#adminV2Switch')) return;
-  const header = document.querySelector<HTMLElement>('.admin-head');
-  if (!header) return;
-
-  const button = document.createElement('button');
-  button.id = 'adminV2Switch';
-  button.className = 'admin-version-switch';
-  button.type = 'button';
-  button.innerHTML = '<span>New</span> Switch to Admin V2';
-  button.onclick = () => goToAdmin('v2');
-
-  const logout = header.querySelector<HTMLButtonElement>('#adminLogout');
-  if (logout) logout.insertAdjacentElement('beforebegin', button);
-  else header.append(button);
+function normalizeLegacyAdminRoute() {
+  if (adminRoute() !== '1') return;
+  const url = new URL(location.href);
+  url.searchParams.set('admin', V2_ROUTE);
+  history.replaceState({}, '', url);
 }
 
-function showV2Error(message: string) {
-  const root = document.querySelector<HTMLElement>('#app');
+async function ensureRoot() {
+  const host = document.querySelector<HTMLElement>('#app');
+  if (!host) return null;
+  if (rootHandle) return rootHandle;
+  const { createRoot } = await import('react-dom/client');
+  host.innerHTML = '';
+  rootHandle = createRoot(host);
+  return rootHandle;
+}
+
+async function renderLogin() {
+  const root = await ensureRoot();
   if (!root) return;
-  root.innerHTML = '<main class="admin-v2-gate"><section><span>🔒</span><h1>Admin V2 unavailable</h1><p></p><button id="adminV2Back">Back to Admin V1</button></section></main>';
-  root.querySelector('p')!.textContent = message;
-  root.querySelector<HTMLButtonElement>('#adminV2Back')!.onclick = () => goToAdmin('1');
+  const [{ createElement }, { default: AdminLogin }] = await Promise.all([
+    import('react'), import('../icetak-admin/src/AdminLogin'), import('../icetak-admin/src/index.css'),
+  ]);
+  root.render(createElement(AdminLogin, { onAuthenticated: () => location.reload() }));
+  document.title = 'iCetak ERP — Admin Login';
 }
 
 async function mountAdminV2() {
-  if (adminRoute() !== V2_ROUTE || mounting || mountFailed || adminV2Root) return;
-  const root = document.querySelector<HTMLElement>('#app');
-  if (!root) return;
-
-  const { data } = await supabase.auth.getSession();
-  const session = data.session;
-  if (!session) return;
-
+  normalizeLegacyAdminRoute();
+  if (adminRoute() !== V2_ROUTE || mounting) return;
   mounting = true;
   try {
+    const { data } = await supabase.auth.getSession();
+    const session = data.session;
+    if (!session) { await renderLogin(); return; }
+
     sessionStorage.setItem('admin_access_token', session.access_token);
     sessionStorage.setItem('admin_refresh_token', session.refresh_token || '');
     sessionStorage.setItem('admin_session', session.access_token);
 
-    // This endpoint validates that the signed-in Supabase user is linked to an
-    // active iCetak admin before the React dashboard is downloaded or mounted.
-    const dashboard = await api.post('/api/admin/dashboard', { session_token: session.access_token });
+    let dashboard;
+    try {
+      dashboard = await api.post('/api/admin/dashboard', { session_token: session.access_token });
+    } catch (error) {
+      await supabase.auth.signOut();
+      sessionStorage.removeItem('admin_access_token');
+      sessionStorage.removeItem('admin_refresh_token');
+      sessionStorage.removeItem('admin_session');
+      await renderLogin();
+      console.warn('[Admin V2 validation]', error);
+      return;
+    }
 
-    // Reuse the production client's authenticated session inside Admin V2.
-    // The standalone prototype still creates its own client when run by itself.
     (globalThis as typeof globalThis & { __ICETAK_SUPABASE__?: typeof supabase }).__ICETAK_SUPABASE__ = supabase;
-
-    const [{ createElement }, { createRoot }, { default: AdminV2 }] = await Promise.all([
-      import('react'),
-      import('react-dom/client'),
-      import('../icetak-admin/src/App'),
-      import('../icetak-admin/src/index.css'),
+    const root = await ensureRoot();
+    if (!root) return;
+    const [{ createElement }, { default: AdminV2 }] = await Promise.all([
+      import('react'), import('../icetak-admin/src/App'), import('../icetak-admin/src/index.css'),
     ]);
-
-    root.innerHTML = '';
-    adminV2Root = createRoot(root);
-    adminV2Root.render(createElement(AdminV2, {
-      onSwitchToV1: () => goToAdmin('1'),
-      adminData: dashboard.data,
-    }));
-    document.title = 'iCetak ERP — Admin V2';
-  } catch (error) {
-    mountFailed = true;
-    const message = error instanceof Error ? error.message : 'Your account could not be verified.';
-    showV2Error(message);
+    root.render(createElement(AdminV2, { adminData: dashboard.data }));
+    document.title = 'iCetak ERP';
   } finally {
     mounting = false;
   }
 }
 
-const observer = new MutationObserver(() => {
-  installV2Switch();
-  void mountAdminV2();
+// Customer storefront keeps its Account Access page, but Staff/Admin now has one destination only.
+document.addEventListener('click', (event) => {
+  const target = (event.target as HTMLElement | null)?.closest?.('#staffLogin');
+  if (!target) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  goV2();
+}, true);
+
+supabase.auth.onAuthStateChange(() => {
+  if (adminRoute() === V2_ROUTE) void mountAdminV2();
 });
 
-observer.observe(document.body, { childList: true, subtree: true });
-window.addEventListener('load', () => {
-  installV2Switch();
-  void mountAdminV2();
-});
-
-installV2Switch();
+window.addEventListener('load', () => void mountAdminV2());
+normalizeLegacyAdminRoute();
 void mountAdminV2();
