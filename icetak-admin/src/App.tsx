@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { supabase } from './lib/supabase';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
@@ -28,16 +29,10 @@ const pageMap: Record<string, { title: string; subtitle?: string }> = {
 };
 
 type AdminData = {
-  admin?: {
-    username?: string;
-    display_name?: string;
-    role?: string;
-    permissions?: string[];
-  };
+  admin?: { username?: string; display_name?: string; role?: string; permissions?: string[] };
   orders?: React.ComponentProps<typeof Dashboard>['adminOrders'];
   admins?: Array<{ username?: string; display_name?: string; email?: string; role?: string; permissions?: string[] }>;
 };
-
 type Props = { adminData?: AdminData };
 
 export default function App({ adminData }: Props) {
@@ -50,17 +45,10 @@ export default function App({ adminData }: Props) {
     const url = new URL(window.location.href);
     if (key !== 'orders') url.searchParams.delete('order');
     window.history.replaceState({}, '', url);
-    setPage(key);
-    setMobileOpen(false);
+    setPage(key); setMobileOpen(false);
   };
-
-  const openOrder = (orderNo: string) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('admin', 'v2');
-    url.searchParams.set('order', orderNo);
-    window.history.replaceState({}, '', url);
-    setPage('orders');
-  };
+  const openOrder = (orderNo: string) => { const url=new URL(window.location.href); url.searchParams.set('admin','v2'); url.searchParams.set('order',orderNo); window.history.replaceState({},'',url); setPage('orders'); };
+  const logout = async () => { await supabase.auth.signOut(); sessionStorage.removeItem('admin_access_token'); sessionStorage.removeItem('admin_refresh_token'); sessionStorage.removeItem('admin_session'); window.location.assign(`${window.location.pathname}?admin=v2`); };
 
   const info = pageMap[page] || pageMap.dashboard;
   const renderPage = () => {
@@ -74,19 +62,11 @@ export default function App({ adminData }: Props) {
       case 'whatsapp-templates': return <WhatsAppTemplates />;
       case 'whatsapp-outbox': return <WhatsAppOutbox />;
       case 'integrations': return <Integrations />;
-      case 'staff': return <StaffRoles />;
-      case 'settings': return <Settings />;
+      case 'staff': return <StaffRoles currentPermissions={permissions} />;
+      case 'settings': return <Settings permissions={permissions} />;
       default: return <Dashboard adminOrders={adminData?.orders} />;
     }
   };
 
-  return (
-    <div className="app-layout">
-      <Sidebar active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} />
-      <div className="main-content">
-        <Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={() => setMobileOpen(true)} />
-        <div className="content-area">{renderPage()}</div>
-      </div>
-    </div>
-  );
+  return <div className="app-layout"><Sidebar active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} /><div className="content-area">{renderPage()}</div></div></div>;
 }
