@@ -92,6 +92,13 @@ Deno.serve(async (req) => {
         }),
       });
     }
+    if (action === "qrpay_daily") {
+      const date = String(body.date || "");
+      if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return json({ success: false, error: "Valid QRPay summary date is required" }, 400);
+      }
+      return json({ success: true, data: await rpc("finance_admin_qrpay_daily", { p_date: date || null }) });
+    }
     if (action === "report") {
       const from = String(body.from || "");
       const to = String(body.to || "");
