@@ -32,20 +32,36 @@ type Props = {
 };
 
 export default function App({ onSwitchToV1, adminData }: Props) {
-  const [page, setPage] = useState('dashboard');
+  const linkedOrder = new URLSearchParams(window.location.search).get('order')?.trim() || '';
+  const [page, setPage] = useState(linkedOrder ? 'orders' : 'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navigate = (key: string) => {
+    if (key !== 'orders') {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('order')) {
+        url.searchParams.delete('order');
+        window.history.replaceState({}, '', url);
+      }
+    }
     setPage(key);
     setMobileOpen(false);
   };
 
   const info = pageMap[page] || pageMap.dashboard;
+  const linkedOrders = linkedOrder && adminData?.orders
+    ? adminData.orders.filter((order) => {
+        const orderNo = String(order.id || '').trim().toLowerCase();
+        const dbId = String(order.dbId || '').trim().toLowerCase();
+        const target = linkedOrder.toLowerCase();
+        return orderNo === target || dbId === target;
+      })
+    : adminData?.orders;
 
   const renderPage = () => {
     switch (page) {
       case 'dashboard': return <Dashboard adminOrders={adminData?.orders} />;
-      case 'orders': return <Dashboard adminOrders={adminData?.orders} />;
+      case 'orders': return <Dashboard adminOrders={linkedOrders} />;
       case 'payments': return <Payments />;
       case 'shipping': return <Shipping />;
       case 'whatsapp-control': return <WhatsAppControl />;

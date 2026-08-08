@@ -28,6 +28,8 @@ type TrackingSettings = {
 
 type TrackingRow = {
   id: string;
+  order_id: string | null;
+  order_no: string | null;
   reference: string | null;
   tracking_no: string;
   courier: string | null;
@@ -62,6 +64,8 @@ type DashboardPayload = {
 };
 
 type Badge = { label: string; cls: string };
+
+const CLICKUP_TEAM_ID = '3747262';
 
 const defaultSettings: TrackingSettings = {
   auto_send_enabled: false,
@@ -218,7 +222,7 @@ export default function Shipping() {
       if (courierFilter !== 'all' && String(row.courier || '').toLowerCase() !== courierFilter) return false;
       if (parcelStatusFilter !== 'all' && parcelBadge(row).label !== parcelStatusFilter) return false;
       if (!search) return true;
-      return [row.tracking_no, row.recipient_phone, row.recipient_name, row.reference, row.status]
+      return [row.tracking_no, row.recipient_phone, row.recipient_name, row.reference, row.order_no, row.status]
         .some((value) => String(value || '').toLowerCase().includes(search));
     });
   }, [rows, query, statusFilter, courierFilter, parcelStatusFilter]);
@@ -360,7 +364,7 @@ export default function Shipping() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginLeft: 'auto' }}>
             <label style={{ position: 'relative' }}>
               <IconSearch size={15} style={{ position: 'absolute', left: 10, top: 10, color: 'var(--text-muted)' }} />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tracking, phone, nama..." style={{ minWidth: 230, padding: '9px 12px 9px 32px' }} />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tracking, phone, nama, order..." style={{ minWidth: 230, padding: '9px 12px 9px 32px' }} />
             </label>
             <select value={courierFilter} onChange={(event) => setCourierFilter(event.target.value)}>
               <option value="all">All couriers</option>
@@ -413,20 +417,24 @@ export default function Shipping() {
                       <td>
                         <div style={{ fontWeight: 700 }}>{row.recipient_name || 'Nama tiada'}</div>
                         {phone ? (
-                          <a
-                            href={`https://wa.me/${phone}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="cell-sub"
-                            title={`Open WhatsApp ${phone}`}
-                            style={{ display: 'inline-block', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}
-                          >
+                          <a href={`https://wa.me/${phone}`} target="_blank" rel="noreferrer" className="cell-sub" title={`Open WhatsApp ${phone}`} style={{ display: 'inline-block', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
                             {row.recipient_phone}
                           </a>
-                        ) : (
-                          <div className="cell-sub">Phone tiada</div>
+                        ) : <div className="cell-sub">Phone tiada</div>}
+                        {row.reference && (
+                          <div style={{ marginTop: 3 }}>
+                            <a href={`https://app.clickup.com/t/${CLICKUP_TEAM_ID}/${encodeURIComponent(row.reference)}`} target="_blank" rel="noreferrer" className="cell-id" title="Open ClickUp task" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
+                              {row.reference}
+                            </a>
+                          </div>
                         )}
-                        {row.reference && <div className="cell-id" style={{ marginTop: 3 }}>{row.reference}</div>}
+                        {row.order_id && row.order_no && (
+                          <div style={{ marginTop: 3 }}>
+                            <a href={`/?admin=v2&order=${encodeURIComponent(row.order_no)}`} target="_blank" rel="noreferrer" className="cell-sub" title="Open linked iCetak order" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>
+                              Order {row.order_no}
+                            </a>
+                          </div>
+                        )}
                       </td>
                       <td><a href={row.tracking_link || '#'} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 700 }}>{row.tracking_no}</a></td>
                       <td>{row.courier ? row.courier.toUpperCase() : '—'}</td>
