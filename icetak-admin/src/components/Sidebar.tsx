@@ -23,7 +23,6 @@ const navItems: NavItem[] = [
   },
   { key: 'payments', label: 'Payments', icon: IconPayments },
   { key: 'finance', label: 'Finance', icon: IconFinance },
-  { key: 'qrpay-summary', label: 'QRPay Daily', icon: IconPayments },
   { key: 'shipping', label: 'Shipping', icon: IconShipping },
   {
     key: 'whatsapp',
@@ -50,7 +49,7 @@ type Props = {
 };
 
 export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false }: Props) {
-  const visibleNavItems = canViewFinance ? navItems : navItems.filter((item) => !['finance','qrpay-summary'].includes(item.key));
+  const visibleNavItems = canViewFinance ? navItems : navItems.filter((item) => item.key !== 'finance');
   const [expanded, setExpanded] = useState<string | null>(
     visibleNavItems.find((n) => n.children?.some((c) => c.key === active))?.key ?? null
   );

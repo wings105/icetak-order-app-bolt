@@ -19,7 +19,3 @@ verify_jwt = false
 # User JWT is verified in code, then owner-only Finance permissions are checked.
 [functions.finance-admin]
 verify_jwt = false
-
-# Cron receiver protected by a private per-function token in code.
-[functions.qrpay-daily-summary]
-verify_jwt = false
