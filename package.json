@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "check:admin-v2": "node scripts/check-admin-v2-source.mjs",
+    "build": "npm run check:admin-v2 && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
