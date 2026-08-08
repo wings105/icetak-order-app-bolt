@@ -1,0 +1,41 @@
+name: Patch Orders V2 item UX
+on:
+  push:
+    paths:
+      - scripts/patch_orders_v2_item_ux.py
+permissions:
+  contents: write
+jobs:
+  patch-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/orders-v2-item-ux-20260808
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/patch_orders_v2_item_ux.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: icetak-admin/package-lock.json
+      - name: Install Admin V2 dependencies
+        working-directory: icetak-admin
+        run: npm ci
+      - name: Build Admin V2
+        working-directory: icetak-admin
+        run: npm run build
+      - name: Commit scoped UI patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add icetak-admin/src/pages/Orders.tsx icetak-admin/src/pages/OrdersEnterprise.css
+          if git diff --cached --quiet; then
+            echo "No UI patch needed"
+            exit 0
+          fi
+          git commit -m "show order thumbnails and load preview metadata"
+          git push origin HEAD:fix/orders-v2-item-ux-20260808
