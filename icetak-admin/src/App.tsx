@@ -5,6 +5,7 @@ import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
 import QuickOrder from './pages/QuickOrder';
+import ManualOrder from './pages/ManualOrder';
 import Payments from './pages/Payments';
 import Shipping from './pages/Shipping';
 import WhatsAppControl from './pages/WhatsAppControl';
@@ -17,7 +18,8 @@ import Settings from './pages/Settings';
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Order Control Tower', subtitle: 'Business Overview' },
   orders: { title: 'Orders', subtitle: 'Full order lifecycle' },
-  'quick-order': { title: 'Quick Order', subtitle: 'Counter & WhatsApp orders' },
+  'quick-order': { title: 'Quick Order', subtitle: 'Counter & auto-priced orders' },
+  'manual-order': { title: 'Manual Order', subtitle: 'Custom item & price' },
   payments: { title: 'Payments Center', subtitle: 'Transactions' },
   shipping: { title: 'Shipping & Tracking', subtitle: 'Parcels' },
   'whatsapp-control': { title: 'WhatsApp Control', subtitle: 'Pipeline' },
@@ -68,6 +70,7 @@ export default function App({ adminData }: Props) {
       case 'dashboard': return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'orders': return <Orders permissions={permissions} initialOrder={linkedOrder} />;
       case 'quick-order': return <QuickOrder permissions={permissions} onOpenOrder={openOrder} />;
+      case 'manual-order': return <ManualOrder permissions={permissions} onOpenOrder={openOrder} />;
       case 'payments': return <Payments onOpenOrder={openOrder} />;
       case 'shipping': return <Shipping />;
       case 'whatsapp-control': return <WhatsAppControl />;
