@@ -13,6 +13,7 @@ Admin V1 is retired. Do not add new admin UI or admin business logic back into t
 | Auto-priced counter order | `icetak-admin/src/pages/QuickOrder.tsx` |
 | Custom item/custom price order | `icetak-admin/src/pages/ManualOrder.tsx` |
 | Payments ledger | `icetak-admin/src/pages/Payments.tsx` |
+| Finance, bank feed, reconciliation, Shopee wallet and reports | `icetak-admin/src/pages/Finance.tsx` |
 | ParcelDaily tracking | `icetak-admin/src/pages/Shipping.tsx` |
 | WhatsApp controls/rules/health/queue | `icetak-admin/src/pages/WhatsAppControl.tsx` |
 | WhatsApp templates | `icetak-admin/src/pages/WhatsAppTemplates.tsx` |

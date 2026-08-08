@@ -11,3 +11,11 @@ verify_jwt = false
 
 [functions.parceldaily-webhook]
 verify_jwt = false
+
+# Public receiver with per-connection SHA-256 shared-secret verification in code.
+[functions.finance-webhook]
+verify_jwt = false
+
+# User JWT is verified in code, then owner-only Finance permissions are checked.
+[functions.finance-admin]
+verify_jwt = false
