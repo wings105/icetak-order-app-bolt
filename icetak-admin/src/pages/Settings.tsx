@@ -1,103 +1,42 @@
 import { useState } from 'react';
-import { IconRefresh } from '../components/Icons';
+import { supabase } from '../lib/supabase';
 
-export default function Settings() {
-  const [tab, setTab] = useState('general');
-  const [notif, setNotif] = useState({ email: true, sms: false, whatsapp: true });
+ type Props = { permissions?: string[] };
 
-  return (
-    <div className="fade-in">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Settings</h1>
-          <p className="page-subtitle">Manage your workspace preferences</p>
-        </div>
-        <button className="btn btn-outline"><IconRefresh size={16} /> Reset</button>
-      </div>
+export default function Settings({ permissions = [] }: Props) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const canExport = permissions.includes('export_data');
 
-      <div className="panel" style={{ maxWidth: 800 }}>
-        <div className="panel-header">
-          <div className="filter-tabs">
-            {[
-              { k: 'general', l: 'General' },
-              { k: 'notifications', l: 'Notifications' },
-              { k: 'security', l: 'Security' },
-            ].map((t) => (
-              <button key={t.k} className={`filter-tab ${tab === t.k ? 'active' : ''}`} onClick={() => setTab(t.k)}>
-                {t.l}
-              </button>
-            ))}
-          </div>
-        </div>
+  const download = (name:string, content:string, type:string) => {
+    const url=URL.createObjectURL(new Blob([content],{type}));
+    const a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
+  };
 
-        <div style={{ padding: 24 }}>
-          {tab === 'general' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <div className="form-field">
-                <label>Store Name</label>
-                <input defaultValue="iCetak Printing Sdn Bhd" />
-              </div>
-              <div className="form-field">
-                <label>Store Email</label>
-                <input defaultValue="admin@icetak.my" />
-              </div>
-              <div className="form-field">
-                <label>Phone Number</label>
-                <input defaultValue="+60 12-345 6789" />
-              </div>
-              <div className="form-field">
-                <label>Business Address</label>
-                <textarea defaultValue="12 Jalan Bukit Bintang, 55100 Kuala Lumpur" />
-              </div>
-              <div><button className="btn btn-primary">Save Changes</button></div>
-            </div>
-          )}
+  const exportData = async (format:'json'|'csv') => {
+    setBusy(true); setError(null);
+    const { data, error: rpcError } = await supabase.rpc('icetak_admin_export_data');
+    setBusy(false);
+    if (rpcError) return setError(rpcError.message);
+    const payload=(data||{}) as {orders?:Array<Record<string,unknown>>};
+    const stamp=new Date().toISOString().slice(0,10);
+    if(format==='json') download(`icetak-backup-${stamp}.json`,JSON.stringify(data,null,2),'application/json');
+    else {
+      const rows=(payload.orders||[]).map((o)=>[o.order_id||o.order_no,o.created_at,o.date_need,o.total,o.payment||o.payment_status,o.delivery||o.delivery_method,o.status,o.admin_status].map((v)=>`"${String(v??'').replaceAll('"','""')}"`).join(','));
+      download(`icetak-orders-${stamp}.csv`,['Order ID,Created,Date Need,Total,Payment,Delivery,Status,Admin Status',...rows].join('\n'),'text/csv');
+    }
+  };
 
-          {tab === 'notifications' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <Toggle label="Email Notifications" desc="Receive order updates via email" checked={notif.email} onChange={(v) => setNotif({ ...notif, email: v })} />
-              <Toggle label="SMS Alerts" desc="Get text alerts for urgent orders" checked={notif.sms} onChange={(v) => setNotif({ ...notif, sms: v })} />
-              <Toggle label="WhatsApp Broadcasts" desc="Send customer updates via WhatsApp" checked={notif.whatsapp} onChange={(v) => setNotif({ ...notif, whatsapp: v })} />
-              <div><button className="btn btn-primary">Save Preferences</button></div>
-            </div>
-          )}
+  const signOut = async () => { await supabase.auth.signOut(); window.location.assign(window.location.pathname); };
 
-          {tab === 'security' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <div className="form-field">
-                <label>Current Password</label>
-                <input type="password" />
-              </div>
-              <div className="form-field">
-                <label>New Password</label>
-                <input type="password" />
-              </div>
-              <div className="form-field">
-                <label>Confirm Password</label>
-                <input type="password" />
-              </div>
-              <div><button className="btn btn-primary">Update Password</button></div>
-            </div>
-          )}
-        </div>
-      </div>
+  return <div className="fade-in">
+    <div className="page-header"><div><h1 className="page-title">Settings</h1><p className="page-subtitle">Real system tools only — demo V2 settings removed</p></div></div>
+    {error&&<div style={{marginBottom:12,padding:10,borderRadius:10,background:'#fef3f2',color:'#b42318'}}>{error}</div>}
+    <div className="grid-2" style={{alignItems:'start'}}>
+      <div className="panel"><div className="panel-header"><div><div className="panel-title">Data Export</div><div className="panel-subtitle">Replacement for V1 admin export.</div></div></div><div style={{padding:20}}>{canExport?<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button className="btn btn-primary" disabled={busy} onClick={()=>void exportData('json')}>Download JSON Backup</button><button className="btn btn-outline" disabled={busy} onClick={()=>void exportData('csv')}>Download Orders CSV</button></div>:<div className="cell-sub">Permission export_data diperlukan.</div>}</div></div>
+      <div className="panel"><div className="panel-header"><div><div className="panel-title">System ownership</div><div className="panel-subtitle">Admin frontend selepas migration</div></div></div><div style={{padding:20}}><div className="kv-list"><div className="kv-row"><span className="k">Admin UI</span><span className="v">React Admin V2</span></div><div className="kv-row"><span className="k">Database / actions</span><span className="v">Supabase RPC + Edge Functions</span></div><div className="kv-row"><span className="k">Legacy V1</span><span className="v">Retiring after parity QA</span></div></div></div></div>
+      <div className="panel"><div className="panel-header"><div><div className="panel-title">WhatsApp & integrations</div><div className="panel-subtitle">Configuration moved to dedicated pages.</div></div></div><div style={{padding:20}}><p>WhatsApp rules, credentials and queue are managed in <b>WhatsApp → Control Center</b>. Provider values remain in Supabase/Integrations.</p></div></div>
+      <div className="panel"><div className="panel-header"><div className="panel-title">Session</div></div><div style={{padding:20}}><button className="btn btn-outline" onClick={()=>void signOut()}>Log Out Admin</button></div></div>
     </div>
-  );
-}
-
-function Toggle({ label, desc, checked, onChange }: { label: string; desc: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fafbfc', borderRadius: 12, border: '1px solid var(--border-light)' }}>
-      <div>
-        <div style={{ fontWeight: 600, fontSize: 14 }}>{label}</div>
-        <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 2 }}>{desc}</div>
-      </div>
-      <button
-        onClick={() => onChange(!checked)}
-        style={{ width: 44, height: 24, borderRadius: 12, background: checked ? 'var(--primary)' : '#d1d5db', position: 'relative', transition: 'background 0.2s' }}
-      >
-        <span style={{ position: 'absolute', top: 2, left: checked ? 22 : 2, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: 'var(--shadow-sm)' }} />
-      </button>
-    </div>
-  );
+  </div>;
 }
