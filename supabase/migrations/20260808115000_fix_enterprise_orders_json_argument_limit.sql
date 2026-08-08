@@ -42,7 +42,10 @@ declare
 begin
   select pg_get_functiondef('public.icetak_admin_orders_enterprise(text,jsonb,text,text,integer,integer)'::regprocedure) into def;
   start_pos := strpos(def,start_marker);
-  if start_pos = 0 then raise exception 'enterprise row json start marker not found'; end if;
+  if start_pos = 0 then
+    if strpos(def,'public.icetak_admin_order_row_json(to_jsonb(r))') > 0 then return; end if;
+    raise exception 'enterprise row json start marker not found';
+  end if;
   rel_end := strpos(substr(def,start_pos),end_marker);
   if rel_end = 0 then raise exception 'enterprise row json end marker not found'; end if;
   end_pos := start_pos + rel_end - 1 + length(end_marker);
