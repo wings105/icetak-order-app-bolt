@@ -1,36 +1,25 @@
-name: Restore Orders structural editor on Bolt branch
+name: Verify restored Orders editor build
 on:
   push:
     paths:
       - .github/workflows/restore-orders-editor-bolt.yml
 permissions:
-  contents: write
+  contents: read
 jobs:
-  restore:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: agent/admin-v2-react-hotfix
-          fetch-depth: 0
-      - name: Restore scoped Orders editor files from main
-        run: |
-          git fetch origin main
-          git checkout origin/main -- \
-            icetak-admin/src/pages/Orders.tsx \
-            icetak-admin/src/components/OrderItemStructuralEditor.tsx \
-            icetak-admin/src/components/OrderItemStructuralEditor.css \
-            supabase/migrations/20260808123000_enterprise_order_structural_item_editing.sql \
-            supabase/migrations/20260808123500_enterprise_order_detail_product_fields.sql
-      - name: Commit scoped restore
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            icetak-admin/src/pages/Orders.tsx \
-            icetak-admin/src/components/OrderItemStructuralEditor.tsx \
-            icetak-admin/src/components/OrderItemStructuralEditor.css \
-            supabase/migrations/20260808123000_enterprise_order_structural_item_editing.sql \
-            supabase/migrations/20260808123500_enterprise_order_detail_product_fields.sql
-          git commit -m "restore structural order item editor on Bolt branch"
-          git push origin HEAD:agent/admin-v2-react-hotfix
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: icetak-admin/package-lock.json
+      - name: Install admin dependencies
+        working-directory: icetak-admin
+        run: npm ci
+      - name: Build Admin V2
+        working-directory: icetak-admin
+        run: npm run build
