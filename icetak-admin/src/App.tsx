@@ -47,13 +47,25 @@ export default function App({ adminData }: Props) {
     window.history.replaceState({}, '', url);
     setPage(key); setMobileOpen(false);
   };
-  const openOrder = (orderNo: string) => { const url=new URL(window.location.href); url.searchParams.set('admin','v2'); url.searchParams.set('order',orderNo); window.history.replaceState({},'',url); setPage('orders'); };
-  const logout = async () => { await supabase.auth.signOut(); sessionStorage.removeItem('admin_access_token'); sessionStorage.removeItem('admin_refresh_token'); sessionStorage.removeItem('admin_session'); window.location.assign(`${window.location.pathname}?admin=v2`); };
+  const openOrder = (orderNo: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('admin','v2');
+    url.searchParams.set('order',orderNo);
+    window.history.replaceState({},'',url);
+    setPage('orders');
+  };
+  const logout = async () => {
+    await supabase.auth.signOut();
+    sessionStorage.removeItem('admin_access_token');
+    sessionStorage.removeItem('admin_refresh_token');
+    sessionStorage.removeItem('admin_session');
+    window.location.assign(`${window.location.pathname}?admin=v2`);
+  };
 
   const info = pageMap[page] || pageMap.dashboard;
   const renderPage = () => {
     switch (page) {
-      case 'dashboard': return <Dashboard adminOrders={adminData?.orders} />;
+      case 'dashboard': return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'orders': return <Orders permissions={permissions} initialOrder={linkedOrder} />;
       case 'quick-order': return <QuickOrder permissions={permissions} onOpenOrder={openOrder} />;
       case 'payments': return <Payments />;
@@ -64,7 +76,7 @@ export default function App({ adminData }: Props) {
       case 'integrations': return <Integrations />;
       case 'staff': return <StaffRoles currentPermissions={permissions} />;
       case 'settings': return <Settings permissions={permissions} />;
-      default: return <Dashboard adminOrders={adminData?.orders} />;
+      default: return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
     }
   };
 
