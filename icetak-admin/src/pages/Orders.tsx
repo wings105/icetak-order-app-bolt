@@ -80,6 +80,7 @@ type OrderRow = {
   isNew?: boolean;
   isProblem?: boolean;
   urgencyRank?: number;
+  thumbnailUrl?: string;
 };
 
 type Summary = {
@@ -211,12 +212,22 @@ export default function Orders({ permissions = [], initialOrder = '' }: Props) {
       p_page: page,
       p_page_size: pageSize,
     });
-    setLoading(false);
-    if (rpcError) { setError(rpcError.message); return; }
+    if (rpcError) { setLoading(false); setError(rpcError.message); return; }
     const result = (data || {}) as ListResponse;
-    setRows(result.rows || []);
+    let nextRows = result.rows || [];
+    if (nextRows.length) {
+      const { data: thumbnailRows, error: thumbnailError } = await supabase.rpc('icetak_admin_order_thumbnails', {
+        p_order_ids: nextRows.map((row) => row.dbId),
+      });
+      if (!thumbnailError && Array.isArray(thumbnailRows)) {
+        const thumbMap = new Map<string, string>(thumbnailRows.map((row: any) => [String(row.order_id || ''), String(row.thumbnail_url || '')]));
+        nextRows = nextRows.map((row) => ({ ...row, thumbnailUrl: thumbMap.get(row.dbId) || '' }));
+      }
+    }
+    setRows(nextRows);
     setSummary(result.summary || {});
     setPagination(result.pagination || { page, pageSize, total: 0, totalPages: 1 });
+    setLoading(false);
   }, [query, filters, sortKey, sortDir, page, pageSize]);
 
   const loadDetail = useCallback(async (ref: string) => {
@@ -412,7 +423,7 @@ function OrderTableRow({ order, selected, visible, busy, can, menuOpen, onToggle
     {visible('created') && <td><b>{formatDate(order.createdAt?.slice(0, 10))}</b><div className="cell-sub">{shortDateTime(order.createdAt)}</div></td>}
     {visible('need') && <td><b>{formatDate(order.dateNeed)}</b>{due && <div><span className={`erp-urgency ${due.cls}`}>{due.label}</span></div>}</td>}
     {visible('customer') && <td><button className="erp-customer-name" onClick={onCustomer}>{order.customerName || 'Guest'}</button><div>{phone ? <a className="erp-phone" href={`https://wa.me/${phone}`} target="_blank" rel="noreferrer">{order.customerPhone}</a> : <span className="cell-sub">No phone</span>}</div></td>}
-    {visible('items') && <td><div className="erp-items-summary"><b>{order.itemsCount || 0} item{Number(order.itemsCount || 0) === 1 ? '' : 's'}</b><span>{order.itemSummary || '—'}</span></div></td>}
+    {visible('items') && <td><div className="erp-items-cell">{order.thumbnailUrl && <a className="erp-order-thumb" href={order.thumbnailUrl} target="_blank" rel="noreferrer" title="Open design image"><img src={order.thumbnailUrl} alt="Order preview" onError={(e) => { e.currentTarget.style.display = 'none'; }} /></a>}<div className="erp-items-summary"><b>{order.itemsCount || 0} item{Number(order.itemsCount || 0) === 1 ? '' : 's'}</b><span>{order.itemSummary || '—'}</span></div></div></td>}
     {visible('payment') && <td><div className="erp-payment"><span className={`erp-status-pill ${order.isUnpaid ? 'warning' : 'success'}`}>{order.isUnpaid ? (order.isCash ? 'CASH DUE' : 'UNPAID') : 'PAID'}</span><b>{money(order.total)}</b></div><div className="cell-sub">{order.paidAt ? `Paid ${shortDateTime(order.paidAt)}` : order.paymentMethod || order.payment || '—'}</div></td>}
     {visible('delivery') && <td><b>{order.delivery || '—'}</b>{order.courier && <div className="cell-sub">{order.courier}</div>}{order.tracking && <a className="erp-inline-link" href={order.trackingLink || '#'} target="_blank" rel="noreferrer">{order.tracking}</a>}</td>}
     {visible('production') && <td><div className="erp-production"><div><b>{order.productionApproved ? 'Production approved' : 'Waiting approval'}</b>{Number(order.reviewPending || 0) > 0 && <span className="erp-status-pill warning">{order.reviewPending} REVIEW</span>}</div><div className="erp-progress"><i style={{ width: `${Math.max(0, Math.min(100, Number(order.progressPercent || 0)))}%` }} /></div><div className="cell-sub">ClickUp {order.componentsLinked || 0}/{order.componentsTotal || 0} · {order.clickupSyncStatus || '—'}{order.clickupOrderUrl && <> · <a className="erp-inline-link" href={order.clickupOrderUrl} target="_blank" rel="noreferrer">Open</a></>}</div></div></td>}

@@ -153,3 +153,10 @@
   .erp-pagination { align-items:flex-start; }
   .erp-page-controls { flex-wrap:wrap; }
 }
+
+
+/* order thumbnail enhancement */
+.erp-items-cell{display:flex;align-items:center;gap:9px;min-width:220px}
+.erp-order-thumb{display:block;flex:0 0 46px;width:46px;height:46px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#f8fafc;box-shadow:var(--shadow-sm)}
+.erp-order-thumb img{display:block;width:100%;height:100%;object-fit:cover}
+.erp-order-thumb:hover{border-color:#93c5fd;box-shadow:0 0 0 2px rgba(37,99,235,.08)}
