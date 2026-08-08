@@ -25,6 +25,9 @@ export const IconOrders = ({ size = 20, ...p }: IconProps) => (
 export const IconPayments = ({ size = 20, ...p }: IconProps) => (
   <svg {...base(size)} {...p}><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></svg>
 );
+export const IconFinance = ({ size = 20, ...p }: IconProps) => (
+  <svg {...base(size)} {...p}><path d="M3 21h18" /><path d="M4 10h16" /><path d="M5 6l7-3 7 3v4H5Z" /><path d="M6 10v7M10 10v7M14 10v7M18 10v7" /></svg>
+);
 export const IconShipping = ({ size = 20, ...p }: IconProps) => (
   <svg {...base(size)} {...p}><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" /><path d="M14 9h4l4 4v4a1 1 0 0 1-1 1h-2" /><circle cx="7" cy="18" r="2" /><circle cx="18" cy="18" r="2" /></svg>
 );

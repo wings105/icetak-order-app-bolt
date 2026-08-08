@@ -7,6 +7,7 @@ import Orders from './pages/Orders';
 import QuickOrder from './pages/QuickOrder';
 import ManualOrder from './pages/ManualOrder';
 import Payments from './pages/Payments';
+import Finance from './pages/Finance';
 import Shipping from './pages/Shipping';
 import WhatsAppControl from './pages/WhatsAppControl';
 import WhatsAppTemplates from './pages/WhatsAppTemplates';
@@ -21,6 +22,7 @@ const pageMap: Record<string, { title: string; subtitle?: string }> = {
   'quick-order': { title: 'Quick Order', subtitle: 'Counter & auto-priced orders' },
   'manual-order': { title: 'Manual Order', subtitle: 'Custom item & price' },
   payments: { title: 'Payments Center', subtitle: 'Transactions' },
+  finance: { title: 'Finance', subtitle: 'Bank, wallet & accounting' },
   shipping: { title: 'Shipping & Tracking', subtitle: 'Parcels' },
   'whatsapp-control': { title: 'WhatsApp Control', subtitle: 'Pipeline' },
   'whatsapp-templates': { title: 'WhatsApp Templates' },
@@ -72,6 +74,7 @@ export default function App({ adminData }: Props) {
       case 'quick-order': return <QuickOrder permissions={permissions} onOpenOrder={openOrder} />;
       case 'manual-order': return <ManualOrder permissions={permissions} onOpenOrder={openOrder} />;
       case 'payments': return <Payments onOpenOrder={openOrder} />;
+      case 'finance': return permissions.includes('view_finance') ? <Finance canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'shipping': return <Shipping />;
       case 'whatsapp-control': return <WhatsAppControl />;
       case 'whatsapp-templates': return <WhatsAppTemplates />;
@@ -83,5 +86,5 @@ export default function App({ adminData }: Props) {
     }
   };
 
-  return <div className="app-layout"><Sidebar active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} /><div className="content-area">{renderPage()}</div></div></div>;
+  return <div className="app-layout"><Sidebar active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} canViewFinance={permissions.includes('view_finance')} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} /><div className="content-area">{renderPage()}</div></div></div>;
 }

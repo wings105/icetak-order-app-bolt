@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  IconDashboard, IconOrders, IconPayments, IconShipping, IconWhatsApp,
+  IconDashboard, IconOrders, IconPayments, IconFinance, IconShipping, IconWhatsApp,
   IconIntegration, IconStaff, IconSettings, IconLogout,
 } from './Icons';
 
@@ -22,6 +22,7 @@ const navItems: NavItem[] = [
     ],
   },
   { key: 'payments', label: 'Payments', icon: IconPayments },
+  { key: 'finance', label: 'Finance', icon: IconFinance },
   { key: 'shipping', label: 'Shipping', icon: IconShipping },
   {
     key: 'whatsapp',
@@ -44,11 +45,13 @@ type Props = {
   mobileOpen: boolean;
   onCloseMobile: () => void;
   onLogout?: () => void;
+  canViewFinance?: boolean;
 };
 
-export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout }: Props) {
+export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false }: Props) {
+  const visibleNavItems = canViewFinance ? navItems : navItems.filter((item) => item.key !== 'finance');
   const [expanded, setExpanded] = useState<string | null>(
-    navItems.find((n) => n.children?.some((c) => c.key === active))?.key ?? null
+    visibleNavItems.find((n) => n.children?.some((c) => c.key === active))?.key ?? null
   );
 
   const handleClick = (item: NavItem) => {
@@ -63,7 +66,7 @@ export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile,
     <aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-brand"><div className="sidebar-brand-title">iCetak ERP</div><div className="sidebar-brand-sub">Automation OS</div></div>
       <nav className="sidebar-nav">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const active_ = isActive(item);
           const isOpen = expanded === item.key;
