@@ -68,7 +68,7 @@ export default function App({ adminData }: Props) {
       case 'dashboard': return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'orders': return <Orders permissions={permissions} initialOrder={linkedOrder} />;
       case 'quick-order': return <QuickOrder permissions={permissions} onOpenOrder={openOrder} />;
-      case 'payments': return <Payments />;
+      case 'payments': return <Payments onOpenOrder={openOrder} />;
       case 'shipping': return <Shipping />;
       case 'whatsapp-control': return <WhatsAppControl />;
       case 'whatsapp-templates': return <WhatsAppTemplates />;
