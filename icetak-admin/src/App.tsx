@@ -2,6 +2,8 @@ import { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
+import Orders from './pages/Orders';
+import QuickOrder from './pages/QuickOrder';
 import Payments from './pages/Payments';
 import Shipping from './pages/Shipping';
 import WhatsAppControl from './pages/WhatsAppControl';
@@ -13,7 +15,8 @@ import Settings from './pages/Settings';
 
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Order Control Tower', subtitle: 'Business Overview' },
-  orders: { title: 'Orders', subtitle: 'All orders' },
+  orders: { title: 'Orders', subtitle: 'Full order lifecycle' },
+  'quick-order': { title: 'Quick Order', subtitle: 'Counter & WhatsApp orders' },
   payments: { title: 'Payments Center', subtitle: 'Transactions' },
   shipping: { title: 'Shipping & Tracking', subtitle: 'Parcels' },
   'whatsapp-control': { title: 'WhatsApp Control', subtitle: 'Pipeline' },
@@ -21,47 +24,50 @@ const pageMap: Record<string, { title: string; subtitle?: string }> = {
   'whatsapp-outbox': { title: 'WhatsApp Outbox' },
   integrations: { title: 'Integrations', subtitle: 'Third-party' },
   staff: { title: 'Staff / Roles' },
-  settings: { title: 'Settings' },
+  settings: { title: 'Settings', subtitle: 'Admin system settings' },
 };
 
-type Props = {
-  onSwitchToV1?: () => void;
-  adminData?: {
-    orders?: React.ComponentProps<typeof Dashboard>['adminOrders'];
+type AdminData = {
+  admin?: {
+    username?: string;
+    display_name?: string;
+    role?: string;
+    permissions?: string[];
   };
+  orders?: React.ComponentProps<typeof Dashboard>['adminOrders'];
+  admins?: Array<{ username?: string; display_name?: string; email?: string; role?: string; permissions?: string[] }>;
 };
 
-export default function App({ onSwitchToV1, adminData }: Props) {
+type Props = { adminData?: AdminData };
+
+export default function App({ adminData }: Props) {
   const linkedOrder = new URLSearchParams(window.location.search).get('order')?.trim() || '';
   const [page, setPage] = useState(linkedOrder ? 'orders' : 'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const permissions = adminData?.admin?.permissions || [];
 
   const navigate = (key: string) => {
-    if (key !== 'orders') {
-      const url = new URL(window.location.href);
-      if (url.searchParams.has('order')) {
-        url.searchParams.delete('order');
-        window.history.replaceState({}, '', url);
-      }
-    }
+    const url = new URL(window.location.href);
+    if (key !== 'orders') url.searchParams.delete('order');
+    window.history.replaceState({}, '', url);
     setPage(key);
     setMobileOpen(false);
   };
 
-  const info = pageMap[page] || pageMap.dashboard;
-  const linkedOrders = linkedOrder && adminData?.orders
-    ? adminData.orders.filter((order) => {
-        const orderNo = String(order.id || '').trim().toLowerCase();
-        const dbId = String(order.dbId || '').trim().toLowerCase();
-        const target = linkedOrder.toLowerCase();
-        return orderNo === target || dbId === target;
-      })
-    : adminData?.orders;
+  const openOrder = (orderNo: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('admin', 'v2');
+    url.searchParams.set('order', orderNo);
+    window.history.replaceState({}, '', url);
+    setPage('orders');
+  };
 
+  const info = pageMap[page] || pageMap.dashboard;
   const renderPage = () => {
     switch (page) {
       case 'dashboard': return <Dashboard adminOrders={adminData?.orders} />;
-      case 'orders': return <Dashboard adminOrders={linkedOrders} />;
+      case 'orders': return <Orders permissions={permissions} initialOrder={linkedOrder} />;
+      case 'quick-order': return <QuickOrder permissions={permissions} onOpenOrder={openOrder} />;
       case 'payments': return <Payments />;
       case 'shipping': return <Shipping />;
       case 'whatsapp-control': return <WhatsAppControl />;
@@ -76,22 +82,10 @@ export default function App({ onSwitchToV1, adminData }: Props) {
 
   return (
     <div className="app-layout">
-      <Sidebar
-        active={page}
-        onNavigate={navigate}
-        mobileOpen={mobileOpen}
-        onCloseMobile={() => setMobileOpen(false)}
-      />
+      <Sidebar active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} />
       <div className="main-content">
-        <Topbar
-          title={info.title}
-          subtitle={info.subtitle}
-          onOpenMobile={() => setMobileOpen(true)}
-          onSwitchAdmin={onSwitchToV1}
-        />
-        <div className="content-area">
-          {renderPage()}
-        </div>
+        <Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={() => setMobileOpen(true)} />
+        <div className="content-area">{renderPage()}</div>
       </div>
     </div>
   );
