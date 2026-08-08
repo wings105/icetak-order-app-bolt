@@ -8,6 +8,7 @@ import QuickOrder from './pages/QuickOrder';
 import ManualOrder from './pages/ManualOrder';
 import Payments from './pages/Payments';
 import Finance from './pages/Finance';
+import QrPayDailySummary from './pages/QrPayDailySummary';
 import Shipping from './pages/Shipping';
 import WhatsAppControl from './pages/WhatsAppControl';
 import WhatsAppTemplates from './pages/WhatsAppTemplates';
@@ -23,6 +24,7 @@ const pageMap: Record<string, { title: string; subtitle?: string }> = {
   'manual-order': { title: 'Manual Order', subtitle: 'Custom item & price' },
   payments: { title: 'Payments Center', subtitle: 'Transactions' },
   finance: { title: 'Finance', subtitle: 'Bank, wallet & accounting' },
+  'qrpay-summary': { title: 'QRPay Daily', subtitle: 'Daily payment control' },
   shipping: { title: 'Shipping & Tracking', subtitle: 'Parcels' },
   'whatsapp-control': { title: 'WhatsApp Control', subtitle: 'Pipeline' },
   'whatsapp-templates': { title: 'WhatsApp Templates' },
@@ -41,13 +43,16 @@ type Props = { adminData?: AdminData };
 
 export default function App({ adminData }: Props) {
   const linkedOrder = new URLSearchParams(window.location.search).get('order')?.trim() || '';
-  const [page, setPage] = useState(linkedOrder ? 'orders' : 'dashboard');
+  const linkedView = new URLSearchParams(window.location.search).get('view')?.trim() || '';
+  const [page, setPage] = useState(linkedOrder ? 'orders' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : 'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const permissions = adminData?.admin?.permissions || [];
 
   const navigate = (key: string) => {
     const url = new URL(window.location.href);
     if (key !== 'orders') url.searchParams.delete('order');
+    if (key === 'qrpay-summary') url.searchParams.set('view','qrpay-summary');
+    else { url.searchParams.delete('view'); url.searchParams.delete('date'); }
     window.history.replaceState({}, '', url);
     setPage(key); setMobileOpen(false);
   };
@@ -55,6 +60,8 @@ export default function App({ adminData }: Props) {
     const url = new URL(window.location.href);
     url.searchParams.set('admin','v2');
     url.searchParams.set('order',orderNo);
+    url.searchParams.delete('view');
+    url.searchParams.delete('date');
     window.history.replaceState({},'',url);
     setPage('orders');
   };
@@ -75,6 +82,7 @@ export default function App({ adminData }: Props) {
       case 'manual-order': return <ManualOrder permissions={permissions} onOpenOrder={openOrder} />;
       case 'payments': return <Payments onOpenOrder={openOrder} />;
       case 'finance': return permissions.includes('view_finance') ? <Finance canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
+      case 'qrpay-summary': return permissions.includes('view_finance') ? <QrPayDailySummary onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'shipping': return <Shipping />;
       case 'whatsapp-control': return <WhatsAppControl />;
       case 'whatsapp-templates': return <WhatsAppTemplates />;
