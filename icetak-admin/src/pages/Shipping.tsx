@@ -160,6 +160,7 @@ export default function Shipping() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [courierFilter, setCourierFilter] = useState('all');
+  const [parcelStatusFilter, setParcelStatusFilter] = useState('all');
 
   const load = async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -201,16 +202,26 @@ export default function Shipping() {
     rows.map((row) => String(row.courier || '').toLowerCase()).filter(Boolean),
   )).sort(), [rows]);
 
+  const parcelStatuses = useMemo(() => {
+    const preferred = ['Pending Pickup', 'In Transit', 'Out for Delivery', 'Delivered', 'Cancelled', 'Problem'];
+    const found = Array.from(new Set(rows.map((row) => parcelBadge(row).label).filter(Boolean)));
+    return [
+      ...preferred.filter((status) => found.includes(status)),
+      ...found.filter((status) => !preferred.includes(status)).sort(),
+    ];
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const search = query.trim().toLowerCase();
     return rows.filter((row) => {
       if (statusFilter !== 'all' && row.send_status !== statusFilter) return false;
       if (courierFilter !== 'all' && String(row.courier || '').toLowerCase() !== courierFilter) return false;
+      if (parcelStatusFilter !== 'all' && parcelBadge(row).label !== parcelStatusFilter) return false;
       if (!search) return true;
       return [row.tracking_no, row.recipient_phone, row.recipient_name, row.reference, row.status]
         .some((value) => String(value || '').toLowerCase().includes(search));
     });
-  }, [rows, query, statusFilter, courierFilter]);
+  }, [rows, query, statusFilter, courierFilter, parcelStatusFilter]);
 
   const trackingAction = async (row: TrackingRow, action: TrackingAction) => {
     if (action === 'cancel') {
@@ -355,6 +366,10 @@ export default function Shipping() {
               <option value="all">All couriers</option>
               {couriers.map((courier) => <option key={courier} value={courier}>{courier.toUpperCase()}</option>)}
             </select>
+            <select value={parcelStatusFilter} onChange={(event) => setParcelStatusFilter(event.target.value)}>
+              <option value="all">All parcel statuses</option>
+              {parcelStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
+            </select>
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
               <option value="all">All send statuses</option>
               <option value="not_ready">Waiting First Scan</option>
@@ -387,6 +402,7 @@ export default function Shipping() {
                   const parcel = parcelBadge(row);
                   const delivery = sendBadge(row.send_status);
                   const busy = busyId === row.id;
+                  const phone = normalizePhone(row.recipient_phone);
                   const canSend = Boolean(
                     row.first_scan_at && row.recipient_phone && row.tracking_link &&
                     !['blocked', 'cancelled', 'queued', 'sent'].includes(row.send_status),
@@ -394,7 +410,24 @@ export default function Shipping() {
 
                   return (
                     <tr key={row.id} className="row-hover">
-                      <td><div style={{ fontWeight: 700 }}>{row.recipient_name || 'Nama tiada'}</div><div className="cell-sub">{row.recipient_phone || 'Phone tiada'}</div>{row.reference && <div className="cell-id" style={{ marginTop: 3 }}>{row.reference}</div>}</td>
+                      <td>
+                        <div style={{ fontWeight: 700 }}>{row.recipient_name || 'Nama tiada'}</div>
+                        {phone ? (
+                          <a
+                            href={`https://wa.me/${phone}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="cell-sub"
+                            title={`Open WhatsApp ${phone}`}
+                            style={{ display: 'inline-block', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}
+                          >
+                            {row.recipient_phone}
+                          </a>
+                        ) : (
+                          <div className="cell-sub">Phone tiada</div>
+                        )}
+                        {row.reference && <div className="cell-id" style={{ marginTop: 3 }}>{row.reference}</div>}
+                      </td>
                       <td><a href={row.tracking_link || '#'} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 700 }}>{row.tracking_no}</a></td>
                       <td>{row.courier ? row.courier.toUpperCase() : '—'}</td>
                       <td><span className={`badge ${parcel.cls}`}>{parcel.label}</span><div className="cell-sub" style={{ marginTop: 5 }}>{cancelled ? `PD: ${row.status || row.normalized_status || '—'}` : (row.status || row.normalized_status || '—')}</div></td>
