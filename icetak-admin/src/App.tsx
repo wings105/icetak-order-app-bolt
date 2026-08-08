@@ -15,7 +15,7 @@ const pageMap: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Order Control Tower', subtitle: 'Business Overview' },
   orders: { title: 'Orders', subtitle: 'All orders' },
   payments: { title: 'Payments Center', subtitle: 'Transactions' },
-  shipping: { title: 'Shipping & Delivery', subtitle: 'Parcels' },
+  shipping: { title: 'Shipping & Tracking', subtitle: 'Parcels' },
   'whatsapp-control': { title: 'WhatsApp Control', subtitle: 'Pipeline' },
   'whatsapp-templates': { title: 'WhatsApp Templates' },
   'whatsapp-outbox': { title: 'WhatsApp Outbox' },
