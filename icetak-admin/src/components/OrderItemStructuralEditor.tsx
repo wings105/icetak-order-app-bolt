@@ -79,7 +79,9 @@ type Props = {
 const money = (value: unknown) => `RM ${Number(value || 0).toFixed(2)}`;
 const coreKind = (value: unknown): AdminProductKind => {
   const k = String(value || '').toLowerCase();
-  return (['edible','burnaway','wafer','printed','mirror','acrylic'] as AdminProductKind[]).includes(k as AdminProductKind) ? k as AdminProductKind : 'edible';
+  return (['edible', 'burnaway', 'wafer', 'printed', 'mirror', 'acrylic'] as AdminProductKind[]).includes(k as AdminProductKind)
+    ? k as AdminProductKind
+    : 'edible';
 };
 const reviewLabel = (required: boolean): ProductReview => required ? 'Need Review' : 'No Review';
 
@@ -114,6 +116,8 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [linkRefs, setLinkRefs] = useState<Record<string, string>>({});
+  const [componentBusy, setComponentBusy] = useState<string | null>(null);
 
   useEffect(() => {
     const next = sourceItems.map(normalizeItem);
@@ -138,6 +142,17 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
   const total = useMemo(() => drafts.reduce((sum, item) => sum + item.qty * item.price, 0), [drafts]);
   const update = (clientId: string, patch: Partial<DraftItem>) => setDrafts((old) => old.map((item) => item.clientId === clientId ? { ...item, ...patch } : item));
 
+  const suggestedPrice = (draft: DraftItem) => {
+    const product = products.find((p) => p.id === draft.productId);
+    if (product?.isCatalogDesign && Number(product.basePrice || 0) > 0) return Number(product.basePrice);
+    return adminProductPrice(draft.k, draft.process, draft.size, draft.style, reviewLabel(draft.reviewRequired));
+  };
+
+  const patchVariation = (draft: DraftItem, patch: Partial<DraftItem>) => {
+    const next = { ...draft, ...patch } as DraftItem;
+    update(draft.clientId, draft.isNew ? { ...patch, price: suggestedPrice(next) } : patch);
+  };
+
   const chooseProduct = (draft: DraftItem, productId: string) => {
     const product = products.find((p) => p.id === productId);
     if (!product) return update(draft.clientId, { productId: '' });
@@ -147,19 +162,13 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
     const size = cfg.defaultSize;
     const style = adminProductStyles(kind, size)[0] || cfg.defaultStyle;
     const reviewRequired = cfg.defaultReview === 'Need Review';
-    const autoPrice = product.isCatalogDesign && Number(product.basePrice || 0) > 0
-      ? Number(product.basePrice)
-      : adminProductPrice(kind, process, size, style, reviewLabel(reviewRequired));
-    update(draft.clientId, { productId: product.id, k: kind, title: product.label, process, size, style, reviewRequired, price: autoPrice });
+    const next = { ...draft, productId: product.id, k: kind, title: product.label, process, size, style, reviewRequired } as DraftItem;
+    const patch: Partial<DraftItem> = { productId: product.id, k: kind, title: product.label, process, size, style, reviewRequired };
+    if (draft.isNew) patch.price = suggestedPrice(next);
+    update(draft.clientId, patch);
   };
 
-  const autoPrice = (draft: DraftItem) => {
-    const product = products.find((p) => p.id === draft.productId);
-    const price = product?.isCatalogDesign && Number(product.basePrice || 0) > 0
-      ? Number(product.basePrice)
-      : adminProductPrice(draft.k, draft.process, draft.size, draft.style, reviewLabel(draft.reviewRequired));
-    update(draft.clientId, { price });
-  };
+  const applySuggestedPrice = (draft: DraftItem) => update(draft.clientId, { price: suggestedPrice(draft) });
 
   const addItem = () => {
     if (structuralLocked) return;
@@ -170,11 +179,15 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
     const size = cfg.defaultSize;
     const style = adminProductStyles(kind, size)[0] || cfg.defaultStyle;
     const reviewRequired = cfg.defaultReview === 'Need Review';
-    const price = product?.isCatalogDesign && Number(product.basePrice || 0) > 0 ? Number(product.basePrice) : adminProductPrice(kind, process, size, style, reviewLabel(reviewRequired));
-    setDrafts((old) => [...old, {
-      id: '', clientId: `new:${crypto.randomUUID()}`, isNew: true, productId: product?.id || '', k: kind, title: product?.label || cfg.label,
-      process, qty: 1, price, size, style, reviewRequired, customText: '', previewUrl: '', components: [], workflow: 'Order Received',
-    }]);
+    const draft = {
+      id: '', clientId: `new:${crypto.randomUUID()}`, isNew: true, productId: product?.id || '', k: kind,
+      title: product?.label || cfg.label, process, qty: 1, price: 0, size, style, reviewRequired,
+      customText: '', previewUrl: '', components: [], workflow: 'Order Received',
+    } as DraftItem;
+    draft.price = product?.isCatalogDesign && Number(product.basePrice || 0) > 0
+      ? Number(product.basePrice)
+      : adminProductPrice(kind, process, size, style, reviewLabel(reviewRequired));
+    setDrafts((old) => [...old, draft]);
   };
 
   const removeItem = (draft: DraftItem) => {
@@ -184,6 +197,32 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
     if (drafts.length <= 1) { setError('Order mesti mempunyai sekurang-kurangnya satu item.'); return; }
     setDrafts((old) => old.filter((x) => x.clientId !== draft.clientId));
     if (draft.id) setDeleteIds((old) => old.includes(draft.id) ? old : [...old, draft.id]);
+  };
+
+  const manualLink = async (component: ComponentRef) => {
+    const ref = String(linkRefs[component.id] || '').trim();
+    if (!ref) { setError('Masukkan ClickUp task ID atau URL dahulu.'); return; }
+    if (!window.confirm('Link task ClickUp sedia ada kepada component ini?')) return;
+    setComponentBusy(component.id); setError(null); setNotice(null);
+    const { data, error: rpcError } = await supabase.rpc('icetak_admin_link_clickup_component', { p_component_id: component.id, p_task_ref: ref });
+    setComponentBusy(null);
+    if (rpcError) { setError(rpcError.message); return; }
+    const result = (data || {}) as { task_id?: string };
+    setNotice(`ClickUp linked${result.task_id ? ` · ${result.task_id}` : ''}`);
+    setLinkRefs((old) => ({ ...old, [component.id]: '' }));
+    await onSaved();
+  };
+
+  const retryAuto = async (component: ComponentRef) => {
+    setComponentBusy(component.id); setError(null); setNotice(null);
+    const { data, error: rpcError } = await supabase.rpc('icetak_admin_retry_clickup_component', { p_component_id: component.id });
+    setComponentBusy(null);
+    if (rpcError) { setError(rpcError.message); return; }
+    const result = (data || {}) as { queued?: boolean; reason?: string };
+    if (result.reason === 'already_linked') setNotice('Component ini sudah linked ke ClickUp.');
+    else if (result.reason === 'order_not_production_ready') setNotice('Belum queue: order belum production-ready. Auto create akan berlaku selepas approval/ready stage.');
+    else setNotice(result.queued ? 'ClickUp auto-create queued.' : 'Tiada task baharu diperlukan.');
+    await onSaved();
   };
 
   const linkedProductChanges = drafts.filter((draft) => {
@@ -197,10 +236,6 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
     if (structuralLocked) { setError(structuralLockReason || 'Editing dikunci untuk order ini.'); return; }
     setError(null); setNotice(null);
     if (linkedProductChanges.length && !window.confirm(`${linkedProductChanges.length} item mempunyai task ClickUp sedia ada. Sistem akan reuse task/component ID itu dan update product dalam iCetak. Teruskan?`)) return;
-    if (structuralLocked) {
-      const structuralRequested = deleteIds.length > 0 || drafts.some((d) => d.isNew || (originals[d.id] && (originals[d.id].productId !== d.productId || originals[d.id].k !== d.k || originals[d.id].reviewRequired !== d.reviewRequired)));
-      if (structuralRequested) { setError(structuralLockReason || 'Structural editing dikunci untuk order ini.'); return; }
-    }
     setSaving(true);
     const { data, error: rpcError } = await supabase.rpc('icetak_admin_order_items_reconcile', { p_payload: {
       order_db_id: orderDbId,
@@ -229,10 +264,10 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
 
   return <div className="struct-items">
     <div className="struct-items-head">
-      <div><h3>Order Items</h3><p>Change product, add item, adjust variation/price, atau delete item yang belum linked.</p></div>
-      {canEdit && <button className="btn btn-outline btn-sm" disabled={structuralLocked || loadingProducts || !products.length} onClick={addItem}>+ Add Item</button>}
+      <div><h3>Order Items</h3><p>Change product, add item, adjust variation/price, atau repair ClickUp link.</p></div>
+      {canEdit && !structuralLocked && <button className="btn btn-outline btn-sm" disabled={loadingProducts || !products.length} onClick={addItem}>+ Add Item</button>}
     </div>
-    {structuralLocked && <div className="struct-lock"><b>Structural edit locked</b><span>{structuralLockReason || 'Courier sudah scan / order sudah Ready Pickup atau completed.'}</span></div>}
+    {structuralLocked && <div className="struct-lock"><b>Read-only · structural edit locked</b><span>{structuralLockReason || 'Courier sudah scan / order sudah Ready Pickup atau completed.'}</span></div>}
     {error && <div className="erp-notice error">{error}</div>}
     {notice && <div className="erp-notice success">✓ {notice}</div>}
     {loadingProducts && <div className="cell-sub">Loading product catalog…</div>}
@@ -242,23 +277,41 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
       const styles = adminProductStyles(draft.k, draft.size);
       const linked = (draft.components || []).filter((c) => c.clickupTaskId).length;
       const legacy = !draft.productId;
+      const suggested = suggestedPrice(draft);
+      const suggestedDiffers = Math.abs(Number(draft.price || 0) - Number(suggested || 0)) > 0.009;
       return <section className="struct-item-card" key={draft.clientId}>
-        <div className="struct-item-title"><div><b>{index + 1}. {draft.title || cfg.label}</b><div className="struct-tags">{draft.isNew && <span className="erp-status-pill info">NEW</span>}{linked > 0 && <span className="erp-status-pill success">{linked} CLICKUP LINKED</span>}{legacy && !draft.isNew && <span className="erp-status-pill neutral">LEGACY ITEM</span>}</div></div>{canEdit && <button className="btn btn-danger btn-sm" disabled={Boolean(linked) || structuralLocked} title={linked ? 'Linked ClickUp task prevents delete' : ''} onClick={() => removeItem(draft)}>Delete</button>}</div>
+        <div className="struct-item-title">
+          <div className="struct-item-heading">
+            {draft.previewUrl && <a className="struct-preview" href={draft.previewUrl} target="_blank" rel="noreferrer" title="Open design image"><img src={draft.previewUrl} alt="Design preview" onError={(e) => { e.currentTarget.style.display = 'none'; }} /></a>}
+            <div><b>{index + 1}. {draft.title || cfg.label}</b><div className="struct-tags">{draft.isNew && <span className="erp-status-pill info">NEW</span>}{linked > 0 && <span className="erp-status-pill success">{linked} CLICKUP LINKED</span>}{legacy && !draft.isNew && <span className="erp-status-pill neutral">LEGACY ITEM</span>}</div></div>
+          </div>
+          {canEdit && !structuralLocked && <button className="btn btn-danger btn-sm" disabled={Boolean(linked)} title={linked ? 'Linked ClickUp task prevents delete' : ''} onClick={() => removeItem(draft)}>Delete</button>}
+        </div>
         <div className="struct-grid">
           <label><span>Product</span><select disabled={!canEdit || structuralLocked} value={draft.productId || ''} onChange={(e) => chooseProduct(draft, e.target.value)}>{legacy && <option value="">Current: {draft.title || cfg.label}</option>}{!legacy && <option value="" disabled>Select product…</option>}{products.map((p) => <option key={p.id} value={p.id}>{p.isCatalogDesign ? 'Catalog · ' : ''}{p.label}</option>)}</select></label>
-          <label><span>Process</span><select disabled={!canEdit || structuralLocked} value={draft.process} onChange={(e) => { update(draft.clientId, { process: e.target.value }); window.setTimeout(() => autoPrice({ ...draft, process: e.target.value }), 0); }}>{cfg.process.map((p) => <option key={p}>{p}</option>)}</select></label>
-          <label><span>Size</span><select disabled={!canEdit || structuralLocked} value={draft.size} onChange={(e) => { const size = e.target.value; const nextStyles = adminProductStyles(draft.k, size); const style = nextStyles.includes(draft.style) ? draft.style : nextStyles[0]; const next = { ...draft, size, style }; update(draft.clientId, { size, style }); window.setTimeout(() => autoPrice(next), 0); }}>{cfg.sizes.map((s) => <option key={s}>{s}</option>)}</select></label>
-          <label><span>Style</span><select disabled={!canEdit || structuralLocked} value={draft.style} onChange={(e) => { const next = { ...draft, style: e.target.value }; update(draft.clientId, { style: e.target.value }); window.setTimeout(() => autoPrice(next), 0); }}>{styles.map((s) => <option key={s}>{s}</option>)}</select></label>
-          <label><span>Review</span><select disabled={!canEdit || structuralLocked} value={draft.reviewRequired ? 'Need Review' : 'No Review'} onChange={(e) => { const reviewRequired = e.target.value === 'Need Review'; const next = { ...draft, reviewRequired }; update(draft.clientId, { reviewRequired }); window.setTimeout(() => autoPrice(next), 0); }}><option>No Review</option><option>Need Review</option></select></label>
+          <label><span>Process</span><select disabled={!canEdit || structuralLocked} value={draft.process} onChange={(e) => patchVariation(draft, { process: e.target.value })}>{cfg.process.map((p) => <option key={p}>{p}</option>)}</select></label>
+          <label><span>Size</span><select disabled={!canEdit || structuralLocked} value={draft.size} onChange={(e) => { const size = e.target.value; const nextStyles = adminProductStyles(draft.k, size); const style = nextStyles.includes(draft.style) ? draft.style : nextStyles[0]; patchVariation(draft, { size, style }); }}>{cfg.sizes.map((s) => <option key={s}>{s}</option>)}</select></label>
+          <label><span>Style</span><select disabled={!canEdit || structuralLocked} value={draft.style} onChange={(e) => patchVariation(draft, { style: e.target.value })}>{styles.map((s) => <option key={s}>{s}</option>)}</select></label>
+          <label><span>Review</span><select disabled={!canEdit || structuralLocked} value={draft.reviewRequired ? 'Need Review' : 'No Review'} onChange={(e) => patchVariation(draft, { reviewRequired: e.target.value === 'Need Review' })}><option>No Review</option><option>Need Review</option></select></label>
           <label><span>Qty</span><input type="number" min="1" disabled={!canEdit || structuralLocked} value={draft.qty} onChange={(e) => update(draft.clientId, { qty: Math.max(1, Number(e.target.value || 1)) })} /></label>
-          <label><span>Unit Price</span><div className="struct-price"><input type="number" min="0" step="0.01" disabled={!canEdit || structuralLocked} value={draft.price} onChange={(e) => update(draft.clientId, { price: Math.max(0, Number(e.target.value || 0)) })} /><button type="button" disabled={!canEdit || structuralLocked} onClick={() => autoPrice(draft)}>Auto</button></div></label>
+          <label><span>Unit Price</span><div className="struct-price"><input type="number" min="0" step="0.01" disabled={!canEdit || structuralLocked} value={draft.price} onChange={(e) => update(draft.clientId, { price: Math.max(0, Number(e.target.value || 0)) })} /><button type="button" disabled={!canEdit || structuralLocked || !suggestedDiffers} onClick={() => applySuggestedPrice(draft)}>{suggestedDiffers ? `Apply ${money(suggested)}` : 'Auto ✓'}</button></div>{!draft.isNew && suggestedDiffers && <small className="struct-suggested">Current price preserved · suggested {money(suggested)}</small>}</label>
           <label className="wide"><span>Custom Text / Wording</span><input disabled={!canEdit || structuralLocked} value={draft.customText} onChange={(e) => update(draft.clientId, { customText: e.target.value })} /></label>
           {draft.reviewRequired && <label className="wide"><span>Design Preview URL</span><input disabled={!canEdit || structuralLocked} value={draft.previewUrl} onChange={(e) => update(draft.clientId, { previewUrl: e.target.value })} /></label>}
         </div>
-        {(draft.components || []).length > 0 && <div className="struct-components">{draft.components!.map((c) => <div key={c.id}><span><b>{c.label || 'Component'}</b> · {c.customerLabel || c.workflow || '—'} · {c.reviewStatus || '—'}</span>{c.clickupTaskId ? <a href={`https://app.clickup.com/t/3747262/${c.clickupTaskId}`} target="_blank" rel="noreferrer">ClickUp {c.clickupTaskId}</a> : <span>Not linked</span>}</div>)}</div>}
+
+        {(draft.components || []).length > 0 && <div className="struct-components">{(draft.components || []).map((component) => <div className="struct-component" key={component.id}>
+          <div className="struct-component-main">
+            {component.previewUrl && <a className="struct-component-thumb" href={component.previewUrl} target="_blank" rel="noreferrer"><img src={component.previewUrl} alt="Component preview" onError={(e) => { e.currentTarget.style.display = 'none'; }} /></a>}
+            <div><b>{component.label || 'Production component'}</b><span>{component.customerLabel || component.workflow || '—'} · {component.clickupStatus || component.reviewStatus || 'pending'}</span></div>
+          </div>
+          {component.clickupTaskId ? <a href={`https://app.clickup.com/t/3747262/${component.clickupTaskId}`} target="_blank" rel="noreferrer">ClickUp {component.clickupTaskId}</a> : <div className="struct-link-fallback">
+            <span className="erp-status-pill warning">NOT LINKED</span>
+            <div className="struct-link-input"><input placeholder="Task ID atau ClickUp URL" value={linkRefs[component.id] || ''} onChange={(e) => setLinkRefs((old) => ({ ...old, [component.id]: e.target.value }))} /><button className="btn btn-outline btn-sm" disabled={componentBusy === component.id} onClick={() => void manualLink(component)}>Link Existing</button><button className="btn btn-outline btn-sm" disabled={componentBusy === component.id} onClick={() => void retryAuto(component)}>Retry Auto</button></div>
+          </div>}
+        </div>)}</div>}
       </section>;
     })}
 
-    <div className="struct-footer"><div><span>Items subtotal</span><b>{money(total)}</b><small>Delivery fee is added by the order total backend.</small></div>{canEdit && <button className="btn btn-primary" disabled={saving || !drafts.length || structuralLocked} onClick={() => void save()}>{saving ? 'Saving…' : 'Save Order Items'}</button>}</div>
+    <div className="struct-footer"><div><span>Items subtotal</span><b>{money(total)}</b><small>Existing item price is preserved when product/variation changes. Apply suggested price only when you want it.</small></div>{canEdit && !structuralLocked ? <button className="btn btn-primary" disabled={saving || !drafts.length} onClick={() => void save()}>{saving ? 'Saving…' : 'Save Order Items'}</button> : <span className="struct-readonly">Read only</span>}</div>
   </div>;
 }
