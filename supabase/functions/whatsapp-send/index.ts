@@ -70,6 +70,25 @@ async function trackingAutoPreflight(body: Record<string, any>) {
   return { ok: true, duplicate: false };
 }
 
+async function pickupAutoPreflight(body: Record<string, any>) {
+  const orderId = String(body.order_db_id || body?.vars?.order_db_id || '').trim();
+  if (!orderId) return { ok: false, error: 'pickup_order_id_required' };
+  const settings = await rest('pickup_notification_settings?singleton=eq.true&select=auto_send_enabled,provider_ready,auto_send_activated_at&limit=1').catch(() => []);
+  const config = settings?.[0];
+  if (!config?.auto_send_enabled) return { ok: false, error: 'pickup_auto_disabled' };
+  if (!config?.provider_ready) return { ok: false, error: 'pickup_provider_not_ready' };
+  const orders = await rest(`orders?id=eq.${encodeURIComponent(orderId)}&select=id,delivery_method,delivery,pickup_ready_at,pickup_collected_at,status,admin_status,fulfillment_stage&limit=1`).catch(() => []);
+  const order = orders?.[0];
+  if (!order) return { ok: false, error: 'pickup_order_missing' };
+  if (!String(order.delivery_method || order.delivery || '').toLowerCase().includes('pickup')) return { ok: false, error: 'pickup_not_pickup' };
+  if (!order.pickup_ready_at) return { ok: false, error: 'pickup_order_not_ready' };
+  if (order.pickup_collected_at) return { ok: false, error: 'pickup_collected' };
+  const state = `${order.status || ''} ${order.admin_status || ''} ${order.fulfillment_stage || ''}`.toLowerCase();
+  if (state.includes('cancel')) return { ok: false, error: 'pickup_cancelled' };
+  if (config.auto_send_activated_at && new Date(order.pickup_ready_at).getTime() < new Date(config.auto_send_activated_at).getTime()) return { ok: false, error: 'pickup_historical_ready' };
+  return { ok: true };
+}
+
 async function windowStatus(phone: string) {
   const url = await setting('unified_inbox_24h_url');
   if (!url) return { ok: false, can_send_freeform: false, reason: 'missing_24h_url' };
@@ -136,6 +155,10 @@ Deno.serve(async (req) => {
       if (preflight.duplicate) return json({ ok: true, duplicate: true, mode: 'auto', decision_reason: 'tracking_already_sent' });
       if (!preflight.ok) return json({ ok: false, error: preflight.error }, 409);
     }
+    if (eventType === 'order_ready_pickup_auto') {
+      const preflight = await pickupAutoPreflight(body);
+      if (!preflight.ok) return json({ ok: false, error: preflight.error }, 409);
+    }
 
     const rule = (await rest(`whatsapp_notification_rules?event_type=eq.${encodeURIComponent(eventType)}&limit=1`).catch(() => []))?.[0] || {};
     if (rule.enabled === false) return json({ ok: false, error: `notification_disabled:${eventType}` }, 409);
@@ -192,6 +215,10 @@ Deno.serve(async (req) => {
     if (eventType === 'shipment_auto_tracking') {
       const finalPreflight = await trackingAutoPreflight(body);
       if (finalPreflight.duplicate) return json({ ok: true, duplicate: true, mode: 'auto', decision_reason: 'tracking_already_sent' });
+      if (!finalPreflight.ok) return json({ ok: false, error: finalPreflight.error }, 409);
+    }
+    if (eventType === 'order_ready_pickup_auto') {
+      const finalPreflight = await pickupAutoPreflight(body);
       if (!finalPreflight.ok) return json({ ok: false, error: finalPreflight.error }, 409);
     }
 

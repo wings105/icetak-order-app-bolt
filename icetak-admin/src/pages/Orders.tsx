@@ -92,6 +92,7 @@ type Summary = {
 type Pagination = { page: number; pageSize: number; total: number; totalPages: number };
 type ListResponse = { rows?: OrderRow[]; summary?: Summary; pagination?: Pagination; serverTime?: string };
 type SavedView = { id: string; name: string; filters: Filters; sortKey: SortKey; sortDir: SortDir; visibleColumns: ColumnKey[]; isDefault?: boolean };
+type PickupAutoSettings = { auto_send_enabled?: boolean; delay_minutes?: number; provider_name?: string; provider_ready?: boolean; template_name?: string; auto_send_activated_at?: string | null; pending?: number; sent?: number; failed?: number };
 
 type OrderItem = {
   id: string; k?: string; title?: string; qty?: number; price?: number; size?: string; style?: string;
@@ -188,6 +189,9 @@ export default function Orders({ permissions = [], initialOrder = '' }: Props) {
   const [detailRef, setDetailRef] = useState(initialOrder || '');
   const [detail, setDetail] = useState<OrderDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [pickupAuto, setPickupAuto] = useState<PickupAutoSettings | null>(null);
+  const [pickupAutoBusy, setPickupAutoBusy] = useState(false);
+  const [imagePreview, setImagePreview] = useState('');
   const can = (permission: string) => permissions.includes(permission);
 
   const loadSavedViews = useCallback(async () => {
@@ -201,6 +205,11 @@ export default function Orders({ permissions = [], initialOrder = '' }: Props) {
       }
     }
   }, [initial.explicit]);
+
+  const loadPickupAuto = useCallback(async () => {
+    const { data, error: rpcError } = await supabase.rpc('icetak_admin_pickup_auto_settings');
+    if (!rpcError) setPickupAuto((data || null) as PickupAutoSettings | null);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -240,6 +249,7 @@ export default function Orders({ permissions = [], initialOrder = '' }: Props) {
   }, []);
 
   useEffect(() => { void loadSavedViews(); }, [loadSavedViews]);
+  useEffect(() => { void loadPickupAuto(); }, [loadPickupAuto]);
   useEffect(() => { const t = window.setTimeout(() => void load(), 220); return () => window.clearTimeout(t); }, [load]);
   useEffect(() => { if (detailRef) void loadDetail(detailRef); else setDetail(null); }, [detailRef, loadDetail]);
   useEffect(() => { if (!notice) return; const t = window.setTimeout(() => setNotice(null), 3200); return () => window.clearTimeout(t); }, [notice]);
@@ -266,6 +276,21 @@ export default function Orders({ permissions = [], initialOrder = '' }: Props) {
     if (sortKey === key) setSortDir((d) => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir(key === 'created_at' || key === 'updated_at' || key === 'paid_at' ? 'desc' : 'asc'); }
     setPage(1); setSavedViewId('');
+  };
+
+  const togglePickupAuto = async () => {
+    if (!pickupAuto) return;
+    const next = !pickupAuto.auto_send_enabled;
+    const message = next
+      ? `Hidupkan Pickup Auto Send? Hanya order pickup yang menjadi Ready selepas switch ON akan dihantar ${pickupAuto.delay_minutes || 10} minit kemudian.`
+      : 'Matikan Pickup Auto Send? Semua pickup notification yang masih pending akan dibatalkan.';
+    if (!window.confirm(message)) return;
+    setPickupAutoBusy(true); setError(null);
+    const { data, error: rpcError } = await supabase.rpc('icetak_admin_set_pickup_auto_send', { p_enabled: next });
+    setPickupAutoBusy(false);
+    if (rpcError) { setError(rpcError.message); return; }
+    setPickupAuto((data || null) as PickupAutoSettings | null);
+    setNotice(`Pickup Auto Send ${next ? 'ON' : 'OFF'}.`);
   };
 
   const copy = async (value: string, message: string) => {
@@ -353,7 +378,7 @@ export default function Orders({ permissions = [], initialOrder = '' }: Props) {
   return <div className="fade-in erp-orders">
     <div className="page-header erp-orders-header">
       <div><div className="page-label">Order Operations</div><h1 className="page-title">Orders Work Queue</h1><p className="page-subtitle">Prioritised by due date · server-side filters · audit-ready lifecycle</p></div>
-      <div className="erp-header-actions"><button className="btn btn-outline" onClick={() => void load()}>Refresh</button></div>
+      <div className="erp-header-actions">{pickupAuto && <div className={`erp-pickup-auto ${pickupAuto.auto_send_enabled ? 'on' : 'off'}`}><div><b>Pickup Auto {pickupAuto.auto_send_enabled ? 'ON' : 'OFF'}</b><span>{pickupAuto.delay_minutes || 10} min after ClickUp Complete · {pickupAuto.provider_ready ? 'Wasapflow Ready' : 'Provider Not Ready'}</span></div><button className={`btn btn-sm ${pickupAuto.auto_send_enabled ? 'btn-outline' : 'btn-primary'}`} disabled={pickupAutoBusy || (!pickupAuto.provider_ready && !pickupAuto.auto_send_enabled)} onClick={() => void togglePickupAuto()}>{pickupAutoBusy ? 'Saving…' : pickupAuto.auto_send_enabled ? 'Turn OFF' : 'Turn ON'}</button></div>}<button className="btn btn-outline" onClick={() => { void load(); void loadPickupAuto(); }}>Refresh</button></div>
     </div>
 
     <div className="erp-summarybar">
@@ -398,7 +423,7 @@ export default function Orders({ permissions = [], initialOrder = '' }: Props) {
             {visible('delivery') && <th>Delivery</th>}{visible('production') && <th>Production / ClickUp</th>}{visible('whatsapp') && <th>WhatsApp</th>}
             {visible('updated') && <SortableTh label="Updated" active={sortKey === 'updated_at'} dir={sortDir} onClick={() => changeSort('updated_at')} />}{visible('action') && <th>Next Action</th>}
           </tr></thead>
-          <tbody>{rows.map((order) => <OrderTableRow key={order.dbId} order={order} selected={selectedIds.includes(order.dbId)} visible={visible} busy={busyId === order.dbId} can={can} menuOpen={menuId === order.dbId} onToggle={() => toggleOne(order.dbId)} onOpen={() => openDetail(order)} onCustomer={() => updateFilter('customerToken', order.customerToken || '')} onMenu={() => setMenuId(menuId === order.dbId ? null : order.dbId)} onAction={(name) => void action(order, name)} onWhatsapp={() => void toggleWhatsapp(order)} onCopy={copy} />)}</tbody>
+          <tbody>{rows.map((order) => <OrderTableRow key={order.dbId} order={order} selected={selectedIds.includes(order.dbId)} visible={visible} busy={busyId === order.dbId} can={can} menuOpen={menuId === order.dbId} onToggle={() => toggleOne(order.dbId)} onOpen={() => openDetail(order)} onCustomer={() => updateFilter('customerToken', order.customerToken || '')} onMenu={() => setMenuId(menuId === order.dbId ? null : order.dbId)} onAction={(name) => void action(order, name)} onWhatsapp={() => void toggleWhatsapp(order)} onCopy={copy} onPreview={(url) => setImagePreview(url)} />)}</tbody>
         </table>}
       </div>
 
@@ -406,12 +431,13 @@ export default function Orders({ permissions = [], initialOrder = '' }: Props) {
     </div>
 
     {(detailRef || detailLoading) && <OrderDrawer detail={detail} loading={detailLoading} permissions={permissions} busyId={busyId} onClose={closeDetail} onReload={async () => { await load(); if (detailRef) await loadDetail(detail?.order.dbId || detailRef); }} onAction={(o, name) => void action(o, name)} onWhatsapp={(o) => void toggleWhatsapp(o)} onCopy={copy} />}
+    {imagePreview && <ImageLightbox url={imagePreview} onClose={() => setImagePreview('')} />}
   </div>;
 }
 
-function OrderTableRow({ order, selected, visible, busy, can, menuOpen, onToggle, onOpen, onCustomer, onMenu, onAction, onWhatsapp, onCopy }: {
+function OrderTableRow({ order, selected, visible, busy, can, menuOpen, onToggle, onOpen, onCustomer, onMenu, onAction, onWhatsapp, onCopy, onPreview }: {
   order: OrderRow; selected: boolean; visible: (key: ColumnKey) => boolean; busy: boolean; can: (p: string) => boolean; menuOpen: boolean;
-  onToggle: () => void; onOpen: () => void; onCustomer: () => void; onMenu: () => void; onAction: (name: string) => void; onWhatsapp: () => void; onCopy: (value: string, message: string) => Promise<void>;
+  onToggle: () => void; onOpen: () => void; onCustomer: () => void; onMenu: () => void; onAction: (name: string) => void; onWhatsapp: () => void; onCopy: (value: string, message: string) => Promise<void>; onPreview: (url: string) => void;
 }) {
   const due = urgency(order.dateNeed, Boolean(order.isCompleted || order.isCancelled));
   const link = customerOrderLink(order);
@@ -423,16 +449,29 @@ function OrderTableRow({ order, selected, visible, busy, can, menuOpen, onToggle
     {visible('created') && <td><b>{formatDate(order.createdAt?.slice(0, 10))}</b><div className="cell-sub">{shortDateTime(order.createdAt)}</div></td>}
     {visible('need') && <td><b>{formatDate(order.dateNeed)}</b>{due && <div><span className={`erp-urgency ${due.cls}`}>{due.label}</span></div>}</td>}
     {visible('customer') && <td><button className="erp-customer-name" onClick={onCustomer}>{order.customerName || 'Guest'}</button><div>{phone ? <a className="erp-phone" href={`https://wa.me/${phone}`} target="_blank" rel="noreferrer">{order.customerPhone}</a> : <span className="cell-sub">No phone</span>}</div></td>}
-    {visible('items') && <td><div className="erp-items-cell">{order.thumbnailUrl && <a className="erp-order-thumb" href={order.thumbnailUrl} target="_blank" rel="noreferrer" title="Open design image"><img src={order.thumbnailUrl} alt="Order preview" onError={(e) => { e.currentTarget.style.display = 'none'; }} /></a>}<div className="erp-items-summary"><b>{order.itemsCount || 0} item{Number(order.itemsCount || 0) === 1 ? '' : 's'}</b><span>{order.itemSummary || '—'}</span></div></div></td>}
+    {visible('items') && <td><div className="erp-items-cell">{order.thumbnailUrl && <button type="button" className="erp-order-thumb" title="Preview design" onClick={() => onPreview(order.thumbnailUrl || '')}><img src={order.thumbnailUrl} alt="Order preview" onError={(e) => { e.currentTarget.style.display = 'none'; }} /></button>}<div className="erp-items-summary"><b>{order.itemsCount || 0} item{Number(order.itemsCount || 0) === 1 ? '' : 's'}</b><span>{order.itemSummary || '—'}</span></div></div></td>}
     {visible('payment') && <td><div className="erp-payment"><span className={`erp-status-pill ${order.isUnpaid ? 'warning' : 'success'}`}>{order.isUnpaid ? (order.isCash ? 'CASH DUE' : 'UNPAID') : 'PAID'}</span><b>{money(order.total)}</b></div><div className="cell-sub">{order.paidAt ? `Paid ${shortDateTime(order.paidAt)}` : order.paymentMethod || order.payment || '—'}</div></td>}
     {visible('delivery') && <td><b>{order.delivery || '—'}</b>{order.courier && <div className="cell-sub">{order.courier}</div>}{order.tracking && <a className="erp-inline-link" href={order.trackingLink || '#'} target="_blank" rel="noreferrer">{order.tracking}</a>}</td>}
-    {visible('production') && <td><div className="erp-production"><div><b>{order.productionApproved ? 'Production approved' : 'Waiting approval'}</b>{Number(order.reviewPending || 0) > 0 && <span className="erp-status-pill warning">{order.reviewPending} REVIEW</span>}</div><div className="erp-progress"><i style={{ width: `${Math.max(0, Math.min(100, Number(order.progressPercent || 0)))}%` }} /></div><div className="cell-sub">ClickUp {order.componentsLinked || 0}/{order.componentsTotal || 0} · {order.clickupSyncStatus || '—'}{order.clickupOrderUrl && <> · <a className="erp-inline-link" href={order.clickupOrderUrl} target="_blank" rel="noreferrer">Open</a></>}</div></div></td>}
+    {visible('production') && <td><div className="erp-production"><div><b>{productionLabel(order)}</b>{Number(order.reviewPending || 0) > 0 && <span className="erp-status-pill warning">{order.reviewPending} REVIEW</span>}</div><div className="erp-progress"><i style={{ width: `${Math.max(0, Math.min(100, Number(order.progressPercent || 0)))}%` }} /></div><div className="cell-sub">ClickUp {order.componentsLinked || 0}/{order.componentsTotal || 0} · {order.clickupSyncStatus || '—'}{order.clickupOrderUrl && <> · <a className="erp-inline-link" href={order.clickupOrderUrl} target="_blank" rel="noreferrer">Open</a></>}</div></div></td>}
     {visible('whatsapp') && <td><button className={`erp-wa-toggle ${order.whatsappEnabled ? 'on' : 'off'}`} disabled={busy} onClick={onWhatsapp}>{order.whatsappEnabled ? 'ON' : 'OFF'}</button><div className={`cell-sub ${norm(order.lastNotificationStatus) === 'failed' ? 'erp-text-danger' : ''}`}>{order.lastNotificationEvent || 'No notification'}{order.lastNotificationAt ? ` · ${shortDateTime(order.lastNotificationAt)}` : ''}</div></td>}
     {visible('updated') && <td><b>{shortDateTime(order.updatedAt)}</b><div className="cell-sub">Last activity</div></td>}
     {visible('action') && <td><div className="erp-action-cell"><button className={`btn btn-sm ${next.tone === 'primary' ? 'btn-primary' : 'btn-outline'}`} disabled={busy || next.disabled} onClick={() => next.action ? onAction(next.action) : onOpen()}>{busy ? 'Working…' : next.label}</button><div className="erp-more-wrap"><button className="erp-more" onClick={onMenu}>⋯</button>{menuOpen && <div className="erp-more-menu"><button onClick={onOpen}>View Details</button><button onClick={() => void onCopy(order.id, 'Order ID copied')}>Copy Order ID</button>{link && <><button onClick={() => void onCopy(link, 'Customer order link copied')}>Copy Customer Link</button><a href={link} target="_blank" rel="noreferrer">Open Customer Order</a></>}{order.clickupOrderUrl && <a href={order.clickupOrderUrl} target="_blank" rel="noreferrer">Open ClickUp</a>}<button onClick={onWhatsapp}>WhatsApp {order.whatsappEnabled ? 'OFF' : 'ON'}</button>{can('cancel_order') && !order.isCancelled && !order.isCompleted && <button className="danger" onClick={() => onAction('cancel')}>Cancel Order</button>}</div>}</div></div></td>}
   </tr>;
 }
 
+function shippingUnderway(order: OrderRow) {
+  return ['picked_up','shipped','in_transit','out_for_delivery','delivered'].includes(norm(order.shipmentStatusGroup)) || norm(order.fulfillmentStage) === 'in_transit';
+}
+function requiresProductionApproval(order: OrderRow) {
+  return !order.productionApproved && norm(order.adminStatus).includes('ai_pending_confirmation');
+}
+function productionLabel(order: OrderRow) {
+  if (order.productionCompletedAt || shippingUnderway(order) || Number(order.progressPercent || 0) >= 100) return 'Production complete';
+  if (requiresProductionApproval(order)) return 'AI review pending';
+  if (Number(order.componentsLinked || 0) > 0 || ['linked','queued','processing'].includes(norm(order.clickupSyncStatus))) return 'Production active';
+  if (order.productionApproved) return 'Production approved';
+  return 'Ready to process';
+}
 function nextAction(order: OrderRow, can: (p: string) => boolean): { label: string; action?: string; tone: 'primary' | 'outline'; disabled?: boolean } {
   const pickup = norm(order.delivery).includes('pickup');
   if (order.isCancelled || order.isCompleted) return { label: 'View Details', tone: 'outline' };
@@ -442,11 +481,19 @@ function nextAction(order: OrderRow, can: (p: string) => boolean): { label: stri
     if (pickup && order.isCash && can('verify_payments')) return { label: 'Confirm Cash Paid', action: 'confirm_cash_paid', tone: 'primary' };
     return { label: 'View Payment', tone: 'outline' };
   }
-  if (!order.productionApproved && can('approve_production')) return { label: 'Approve Production', action: 'approve_production', tone: 'primary' };
-  if (pickup && order.productionApproved && !order.pickupReadyAt && can('approve_production')) return { label: 'Ready Pickup', action: 'ready_pickup', tone: 'primary' };
+  if (requiresProductionApproval(order) && can('approve_production')) return { label: 'Approve AI Order', action: 'approve_production', tone: 'primary' };
   if (pickup && order.pickupReadyAt && !order.pickupCollectedAt && can('approve_production')) return { label: 'Customer Collected', action: 'pickup_collected', tone: 'primary' };
-  if (!pickup && order.trackingLink) return { label: 'View Tracking', tone: 'outline' };
+  if (pickup && !order.pickupReadyAt) {
+    if (Number(order.componentsTotal || 0) > 0) return { label: 'View Production', tone: 'outline' };
+    if (order.productionApproved && can('approve_production')) return { label: 'Ready Pickup', action: 'ready_pickup', tone: 'primary' };
+  }
+  if (!pickup && (shippingUnderway(order) || order.trackingLink)) return { label: 'View Tracking', tone: 'outline' };
   return { label: 'View Details', tone: 'outline' };
+}
+
+function ImageLightbox({ url, onClose }: { url: string; onClose: () => void }) {
+  useEffect(() => { const handler = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); }; window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler); }, [onClose]);
+  return <div className="erp-image-lightbox" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}><section><header><b>Design Preview</b><button type="button" onClick={onClose}>×</button></header><div><img src={url} alt="Design preview" /></div></section></div>;
 }
 
 function AdvancedFilters({ filters, onChange, onClear }: { filters: Filters; onChange: (key: keyof Filters, value: string) => void; onClear: () => void }) {
@@ -499,7 +546,7 @@ function OrderDrawer({ detail, loading, permissions, busyId, onClose, onReload, 
           onSaved={onReload}
         />}
         {tab === 'payment' && <div className="erp-drawer-grid"><DrawerCard title="Payment Summary"><KV k="Status" v={order.payment || '—'} /><KV k="Method" v={order.paymentMethod || '—'} /><KV k="Total" v={money(order.total)} /><KV k="Paid At" v={formatDateTime(order.paidAt)} /><KV k="Verified By" v={order.paymentVerifiedBy || '—'} /><div className="erp-card-actions">{norm(order.delivery).includes('pickup') && order.isUnpaid && canEdit && !order.isCash && <button className="btn btn-outline btn-sm" onClick={() => onAction(order, 'set_pay_at_pickup')}>Set Pay at Pickup</button>}{norm(order.delivery).includes('pickup') && order.isUnpaid && order.isCash && canVerify && <button className="btn btn-primary btn-sm" onClick={() => onAction(order, 'confirm_cash_paid')}>Confirm Cash Paid</button>}</div></DrawerCard><DrawerCard title="Transactions">{detail.payments.length ? detail.payments.map((p) => <div className="erp-history-row" key={p.id}><div><b>{money(p.amount)}</b><span>{p.provider || 'payment'} · {p.senderName || '—'}</span></div><div>{formatDateTime(p.paidAt)}</div></div>) : <p className="cell-sub">No payment transaction recorded.</p>}</DrawerCard></div>}
-        {tab === 'production' && <div className="erp-drawer-grid"><DrawerCard title="Production"><KV k="Approved" v={order.productionApproved ? 'Yes' : 'No'} /><KV k="Stage" v={order.fulfillmentStage || '—'} /><KV k="Completed" v={formatDateTime(order.productionCompletedAt)} /><KV k="Ready Pickup" v={formatDateTime(order.pickupReadyAt)} /><KV k="Collected" v={formatDateTime(order.pickupCollectedAt)} /><div className="erp-card-actions">{!order.isUnpaid && !order.productionApproved && canApprove && <button className="btn btn-primary btn-sm" onClick={() => onAction(order, 'approve_production')}>Approve Production</button>}{norm(order.delivery).includes('pickup') && order.productionApproved && !order.pickupReadyAt && canApprove && <button className="btn btn-primary btn-sm" onClick={() => onAction(order, 'ready_pickup')}>Ready Pickup</button>}{norm(order.delivery).includes('pickup') && order.pickupReadyAt && !order.pickupCollectedAt && canApprove && <button className="btn btn-primary btn-sm" onClick={() => onAction(order, 'pickup_collected')}>Customer Collected</button>}</div></DrawerCard><DrawerCard title="ClickUp Components">{items.flatMap((i) => i.components || []).length ? items.flatMap((i) => i.components || []).map((c) => <div className="erp-history-row" key={c.id}><div><b>{c.label || 'Component'}</b><span>{c.customerLabel || c.workflow || '—'} · {c.progressPercent || 0}%</span></div><div>{c.clickupTaskId ? <a className="erp-inline-link" href={`https://app.clickup.com/t/3747262/${c.clickupTaskId}`} target="_blank" rel="noreferrer">Open Task</a> : 'Not linked'}</div></div>) : <p className="cell-sub">No production components.</p>}</DrawerCard></div>}
+        {tab === 'production' && <div className="erp-drawer-grid"><DrawerCard title="Production"><KV k="State" v={productionLabel(order)} /><KV k="Stage" v={order.fulfillmentStage || '—'} /><KV k="Completed" v={formatDateTime(order.productionCompletedAt)} /><KV k="Ready Pickup" v={formatDateTime(order.pickupReadyAt)} /><KV k="Collected" v={formatDateTime(order.pickupCollectedAt)} /><div className="erp-card-actions">{!order.isUnpaid && requiresProductionApproval(order) && canApprove && <button className="btn btn-primary btn-sm" onClick={() => onAction(order, 'approve_production')}>Approve AI Order</button>}{norm(order.delivery).includes('pickup') && order.productionApproved && !order.pickupReadyAt && Number(order.componentsTotal || 0) === 0 && canApprove && <button className="btn btn-primary btn-sm" onClick={() => onAction(order, 'ready_pickup')}>Ready Pickup</button>}{norm(order.delivery).includes('pickup') && order.pickupReadyAt && !order.pickupCollectedAt && canApprove && <button className="btn btn-primary btn-sm" onClick={() => onAction(order, 'pickup_collected')}>Customer Collected</button>}</div></DrawerCard><DrawerCard title="ClickUp Components">{items.flatMap((i) => i.components || []).length ? items.flatMap((i) => i.components || []).map((c) => <div className="erp-history-row" key={c.id}><div><b>{c.label || 'Component'}</b><span>{c.customerLabel || c.workflow || '—'} · {c.progressPercent || 0}%</span></div><div>{c.clickupTaskId ? <a className="erp-inline-link" href={`https://app.clickup.com/t/3747262/${c.clickupTaskId}`} target="_blank" rel="noreferrer">Open Task</a> : 'Not linked'}</div></div>) : <p className="cell-sub">No production components.</p>}</DrawerCard></div>}
         {tab === 'whatsapp' && <div className="erp-drawer-grid"><DrawerCard title="WhatsApp Control"><KV k="Order Notifications" v={order.whatsappEnabled ? 'ON' : 'OFF'} /><button className={`btn btn-sm ${order.whatsappEnabled ? 'btn-outline':'btn-primary'}`} disabled={busyId === order.dbId} onClick={() => onWhatsapp(order)}>Turn {order.whatsappEnabled ? 'OFF' : 'ON'}</button><p className="cell-sub" style={{ marginTop: 8 }}>Turning OFF cancels pending order notifications for this order.</p></DrawerCard><DrawerCard title="Notification History">{detail.notifications.length ? detail.notifications.map((n) => <div className="erp-history-row" key={n.id}><div><b>{n.eventType || 'notification'}</b><span className={norm(n.status) === 'failed' ? 'erp-text-danger' : ''}>{n.status || '—'} · {n.mode || '—'}{n.error ? ` · ${n.error}` : ''}</span></div><div>{formatDateTime(n.at)}</div></div>) : <p className="cell-sub">No notification history.</p>}</DrawerCard></div>}
         {tab === 'timeline' && <div className="erp-timeline">{detail.timeline.length ? detail.timeline.map((t, i) => <div className="erp-timeline-item" key={`${t.type}-${t.at}-${i}`}><i /><div><div className="erp-timeline-head"><b>{t.label || t.type}</b><span>{formatDateTime(t.at)}</span></div><div className="cell-sub">Actor: {t.actor || 'system'}</div>{t.detail && Object.keys(t.detail).length > 0 && <details><summary>Audit detail</summary><pre>{JSON.stringify(t.detail, null, 2)}</pre></details>}</div></div>) : <p className="cell-sub">No audit events recorded.</p>}</div>}
       </div>
