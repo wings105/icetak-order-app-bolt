@@ -24,6 +24,6 @@ jobs:
             echo "No patch needed"
             exit 0
           fi
-          git add icetak-admin/src/pages/Orders.tsx
-          git commit -m "wire structural item editor into Orders drawer"
+          git add icetak-admin/src/pages/Orders.tsx icetak-admin/src/components/OrderItemStructuralEditor.tsx
+          git commit -m "tighten structural item edit locking"
           git push origin HEAD:main
