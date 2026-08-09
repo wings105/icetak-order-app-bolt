@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { IconRefresh } from '../components/Icons';
 import { supabase } from '../lib/supabase';
@@ -7,13 +7,16 @@ import './QrPayDailySummary.css';
 type Totals = {
   total_count:number; total_amount:number|string; matched_count:number; matched_amount:number|string;
   review_count:number; review_amount:number|string; processing_count:number; processing_amount:number|string;
-  missed_count:number; missed_amount:number|string; unresolved_count:number; unresolved_amount:number|string;
+  missed_count:number; missed_amount:number|string; ignored_count:number; ignored_amount:number|string;
+  unresolved_count:number; unresolved_amount:number|string;
 };
 type Row = {
   source:'matched'|'unmatched'; transaction_id:string; amount:number|string; paid_at:string; sender_name:string|null;
-  provider:string; workflow_status:'matched_order'|'needs_review'|'processing'|'pending'|'missed';
+  provider:string; workflow_status:'matched_order'|'needs_review'|'processing'|'pending'|'missed'|'ignored';
   order_id:string|null; order_no:string|null; phone:string|null; whatsapp_link:string|null; order_link:string|null;
   job_status:string|null; review_status:string|null;
+  workflow_state:'active'|'ignored'|null; review_category:string|null; review_remark:string|null;
+  review_updated_at:string|null; review_updated_by:string|null; ignored_at:string|null; ignored_by:string|null;
 };
 type Delivery = { slot:string; status:string; attempts:number; scheduled_at:string; sent_at:string|null; recipient_phone:string|null; last_error:string|null };
 type Summary = { date:string; timezone:string; generated_at:string; totals:Totals; rows:Row[]; delivery:Delivery|null };
@@ -46,6 +49,10 @@ type CorrectionData = {
   amount:number|string; paid_at:string; sender_name:string|null; phone:string|null;
   source_order_no:string; target_order_no?:string|null; source_cancelled:boolean;
 };
+type ReviewAction = 'save_remark'|'ignore'|'reopen';
+type ReviewActionData = { success:boolean; idempotent:boolean; transaction_id:string; action:ReviewAction };
+type FilterStatus = 'all'|'matched'|'review'|'processing'|'missed'|'ignored';
+type SortMode = 'newest'|'oldest'|'amount_high'|'amount_low'|'status';
 export type QrPayCreatePayload = {
   transactionId:string; amount:number; phone:string; customerName:string; paidAt:string;
 };
@@ -75,8 +82,19 @@ const statusInfo=(row:Row)=>{
   if(row.workflow_status==='matched_order')return {label:row.provider==='qrpay_ai'?'Order auto-created':'Matched to order',cls:'badge-success'};
   if(row.workflow_status==='needs_review')return {label:'Needs review',cls:'badge-warning'};
   if(row.workflow_status==='missed')return {label:'Missed / failed',cls:'badge-error'};
+  if(row.workflow_status==='ignored')return {label:'Ignored for order',cls:'badge-neutral'};
   return {label:'Processing',cls:'badge-info'};
 };
+const categoryLabels:Record<string,string>={
+  old_debt:'Bayaran hutang lama',personal_transfer:'Personal / bukan jualan',supplier_refund:'Refund supplier',
+  internal_transfer:'Transfer dalaman',duplicate_or_test:'Duplicate / test',other:'Lain-lain',
+};
+const filterMatches=(row:Row,filter:FilterStatus)=>filter==='all'
+  ||(filter==='matched'&&row.workflow_status==='matched_order')
+  ||(filter==='review'&&row.workflow_status==='needs_review')
+  ||(filter==='processing'&&(row.workflow_status==='processing'||row.workflow_status==='pending'))
+  ||(filter==='missed'&&row.workflow_status==='missed')
+  ||(filter==='ignored'&&row.workflow_status==='ignored');
 
 export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateOrder}:Props){
   const params=new URLSearchParams(window.location.search);
@@ -94,6 +112,14 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
   const [matchError,setMatchError]=useState<string|null>(null);
   const [confirmProcessed,setConfirmProcessed]=useState(false);
   const [cancelSource,setCancelSource]=useState(false);
+  const [statusFilter,setStatusFilter]=useState<FilterStatus>('all');
+  const [sortMode,setSortMode]=useState<SortMode>('newest');
+  const [search,setSearch]=useState('');
+  const [reviewRow,setReviewRow]=useState<Row|null>(null);
+  const [reviewCategory,setReviewCategory]=useState('');
+  const [reviewRemark,setReviewRemark]=useState('');
+  const [reviewLoading,setReviewLoading]=useState(false);
+  const [reviewError,setReviewError]=useState<string|null>(null);
 
   const load=useCallback(async()=>{
     setLoading(true);setError(null);
@@ -158,10 +184,57 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
     finally{setMatchLoading(false);}
   };
 
+  const openReview=(row:Row)=>{
+    setReviewRow(row);setReviewCategory(row.review_category||'');setReviewRemark(row.review_remark||'');setReviewError(null);
+  };
+  const closeReview=()=>{if(!reviewLoading){setReviewRow(null);setReviewError(null);}};
+  const submitReview=async(action:ReviewAction)=>{
+    if(!reviewRow)return;
+    setReviewLoading(true);setReviewError(null);
+    try{
+      await invokeFinance<ReviewActionData>({
+        action:'qrpay_review_action',review_action:action,transaction_id:reviewRow.transaction_id,
+        category:reviewCategory||null,remark:reviewRemark,
+      });
+      const message=action==='ignore'
+        ?`${reviewRow.transaction_id} dikeluarkan daripada queue order. Rekod duit masuk Finance dikekalkan.`
+        :action==='reopen'?`${reviewRow.transaction_id} dibuka semula untuk Match / Create Order.`
+        :`Remark ${reviewRow.transaction_id} sudah disimpan.`;
+      setSuccess(message);setReviewRow(null);await load();
+    }catch(e){setReviewError(e instanceof Error?e.message:'QRPay review update failed');}
+    finally{setReviewLoading(false);}
+  };
+
+  const filterStats=useMemo(()=>{
+    const rows=summary?.rows||[];
+    const filters:FilterStatus[]=['all','matched','review','processing','missed','ignored'];
+    return Object.fromEntries(filters.map((filter)=>{
+      const selectedRows=rows.filter((row)=>filterMatches(row,filter));
+      return [filter,{count:selectedRows.length,amount:selectedRows.reduce((sum,row)=>sum+Number(row.amount||0),0)}];
+    })) as Record<FilterStatus,{count:number;amount:number}>;
+  },[summary]);
+  const visibleRows=useMemo(()=>{
+    const query=search.trim().toLowerCase();
+    const rows=(summary?.rows||[]).filter((row)=>filterMatches(row,statusFilter)).filter((row)=>{
+      if(!query)return true;
+      return [row.transaction_id,row.order_no,row.phone,row.sender_name,row.provider,row.review_remark,
+        row.review_category?categoryLabels[row.review_category]||row.review_category:'']
+        .some((value)=>String(value||'').toLowerCase().includes(query));
+    });
+    const statusRank:Record<Row['workflow_status'],number>={needs_review:1,missed:2,processing:3,pending:3,matched_order:4,ignored:5};
+    return [...rows].sort((left,right)=>{
+      if(sortMode==='oldest')return new Date(left.paid_at).getTime()-new Date(right.paid_at).getTime();
+      if(sortMode==='amount_high')return Number(right.amount)-Number(left.amount);
+      if(sortMode==='amount_low')return Number(left.amount)-Number(right.amount);
+      if(sortMode==='status')return statusRank[left.workflow_status]-statusRank[right.workflow_status]||new Date(right.paid_at).getTime()-new Date(left.paid_at).getTime();
+      return new Date(right.paid_at).getTime()-new Date(left.paid_at).getTime();
+    });
+  },[search,sortMode,statusFilter,summary]);
+
   const totals=summary?.totals;
   return <div className="fade-in qrpay-summary-page">
     <div className="page-header"><div><h1 className="page-title">QRPay Daily Summary</h1><p className="page-subtitle">Semak semua QRPay Malaysia-day: sudah masuk order, masih review, sedang proses atau terlepas.</p></div><div className="qrpay-summary-actions"><input type="date" value={date} max={malaysiaDate()} onChange={(e)=>setDate(e.target.value)}/><button className="btn btn-outline" disabled={loading} onClick={()=>void load()}><IconRefresh size={16}/> Refresh</button></div></div>
-    {success&&<div className="finance-alert qrpay-match-success"><b>Payment matched</b><span>{success}</span></div>}
+    {success&&<div className="finance-alert qrpay-match-success"><b>QRPay updated</b><span>{success}</span></div>}
     {error&&<div className="finance-alert"><b>QRPay error</b><span>{error}</span></div>}
     {loading&&!summary?<div className="loading"><span className="spinner"/> Loading QRPay summary…</div>:summary&&<>
       <div className="qrpay-summary-metrics">
@@ -169,10 +242,17 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
         <Metric label="Sudah Masuk Order" value={money(totals?.matched_amount)} hint={`${totals?.matched_count||0} matched / auto-created`} cls="blue"/>
         <Metric label="Perlu Semakan" value={money(totals?.review_amount)} hint={`${totals?.review_count||0} tunggu tindakan`} cls="amber"/>
         <Metric label="Terlepas / Failed" value={money(totals?.missed_amount)} hint={`${totals?.missed_count||0} perlu diperiksa`} cls="red"/>
+        <Metric label="Ignored for Order" value={money(totals?.ignored_amount)} hint={`${totals?.ignored_count||0} bukan order baru`} cls="slate"/>
       </div>
       <div className="qrpay-summary-note"><div><b>Automation 10:00 AM & 10:00 PM</b><span>WhatsApp dihantar ke nombor admin order. Setiap slot mempunyai idempotency dan retry.</span></div><div><b>{summary.delivery?.status?summary.delivery.status.toUpperCase():'WAITING'}</b><span>{summary.delivery?.sent_at?`Last sent ${dateTime(summary.delivery.sent_at)}`:'Belum dihantar untuk tarikh ini'}</span></div></div>
       <div className="panel"><div className="panel-header"><div><div className="panel-title">QRPay {summary.date}</div><div className="panel-subtitle">{summary.rows.length} transaksi · Generated {dateTime(summary.generated_at)} · MYT</div></div><div className="qrpay-unresolved"><b>{totals?.unresolved_count||0}</b><span>belum masuk order</span></div></div>
-        <div className="table-wrap">{summary.rows.length===0?<div className="empty"><div className="empty-title">Tiada QRPay diterima pada tarikh ini.</div></div>:<table><thead><tr><th>Time</th><th>Transaction</th><th>Customer / Phone</th><th>Amount</th><th>Status</th><th>Proceed</th></tr></thead><tbody>{summary.rows.map((row)=>{const status=statusInfo(row);return <tr key={row.transaction_id} className={row.workflow_status==='missed'?'qrpay-row-missed':'row-hover'}><td className="cell-sub">{time(row.paid_at)}</td><td><div className="cell-id">{row.transaction_id}</div><div className="cell-sub">{row.provider}</div></td><td><div className="cell-name">{row.sender_name||'Customer belum dikenal pasti'}</div>{row.phone?<a className="qrpay-phone" href={row.whatsapp_link||undefined} target="_blank" rel="noreferrer">{row.phone}</a>:<div className="cell-sub">Phone belum jumpa</div>}</td><td className="cell-amount">{money(row.amount)}</td><td><span className={`badge ${status.cls}`}>{status.label}</span>{row.job_status&&<div className="cell-sub">AI: {row.job_status.replaceAll('_',' ')}</div>}</td><td><div className="qrpay-proceed-actions">{row.order_no?<><button className="finance-order-link" onClick={()=>onOpenOrder?.(row.order_no!)}>{row.order_no}</button>{canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openMatch(row)}>Manage Match</button>}</>:canManage?<><button className="btn btn-primary btn-sm" onClick={()=>openMatch(row)}>Match Order</button>{onCreateOrder&&<button className="btn btn-outline btn-sm" onClick={()=>onCreateOrder({transactionId:row.transaction_id,amount:Number(row.amount),phone:row.phone||'',customerName:row.sender_name||'',paidAt:row.paid_at})}>Create Order</button>}</>:row.whatsapp_link?<a className="btn btn-outline btn-sm" href={row.whatsapp_link} target="_blank" rel="noreferrer">WhatsApp</a>:<span className="cell-sub">Semak payment</span>}{!row.order_no&&canManage&&row.whatsapp_link&&<a className="btn btn-outline btn-sm" href={row.whatsapp_link} target="_blank" rel="noreferrer">WhatsApp</a>}</div></td></tr>})}</tbody></table>}</div>
+        <div className="qrpay-review-toolbar">
+          <div className="qrpay-filter-chips" aria-label="Filter QRPay status">{([
+            ['all','All'],['matched','Matched'],['review','Needs Review'],['processing','Unmatched / Processing'],['missed','Failed'],['ignored','Ignored'],
+          ] as [FilterStatus,string][]).map(([value,label])=><button key={value} className={statusFilter===value?'active':''} onClick={()=>setStatusFilter(value)}><span>{label}</span><b>{filterStats[value].count}</b><small>{money(filterStats[value].amount)}</small></button>)}</div>
+          <div className="qrpay-review-tools"><input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="Cari transaction, order, phone, nama, remark…" aria-label="Search QRPay"/><select value={sortMode} onChange={(event)=>setSortMode(event.target.value as SortMode)} aria-label="Sort QRPay"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="amount_high">Amount: high to low</option><option value="amount_low">Amount: low to high</option><option value="status">Priority status</option></select></div>
+        </div>
+        <div className="table-wrap">{summary.rows.length===0?<div className="empty"><div className="empty-title">Tiada QRPay diterima pada tarikh ini.</div></div>:visibleRows.length===0?<div className="empty"><div className="empty-title">Tiada payment sepadan dengan filter.</div><div className="cell-sub">Cuba All atau kosongkan carian.</div></div>:<table><thead><tr><th>Time</th><th>Transaction</th><th>Customer / Phone</th><th>Amount</th><th>Status</th><th>Remark</th><th>Proceed</th></tr></thead><tbody>{visibleRows.map((row)=>{const status=statusInfo(row);return <tr key={row.transaction_id} className={row.workflow_status==='missed'?'qrpay-row-missed':row.workflow_status==='ignored'?'qrpay-row-ignored':'row-hover'}><td className="cell-sub">{time(row.paid_at)}</td><td><div className="cell-id">{row.transaction_id}</div><div className="cell-sub">{row.provider}</div></td><td><div className="cell-name">{row.sender_name||'Customer belum dikenal pasti'}</div>{row.phone?<a className="qrpay-phone" href={row.whatsapp_link||undefined} target="_blank" rel="noreferrer">{row.phone}</a>:<div className="cell-sub">Phone belum jumpa</div>}</td><td className="cell-amount">{money(row.amount)}</td><td><span className={`badge ${status.cls}`}>{status.label}</span>{row.job_status&&<div className="cell-sub">AI: {row.job_status.replaceAll('_',' ')}</div>}{row.review_category&&<div className="cell-sub">{categoryLabels[row.review_category]||row.review_category}</div>}</td><td className="qrpay-remark-cell">{row.review_remark?<><span>{row.review_remark}</span><small>{row.review_updated_by||'admin'} · {dateTime(row.review_updated_at)}</small></>:<span className="cell-sub">—</span>}</td><td><div className="qrpay-proceed-actions">{row.order_no?<><button className="finance-order-link" onClick={()=>onOpenOrder?.(row.order_no!)}>{row.order_no}</button>{canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openMatch(row)}>Manage Match</button>}</>:row.workflow_status==='ignored'?canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openReview(row)}>Review / Reopen</button>:canManage?<><button className="btn btn-primary btn-sm" onClick={()=>openMatch(row)}>Match Order</button>{onCreateOrder&&<button className="btn btn-outline btn-sm" onClick={()=>onCreateOrder({transactionId:row.transaction_id,amount:Number(row.amount),phone:row.phone||'',customerName:row.sender_name||'',paidAt:row.paid_at})}>Create Order</button>}</>:row.whatsapp_link?<a className="btn btn-outline btn-sm" href={row.whatsapp_link} target="_blank" rel="noreferrer">WhatsApp</a>:<span className="cell-sub">Semak payment</span>}{canManage&&row.workflow_status!=='ignored'&&<button className="btn btn-outline btn-sm" onClick={()=>openReview(row)}>{row.review_remark?'Edit Remark':'Remark / Ignore'}</button>}{!row.order_no&&row.workflow_status!=='ignored'&&canManage&&row.whatsapp_link&&<a className="btn btn-outline btn-sm" href={row.whatsapp_link} target="_blank" rel="noreferrer">WhatsApp</a>}</div></td></tr>})}</tbody></table>}</div>
       </div>
     </>}
     {matchRow&&<div className="qrpay-match-backdrop" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget)closeMatch();}}><section className="qrpay-match-dialog" role="dialog" aria-modal="true" aria-labelledby="qrpay-match-title">
@@ -190,6 +270,16 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
           <div className="qrpay-correction-actions"><button className="btn btn-outline" disabled={matchLoading||(candidateData.current_order.requires_processed_confirmation&&!confirmProcessed)} onClick={()=>void correctMatch('unmatch')}>Unmatch Only</button>{onCreateOrder&&<button className="btn btn-primary" disabled={matchLoading||(candidateData.current_order.requires_processed_confirmation&&!confirmProcessed)} onClick={()=>void correctMatch('unmatch_create')}>Unmatch & Create New Order</button>}</div>
         </div>}
       </div>}
+    </section></div>}
+    {reviewRow&&<div className="qrpay-match-backdrop" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget)closeReview();}}><section className="qrpay-match-dialog qrpay-review-dialog" role="dialog" aria-modal="true" aria-labelledby="qrpay-review-title">
+      <div className="qrpay-match-head"><div><h2 id="qrpay-review-title">{reviewRow.workflow_status==='ignored'?'Review Ignored Payment':'QRPay Remark & Disposition'}</h2><p>{reviewRow.transaction_id} · {money(reviewRow.amount)} · {statusInfo(reviewRow).label}</p></div><button className="qrpay-match-close" onClick={closeReview} aria-label="Close">×</button></div>
+      <div className="qrpay-review-form">
+        <div className="qrpay-review-policy"><b>Duit masuk kekal dalam Finance</b><span>Ignore hanya keluarkan payment ini daripada queue order baru. Ia tidak memadam transaksi bank atau jumlah QRPay harian.</span></div>
+        <label><span>Category</span><select value={reviewCategory} onChange={(event)=>setReviewCategory(event.target.value)}><option value="">Pilih jika mahu ignore…</option>{Object.entries(categoryLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+        <label><span>Remark</span><textarea autoFocus value={reviewRemark} onChange={(event)=>setReviewRemark(event.target.value)} maxLength={2000} rows={5} placeholder="Contoh: Bayaran hutang order lama bulan Julai; bukan order baru."/><small>{reviewRemark.length}/2000</small></label>
+        {reviewError&&<div className="finance-alert"><b>Review error</b><span>{reviewError}</span></div>}
+        <div className="qrpay-review-actions"><button className="btn btn-outline" disabled={reviewLoading||(reviewRow.workflow_status==='ignored'&&!reviewRemark.trim())} onClick={()=>void submitReview('save_remark')}>{reviewLoading?'Saving…':'Save Remark'}</button>{reviewRow.workflow_status==='ignored'?<button className="btn btn-primary" disabled={reviewLoading} onClick={()=>void submitReview('reopen')}>Reopen for Order</button>:reviewRow.order_no?<span className="cell-sub">Unmatch dahulu sebelum Ignore for Order.</span>:<button className="btn qrpay-ignore-button" disabled={reviewLoading||!reviewCategory||!reviewRemark.trim()} onClick={()=>void submitReview('ignore')}>Ignore for Order</button>}</div>
+      </div>
     </section></div>}
   </div>;
 }
