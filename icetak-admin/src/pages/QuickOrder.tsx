@@ -64,6 +64,11 @@ type PaidResult = {
 type Props = {
   permissions?: string[];
   onOpenOrder?: (orderNo: string) => void;
+  linkedPayment?: LinkedQrPayment | null;
+};
+
+export type LinkedQrPayment = {
+  transactionId:string; amount:number; phone:string; customerName:string; paidAt:string;
 };
 
 const makeQuickItem = (kind: AdminProductKind): ItemDraft => {
@@ -75,15 +80,15 @@ const makePaidItem = (): PaidItem => ({ id: crypto.randomUUID(), kind: 'edible',
 
 const money = (n: number) => `RM ${Number(n || 0).toFixed(2)}`;
 const today = () => new Date().toISOString().slice(0, 10);
-const localDateTime = () => {
-  const d = new Date();
+const localDateTime = (value?:string) => {
+  const d = value ? new Date(value) : new Date();
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
 
-export default function QuickOrder({ permissions = [], onOpenOrder }: Props) {
+export default function QuickOrder({ permissions = [], onOpenOrder, linkedPayment }: Props) {
   const allowed = permissions.includes('quick_arrange') || permissions.includes('create_order');
   const canVerifyPayment = permissions.includes('verify_payments');
-  const [mode, setMode] = useState<'quick' | 'paid'>('quick');
+  const [mode, setMode] = useState<'quick' | 'paid'>(linkedPayment ? 'paid' : 'quick');
 
   if (!allowed) {
     return <div className="panel"><div className="empty"><div className="empty-title">Akses Quick Order tidak dibenarkan</div><div>Permission quick_arrange atau create_order diperlukan.</div></div></div>;
@@ -102,7 +107,7 @@ export default function QuickOrder({ permissions = [], onOpenOrder }: Props) {
         <button className={`filter-tab ${mode === 'quick' ? 'active' : ''}`} onClick={() => setMode('quick')}>Quick Arrange</button>
         <button className={`filter-tab ${mode === 'paid' ? 'active' : ''}`} disabled={!canVerifyPayment} onClick={() => setMode('paid')}>Paid QR / WhatsApp</button>
       </div>
-      {mode === 'quick' ? <QuickArrange onOpenOrder={onOpenOrder} /> : <PaidQrOrder onOpenOrder={onOpenOrder} />}
+      {mode === 'quick' ? <QuickArrange onOpenOrder={onOpenOrder} /> : <PaidQrOrder onOpenOrder={onOpenOrder} linkedPayment={linkedPayment} />}
     </div>
   );
 }
@@ -280,9 +285,9 @@ function QuickItemCard({ item, index, onChange, onRemove }: { item: ItemDraft; i
   );
 }
 
-function PaidQrOrder({ onOpenOrder }: { onOpenOrder?: (orderNo: string) => void }) {
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: string) => void; linkedPayment?:LinkedQrPayment|null }) {
+  const [name, setName] = useState(linkedPayment?.customerName||'');
+  const [phone, setPhone] = useState(linkedPayment?.phone||'');
   const [dateNeed, setDateNeed] = useState('');
   const [delivery, setDelivery] = useState<DeliveryKind>('pickup');
   const [deliveryFee, setDeliveryFee] = useState(0);
@@ -290,16 +295,18 @@ function PaidQrOrder({ onOpenOrder }: { onOpenOrder?: (orderNo: string) => void 
   const [items, setItems] = useState<PaidItem[]>([makePaidItem()]);
   const [adminRemark, setAdminRemark] = useState('');
   const [notifyWhatsapp, setNotifyWhatsapp] = useState(false);
-  const [transactionId, setTransactionId] = useState('');
-  const [senderName, setSenderName] = useState('');
-  const [paidAt, setPaidAt] = useState(localDateTime());
-  const [receiptNote, setReceiptNote] = useState('');
+  const [transactionId, setTransactionId] = useState(linkedPayment?.transactionId||'');
+  const [senderName, setSenderName] = useState(linkedPayment?.customerName||'');
+  const [paidAt, setPaidAt] = useState(localDateTime(linkedPayment?.paidAt));
+  const [receiptNote, setReceiptNote] = useState(linkedPayment?'Linked from QRPay Daily':'');
   const [matches, setMatches] = useState<LookupCustomer[]>([]);
   const [result, setResult] = useState<PaidResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(crypto.randomUUID());
   const total = useMemo(() => items.reduce((sum, item) => sum + Math.max(1, item.qty) * Math.max(0, item.price), 0) + deliveryFee, [items, deliveryFee]);
+  const linkedAmount=Number(linkedPayment?.amount||0);
+  const linkedAmountMatches=!linkedPayment||Math.abs(total-linkedAmount)<0.01;
 
   useEffect(() => { if (delivery === 'pickup') setDeliveryFee(0); else setDeliveryFee(DELIVERY[delivery].fee); }, [delivery]);
 
@@ -327,6 +334,7 @@ function PaidQrOrder({ onOpenOrder }: { onOpenOrder?: (orderNo: string) => void 
     if (!transactionId.trim()) return setError('Transaction/reference ID QR diperlukan.');
     if (!items.length || items.some((i) => !i.title.trim() || i.qty < 1 || i.price < 0)) return setError('Semak item, qty dan harga.');
     if (delivery !== 'pickup' && (!address.address_line1.trim() || !address.city.trim() || !address.postcode.trim() || !address.state.trim())) return setError('Lengkapkan alamat penghantaran.');
+    if (!linkedAmountMatches) return setError(`Jumlah item + delivery mesti sama dengan QRPay ${money(linkedAmount)}.`);
 
     setBusy(true);
     const payload = {
@@ -338,7 +346,7 @@ function PaidQrOrder({ onOpenOrder }: { onOpenOrder?: (orderNo: string) => void 
       delivery_fee: deliveryFee,
       admin_remark: adminRemark.trim(),
       notify_whatsapp: notifyWhatsapp,
-      payment: { method: 'Manual QR Pay', transaction_id: transactionId.trim(), sender_name: senderName.trim(), paid_at: paidAt, amount: total, receipt_note: receiptNote.trim() },
+      payment: { method: 'Manual QR Pay', transaction_id: transactionId.trim(), sender_name: senderName.trim(), paid_at: paidAt, amount: linkedPayment?linkedAmount:total, receipt_note: receiptNote.trim() },
     };
     const { data, error: rpcError } = await supabase.rpc('icetak_admin_create_whatsapp_paid_order', { p_payload: payload });
     setBusy(false);
@@ -348,6 +356,7 @@ function PaidQrOrder({ onOpenOrder }: { onOpenOrder?: (orderNo: string) => void 
 
   return (
     <>
+      {linkedPayment&&<div className="finance-alert qrpay-match-success" style={{marginBottom:14}}><b>Create order dari QRPay {linkedPayment.transactionId}</b><span>{money(linkedAmount)} diterima · {linkedPayment.phone||'phone belum dikenal pasti'}. Lengkapkan order dengan jumlah tepat ini; payment akan linked automatik.</span></div>}
       {result && <div className="panel" style={{ marginBottom: 16, padding: 18 }}><div className="panel-title">Paid order {result.order_id} created</div><div className="panel-subtitle">Transaction {result.payment?.transaction_id || transactionId} · {money(result.total)}</div><div style={{ marginTop: 10 }}><button className="btn btn-primary" onClick={() => onOpenOrder?.(result.order_id)}>Open Order</button></div></div>}
       {error && <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: '#fef3f2', color: '#b42318' }}>{error}</div>}
       <div className="grid-2" style={{ alignItems: 'start' }}>
@@ -372,12 +381,13 @@ function PaidQrOrder({ onOpenOrder }: { onOpenOrder?: (orderNo: string) => void 
           <div className="panel">
             <div className="panel-header"><div><div className="panel-title">Payment verification</div><div className="panel-subtitle">Manual QR Pay</div></div></div>
             <div style={{ padding: 18, display: 'grid', gap: 10 }}>
-              <Field label="Transaction / Reference ID *"><input value={transactionId} onChange={(e) => setTransactionId(e.target.value)} /></Field>
+              <Field label="Transaction / Reference ID *"><input value={transactionId} readOnly={Boolean(linkedPayment)} onChange={(e) => setTransactionId(e.target.value)} /></Field>
               <Field label="Sender name"><input value={senderName} onChange={(e) => setSenderName(e.target.value)} /></Field>
               <Field label="Paid at"><input type="datetime-local" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} /></Field>
               <Field label="Receipt note"><textarea rows={2} value={receiptNote} onChange={(e) => setReceiptNote(e.target.value)} /></Field>
               <label style={{ display: 'flex', gap: 10 }}><input type="checkbox" checked={notifyWhatsapp} onChange={(e) => setNotifyWhatsapp(e.target.checked)} /><span>Notify customer via WhatsApp</span></label>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><div><div className="cell-sub">Verified total</div><div style={{ fontSize: 25, fontWeight: 800 }}>{money(total)}</div></div><button className="btn btn-primary" disabled={busy} onClick={() => void submit()}>{busy ? 'Creating...' : 'Create Paid Order'}</button></div>
+              {linkedPayment&&!linkedAmountMatches&&<div className="finance-alert"><b>Jumlah belum sama</b><span>Order {money(total)} · QRPay {money(linkedAmount)} · beza {money(Math.abs(total-linkedAmount))}</span></div>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><div><div className="cell-sub">Verified total</div><div style={{ fontSize: 25, fontWeight: 800 }}>{money(total)}</div></div><button className="btn btn-primary" disabled={busy||!linkedAmountMatches} onClick={() => void submit()}>{busy ? 'Creating...' : linkedPayment?'Create & Link QRPay':'Create Paid Order'}</button></div>
             </div>
           </div>
         </div>
