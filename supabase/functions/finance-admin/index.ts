@@ -99,6 +99,14 @@ Deno.serve(async (req) => {
       }
       return json({ success: true, data: await rpc("finance_admin_qrpay_daily", { p_date: date || null }) });
     }
+    if (action === "qrpay_match_candidates") {
+      const transactionId = String(body.transaction_id || "").trim();
+      if (!transactionId) return json({ success: false, error: "QRPay transaction is required" }, 400);
+      return json({ success: true, data: await rpc("finance_admin_qrpay_match_candidates", {
+        p_transaction_id: transactionId,
+        p_query: String(body.query || "").trim() || null,
+      }) });
+    }
     if (action === "report") {
       const from = String(body.from || "");
       const to = String(body.to || "");
@@ -108,6 +116,19 @@ Deno.serve(async (req) => {
       return json({ success: true, data: await rpc("finance_admin_report", { p_from: from, p_to: to }) });
     }
     if (!admin.permissions.includes("manage_finance")) return json({ success: false, error: "Manage Finance permission required" }, 403);
+
+    if (action === "qrpay_manual_match") {
+      const transactionId = String(body.transaction_id || "").trim();
+      const orderNo = String(body.order_no || "").trim();
+      if (!transactionId || !orderNo) return json({ success: false, error: "QRPay transaction and order number are required" }, 400);
+      const data = await rpc("finance_admin_manual_match_qrpay", {
+        p_transaction_id: transactionId,
+        p_order_no: orderNo,
+        p_actor: admin.username,
+        p_confirm_mismatch: body.confirm_mismatch === true,
+      });
+      return json({ success: data?.success !== false, data, error: data?.success === false ? "Confirmation required before matching" : undefined });
+    }
 
     if (action === "classify") {
       const transactionId = Number(body.transaction_id);
