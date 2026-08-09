@@ -1,7 +1,8 @@
 .qrpay-summary-page{padding-bottom:24px}
 .qrpay-summary-actions{display:flex;gap:8px;align-items:center}
 .qrpay-summary-actions input{height:40px;padding:0 12px;border:1px solid var(--border);border-radius:9px;background:#fff}
-.qrpay-summary-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.qrpay-summary-metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.qrpay-summary-metrics .stat-card.slate::before{background:#64748b}
 .qrpay-summary-note{display:flex;justify-content:space-between;gap:20px;margin-bottom:16px;padding:14px 18px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff}
 .qrpay-summary-note>div{display:flex;flex-direction:column;gap:3px}
 .qrpay-summary-note>div:last-child{text-align:right}
@@ -11,7 +12,24 @@
 .qrpay-phone{display:inline-block;margin-top:3px;color:var(--primary);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;font-weight:700}
 .qrpay-row-missed{background:#fff7f7}
 .qrpay-row-missed:hover{background:#feecec}
+.qrpay-row-ignored{background:#f8fafc;color:#475569}
+.qrpay-row-ignored:hover{background:#f1f5f9}
 .qrpay-proceed-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.qrpay-review-toolbar{display:grid;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border-light);background:#fbfdff}
+.qrpay-filter-chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}
+.qrpay-filter-chips button{display:grid;grid-template-columns:auto auto;align-items:center;gap:1px 7px;min-width:max-content;padding:8px 11px;border:1px solid var(--border);border-radius:10px;background:#fff;color:#475569;text-align:left;cursor:pointer}
+.qrpay-filter-chips button:hover{border-color:#93c5fd;background:#f8fbff}
+.qrpay-filter-chips button.active{border-color:var(--primary);background:#eff6ff;color:#1d4ed8;box-shadow:0 0 0 1px color-mix(in srgb,var(--primary) 15%,transparent)}
+.qrpay-filter-chips button span{font-size:11.5px;font-weight:700}
+.qrpay-filter-chips button b{font-size:12px}
+.qrpay-filter-chips button small{grid-column:1/-1;color:var(--text-secondary);font-size:10px}
+.qrpay-review-tools{display:grid;grid-template-columns:minmax(260px,1fr) minmax(180px,240px);gap:9px}
+.qrpay-review-tools input,.qrpay-review-tools select,.qrpay-review-form select,.qrpay-review-form textarea{width:100%;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--text);font:inherit}
+.qrpay-review-tools input,.qrpay-review-tools select,.qrpay-review-form select{height:40px;padding:0 12px}
+.qrpay-review-tools input:focus,.qrpay-review-tools select:focus,.qrpay-review-form select:focus,.qrpay-review-form textarea:focus{border-color:var(--primary);outline:2px solid color-mix(in srgb,var(--primary) 18%,transparent)}
+.qrpay-remark-cell{min-width:170px;max-width:270px}
+.qrpay-remark-cell>span{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:11.5px;line-height:1.45}
+.qrpay-remark-cell>small{display:block;margin-top:3px;color:var(--text-muted);font-size:10px}
 .qrpay-match-success{border-color:#86efac;background:#f0fdf4;color:#166534}
 .qrpay-match-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:rgba(15,23,42,.55);backdrop-filter:blur(2px)}
 .qrpay-match-dialog{width:min(720px,100%);max-height:min(760px,calc(100vh - 40px));overflow:auto;border:1px solid var(--border);border-radius:16px;background:#fff;box-shadow:0 24px 80px rgba(15,23,42,.28)}
@@ -48,13 +66,26 @@
 .qrpay-check small{color:var(--text-secondary);font-size:11.5px}
 .qrpay-check-warning{border-color:#fbbf24;background:#fffbeb;color:#92400e}
 .qrpay-correction-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.qrpay-review-dialog{width:min(620px,100%)}
+.qrpay-review-form{display:grid;gap:14px;padding:18px 22px 22px}
+.qrpay-review-form label{display:grid;gap:6px;color:#334155;font-size:12px;font-weight:700}
+.qrpay-review-form textarea{resize:vertical;min-height:112px;padding:11px 12px;line-height:1.5}
+.qrpay-review-form label small{justify-self:end;color:var(--text-muted);font-weight:400}
+.qrpay-review-policy{display:flex;flex-direction:column;gap:3px;padding:11px 13px;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a}
+.qrpay-review-policy span{font-size:11.5px;line-height:1.45}
+.qrpay-review-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding-top:2px}
+.qrpay-ignore-button{border:1px solid #fed7aa;background:#fff7ed;color:#c2410c}
+.qrpay-ignore-button:hover{background:#ffedd5}
+.qrpay-ignore-button:disabled{cursor:not-allowed;opacity:.5}
 
+@media(max-width:1200px){.qrpay-summary-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:1000px){.qrpay-summary-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){
   .qrpay-summary-actions,.qrpay-summary-note,.qrpay-match-confirm,.qrpay-current-match{align-items:stretch;flex-direction:column}
   .qrpay-summary-actions input,.qrpay-summary-actions .btn,.qrpay-match-confirm .btn{width:100%}
   .qrpay-summary-note>div:last-child{text-align:left}
   .qrpay-summary-metrics{grid-template-columns:1fr}
+  .qrpay-review-tools{grid-template-columns:1fr}
   .qrpay-match-backdrop{align-items:end;padding:0}
   .qrpay-match-dialog{max-height:92vh;border-radius:16px 16px 0 0}
   .qrpay-match-search{grid-template-columns:1fr}
@@ -62,4 +93,5 @@
   .qrpay-candidate>div:nth-child(2){text-align:left}
   .qrpay-current-match>div:last-child{text-align:left}
   .qrpay-correction-actions{display:grid;grid-template-columns:1fr}
+  .qrpay-review-actions{display:grid;grid-template-columns:1fr}
 }

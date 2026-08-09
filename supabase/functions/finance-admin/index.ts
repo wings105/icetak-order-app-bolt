@@ -117,6 +117,26 @@ Deno.serve(async (req) => {
     }
     if (!admin.permissions.includes("manage_finance")) return json({ success: false, error: "Manage Finance permission required" }, 403);
 
+    if (action === "qrpay_review_action") {
+      const transactionId = String(body.transaction_id || "").trim();
+      const reviewAction = String(body.review_action || "").trim();
+      const remark = String(body.remark || "").trim();
+      const category = String(body.category || "").trim() || null;
+      if (!transactionId || !["save_remark", "ignore", "reopen"].includes(reviewAction)) {
+        return json({ success: false, error: "Valid QRPay review action is required" }, 400);
+      }
+      if (remark.length > 2000) return json({ success: false, error: "Remark cannot exceed 2000 characters" }, 400);
+      if (reviewAction === "ignore" && (!remark || !category)) {
+        return json({ success: false, error: "Category and remark are required before ignoring a payment" }, 400);
+      }
+      return json({ success: true, data: await rpc("finance_admin_qrpay_review_action", {
+        p_transaction_id: transactionId,
+        p_action: reviewAction,
+        p_remark: remark || null,
+        p_category: category,
+        p_actor: admin.username,
+      }) });
+    }
     if (action === "qrpay_manual_match") {
       const transactionId = String(body.transaction_id || "").trim();
       const orderNo = String(body.order_no || "").trim();

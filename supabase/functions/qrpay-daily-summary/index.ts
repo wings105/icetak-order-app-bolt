@@ -70,7 +70,7 @@ const formatDate = (value: string) => { const [year, month, day] = value.split("
 
 function buildMessage(summary: Summary, slot: string) {
   const totals = summary.totals || {};
-  const attention = (summary.rows || []).filter((row) => row.workflow_status !== "matched_order").slice(0, 8);
+  const attention = (summary.rows || []).filter((row) => !["matched_order", "ignored"].includes(row.workflow_status)).slice(0, 8);
   const lines = [
     `📊 QRPay Summary — ${formatDate(summary.date)} (${slot === "10am" ? "10:00 AM" : "10:00 PM"})`, "",
     `Jumlah masuk: ${money(totals.total_amount)} · ${Number(totals.total_count || 0)} transaksi`,
@@ -78,6 +78,7 @@ function buildMessage(summary: Summary, slot: string) {
     `🟡 Perlu semakan: ${Number(totals.review_count || 0)} · ${money(totals.review_amount)}`,
     `⏳ Sedang diproses: ${Number(totals.processing_count || 0)} · ${money(totals.processing_amount)}`,
     `🔴 Terlepas / failed: ${Number(totals.missed_count || 0)} · ${money(totals.missed_amount)}`,
+    `⚪ Ignored for order: ${Number(totals.ignored_count || 0)} · ${money(totals.ignored_amount)}`,
   ];
   if (attention.length) {
     lines.push("", "Belum masuk order:");
