@@ -4,11 +4,11 @@ import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
-import QuickOrder from './pages/QuickOrder';
+import QuickOrder, { type LinkedQrPayment } from './pages/QuickOrder';
 import ManualOrder from './pages/ManualOrder';
 import Payments from './pages/Payments';
 import Finance from './pages/Finance';
-import QrPayDailySummary from './pages/QrPayDailySummary';
+import QrPayDailySummary, { type QrPayCreatePayload } from './pages/QrPayDailySummary';
 import Shipping from './pages/Shipping';
 import WhatsAppControl from './pages/WhatsAppControl';
 import WhatsAppTemplates from './pages/WhatsAppTemplates';
@@ -42,19 +42,41 @@ type AdminData = {
 type Props = { adminData?: AdminData };
 
 export default function App({ adminData }: Props) {
-  const linkedOrder = new URLSearchParams(window.location.search).get('order')?.trim() || '';
-  const linkedView = new URLSearchParams(window.location.search).get('view')?.trim() || '';
-  const [page, setPage] = useState(linkedOrder ? 'orders' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : 'dashboard');
+  const initialParams=new URLSearchParams(window.location.search);
+  const linkedOrder = initialParams.get('order')?.trim() || '';
+  const linkedView = initialParams.get('view')?.trim() || '';
+  const initialPayment:LinkedQrPayment|null=initialParams.get('qrpay_tx')?{
+    transactionId:initialParams.get('qrpay_tx')||'',
+    amount:Number(initialParams.get('qrpay_amount')||0),
+    phone:initialParams.get('qrpay_phone')||'',
+    customerName:initialParams.get('qrpay_name')||'',
+    paidAt:initialParams.get('qrpay_paid_at')||'',
+  }:null;
+  const [page, setPage] = useState(linkedOrder ? 'orders' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : linkedView==='quick-order'&&initialPayment?'quick-order':'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [linkedPayment,setLinkedPayment]=useState<LinkedQrPayment|null>(initialPayment);
   const permissions = adminData?.admin?.permissions || [];
 
   const navigate = (key: string) => {
+    setLinkedPayment(null);
     const url = new URL(window.location.href);
     if (key !== 'orders') url.searchParams.delete('order');
     if (key === 'qrpay-summary') url.searchParams.set('view','qrpay-summary');
     else { url.searchParams.delete('view'); url.searchParams.delete('date'); }
+    ['qrpay_tx','qrpay_amount','qrpay_phone','qrpay_name','qrpay_paid_at'].forEach((param)=>url.searchParams.delete(param));
     window.history.replaceState({}, '', url);
     setPage(key); setMobileOpen(false);
+  };
+  const createOrderFromQrPay=(payment:QrPayCreatePayload)=>{
+    setLinkedPayment(payment);
+    const url=new URL(window.location.href);
+    url.searchParams.set('admin','v2');url.searchParams.set('view','quick-order');
+    url.searchParams.set('qrpay_tx',payment.transactionId);url.searchParams.set('qrpay_amount',String(payment.amount));
+    url.searchParams.set('qrpay_phone',payment.phone);url.searchParams.set('qrpay_name',payment.customerName);
+    url.searchParams.set('qrpay_paid_at',payment.paidAt);
+    url.searchParams.delete('date');url.searchParams.delete('order');
+    window.history.replaceState({},'',url);
+    setPage('quick-order');setMobileOpen(false);
   };
   const openOrder = (orderNo: string) => {
     const url = new URL(window.location.href);
@@ -62,6 +84,7 @@ export default function App({ adminData }: Props) {
     url.searchParams.set('order',orderNo);
     url.searchParams.delete('view');
     url.searchParams.delete('date');
+    ['qrpay_tx','qrpay_amount','qrpay_phone','qrpay_name','qrpay_paid_at'].forEach((param)=>url.searchParams.delete(param));
     window.history.replaceState({},'',url);
     setPage('orders');
   };
@@ -78,11 +101,11 @@ export default function App({ adminData }: Props) {
     switch (page) {
       case 'dashboard': return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'orders': return <Orders permissions={permissions} initialOrder={linkedOrder} />;
-      case 'quick-order': return <QuickOrder permissions={permissions} onOpenOrder={openOrder} />;
+      case 'quick-order': return <QuickOrder permissions={permissions} onOpenOrder={openOrder} linkedPayment={linkedPayment} />;
       case 'manual-order': return <ManualOrder permissions={permissions} onOpenOrder={openOrder} />;
       case 'payments': return <Payments onOpenOrder={openOrder} />;
       case 'finance': return permissions.includes('view_finance') ? <Finance canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
-      case 'qrpay-summary': return permissions.includes('view_finance') ? <QrPayDailySummary canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
+      case 'qrpay-summary': return permissions.includes('view_finance') ? <QrPayDailySummary canManage={permissions.includes('manage_finance')} onCreateOrder={permissions.includes('create_order')&&permissions.includes('verify_payments')?createOrderFromQrPay:undefined} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'shipping': return <Shipping />;
       case 'whatsapp-control': return <WhatsAppControl />;
       case 'whatsapp-templates': return <WhatsAppTemplates />;
