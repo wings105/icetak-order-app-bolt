@@ -4,6 +4,7 @@ import {
   ADMIN_PRODUCTS, DELIVERY, adminProductPrice, adminProductStyles,
   normalizeMalaysiaPhone, type AdminProductKind, type DeliveryKind, type ProductReview,
 } from '../lib/orderProducts';
+import { parseMalaysiaAddress, type ParsedMalaysiaAddress } from '../lib/addressParser';
 
  type ItemDraft = {
   id: string;
@@ -50,7 +51,10 @@ type LookupAddress = {
 
 type LookupCustomer = { id: string; name: string; phone: string; addresses?: LookupAddress[] };
 
-type PaidItem = { id: string; kind: AdminProductKind; title: string; qty: number; price: number; size: string; style: string; review: ProductReview; customText: string };
+type PaidItem = {
+  id:string; kind:AdminProductKind; title:string; qty:number; price:number; process:string;
+  size:string; style:string; review:ProductReview; customText:string; referenceUrl:string;
+};
 
 type PaidResult = {
   order_id: string;
@@ -76,7 +80,11 @@ const makeQuickItem = (kind: AdminProductKind): ItemDraft => {
   return { id: crypto.randomUUID(), kind, qty: 1, process: p.process[0], size: p.defaultSize, style: p.defaultStyle, review: p.defaultReview, wording: '', referenceUrl: '' };
 };
 
-const makePaidItem = (): PaidItem => ({ id: crypto.randomUUID(), kind: 'edible', title: 'Edible Image', qty: 1, price: 0, size: '', style: '', review: 'No Review', customText: '' });
+const makePaidItem = (kind:AdminProductKind='edible'): PaidItem => {
+  const product=ADMIN_PRODUCTS[kind];
+  const process=product.process[0],size=product.defaultSize,style=product.defaultStyle,review=product.defaultReview;
+  return {id:crypto.randomUUID(),kind,title:product.label,qty:1,price:adminProductPrice(kind,process,size,style,review),process,size,style,review,customText:'',referenceUrl:''};
+};
 
 const money = (n: number) => `RM ${Number(n || 0).toFixed(2)}`;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -300,6 +308,9 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
   const [paidAt, setPaidAt] = useState(localDateTime(linkedPayment?.paidAt));
   const [receiptNote, setReceiptNote] = useState(linkedPayment?'Linked from QRPay Daily':'');
   const [matches, setMatches] = useState<LookupCustomer[]>([]);
+  const [addressModal,setAddressModal]=useState(false);
+  const [addressPaste,setAddressPaste]=useState('');
+  const [addressParse,setAddressParse]=useState<ParsedMalaysiaAddress|null>(null);
   const [result, setResult] = useState<PaidResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -307,6 +318,7 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
   const total = useMemo(() => items.reduce((sum, item) => sum + Math.max(1, item.qty) * Math.max(0, item.price), 0) + deliveryFee, [items, deliveryFee]);
   const linkedAmount=Number(linkedPayment?.amount||0);
   const linkedAmountMatches=!linkedPayment||Math.abs(total-linkedAmount)<0.01;
+  const addressComplete=Boolean(address.address_line1.trim()&&address.city.trim()&&address.postcode.trim()&&address.state.trim());
 
   useEffect(() => { if (delivery === 'pickup') setDeliveryFee(0); else setDeliveryFee(DELIVERY[delivery].fee); }, [delivery]);
 
@@ -325,6 +337,21 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
     setMatches([]);
   };
 
+  const parseAddress=()=>{
+    const parsed=parseMalaysiaAddress(addressPaste);
+    setAddressParse(parsed);
+    if(parsed.name)setName(parsed.name);
+    if(parsed.phone)setPhone(parsed.phone);
+    setAddress((current)=>({
+      address_line1:parsed.addressLine1||current.address_line1,
+      address_line2:parsed.addressLine2||current.address_line2,
+      city:parsed.city||current.city,
+      postcode:parsed.postcode||current.postcode,
+      state:parsed.state||current.state,
+    }));
+    if(parsed.addressLine1||parsed.postcode||parsed.city||parsed.state)setAddressModal(false);
+  };
+
   const submit = async () => {
     setError(null);
     const normalized = normalizeMalaysiaPhone(phone);
@@ -333,18 +360,22 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
     if (!dateNeed) return setError('Date Need diperlukan.');
     if (!transactionId.trim()) return setError('Transaction/reference ID QR diperlukan.');
     if (!items.length || items.some((i) => !i.title.trim() || i.qty < 1 || i.price < 0)) return setError('Semak item, qty dan harga.');
-    if (delivery !== 'pickup' && (!address.address_line1.trim() || !address.city.trim() || !address.postcode.trim() || !address.state.trim())) return setError('Lengkapkan alamat penghantaran.');
     if (!linkedAmountMatches) return setError(`Jumlah item + delivery mesti sama dengan QRPay ${money(linkedAmount)}.`);
 
     setBusy(true);
     const payload = {
       client_request_id: requestId.current,
       customer: { name: name.trim(), phone: normalized, ...address },
-      items: items.map((i) => ({ k: i.kind, title: i.title.trim(), process: 'Pre-order', review: i.review, size: i.size, style: i.style, customText: i.customText, price: i.price, qty: i.qty })),
+      items: items.map((i) => ({
+        k:i.kind,title:i.title.trim(),process:i.process,review:i.review,size:i.size,style:i.style,
+        customText:i.customText,price:i.price,qty:i.qty,
+        product_snapshot:i.referenceUrl.trim()?{image_url:i.referenceUrl.trim(),quick_arrange_kind:i.kind}:{quick_arrange_kind:i.kind},
+        customization:i.referenceUrl.trim()?{reference_url:i.referenceUrl.trim()}:{}
+      })),
       date_need: dateNeed,
       delivery,
       delivery_fee: deliveryFee,
-      admin_remark: adminRemark.trim(),
+      admin_remark:[adminRemark.trim(),delivery!=='pickup'&&!addressComplete?'[ADDRESS PENDING - lengkapkan sebelum shipping]':''].filter(Boolean).join('\n'),
       notify_whatsapp: notifyWhatsapp,
       payment: { method: 'Manual QR Pay', transaction_id: transactionId.trim(), sender_name: senderName.trim(), paid_at: paidAt, amount: linkedPayment?linkedAmount:total, receipt_note: receiptNote.trim() },
     };
@@ -361,7 +392,7 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
       {error && <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: '#fef3f2', color: '#b42318' }}>{error}</div>}
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div className="panel">
-          <div className="panel-header"><div><div className="panel-title">Customer & delivery</div><div className="panel-subtitle">Manual QR payment is verified during creation</div></div></div>
+          <div className="panel-header"><div><div className="panel-title">Customer & delivery</div><div className="panel-subtitle">Alamat boleh dilengkapkan kemudian sebelum shipping</div></div><button className="btn btn-outline" onClick={()=>{setAddressParse(null);setAddressModal(true);}}>Paste & Parse Address</button></div>
           <div style={{ padding: 18, display: 'grid', gap: 10 }}>
             <Field label="WhatsApp *"><div style={{ display: 'flex', gap: 8 }}><input style={{ flex: 1 }} value={phone} onChange={(e) => setPhone(e.target.value)} /><button className="btn btn-outline" onClick={() => void lookup()}>Find Customer</button></div></Field>
             {matches.length > 0 && <div style={{ display: 'grid', gap: 6 }}>{matches.map((c) => <button key={c.id} className="btn btn-outline" onClick={() => useCustomer(c)}>{c.name} · {c.phone}</button>)}</div>}
@@ -369,7 +400,7 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
             <Field label="Date Need *"><input type="date" min={today()} value={dateNeed} onChange={(e) => setDateNeed(e.target.value)} /></Field>
             <Field label="Delivery"><select value={delivery} onChange={(e) => setDelivery(e.target.value as DeliveryKind)}>{(Object.keys(DELIVERY) as DeliveryKind[]).map((key) => <option key={key} value={key}>{DELIVERY[key].label}</option>)}</select></Field>
             <Field label="Delivery fee"><input type="number" min={0} step="0.1" value={deliveryFee} onChange={(e) => setDeliveryFee(Number(e.target.value || 0))} /></Field>
-            {delivery !== 'pickup' && <><Field label="Address line 1 *"><input value={address.address_line1} onChange={(e) => setAddress({ ...address, address_line1: e.target.value })} /></Field><Field label="Address line 2"><input value={address.address_line2} onChange={(e) => setAddress({ ...address, address_line2: e.target.value })} /></Field><Field label="City *"><input value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} /></Field><Field label="Postcode *"><input value={address.postcode} onChange={(e) => setAddress({ ...address, postcode: e.target.value })} /></Field><Field label="State *"><input value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} /></Field></>}
+            {delivery !== 'pickup' && <><Field label="Address line 1"><input value={address.address_line1} onChange={(e) => setAddress({ ...address, address_line1: e.target.value })} /></Field><Field label="Address line 2"><input value={address.address_line2} onChange={(e) => setAddress({ ...address, address_line2: e.target.value })} /></Field><Field label="City"><input value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} /></Field><Field label="Postcode"><input value={address.postcode} onChange={(e) => setAddress({ ...address, postcode: e.target.value })} /></Field><Field label="State"><input value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} /></Field>{!addressComplete&&<div className="finance-alert"><b>Alamat belum lengkap</b><span>Order masih boleh disimpan. Lengkapkan alamat sebelum proses shipping.</span></div>}</>}
             <Field label="Admin remark"><textarea rows={3} value={adminRemark} onChange={(e) => setAdminRemark(e.target.value)} /></Field>
           </div>
         </div>
@@ -392,12 +423,23 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
           </div>
         </div>
       </div>
+      {addressModal&&<AddressPasteModal value={addressPaste} parsed={addressParse} onChange={setAddressPaste} onParse={parseAddress} onClose={()=>setAddressModal(false)}/>}
     </>
   );
 }
 
 function PaidItemRow({ item, index, onChange, onRemove }: { item: PaidItem; index: number; onChange: (patch: Partial<PaidItem>) => void; onRemove: () => void }) {
-  return <div style={{ border: '1px solid var(--border-light)', borderRadius: 12, padding: 12 }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}><b>Item {index + 1}</b><button className="btn btn-outline" disabled={index === 0} onClick={onRemove}>Remove</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))', gap: 8 }}><Field label="Product"><select value={item.kind} onChange={(e) => { const kind = e.target.value as AdminProductKind; onChange({ kind, title: ADMIN_PRODUCTS[kind].label }); }}>{(Object.keys(ADMIN_PRODUCTS) as AdminProductKind[]).map((k) => <option key={k} value={k}>{ADMIN_PRODUCTS[k].shortLabel}</option>)}</select></Field><Field label="Item name"><input value={item.title} onChange={(e) => onChange({ title: e.target.value })} /></Field><Field label="Qty"><input type="number" min={1} value={item.qty} onChange={(e) => onChange({ qty: Math.max(1, Number(e.target.value || 1)) })} /></Field><Field label="Unit price"><input type="number" min={0} step="0.01" value={item.price} onChange={(e) => onChange({ price: Math.max(0, Number(e.target.value || 0)) })} /></Field><Field label="Size"><input value={item.size} onChange={(e) => onChange({ size: e.target.value })} /></Field><Field label="Style"><input value={item.style} onChange={(e) => onChange({ style: e.target.value })} /></Field><Field label="Review"><select value={item.review} onChange={(e) => onChange({ review: e.target.value as ProductReview })}><option>No Review</option><option>Need Review</option></select></Field><Field label="Custom detail"><input value={item.customText} onChange={(e) => onChange({ customText: e.target.value })} /></Field></div></div>;
+  const product=ADMIN_PRODUCTS[item.kind];
+  const styles=adminProductStyles(item.kind,item.size);
+  const standardPrice=(patch:Partial<PaidItem>)=>{
+    const next={...item,...patch};
+    return adminProductPrice(next.kind,next.process,next.size,next.style,next.review);
+  };
+  return <div style={{ border: '1px solid var(--border-light)', borderRadius: 12, padding: 12 }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}><b>Item {index + 1}</b><button className="btn btn-outline" disabled={index === 0} onClick={onRemove}>Remove</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(145px,1fr))', gap: 8 }}><Field label="Product"><select value={item.kind} onChange={(e) => {const next=makePaidItem(e.target.value as AdminProductKind);onChange({...next,id:item.id});}}>{(Object.keys(ADMIN_PRODUCTS) as AdminProductKind[]).map((k) => <option key={k} value={k}>{ADMIN_PRODUCTS[k].shortLabel}</option>)}</select></Field><Field label="Process"><select value={item.process} onChange={(e)=>{const process=e.target.value;onChange({process,price:standardPrice({process})});}}>{product.process.map((value)=><option key={value}>{value}</option>)}</select></Field><Field label="Review"><select value={item.review} onChange={(e)=>{const review=e.target.value as ProductReview;onChange({review,price:standardPrice({review})});}}><option>No Review</option><option>Need Review</option></select></Field><Field label="Size"><select value={item.size} onChange={(e)=>{const size=e.target.value;const nextStyles=adminProductStyles(item.kind,size);const style=nextStyles.includes(item.style)?item.style:nextStyles[0];onChange({size,style,price:standardPrice({size,style})});}}>{product.sizes.map((value)=><option key={value}>{value}</option>)}</select></Field><Field label="Style / Colour"><select value={item.style} onChange={(e)=>{const style=e.target.value;onChange({style,price:standardPrice({style})});}}>{styles.map((value)=><option key={value}>{value}</option>)}</select></Field><Field label="Qty"><input type="number" min={1} value={item.qty} onChange={(e) => onChange({ qty: Math.max(1, Number(e.target.value || 1)) })} /></Field><Field label="Unit price"><input type="number" min={0} step="0.01" value={item.price} onChange={(e) => onChange({ price: Math.max(0, Number(e.target.value || 0)) })} /></Field><Field label="Wording / detail"><input value={item.customText} onChange={(e) => onChange({ customText: e.target.value })} /></Field><Field label="Reference URL"><input type="url" value={item.referenceUrl} onChange={(e)=>onChange({referenceUrl:e.target.value})} placeholder="https://..."/></Field></div></div>;
+}
+
+function AddressPasteModal({value,parsed,onChange,onParse,onClose}:{value:string;parsed:ParsedMalaysiaAddress|null;onChange:(value:string)=>void;onParse:()=>void;onClose:()=>void}){
+  return <div className="qrpay-match-backdrop" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget)onClose();}}><section className="qrpay-match-dialog" role="dialog" aria-modal="true" aria-labelledby="address-paste-title"><div className="qrpay-match-head"><div><h2 id="address-paste-title">Paste & Parse Address</h2><p>Paste alamat WhatsApp dalam apa-apa format. Semak semula selepas sistem isi form.</p></div><button className="qrpay-match-close" onClick={onClose} aria-label="Close">×</button></div><div className="qrpay-match-body"><textarea rows={8} autoFocus value={value} onChange={(event)=>onChange(event.target.value)} placeholder="Nama, alamat, poskod bandar, negeri, telefon" style={{width:'100%',resize:'vertical'}}/>{parsed&&parsed.missing.length>0&&<div className="finance-alert"><b>Sebahagian maklumat belum dijumpai</b><span>{parsed.missing.join(', ')} — isi secara manual selepas parse.</span></div>}<div style={{display:'flex',justifyContent:'flex-end',gap:8}}><button className="btn btn-outline" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={!value.trim()} onClick={onParse}>Parse & Fill Form</button></div></div></section></div>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
