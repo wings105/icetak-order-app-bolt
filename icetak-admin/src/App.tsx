@@ -82,7 +82,7 @@ export default function App({ adminData }: Props) {
       case 'manual-order': return <ManualOrder permissions={permissions} onOpenOrder={openOrder} />;
       case 'payments': return <Payments onOpenOrder={openOrder} />;
       case 'finance': return permissions.includes('view_finance') ? <Finance canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
-      case 'qrpay-summary': return permissions.includes('view_finance') ? <QrPayDailySummary onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
+      case 'qrpay-summary': return permissions.includes('view_finance') ? <QrPayDailySummary canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'shipping': return <Shipping />;
       case 'whatsapp-control': return <WhatsAppControl />;
       case 'whatsapp-templates': return <WhatsAppTemplates />;

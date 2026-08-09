@@ -1,1 +1,52 @@
-.qrpay-summary-page{padding-bottom:24px}.qrpay-summary-actions{display:flex;gap:8px;align-items:center}.qrpay-summary-actions input{height:40px;padding:0 12px;border:1px solid var(--border);border-radius:9px;background:#fff}.qrpay-summary-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}.qrpay-summary-note{display:flex;justify-content:space-between;gap:20px;margin-bottom:16px;padding:14px 18px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff}.qrpay-summary-note>div{display:flex;flex-direction:column;gap:3px}.qrpay-summary-note>div:last-child{text-align:right}.qrpay-summary-note span,.qrpay-unresolved span{color:var(--text-secondary);font-size:11.5px}.qrpay-unresolved{display:flex;flex-direction:column;text-align:right}.qrpay-unresolved b{font-size:20px;color:#b45309}.qrpay-phone{display:inline-block;margin-top:3px;color:var(--primary);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;font-weight:700}.qrpay-row-missed{background:#fff7f7}.qrpay-row-missed:hover{background:#feecec}@media(max-width:1000px){.qrpay-summary-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:640px){.qrpay-summary-actions,.qrpay-summary-note{align-items:stretch;flex-direction:column}.qrpay-summary-actions input,.qrpay-summary-actions .btn{width:100%}.qrpay-summary-note>div:last-child{text-align:left}.qrpay-summary-metrics{grid-template-columns:1fr}}
+.qrpay-summary-page{padding-bottom:24px}
+.qrpay-summary-actions{display:flex;gap:8px;align-items:center}
+.qrpay-summary-actions input{height:40px;padding:0 12px;border:1px solid var(--border);border-radius:9px;background:#fff}
+.qrpay-summary-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.qrpay-summary-note{display:flex;justify-content:space-between;gap:20px;margin-bottom:16px;padding:14px 18px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff}
+.qrpay-summary-note>div{display:flex;flex-direction:column;gap:3px}
+.qrpay-summary-note>div:last-child{text-align:right}
+.qrpay-summary-note span,.qrpay-unresolved span{color:var(--text-secondary);font-size:11.5px}
+.qrpay-unresolved{display:flex;flex-direction:column;text-align:right}
+.qrpay-unresolved b{font-size:20px;color:#b45309}
+.qrpay-phone{display:inline-block;margin-top:3px;color:var(--primary);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;font-weight:700}
+.qrpay-row-missed{background:#fff7f7}
+.qrpay-row-missed:hover{background:#feecec}
+.qrpay-proceed-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.qrpay-match-success{border-color:#86efac;background:#f0fdf4;color:#166534}
+.qrpay-match-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:rgba(15,23,42,.55);backdrop-filter:blur(2px)}
+.qrpay-match-dialog{width:min(720px,100%);max-height:min(760px,calc(100vh - 40px));overflow:auto;border:1px solid var(--border);border-radius:16px;background:#fff;box-shadow:0 24px 80px rgba(15,23,42,.28)}
+.qrpay-match-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px 16px;border-bottom:1px solid var(--border)}
+.qrpay-match-head h2{margin:0 0 4px;font-size:20px}
+.qrpay-match-head p{margin:0;color:var(--text-secondary);font-size:12px}
+.qrpay-match-close{width:34px;height:34px;border:0;border-radius:9px;background:#f1f5f9;color:#475569;font-size:23px;line-height:1;cursor:pointer}
+.qrpay-match-search{display:grid;grid-template-columns:1fr auto;gap:9px;padding:16px 22px}
+.qrpay-match-search input{height:42px;padding:0 13px;border:1px solid var(--border);border-radius:9px;font:inherit}
+.qrpay-match-search input:focus{border-color:var(--primary);outline:2px solid color-mix(in srgb,var(--primary) 18%,transparent)}
+.qrpay-match-body{padding:0 22px 22px}
+.qrpay-candidate-list{display:flex;flex-direction:column;gap:8px;max-height:330px;overflow:auto}
+.qrpay-candidate{display:grid;grid-template-columns:1fr auto;gap:8px 20px;width:100%;padding:13px 14px;border:1px solid var(--border);border-radius:11px;background:#fff;text-align:left;cursor:pointer}
+.qrpay-candidate:hover{border-color:#93c5fd;background:#f8fbff}
+.qrpay-candidate.active{border-color:var(--primary);background:#eff6ff;box-shadow:0 0 0 1px var(--primary)}
+.qrpay-candidate:disabled{cursor:not-allowed;opacity:.55}
+.qrpay-candidate>div{display:flex;flex-direction:column;gap:3px}
+.qrpay-candidate>div:nth-child(2){text-align:right}
+.qrpay-candidate span{color:var(--text-secondary);font-size:11.5px}
+.qrpay-candidate em{grid-column:1/-1;color:#b91c1c;font-size:11.5px;font-style:normal}
+.qrpay-match-confirm{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.qrpay-match-confirm>div{display:flex;flex-direction:column;gap:4px}
+.qrpay-match-confirm span{font-size:11.5px}
+.qrpay-match-warning{color:#92400e}
+.qrpay-match-ok{color:#166534}
+
+@media(max-width:1000px){.qrpay-summary-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){
+  .qrpay-summary-actions,.qrpay-summary-note,.qrpay-match-confirm{align-items:stretch;flex-direction:column}
+  .qrpay-summary-actions input,.qrpay-summary-actions .btn,.qrpay-match-confirm .btn{width:100%}
+  .qrpay-summary-note>div:last-child{text-align:left}
+  .qrpay-summary-metrics{grid-template-columns:1fr}
+  .qrpay-match-backdrop{align-items:end;padding:0}
+  .qrpay-match-dialog{max-height:92vh;border-radius:16px 16px 0 0}
+  .qrpay-match-search{grid-template-columns:1fr}
+  .qrpay-candidate{grid-template-columns:1fr}
+  .qrpay-candidate>div:nth-child(2){text-align:left}
+}
