@@ -129,6 +129,30 @@ Deno.serve(async (req) => {
       });
       return json({ success: data?.success !== false, data, error: data?.success === false ? "Confirmation required before matching" : undefined });
     }
+    if (action === "qrpay_correct_match") {
+      const transactionId = String(body.transaction_id || "").trim();
+      const correctionAction = String(body.correction_action || "").trim();
+      if (!transactionId || !["unmatch", "unmatch_create", "relink"].includes(correctionAction)) {
+        return json({ success: false, error: "Valid QRPay correction action is required" }, 400);
+      }
+      if (correctionAction === "relink" && !String(body.target_order_no || "").trim()) {
+        return json({ success: false, error: "Target order is required for relink" }, 400);
+      }
+      const data = await rpc("finance_admin_correct_qrpay_match", {
+        p_transaction_id: transactionId,
+        p_action: correctionAction,
+        p_target_order_no: String(body.target_order_no || "").trim() || null,
+        p_actor: admin.username,
+        p_confirm_processed: body.confirm_processed === true,
+        p_confirm_mismatch: body.confirm_mismatch === true,
+        p_cancel_source: body.cancel_source === true,
+      });
+      return json({
+        success: data?.success !== false,
+        data,
+        error: data?.success === false ? "Confirmation required before correcting this match" : undefined,
+      });
+    }
 
     if (action === "classify") {
       const transactionId = Number(body.transaction_id);

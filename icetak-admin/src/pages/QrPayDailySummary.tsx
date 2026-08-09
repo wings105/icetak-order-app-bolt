@@ -26,13 +26,25 @@ type Candidate = {
 };
 type CandidateData = {
   transaction?: { transaction_id:string; amount:number|string; paid_at:string; provider:string; phone:string|null; customer_name:string|null };
-  already_matched:boolean; candidates:Candidate[];
+  already_matched:boolean;
+  current_order?: {
+    order_id:string; order_no:string; total:number|string; status:string|null; admin_status:string|null;
+    payment_status:string|null; source:string|null; can_cancel_source:boolean; item_count:number;
+    component_count:number; clickup_count:number; clickup_statuses:string[]; shipment_count:number;
+    shipment_statuses:string[]; requires_processed_confirmation:boolean;
+  }|null;
+  candidates:Candidate[];
 };
 type MatchData = {
   success:boolean; requires_confirmation?:boolean; order_no?:string; payment_amount?:number|string;
   order_total?:number|string; amount_difference?:number|string; phone_match?:boolean;
   paid_after?:number|string; remaining_after?:number|string; overpaid_after?:number|string;
   settlement_status?:'partial'|'settled'|'overpaid';
+};
+type CorrectionData = {
+  success:boolean; action:'unmatch'|'unmatch_create'|'relink'; transaction_id:string;
+  amount:number|string; paid_at:string; sender_name:string|null; phone:string|null;
+  source_order_no:string; target_order_no?:string|null; source_cancelled:boolean;
 };
 export type QrPayCreatePayload = {
   transactionId:string; amount:number; phone:string; customerName:string; paidAt:string;
@@ -80,6 +92,8 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
   const [selected,setSelected]=useState<Candidate|null>(null);
   const [matchLoading,setMatchLoading]=useState(false);
   const [matchError,setMatchError]=useState<string|null>(null);
+  const [confirmProcessed,setConfirmProcessed]=useState(false);
+  const [cancelSource,setCancelSource]=useState(false);
 
   const load=useCallback(async()=>{
     setLoading(true);setError(null);
@@ -96,17 +110,17 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
     try{
       const data=await invokeFinance<CandidateData>({action:'qrpay_match_candidates',transaction_id:row.transaction_id,query:query.trim()||null});
       setCandidateData(data);
-      setSelected(data.candidates.find((candidate)=>candidate.can_match)||null);
+      setSelected(data.already_matched?null:data.candidates.find((candidate)=>candidate.can_match)||null);
     }catch(e){setCandidateData(null);setMatchError(e instanceof Error?e.message:'Order search failed');}
     finally{setMatchLoading(false);}
   },[]);
 
   const openMatch=(row:Row)=>{
-    const query=row.order_no||row.phone||'';
-    setMatchRow(row);setMatchQuery(query);setCandidateData(null);setSelected(null);setMatchError(null);
+    const query=row.phone||'';
+    setMatchRow(row);setMatchQuery(query);setCandidateData(null);setSelected(null);setMatchError(null);setConfirmProcessed(false);setCancelSource(false);
     void searchCandidates(row,'');
   };
-  const closeMatch=()=>{if(!matchLoading){setMatchRow(null);setCandidateData(null);setSelected(null);setMatchError(null);}};
+  const closeMatch=()=>{if(!matchLoading){setMatchRow(null);setCandidateData(null);setSelected(null);setMatchError(null);setConfirmProcessed(false);setCancelSource(false);}};
   const submitSearch=(event:FormEvent)=>{event.preventDefault();if(matchRow)void searchCandidates(matchRow,matchQuery);};
   const confirmMatch=async()=>{
     if(!matchRow||!selected)return;
@@ -120,6 +134,27 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
       setMatchRow(null);setCandidateData(null);setSelected(null);
       await load();
     }catch(e){setMatchError(e instanceof Error?e.message:'Manual match failed');}
+    finally{setMatchLoading(false);}
+  };
+  const correctMatch=async(correctionAction:'unmatch'|'unmatch_create'|'relink')=>{
+    if(!matchRow||!candidateData?.already_matched)return;
+    if(correctionAction==='relink'&&!selected)return;
+    setMatchLoading(true);setMatchError(null);
+    try{
+      const data=await invokeFinance<CorrectionData>({
+        action:'qrpay_correct_match',transaction_id:matchRow.transaction_id,correction_action:correctionAction,
+        target_order_no:correctionAction==='relink'?selected?.order_no:null,
+        confirm_processed:confirmProcessed,confirm_mismatch:correctionAction==='relink'&&Boolean(selected&&(!selected.phone_match||Number(selected.overpaid_after||0)>=0.01)),
+        cancel_source:cancelSource,
+      });
+      const message=correctionAction==='relink'
+        ?`${matchRow.transaction_id} dipindahkan daripada ${data.source_order_no} kepada ${data.target_order_no||selected?.order_no}.`
+        :`${matchRow.transaction_id} sudah di-unmatch daripada ${data.source_order_no}${data.source_cancelled?' dan order asal dibatalkan':''}.`;
+      setSuccess(message);setMatchRow(null);setCandidateData(null);setSelected(null);setConfirmProcessed(false);setCancelSource(false);
+      if(correctionAction==='unmatch_create'&&onCreateOrder){
+        onCreateOrder({transactionId:data.transaction_id,amount:Number(data.amount),phone:data.phone||matchRow.phone||'',customerName:data.sender_name||matchRow.sender_name||'',paidAt:data.paid_at});
+      }else await load();
+    }catch(e){setMatchError(e instanceof Error?e.message:'QRPay correction failed');}
     finally{setMatchLoading(false);}
   };
 
@@ -137,16 +172,23 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
       </div>
       <div className="qrpay-summary-note"><div><b>Automation 10:00 AM & 10:00 PM</b><span>WhatsApp dihantar ke nombor admin order. Setiap slot mempunyai idempotency dan retry.</span></div><div><b>{summary.delivery?.status?summary.delivery.status.toUpperCase():'WAITING'}</b><span>{summary.delivery?.sent_at?`Last sent ${dateTime(summary.delivery.sent_at)}`:'Belum dihantar untuk tarikh ini'}</span></div></div>
       <div className="panel"><div className="panel-header"><div><div className="panel-title">QRPay {summary.date}</div><div className="panel-subtitle">{summary.rows.length} transaksi · Generated {dateTime(summary.generated_at)} · MYT</div></div><div className="qrpay-unresolved"><b>{totals?.unresolved_count||0}</b><span>belum masuk order</span></div></div>
-        <div className="table-wrap">{summary.rows.length===0?<div className="empty"><div className="empty-title">Tiada QRPay diterima pada tarikh ini.</div></div>:<table><thead><tr><th>Time</th><th>Transaction</th><th>Customer / Phone</th><th>Amount</th><th>Status</th><th>Proceed</th></tr></thead><tbody>{summary.rows.map((row)=>{const status=statusInfo(row);return <tr key={row.transaction_id} className={row.workflow_status==='missed'?'qrpay-row-missed':'row-hover'}><td className="cell-sub">{time(row.paid_at)}</td><td><div className="cell-id">{row.transaction_id}</div><div className="cell-sub">{row.provider}</div></td><td><div className="cell-name">{row.sender_name||'Customer belum dikenal pasti'}</div>{row.phone?<a className="qrpay-phone" href={row.whatsapp_link||undefined} target="_blank" rel="noreferrer">{row.phone}</a>:<div className="cell-sub">Phone belum jumpa</div>}</td><td className="cell-amount">{money(row.amount)}</td><td><span className={`badge ${status.cls}`}>{status.label}</span>{row.job_status&&<div className="cell-sub">AI: {row.job_status.replaceAll('_',' ')}</div>}</td><td><div className="qrpay-proceed-actions">{row.order_no?<button className="finance-order-link" onClick={()=>onOpenOrder?.(row.order_no!)}>{row.order_no}</button>:canManage?<><button className="btn btn-primary btn-sm" onClick={()=>openMatch(row)}>Match Order</button>{onCreateOrder&&<button className="btn btn-outline btn-sm" onClick={()=>onCreateOrder({transactionId:row.transaction_id,amount:Number(row.amount),phone:row.phone||'',customerName:row.sender_name||'',paidAt:row.paid_at})}>Create Order</button>}</>:row.whatsapp_link?<a className="btn btn-outline btn-sm" href={row.whatsapp_link} target="_blank" rel="noreferrer">WhatsApp</a>:<span className="cell-sub">Semak payment</span>}{!row.order_no&&canManage&&row.whatsapp_link&&<a className="btn btn-outline btn-sm" href={row.whatsapp_link} target="_blank" rel="noreferrer">WhatsApp</a>}</div></td></tr>})}</tbody></table>}</div>
+        <div className="table-wrap">{summary.rows.length===0?<div className="empty"><div className="empty-title">Tiada QRPay diterima pada tarikh ini.</div></div>:<table><thead><tr><th>Time</th><th>Transaction</th><th>Customer / Phone</th><th>Amount</th><th>Status</th><th>Proceed</th></tr></thead><tbody>{summary.rows.map((row)=>{const status=statusInfo(row);return <tr key={row.transaction_id} className={row.workflow_status==='missed'?'qrpay-row-missed':'row-hover'}><td className="cell-sub">{time(row.paid_at)}</td><td><div className="cell-id">{row.transaction_id}</div><div className="cell-sub">{row.provider}</div></td><td><div className="cell-name">{row.sender_name||'Customer belum dikenal pasti'}</div>{row.phone?<a className="qrpay-phone" href={row.whatsapp_link||undefined} target="_blank" rel="noreferrer">{row.phone}</a>:<div className="cell-sub">Phone belum jumpa</div>}</td><td className="cell-amount">{money(row.amount)}</td><td><span className={`badge ${status.cls}`}>{status.label}</span>{row.job_status&&<div className="cell-sub">AI: {row.job_status.replaceAll('_',' ')}</div>}</td><td><div className="qrpay-proceed-actions">{row.order_no?<><button className="finance-order-link" onClick={()=>onOpenOrder?.(row.order_no!)}>{row.order_no}</button>{canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openMatch(row)}>Manage Match</button>}</>:canManage?<><button className="btn btn-primary btn-sm" onClick={()=>openMatch(row)}>Match Order</button>{onCreateOrder&&<button className="btn btn-outline btn-sm" onClick={()=>onCreateOrder({transactionId:row.transaction_id,amount:Number(row.amount),phone:row.phone||'',customerName:row.sender_name||'',paidAt:row.paid_at})}>Create Order</button>}</>:row.whatsapp_link?<a className="btn btn-outline btn-sm" href={row.whatsapp_link} target="_blank" rel="noreferrer">WhatsApp</a>:<span className="cell-sub">Semak payment</span>}{!row.order_no&&canManage&&row.whatsapp_link&&<a className="btn btn-outline btn-sm" href={row.whatsapp_link} target="_blank" rel="noreferrer">WhatsApp</a>}</div></td></tr>})}</tbody></table>}</div>
       </div>
     </>}
     {matchRow&&<div className="qrpay-match-backdrop" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget)closeMatch();}}><section className="qrpay-match-dialog" role="dialog" aria-modal="true" aria-labelledby="qrpay-match-title">
-      <div className="qrpay-match-head"><div><h2 id="qrpay-match-title">Match QRPay ke Order</h2><p>{matchRow.transaction_id} · {money(matchRow.amount)} · {matchRow.phone||'phone belum jumpa'}</p></div><button className="qrpay-match-close" onClick={closeMatch} aria-label="Close">×</button></div>
+      <div className="qrpay-match-head"><div><h2 id="qrpay-match-title">{matchRow.order_no?'Manage QRPay Match':'Match QRPay ke Order'}</h2><p>{matchRow.transaction_id} · {money(matchRow.amount)} · {matchRow.phone||'phone belum jumpa'}</p></div><button className="qrpay-match-close" onClick={closeMatch} aria-label="Close">×</button></div>
       <form className="qrpay-match-search" onSubmit={submitSearch}><input autoFocus value={matchQuery} onChange={(event)=>setMatchQuery(event.target.value)} placeholder="Order ID, phone atau nama customer"/><button className="btn btn-outline" disabled={matchLoading}>Cari</button></form>
       {matchError&&<div className="finance-alert"><b>Match error</b><span>{matchError}</span></div>}
       {matchLoading&&!candidateData?<div className="loading"><span className="spinner"/> Mencari order…</div>:candidateData&&<div className="qrpay-match-body">
-        {candidateData.already_matched?<div className="empty"><div className="empty-title">Transaction ini sudah dipadankan.</div></div>:candidateData.candidates.length===0?<div className="empty"><div className="empty-title">Order tidak dijumpai.</div><div className="cell-sub">Masukkan Order ID penuh seperti IC260808-3730.</div></div>:<div className="qrpay-candidate-list">{candidateData.candidates.map((candidate)=>{const active=selected?.order_id===candidate.order_id;return <button type="button" key={candidate.order_id} disabled={!candidate.can_match} className={`qrpay-candidate ${active?'active':''}`} onClick={()=>setSelected(candidate)}><div><b>{candidate.order_no}</b><span>{candidate.customer_name} · {candidate.phone||'phone tiada'}</span></div><div><b>{money(candidate.total)}</b><span>{candidate.phone_match?'Phone sama':'Phone tidak sama'} · Dibayar {money(candidate.linked_amount)} · Baki {money(candidate.outstanding_before)}</span></div>{candidate.blocked_reason&&<em>{candidate.blocked_reason}</em>}</button>})}</div>}
-        {selected&&<div className="qrpay-match-confirm"><div className={selected.settlement_status==='overpaid'||!selected.phone_match?'qrpay-match-warning':'qrpay-match-ok'}><b>QRPay {money(matchRow.amount)} → {selected.order_no} ({money(selected.total)})</b><span>{selected.settlement_status==='partial'?`Selepas match: ${money(selected.paid_after)} dibayar, baki ${money(selected.remaining_after)}. Ini partial/add-on payment.`:selected.settlement_status==='overpaid'?`Gabungan bayaran lebih ${money(selected.overpaid_after)} daripada total order.`:`Gabungan bayaran cukup ${money(selected.paid_after)}.`} {selected.phone_match?'Nombor telefon sepadan.':'Nombor telefon tidak sepadan.'}</span></div><button className="btn btn-primary" disabled={matchLoading||!selected.can_match} onClick={()=>void confirmMatch()}>{matchLoading?'Matching…':selected.settlement_status==='overpaid'||!selected.phone_match?'Confirm Match Dengan Amaran':selected.settlement_status==='partial'?'Confirm Partial Payment':'Confirm Match'}</button></div>}
+        {candidateData.current_order&&<div className="qrpay-current-match"><div><b>Current: {candidateData.current_order.order_no}</b><span>{money(candidateData.current_order.total)} · {candidateData.current_order.status||'-'} · {candidateData.current_order.admin_status||'-'}</span></div><div><span>{candidateData.current_order.clickup_count} ClickUp · {candidateData.current_order.shipment_count} shipment</span></div></div>}
+        {candidateData.current_order?.requires_processed_confirmation&&<div className="finance-alert"><b>Order ini sudah diproses</b><span>Item dan ClickUp tidak akan dipadam. Semak kerja sedia ada sebelum unmatch atau relink.</span></div>}
+        {candidateData.candidates.length===0?<div className="empty"><div className="empty-title">Order lain tidak dijumpai.</div><div className="cell-sub">Masukkan Order ID penuh seperti IC260808-3730 untuk relink.</div></div>:<div className="qrpay-candidate-list">{candidateData.candidates.map((candidate)=>{const active=selected?.order_id===candidate.order_id;return <button type="button" key={candidate.order_id} disabled={!candidate.can_match} className={`qrpay-candidate ${active?'active':''}`} onClick={()=>setSelected(candidate)}><div><b>{candidate.order_no}</b><span>{candidate.customer_name} · {candidate.phone||'phone tiada'}</span></div><div><b>{money(candidate.total)}</b><span>{candidate.phone_match?'Phone sama':'Phone tidak sama'} · Dibayar {money(candidate.linked_amount)} · Baki {money(candidate.outstanding_before)}</span></div>{candidate.blocked_reason&&<em>{candidate.blocked_reason}</em>}</button>})}</div>}
+        {selected&&<div className="qrpay-match-confirm"><div className={selected.settlement_status==='overpaid'||!selected.phone_match?'qrpay-match-warning':'qrpay-match-ok'}><b>QRPay {money(matchRow.amount)} → {selected.order_no} ({money(selected.total)})</b><span>{selected.settlement_status==='partial'?`Selepas match: ${money(selected.paid_after)} dibayar, baki ${money(selected.remaining_after)}. Ini partial/add-on payment.`:selected.settlement_status==='overpaid'?`Gabungan bayaran lebih ${money(selected.overpaid_after)} daripada total order.`:`Gabungan bayaran cukup ${money(selected.paid_after)}.`} {selected.phone_match?'Nombor telefon sepadan.':'Nombor telefon tidak sepadan.'}</span></div><button className="btn btn-primary" disabled={matchLoading||!selected.can_match||(Boolean(candidateData.current_order?.requires_processed_confirmation)&&!confirmProcessed)} onClick={()=>void (candidateData.already_matched?correctMatch('relink'):confirmMatch())}>{matchLoading?'Working…':candidateData.already_matched?'Relink ke Order Ini':selected.settlement_status==='overpaid'||!selected.phone_match?'Confirm Match Dengan Amaran':selected.settlement_status==='partial'?'Confirm Partial Payment':'Confirm Match'}</button></div>}
+        {candidateData.already_matched&&candidateData.current_order&&<div className="qrpay-correction-controls">
+          {candidateData.current_order.can_cancel_source&&<label className="qrpay-check"><input type="checkbox" checked={cancelSource} onChange={(event)=>setCancelSource(event.target.checked)}/><span><b>Cancel order auto-created asal</b><small>Order ditanda Cancelled; item dan ClickUp kekal untuk audit.</small></span></label>}
+          {candidateData.current_order.requires_processed_confirmation&&<label className="qrpay-check qrpay-check-warning"><input type="checkbox" checked={confirmProcessed} onChange={(event)=>setConfirmProcessed(event.target.checked)}/><span><b>Saya faham order ini sudah diproses</b><small>Saya telah semak status ClickUp, kerja production dan shipment.</small></span></label>}
+          <div className="qrpay-correction-actions"><button className="btn btn-outline" disabled={matchLoading||(candidateData.current_order.requires_processed_confirmation&&!confirmProcessed)} onClick={()=>void correctMatch('unmatch')}>Unmatch Only</button>{onCreateOrder&&<button className="btn btn-primary" disabled={matchLoading||(candidateData.current_order.requires_processed_confirmation&&!confirmProcessed)} onClick={()=>void correctMatch('unmatch_create')}>Unmatch & Create New Order</button>}</div>
+        </div>}
       </div>}
     </section></div>}
   </div>;
