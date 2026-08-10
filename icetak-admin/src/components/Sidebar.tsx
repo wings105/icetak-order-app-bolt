@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
 import {
   IconDashboard, IconOrders, IconPayments, IconFinance, IconShipping, IconWhatsApp,
   IconIntegration, IconStaff, IconSettings, IconLogout,
@@ -25,6 +26,7 @@ const navItems: NavItem[] = [
   { key: 'finance', label: 'Finance', icon: IconFinance },
   { key: 'qrpay-summary', label: 'QRPay Daily', icon: IconPayments },
   { key: 'shipping', label: 'Shipping', icon: IconShipping },
+  { key: 'clickup-queue', label: 'ClickUp Queue', icon: IconIntegration },
   {
     key: 'whatsapp',
     label: 'WhatsApp',
@@ -54,6 +56,17 @@ export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile,
   const [expanded, setExpanded] = useState<string | null>(
     visibleNavItems.find((n) => n.children?.some((c) => c.key === active))?.key ?? null
   );
+  const [clickupAttention, setClickupAttention] = useState(0);
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      const { data, error } = await supabase.rpc('icetak_admin_clickup_queue_summary');
+      if (!error && mounted) setClickupAttention(Number((data as { attention?: number } | null)?.attention || 0));
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 30000);
+    return () => { mounted = false; window.clearInterval(timer); };
+  }, []);
 
   const handleClick = (item: NavItem) => {
     if (item.children) setExpanded(expanded === item.key ? null : item.key);
@@ -74,6 +87,7 @@ export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile,
           return <div key={item.key}>
             <button className={`sidebar-item ${active_ && !item.children ? 'active' : ''}`} onClick={() => handleClick(item)}>
               <span className="sidebar-item-icon"><Icon size={18} /></span><span className="sidebar-item-label">{item.label}</span>
+              {item.key === 'clickup-queue' && clickupAttention > 0 && <span style={{ marginLeft: 'auto', minWidth: 20, height: 20, padding: '0 6px', borderRadius: 999, background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{clickupAttention > 99 ? '99+' : clickupAttention}</span>}
               {item.children && <svg className={`sidebar-chevron ${isOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>}
             </button>
             {item.children && isOpen && <div className="sidebar-subnav">{item.children.map((child) => <button key={child.key} className={`sidebar-subitem ${active === child.key ? 'active' : ''}`} onClick={() => onNavigate(child.key)}>{child.label}</button>)}</div>}

@@ -10,6 +10,7 @@ import Payments from './pages/Payments';
 import Finance from './pages/Finance';
 import QrPayDailySummary, { type QrPayCreatePayload } from './pages/QrPayDailySummary';
 import Shipping from './pages/Shipping';
+import ClickUpQueue from './pages/ClickUpQueue';
 import WhatsAppControl from './pages/WhatsAppControl';
 import WhatsAppTemplates from './pages/WhatsAppTemplates';
 import WhatsAppOutbox from './pages/WhatsAppOutbox';
@@ -26,6 +27,7 @@ const pageMap: Record<string, { title: string; subtitle?: string }> = {
   finance: { title: 'Finance', subtitle: 'Bank, wallet & accounting' },
   'qrpay-summary': { title: 'QRPay Daily', subtitle: 'Daily payment control' },
   shipping: { title: 'Shipping & Tracking', subtitle: 'Parcels' },
+  'clickup-queue': { title: 'ClickUp Queue', subtitle: 'Activepieces production task queue' },
   'whatsapp-control': { title: 'WhatsApp Control', subtitle: 'Pipeline' },
   'whatsapp-templates': { title: 'WhatsApp Templates' },
   'whatsapp-outbox': { title: 'WhatsApp Outbox' },
@@ -107,6 +109,7 @@ export default function App({ adminData }: Props) {
       case 'finance': return permissions.includes('view_finance') ? <Finance canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'qrpay-summary': return permissions.includes('view_finance') ? <QrPayDailySummary canManage={permissions.includes('manage_finance')} onCreateOrder={permissions.includes('create_order')&&permissions.includes('verify_payments')?createOrderFromQrPay:undefined} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'shipping': return <Shipping />;
+      case 'clickup-queue': return <ClickUpQueue permissions={permissions} onOpenOrder={openOrder} />;
       case 'whatsapp-control': return <WhatsAppControl />;
       case 'whatsapp-templates': return <WhatsAppTemplates />;
       case 'whatsapp-outbox': return <WhatsAppOutbox />;

@@ -30,7 +30,6 @@ const FILTERS:Array<{key:QueueStatus;label:string;count?:keyof Summary}> = [
 const money=(v:unknown)=>`RM ${Number(v||0).toFixed(2)}`;
 const dt=(v?:string|null)=>v?new Date(v).toLocaleString('en-MY',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
 const date=(v?:string|null)=>v?new Date(`${String(v).slice(0,10)}T00:00:00`).toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'numeric'}):'—';
-const digits=(v:unknown)=>String(v||'').replace(/\D/g,'');
 
 function statusMeta(status:string){
   const s=String(status||'').toLowerCase();
