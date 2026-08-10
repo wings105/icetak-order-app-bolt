@@ -93,6 +93,7 @@ type Pagination = { page: number; pageSize: number; total: number; totalPages: n
 type ListResponse = { rows?: OrderRow[]; summary?: Summary; pagination?: Pagination; serverTime?: string };
 type SavedView = { id: string; name: string; filters: Filters; sortKey: SortKey; sortDir: SortDir; visibleColumns: ColumnKey[]; isDefault?: boolean };
 type PickupAutoSettings = { auto_send_enabled?: boolean; delay_minutes?: number; provider_name?: string; provider_ready?: boolean; template_name?: string; auto_send_activated_at?: string | null; pending?: number; sent?: number; failed?: number };
+type CustomerProfile = { customer_id?: string | null; customer_master_id?: string | null; name?: string; phone?: string; locked?: boolean; admin_name_override?: string | null; admin_name_updated_at?: string | null; admin_name_updated_by?: string | null; master_display_name?: string | null; source?: string | null };
 
 type OrderItem = {
   id: string; k?: string; title?: string; qty?: number; price?: number; size?: string; style?: string;
@@ -524,6 +525,11 @@ function OrderDrawer({ detail, loading, permissions, busyId, onClose, onReload, 
   const [dateNeed, setDateNeed] = useState(''); const [remark, setRemark] = useState(''); const [items, setItems] = useState<OrderItem[]>([]); const [saving, setSaving] = useState(false); const [localError, setLocalError] = useState<string | null>(null);
   const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'spx' | 'jnt'>('spx');
   const [deliveryFee, setDeliveryFee] = useState(0);
+  const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
+  const [customerProfileLoading, setCustomerProfileLoading] = useState(false);
+  const [customerProfileEditing, setCustomerProfileEditing] = useState(false);
+  const [customerProfileName, setCustomerProfileName] = useState('');
+  const [customerProfileSaving, setCustomerProfileSaving] = useState(false);
   useEffect(() => {
     if (!order) return;
     const rawDelivery = norm(order.delivery || order.courier);
@@ -535,6 +541,33 @@ function OrderDrawer({ detail, loading, permissions, busyId, onClose, onReload, 
     setItems((detail?.items || []).map((i) => ({ ...i, qty: Number(i.qty || 1), price: Number(i.price || 0), customText: i.customText || '', previewUrl: i.previewUrl || '' })));
   }, [detail, order]);
   const canEdit = permissions.includes('edit_order'); const canVerify = permissions.includes('verify_payments'); const canApprove = permissions.includes('approve_production');
+  const loadCustomerProfile = useCallback(async () => {
+    if (!order?.dbId) { setCustomerProfile(null); return; }
+    setCustomerProfileLoading(true);
+    const { data, error } = await supabase.rpc('icetak_admin_customer_profile', { p_order_db_id: order.dbId });
+    setCustomerProfileLoading(false);
+    if (error) { setLocalError(error.message); return; }
+    const profile = (data || null) as CustomerProfile | null;
+    setCustomerProfile(profile);
+    setCustomerProfileName(String(profile?.name || order.customerName || ''));
+  }, [order?.dbId, order?.customerName]);
+  useEffect(() => { void loadCustomerProfile(); setCustomerProfileEditing(false); }, [loadCustomerProfile]);
+  const saveCustomerProfile = async () => {
+    if (!order || !customerProfileName.trim()) return;
+    setCustomerProfileSaving(true); setLocalError(null);
+    const { data, error } = await supabase.rpc('icetak_admin_customer_profile_update', { p_order_db_id: order.dbId, p_display_name: customerProfileName.trim(), p_clear_override: false });
+    setCustomerProfileSaving(false);
+    if (error) { setLocalError(error.message); return; }
+    setCustomerProfile((data || null) as CustomerProfile | null); setCustomerProfileEditing(false); await onReload();
+  };
+  const clearCustomerProfileLock = async () => {
+    if (!order || !window.confirm('Buang Admin Preferred Name? Order akan datang boleh guna nama WhatsApp semula.')) return;
+    setCustomerProfileSaving(true); setLocalError(null);
+    const { data, error } = await supabase.rpc('icetak_admin_customer_profile_update', { p_order_db_id: order.dbId, p_display_name: '', p_clear_override: true });
+    setCustomerProfileSaving(false);
+    if (error) { setLocalError(error.message); return; }
+    setCustomerProfile((data || null) as CustomerProfile | null); setCustomerProfileEditing(false); await onReload();
+  };
   const deliveryLocked = Boolean(order?.tracking || ['picked_up','shipped','in_transit','out_for_delivery','delivered'].includes(norm(order?.shipmentStatusGroup)) || ['picked_up','shipped','in_transit','out_for_delivery','delivered'].includes(norm(order?.fulfillmentStage)));
   const itemSubtotal = items.reduce((sum, item) => sum + Math.max(1, Number(item.qty || 1)) * Math.max(0, Number(item.price || 0)), 0);
   const effectiveDeliveryFee = deliveryMethod === 'pickup' ? 0 : Math.max(0, Number(deliveryFee || 0));
@@ -553,7 +586,7 @@ function OrderDrawer({ detail, loading, permissions, busyId, onClose, onReload, 
       <nav className="erp-drawer-tabs">{([['overview','Overview'],['items','Items'],['payment','Payment'],['production','Production'],['whatsapp','WhatsApp'],['timeline','Timeline']] as const).map(([k,l]) => <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>)}</nav>
       <div className="erp-drawer-body">
         {localError && <div className="erp-notice error">{localError}</div>}
-        {tab === 'overview' && <div className="erp-drawer-grid"><DrawerCard title="Customer"><KV k="Name" v={order.customerName || '—'} /><KV k="Phone" v={order.customerPhone ? <a className="erp-inline-link" href={`https://wa.me/${digits(order.customerPhone)}`} target="_blank" rel="noreferrer">{order.customerPhone}</a> : '—'} /><KV k="Created" v={formatDateTime(order.createdAt)} /><KV k="Updated" v={formatDateTime(order.updatedAt)} /></DrawerCard><DrawerCard title="Fulfillment"><KV k="Delivery" v={order.delivery || '—'} /><KV k="Courier" v={order.courier || '—'} /><KV k="Tracking" v={order.tracking ? <a className="erp-inline-link" href={order.trackingLink || '#'} target="_blank" rel="noreferrer">{order.tracking}</a> : '—'} /><KV k="Stage" v={order.fulfillmentStage || '—'} /></DrawerCard><DrawerCard title="Address"><p>{[order.deliveryAddress, order.deliveryPostcode, order.deliveryCity, order.deliveryState].filter(Boolean).join(', ') || 'Pickup / no delivery address'}</p></DrawerCard><DrawerCard title="Admin Edit"><FilterField label="Date Need"><input type="date" disabled={!canEdit} value={dateNeed} onChange={(e) => setDateNeed(e.target.value)} /></FilterField><FilterField label="Delivery / Courier"><select disabled={!canEdit || deliveryLocked} value={deliveryMethod} onChange={(e) => { const value = e.target.value as 'pickup' | 'spx' | 'jnt'; setDeliveryMethod(value); if (value === 'pickup') setDeliveryFee(0); }}><option value="pickup">Pickup</option><option value="spx">SPX</option><option value="jnt">J&amp;T</option></select></FilterField><FilterField label="Shipping Fee (RM)"><input type="number" min="0" step="0.01" disabled={!canEdit || deliveryMethod === 'pickup'} value={effectiveDeliveryFee} onChange={(e) => setDeliveryFee(Math.max(0, Number(e.target.value || 0)))} /></FilterField><div className="erp-kv"><span>Order Total</span><b>{money(previewTotal)}</b></div><p className="cell-sub">Item {money(itemSubtotal)} + Shipping {money(effectiveDeliveryFee)}. Payment transaction asal tidak diubah.</p>{deliveryLocked && <p className="cell-sub erp-text-danger">Courier dikunci sebab tracking sudah dibuat. Shipping Fee masih boleh dibetulkan.</p>}<FilterField label="Admin Remark"><textarea rows={4} disabled={!canEdit} value={remark} onChange={(e) => setRemark(e.target.value)} /></FilterField>{canEdit && <button className="btn btn-primary btn-sm" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save Changes'}</button>}</DrawerCard></div>}
+        {tab === 'overview' && <div className="erp-drawer-grid"><DrawerCard title="Customer"><KV k="Name" v={order.customerName || '—'} /><KV k="Phone" v={order.customerPhone ? <a className="erp-inline-link" href={`https://wa.me/${digits(order.customerPhone)}`} target="_blank" rel="noreferrer">{order.customerPhone}</a> : '—'} />{customerProfile?.locked && <div style={{ margin: '8px 0' }}><span className="erp-status-pill success">ADMIN NAME LOCKED</span></div>}{customerProfileLoading ? <p className="cell-sub">Loading customer profile…</p> : customerProfileEditing ? <div style={{ marginTop: 10 }}><FilterField label="Preferred Customer Name"><input autoFocus maxLength={200} disabled={customerProfileSaving} value={customerProfileName} onChange={(e) => setCustomerProfileName(e.target.value)} /></FilterField><p className="cell-sub">Nama ini jadi nama utama customer. WhatsApp display name tak boleh overwrite selepas disimpan.</p><div className="erp-card-actions"><button className="btn btn-primary btn-sm" disabled={customerProfileSaving || !customerProfileName.trim()} onClick={() => void saveCustomerProfile()}>{customerProfileSaving ? 'Saving…' : 'Save Preferred Name'}</button><button className="btn btn-outline btn-sm" disabled={customerProfileSaving} onClick={() => { setCustomerProfileEditing(false); setCustomerProfileName(String(customerProfile?.name || order.customerName || '')); }}>Cancel</button></div></div> : <div className="erp-card-actions" style={{ marginTop: 8 }}>{canEdit && <button className="btn btn-outline btn-sm" onClick={() => { setCustomerProfileName(String(customerProfile?.name || order.customerName || '')); setCustomerProfileEditing(true); }}>Edit Profile</button>}{canEdit && customerProfile?.locked && <button className="btn btn-ghost btn-sm" disabled={customerProfileSaving} onClick={() => void clearCustomerProfileLock()}>Use WhatsApp Name Again</button>}</div>}{customerProfile?.locked && <p className="cell-sub">Preferred name disimpan oleh {customerProfile.admin_name_updated_by || 'admin'}{customerProfile.admin_name_updated_at ? ` · ${formatDateTime(customerProfile.admin_name_updated_at)}` : ''}. Future AI orders akan guna nama ini.</p>}<KV k="Created" v={formatDateTime(order.createdAt)} /><KV k="Updated" v={formatDateTime(order.updatedAt)} /></DrawerCard><DrawerCard title="Fulfillment"><KV k="Delivery" v={order.delivery || '—'} /><KV k="Courier" v={order.courier || '—'} /><KV k="Tracking" v={order.tracking ? <a className="erp-inline-link" href={order.trackingLink || '#'} target="_blank" rel="noreferrer">{order.tracking}</a> : '—'} /><KV k="Stage" v={order.fulfillmentStage || '—'} /></DrawerCard><DrawerCard title="Address"><p>{[order.deliveryAddress, order.deliveryPostcode, order.deliveryCity, order.deliveryState].filter(Boolean).join(', ') || 'Pickup / no delivery address'}</p></DrawerCard><DrawerCard title="Admin Edit"><FilterField label="Date Need"><input type="date" disabled={!canEdit} value={dateNeed} onChange={(e) => setDateNeed(e.target.value)} /></FilterField><FilterField label="Delivery / Courier"><select disabled={!canEdit || deliveryLocked} value={deliveryMethod} onChange={(e) => { const value = e.target.value as 'pickup' | 'spx' | 'jnt'; setDeliveryMethod(value); if (value === 'pickup') setDeliveryFee(0); }}><option value="pickup">Pickup</option><option value="spx">SPX</option><option value="jnt">J&amp;T</option></select></FilterField><FilterField label="Shipping Fee (RM)"><input type="number" min="0" step="0.01" disabled={!canEdit || deliveryMethod === 'pickup'} value={effectiveDeliveryFee} onChange={(e) => setDeliveryFee(Math.max(0, Number(e.target.value || 0)))} /></FilterField><div className="erp-kv"><span>Order Total</span><b>{money(previewTotal)}</b></div><p className="cell-sub">Item {money(itemSubtotal)} + Shipping {money(effectiveDeliveryFee)}. Payment transaction asal tidak diubah.</p>{deliveryLocked && <p className="cell-sub erp-text-danger">Courier dikunci sebab tracking sudah dibuat. Shipping Fee masih boleh dibetulkan.</p>}<FilterField label="Admin Remark"><textarea rows={4} disabled={!canEdit} value={remark} onChange={(e) => setRemark(e.target.value)} /></FilterField>{canEdit && <button className="btn btn-primary btn-sm" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save Changes'}</button>}</DrawerCard></div>}
         {tab === 'items' && <OrderItemStructuralEditor
           orderDbId={order.dbId}
           items={detail.items}
