@@ -1,0 +1,3 @@
+-- Allow Admin V2 order edits to use NinjaVan/NINJA alongside Pickup, SPX and J&T.
+-- Production function was applied through Supabase migration support_ninjavan_admin_delivery_edit.
+-- Canonical delivery key: ninja; display delivery: NINJA; courier: ninja.
