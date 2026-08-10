@@ -52,6 +52,14 @@
 .qrpay-filter-chips button span{font-size:11.5px;font-weight:700}
 .qrpay-filter-chips button b{font-size:12px}
 .qrpay-filter-chips button small{grid-column:1/-1;color:var(--text-secondary);font-size:10px}
+.qrpay-progress-filter-layer{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px;padding-top:1px}
+.qrpay-progress-filter-label{color:#64748b;font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.qrpay-progress-filter-chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.qrpay-progress-filter-chips button{display:flex;align-items:center;gap:7px;min-width:max-content;height:32px;padding:0 10px;border:1px solid #dbe3ed;border-radius:999px;background:#fff;color:#475569;font:inherit;font-size:10.5px;font-weight:700;cursor:pointer}
+.qrpay-progress-filter-chips button:hover{border-color:#93c5fd;background:#f8fbff}
+.qrpay-progress-filter-chips button.active{border-color:#2563eb;background:#eff6ff;color:#1d4ed8;box-shadow:0 0 0 1px rgba(37,99,235,.08)}
+.qrpay-progress-filter-chips button b{display:grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:#eef2f7;color:#64748b;font-size:9.5px}
+.qrpay-progress-filter-chips button.active b{background:#dbeafe;color:#1d4ed8}
 .qrpay-review-tools{display:grid;grid-template-columns:minmax(260px,1fr) minmax(180px,240px);gap:9px}
 .qrpay-review-tools input,.qrpay-review-tools select,.qrpay-review-form select,.qrpay-review-form textarea{width:100%;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--text);font:inherit}
 .qrpay-review-tools input,.qrpay-review-tools select,.qrpay-review-form select{height:40px;padding:0 12px}
@@ -115,6 +123,7 @@
   .qrpay-summary-note>div:last-child{text-align:left}
   .qrpay-summary-metrics{grid-template-columns:1fr}
   .qrpay-review-tools{grid-template-columns:1fr}
+  .qrpay-progress-filter-layer{grid-template-columns:1fr}
   .qrpay-match-backdrop{align-items:end;padding:0}
   .qrpay-match-dialog{max-height:92vh;border-radius:16px 16px 0 0}
   .qrpay-match-search{grid-template-columns:1fr}

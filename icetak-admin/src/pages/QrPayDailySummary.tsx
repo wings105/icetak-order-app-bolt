@@ -70,6 +70,7 @@ type CorrectionData = {
 type ReviewAction = 'save_remark'|'ignore'|'reopen';
 type ReviewActionData = { success:boolean; idempotent:boolean; transaction_id:string; action:ReviewAction };
 type FilterStatus = 'all'|'matched'|'review'|'processing'|'missed'|'ignored';
+type ProgressFilter = 'all'|'approval'|'design'|'production'|'ready'|'shipping'|'completed'|'cancelled'|'active'|'unlinked';
 type SortMode = 'newest'|'oldest'|'amount_high'|'amount_low'|'status';
 type PeriodPreset = 'day'|'week'|'month'|'3months'|'6months'|'year'|'calendar_month'|'custom'|'all';
 export type QrPayCreatePayload = {
@@ -135,6 +136,28 @@ const filterMatches=(row:Row,filter:FilterStatus)=>filter==='all'
   ||(filter==='processing'&&(row.workflow_status==='processing'||row.workflow_status==='pending'))
   ||(filter==='missed'&&row.workflow_status==='missed')
   ||(filter==='ignored'&&row.workflow_status==='ignored');
+const progressFilterOptions:[ProgressFilter,string][]=[
+  ['all','All Progress'],['approval','Need Approval'],['design','Design / Review'],['production','Production'],
+  ['ready','Ready / Pickup'],['shipping','Shipping'],['completed','Completed'],['cancelled','Cancelled'],
+  ['active','Other Active'],['unlinked','No Order'],
+];
+const progressCategory=(row:Row):Exclude<ProgressFilter,'all'>=>{
+  const progress=row.order_progress;
+  if(!progress)return 'unlinked';
+  const label=progress.overall_label.toLowerCase();
+  const fulfillment=String(progress.fulfillment_stage||'').toLowerCase();
+  const shipment=String(progress.shipment_status_group||'').toLowerCase();
+  if(label.includes('cancel')||fulfillment==='cancelled')return 'cancelled';
+  if(progress.pickup_collected_at||progress.delivered_at||['collected','delivered','completed'].includes(fulfillment)||label==='customer collected'||label==='delivered')return 'completed';
+  if(['awb_created','picked_up','shipped','in_transit','out_for_delivery'].includes(shipment))return 'shipping';
+  if(progress.pickup_ready_at||fulfillment==='ready_for_pickup'||(progress.components_total>0&&progress.components_complete===progress.components_total))return 'ready';
+  if(progress.available_actions.includes('approve_production'))return 'approval';
+  const stages=progress.components.map((component)=>String(component.customer_stage||component.customer_label||'').toLowerCase());
+  if(stages.some((stage)=>['order received','design editing','waiting review','approved'].includes(stage)||stage.includes('design')||stage.includes('review')))return 'design';
+  if(stages.some((stage)=>['production','finishing'].includes(stage))||progress.progress_percent>0)return 'production';
+  return 'active';
+};
+const progressMatches=(row:Row,filter:ProgressFilter)=>filter==='all'||progressCategory(row)===filter;
 
 export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateOrder}:Props){
   const params=new URLSearchParams(window.location.search);
@@ -164,6 +187,9 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
   const [confirmProcessed,setConfirmProcessed]=useState(false);
   const [cancelSource,setCancelSource]=useState(false);
   const [statusFilter,setStatusFilter]=useState<FilterStatus>('all');
+  const progressFilterValues=progressFilterOptions.map(([value])=>value);
+  const requestedProgressFilter=params.get('progress') as ProgressFilter|null;
+  const [progressFilter,setProgressFilter]=useState<ProgressFilter>(progressFilterValues.includes(requestedProgressFilter||'all')?(requestedProgressFilter||'all'):'all');
   const [sortMode,setSortMode]=useState<SortMode>('newest');
   const [search,setSearch]=useState('');
   const [reviewRow,setReviewRow]=useState<Row|null>(null);
@@ -203,6 +229,11 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
     finally{if(requestId===loadRequestId.current)setLoading(false);}
   },[calendarMonth,customFrom,customTo,date,period,requestedRange]);
   useEffect(()=>{void load();},[load]);
+  useEffect(()=>{
+    const url=new URL(window.location.href);
+    if(progressFilter==='all')url.searchParams.delete('progress');else url.searchParams.set('progress',progressFilter);
+    window.history.replaceState({},'',url);
+  },[progressFilter]);
 
   const searchCandidates=useCallback(async(row:Row,query:string)=>{
     setMatchLoading(true);setMatchError(null);setSelected(null);
@@ -299,9 +330,15 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
       return [filter,{count:selectedRows.length,amount:selectedRows.reduce((sum,row)=>sum+Number(row.amount||0),0)}];
     })) as Record<FilterStatus,{count:number;amount:number}>;
   },[summary]);
+  const progressFilterStats=useMemo(()=>{
+    const rows=(summary?.rows||[]).filter((row)=>filterMatches(row,statusFilter));
+    const counts=Object.fromEntries(progressFilterOptions.map(([filter])=>[filter,0])) as Record<ProgressFilter,number>;
+    for(const row of rows){counts.all+=1;counts[progressCategory(row)]+=1;}
+    return counts;
+  },[statusFilter,summary]);
   const visibleRows=useMemo(()=>{
     const query=search.trim().toLowerCase();
-    const rows=(summary?.rows||[]).filter((row)=>filterMatches(row,statusFilter)).filter((row)=>{
+    const rows=(summary?.rows||[]).filter((row)=>filterMatches(row,statusFilter)&&progressMatches(row,progressFilter)).filter((row)=>{
       if(!query)return true;
       return [row.transaction_id,row.order_no,row.phone,row.sender_name,row.provider,row.review_remark,
         row.order_progress?.overall_label,row.order_progress?.shipment_status,
@@ -317,7 +354,7 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
       if(sortMode==='status')return statusRank[left.workflow_status]-statusRank[right.workflow_status]||new Date(right.paid_at).getTime()-new Date(left.paid_at).getTime();
       return new Date(right.paid_at).getTime()-new Date(left.paid_at).getTime();
     });
-  },[search,sortMode,statusFilter,summary]);
+  },[progressFilter,search,sortMode,statusFilter,summary]);
 
   const totals=summary?.totals;
   const summaryFrom=summary?.from_date||summary?.date||requestedRange.from||requestedRange.to;
@@ -354,6 +391,7 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
           <div className="qrpay-filter-chips" aria-label="Filter QRPay status">{([
             ['all','All'],['matched','Matched'],['review','Needs Review'],['processing','Unmatched / Processing'],['missed','Failed'],['ignored','Ignored'],
           ] as [FilterStatus,string][]).map(([value,label])=><button key={value} className={statusFilter===value?'active':''} onClick={()=>setStatusFilter(value)}><span>{label}</span><b>{filterStats[value].count}</b><small>{money(filterStats[value].amount)}</small></button>)}</div>
+          <div className="qrpay-progress-filter-layer"><span className="qrpay-progress-filter-label">Order Progress</span><div className="qrpay-progress-filter-chips" aria-label="Filter order progress">{progressFilterOptions.map(([value,label])=><button type="button" key={value} aria-pressed={progressFilter===value} className={progressFilter===value?'active':''} onClick={()=>setProgressFilter(value)}><span>{label}</span><b>{progressFilterStats[value]}</b></button>)}</div></div>
           <div className="qrpay-review-tools"><input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="Cari transaction, order, phone, nama, remark…" aria-label="Search QRPay"/><select value={sortMode} onChange={(event)=>setSortMode(event.target.value as SortMode)} aria-label="Sort QRPay"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="amount_high">Amount: high to low</option><option value="amount_low">Amount: low to high</option><option value="status">Priority status</option></select></div>
         </div>
         <div className="table-wrap">{summary.rows.length===0
