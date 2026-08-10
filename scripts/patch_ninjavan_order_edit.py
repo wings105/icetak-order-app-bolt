@@ -1,4 +1,5 @@
 from pathlib import Path
+# temporary scoped patch; deleted after successful build
 p=Path('icetak-admin/src/pages/Orders.tsx')
 s=p.read_text()
 s=s.replace("const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'spx' | 'jnt'>('spx');", "const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'spx' | 'jnt' | 'ninja'>('spx');")
