@@ -31,6 +31,8 @@ type Row = {
   job_status:string|null; review_status:string|null;
   workflow_state:'active'|'ignored'|null; review_category:string|null; review_remark:string|null;
   review_updated_at:string|null; review_updated_by:string|null; ignored_at:string|null; ignored_by:string|null;
+  identity_confirmed:boolean; identity_confirmed_at:string|null; identity_confirmed_by:string|null;
+  identity_original_name:string|null; identity_original_phone:string|null;
   order_progress:OrderProgress|null;
 };
 type Delivery = { slot:string; status:string; attempts:number; scheduled_at:string; sent_at:string|null; recipient_phone:string|null; last_error:string|null };
@@ -69,6 +71,10 @@ type CorrectionData = {
 };
 type ReviewAction = 'save_remark'|'ignore'|'reopen';
 type ReviewActionData = { success:boolean; idempotent:boolean; transaction_id:string; action:ReviewAction };
+type IdentityUpdateData = {
+  success:boolean; transaction_id:string; name:string; phone:string; order_id:string|null; order_no:string|null;
+  updated_order:boolean; confirmed_at:string; confirmed_by:string;
+};
 type FilterStatus = 'all'|'matched'|'review'|'processing'|'missed'|'ignored';
 type ProgressFilter = 'all'|'approval'|'design'|'production'|'ready'|'shipping'|'completed'|'cancelled'|'active'|'unlinked';
 type SortMode = 'newest'|'oldest'|'amount_high'|'amount_low'|'status';
@@ -197,6 +203,12 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
   const [reviewRemark,setReviewRemark]=useState('');
   const [reviewLoading,setReviewLoading]=useState(false);
   const [reviewError,setReviewError]=useState<string|null>(null);
+  const [identityRow,setIdentityRow]=useState<Row|null>(null);
+  const [identityName,setIdentityName]=useState('');
+  const [identityPhone,setIdentityPhone]=useState('');
+  const [identityUpdateOrder,setIdentityUpdateOrder]=useState(false);
+  const [identityLoading,setIdentityLoading]=useState(false);
+  const [identityError,setIdentityError]=useState<string|null>(null);
   const [orderActionKey,setOrderActionKey]=useState<string|null>(null);
   const loadRequestId=useRef(0);
 
@@ -309,6 +321,26 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
     finally{setReviewLoading(false);}
   };
 
+  const openIdentity=(row:Row)=>{
+    setIdentityRow(row);setIdentityName(row.sender_name||'');setIdentityPhone(row.phone||'');
+    setIdentityUpdateOrder(Boolean(row.order_id));setIdentityError(null);
+  };
+  const closeIdentity=()=>{if(!identityLoading){setIdentityRow(null);setIdentityError(null);}};
+  const submitIdentity=async(event:FormEvent)=>{
+    event.preventDefault();
+    if(!identityRow)return;
+    setIdentityLoading(true);setIdentityError(null);
+    try{
+      const data=await invokeFinance<IdentityUpdateData>({
+        action:'qrpay_identity_update',transaction_id:identityRow.transaction_id,
+        name:identityName,phone:identityPhone,update_order:identityUpdateOrder,
+      });
+      setSuccess(`${data.transaction_id}: ${data.name} · ${data.phone} disahkan oleh admin${data.updated_order&&data.order_no?` dan dikemas kini pada ${data.order_no}`:''}.`);
+      setIdentityRow(null);await load();
+    }catch(e){setIdentityError(e instanceof Error?e.message:'Customer contact gagal dikemas kini');}
+    finally{setIdentityLoading(false);}
+  };
+
   const runOrderAction=async(row:Row,action:OrderProgress['available_actions'][number])=>{
     if(!row.order_id||!window.confirm(actionPrompts[action]))return;
     const actionKey=`${row.transaction_id}:${action}`;
@@ -340,7 +372,7 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
     const query=search.trim().toLowerCase();
     const rows=(summary?.rows||[]).filter((row)=>filterMatches(row,statusFilter)&&progressMatches(row,progressFilter)).filter((row)=>{
       if(!query)return true;
-      return [row.transaction_id,row.order_no,row.phone,row.sender_name,row.provider,row.review_remark,
+      return [row.transaction_id,row.order_no,row.phone,row.sender_name,row.identity_original_name,row.identity_original_phone,row.provider,row.review_remark,
         row.order_progress?.overall_label,row.order_progress?.shipment_status,
         ...(row.order_progress?.components||[]).flatMap((component)=>[component.label,component.customer_label,component.clickup_status]),
         row.review_category?categoryLabels[row.review_category]||row.review_category:'']
@@ -406,7 +438,7 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
                 return <tr key={row.transaction_id} className={row.workflow_status==='missed'?'qrpay-row-missed':row.workflow_status==='ignored'?'qrpay-row-ignored':'row-hover'}>
                   <td className="cell-sub qrpay-payment-date">{singleDay?time(row.paid_at):paymentDateTime(row.paid_at)}</td>
                   <td><div className="cell-id">{row.transaction_id}</div><div className="cell-sub">{row.provider}</div></td>
-                  <td><div className="cell-name">{row.sender_name||'Customer belum dikenal pasti'}</div>{row.phone?<a className="qrpay-phone" href={row.whatsapp_link||undefined} target="_blank" rel="noreferrer">{row.phone}</a>:<div className="cell-sub">Phone belum jumpa</div>}</td>
+                  <td><div className="cell-name">{row.sender_name||'Customer belum dikenal pasti'}</div>{row.phone?<a className="qrpay-phone" href={row.whatsapp_link||undefined} target="_blank" rel="noreferrer">{row.phone}</a>:<div className="cell-sub">Phone belum jumpa</div>}<div className="qrpay-identity-meta">{row.identity_confirmed&&<span className="qrpay-confirmed-badge" title={`${row.identity_confirmed_by||'admin'} · ${dateTime(row.identity_confirmed_at)}`}>Admin confirmed</span>}{canManage&&<button type="button" className="qrpay-edit-contact" onClick={()=>openIdentity(row)}>{row.identity_confirmed?'Edit confirmed contact':'Edit customer'}</button>}</div></td>
                   <td className="cell-amount">{money(row.amount)}</td>
                   <td><span className={`badge ${status.cls}`}>{status.label}</span>{row.job_status&&<div className="cell-sub">AI: {row.job_status.replaceAll('_',' ')}</div>}{row.review_category&&<div className="cell-sub">{categoryLabels[row.review_category]||row.review_category}</div>}</td>
                   <td><OrderProgressCell progress={progress}/></td>
@@ -452,6 +484,18 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
         {reviewError&&<div className="finance-alert"><b>Review error</b><span>{reviewError}</span></div>}
         <div className="qrpay-review-actions"><button className="btn btn-outline" disabled={reviewLoading||(reviewRow.workflow_status==='ignored'&&!reviewRemark.trim())} onClick={()=>void submitReview('save_remark')}>{reviewLoading?'Saving…':'Save Remark'}</button>{reviewRow.workflow_status==='ignored'?<button className="btn btn-primary" disabled={reviewLoading} onClick={()=>void submitReview('reopen')}>Reopen for Order</button>:reviewRow.order_no?<span className="cell-sub">Unmatch dahulu sebelum Ignore for Order.</span>:<button className="btn qrpay-ignore-button" disabled={reviewLoading||!reviewCategory||!reviewRemark.trim()} onClick={()=>void submitReview('ignore')}>Ignore for Order</button>}</div>
       </div>
+    </section></div>}
+    {identityRow&&<div className="qrpay-match-backdrop" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget)closeIdentity();}}><section className="qrpay-match-dialog qrpay-identity-dialog" role="dialog" aria-modal="true" aria-labelledby="qrpay-identity-title">
+      <div className="qrpay-match-head"><div><h2 id="qrpay-identity-title">Confirm QRPay Customer</h2><p>{identityRow.transaction_id} · {money(identityRow.amount)}{identityRow.order_no?` · ${identityRow.order_no}`:''}</p></div><button className="qrpay-match-close" onClick={closeIdentity} aria-label="Close">×</button></div>
+      <form className="qrpay-identity-form" onSubmit={submitIdentity}>
+        <div className="qrpay-review-policy"><b>Admin override untuk transaksi ini sahaja</b><span>Rekod asal bank dan hasil AI tidak diubah. Match Order, Create Order dan WhatsApp selepas ini akan guna contact yang admin sahkan.</span></div>
+        {(identityRow.identity_original_name||identityRow.identity_original_phone)&&<div className="qrpay-identity-original"><span>Rekod asal / AI</span><b>{identityRow.identity_original_name||'Nama tidak dikenal pasti'} · {identityRow.identity_original_phone||'phone tiada'}</b></div>}
+        <label><span>Customer name</span><input type="text" autoFocus required maxLength={200} value={identityName} onChange={(event)=>setIdentityName(event.target.value)} placeholder="Nama sebenar customer"/></label>
+        <label><span>WhatsApp / phone</span><input required inputMode="tel" maxLength={30} value={identityPhone} onChange={(event)=>setIdentityPhone(event.target.value)} placeholder="Contoh: 60123456789"/><small>Format 01…, +601… atau 601… diterima.</small></label>
+        {identityRow.order_no&&<label className="qrpay-check"><input type="checkbox" checked={identityUpdateOrder} onChange={(event)=>setIdentityUpdateOrder(event.target.checked)}/><span><b>Update contact pada {identityRow.order_no}</b><small>Nama dan telefon delivery order ini turut dibetulkan. Customer master tidak diubah.</small></span></label>}
+        {identityError&&<div className="finance-alert"><b>Update error</b><span>{identityError}</span></div>}
+        <div className="qrpay-review-actions"><button type="button" className="btn btn-outline" disabled={identityLoading} onClick={closeIdentity}>Cancel</button><button className="btn btn-primary" disabled={identityLoading||!identityName.trim()||!identityPhone.trim()}>{identityLoading?'Saving…':'Save Admin Confirmation'}</button></div>
+      </form>
     </section></div>}
   </div>;
 }
