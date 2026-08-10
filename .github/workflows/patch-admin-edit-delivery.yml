@@ -1,0 +1,37 @@
+name: Patch Admin Edit Delivery
+on:
+  push:
+    branches: [fix/admin-edit-delivery-20260810]
+    paths:
+      - 'scripts/patch_admin_edit_delivery.py'
+      - '.github/workflows/patch-admin-edit-delivery.yml'
+permissions:
+  contents: write
+jobs:
+  patch-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/admin-edit-delivery-20260810
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/patch_admin_edit_delivery.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: icetak-admin/package-lock.json
+      - name: Build Admin V2
+        working-directory: icetak-admin
+        run: npm ci && npm run build
+      - name: Commit scoped patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add icetak-admin/src/pages/Orders.tsx
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'add admin courier and shipping fee editor'
+          git push
