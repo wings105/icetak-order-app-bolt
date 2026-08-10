@@ -10,6 +10,20 @@ type Totals = {
   missed_count:number; missed_amount:number|string; ignored_count:number; ignored_amount:number|string;
   unresolved_count:number; unresolved_amount:number|string;
 };
+type OrderComponentProgress = {
+  id:string; label:string; customer_stage:string|null; customer_label:string; progress_percent:number;
+  clickup_task_id:string|null; clickup_status:string|null; task_url:string|null; is_complete:boolean;
+};
+type OrderProgress = {
+  order_status:string|null; admin_status:string|null; fulfillment_stage:string|null; delivery_method:string|null;
+  production_approved:boolean; production_completed_at:string|null; pickup_ready_at:string|null;
+  pickup_collected_at:string|null; delivered_at:string|null; components_total:number; components_complete:number;
+  progress_percent:number; components:OrderComponentProgress[]; shipment_status:string|null;
+  shipment_status_group:string|null; tracking_number:string|null; tracking_link:string|null; courier:string|null;
+  overall_label:string; overall_tone:'success'|'warning'|'info'|'error'|'neutral';
+  available_actions:('approve_production'|'ready_pickup'|'pickup_collected')[];
+  task_status_source:'clickup_webhook'; shipment_status_source:'parceldaily';
+};
 type Row = {
   source:'matched'|'unmatched'; transaction_id:string; amount:number|string; paid_at:string; sender_name:string|null;
   provider:string; workflow_status:'matched_order'|'needs_review'|'processing'|'pending'|'missed'|'ignored';
@@ -17,6 +31,7 @@ type Row = {
   job_status:string|null; review_status:string|null;
   workflow_state:'active'|'ignored'|null; review_category:string|null; review_remark:string|null;
   review_updated_at:string|null; review_updated_by:string|null; ignored_at:string|null; ignored_by:string|null;
+  order_progress:OrderProgress|null;
 };
 type Delivery = { slot:string; status:string; attempts:number; scheduled_at:string; sent_at:string|null; recipient_phone:string|null; last_error:string|null };
 type Summary = {
@@ -102,6 +117,14 @@ const statusInfo=(row:Row)=>{
   if(row.workflow_status==='ignored')return {label:'Ignored for order',cls:'badge-neutral'};
   return {label:'Processing',cls:'badge-info'};
 };
+const progressBadgeClass=(tone:OrderProgress['overall_tone'])=>tone==='success'?'badge-success':tone==='warning'?'badge-warning':tone==='error'?'badge-error':tone==='info'?'badge-info':'badge-neutral';
+const actionLabels:Record<OrderProgress['available_actions'][number],string>={
+  approve_production:'Approve Production',ready_pickup:'Ready Pickup',pickup_collected:'Customer Collected',
+};
+const actionPrompts:Record<OrderProgress['available_actions'][number],string>={
+  approve_production:'Approve order ini untuk production?',ready_pickup:'Sahkan semua task siap dan tandakan Ready for Pickup?',
+  pickup_collected:'Sahkan customer sudah ambil order ini?',
+};
 const categoryLabels:Record<string,string>={
   old_debt:'Bayaran hutang lama',personal_transfer:'Personal / bukan jualan',supplier_refund:'Refund supplier',
   internal_transfer:'Transfer dalaman',duplicate_or_test:'Duplicate / test',other:'Lain-lain',
@@ -148,6 +171,7 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
   const [reviewRemark,setReviewRemark]=useState('');
   const [reviewLoading,setReviewLoading]=useState(false);
   const [reviewError,setReviewError]=useState<string|null>(null);
+  const [orderActionKey,setOrderActionKey]=useState<string|null>(null);
   const loadRequestId=useRef(0);
 
   const requestedRange=useMemo(()=>{
@@ -254,6 +278,19 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
     finally{setReviewLoading(false);}
   };
 
+  const runOrderAction=async(row:Row,action:OrderProgress['available_actions'][number])=>{
+    if(!row.order_id||!window.confirm(actionPrompts[action]))return;
+    const actionKey=`${row.transaction_id}:${action}`;
+    setOrderActionKey(actionKey);setError(null);
+    try{
+      const {error:rpcError}=await supabase.rpc('finance_admin_qrpay_order_action',{p_order_id:row.order_id,p_action:action});
+      if(rpcError)throw rpcError;
+      setSuccess(`${row.order_no||'Order'}: ${actionLabels[action]} sudah dikemas kini.`);
+      await load();
+    }catch(e){setError(e instanceof Error?e.message:'Order status gagal dikemas kini');}
+    finally{setOrderActionKey(null);}
+  };
+
   const filterStats=useMemo(()=>{
     const rows=summary?.rows||[];
     const filters:FilterStatus[]=['all','matched','review','processing','missed','ignored'];
@@ -267,6 +304,8 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
     const rows=(summary?.rows||[]).filter((row)=>filterMatches(row,statusFilter)).filter((row)=>{
       if(!query)return true;
       return [row.transaction_id,row.order_no,row.phone,row.sender_name,row.provider,row.review_remark,
+        row.order_progress?.overall_label,row.order_progress?.shipment_status,
+        ...(row.order_progress?.components||[]).flatMap((component)=>[component.label,component.customer_label,component.clickup_status]),
         row.review_category?categoryLabels[row.review_category]||row.review_category:'']
         .some((value)=>String(value||'').toLowerCase().includes(query));
     });
@@ -317,7 +356,37 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
           ] as [FilterStatus,string][]).map(([value,label])=><button key={value} className={statusFilter===value?'active':''} onClick={()=>setStatusFilter(value)}><span>{label}</span><b>{filterStats[value].count}</b><small>{money(filterStats[value].amount)}</small></button>)}</div>
           <div className="qrpay-review-tools"><input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="Cari transaction, order, phone, nama, remark…" aria-label="Search QRPay"/><select value={sortMode} onChange={(event)=>setSortMode(event.target.value as SortMode)} aria-label="Sort QRPay"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="amount_high">Amount: high to low</option><option value="amount_low">Amount: low to high</option><option value="status">Priority status</option></select></div>
         </div>
-        <div className="table-wrap">{summary.rows.length===0?<div className="empty"><div className="empty-title">Tiada QRPay diterima dalam period ini.</div></div>:visibleRows.length===0?<div className="empty"><div className="empty-title">Tiada payment sepadan dengan filter.</div><div className="cell-sub">Cuba All atau kosongkan carian.</div></div>:<table><thead><tr><th>{singleDay?'Time':'Date / Time'}</th><th>Transaction</th><th>Customer / Phone</th><th>Amount</th><th>Status</th><th>Remark</th><th>Proceed</th></tr></thead><tbody>{visibleRows.map((row)=>{const status=statusInfo(row);return <tr key={row.transaction_id} className={row.workflow_status==='missed'?'qrpay-row-missed':row.workflow_status==='ignored'?'qrpay-row-ignored':'row-hover'}><td className="cell-sub qrpay-payment-date">{singleDay?time(row.paid_at):paymentDateTime(row.paid_at)}</td><td><div className="cell-id">{row.transaction_id}</div><div className="cell-sub">{row.provider}</div></td><td><div className="cell-name">{row.sender_name||'Customer belum dikenal pasti'}</div>{row.phone?<a className="qrpay-phone" href={row.whatsapp_link||undefined} target="_blank" rel="noreferrer">{row.phone}</a>:<div className="cell-sub">Phone belum jumpa</div>}</td><td className="cell-amount">{money(row.amount)}</td><td><span className={`badge ${status.cls}`}>{status.label}</span>{row.job_status&&<div className="cell-sub">AI: {row.job_status.replaceAll('_',' ')}</div>}{row.review_category&&<div className="cell-sub">{categoryLabels[row.review_category]||row.review_category}</div>}</td><td className="qrpay-remark-cell">{row.review_remark?<><span>{row.review_remark}</span><small>{row.review_updated_by||'admin'} · {dateTime(row.review_updated_at)}</small></>:<span className="cell-sub">—</span>}</td><td><div className="qrpay-proceed-actions">{row.order_no?<><button className="finance-order-link" onClick={()=>onOpenOrder?.(row.order_no!)}>{row.order_no}</button>{canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openMatch(row)}>Manage Match</button>}</>:row.workflow_status==='ignored'?canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openReview(row)}>Review / Reopen</button>:canManage?<><button className="btn btn-primary btn-sm" onClick={()=>openMatch(row)}>Match Order</button>{onCreateOrder&&<button className="btn btn-outline btn-sm" onClick={()=>onCreateOrder({transactionId:row.transaction_id,amount:Number(row.amount),phone:row.phone||'',customerName:row.sender_name||'',paidAt:row.paid_at})}>Create Order</button>}</>:row.whatsapp_link?<a className="btn btn-outline btn-sm" href={row.whatsapp_link} target="_blank" rel="noreferrer">WhatsApp</a>:<span className="cell-sub">Semak payment</span>}{canManage&&row.workflow_status!=='ignored'&&<button className="btn btn-outline btn-sm" onClick={()=>openReview(row)}>{row.review_remark?'Edit Remark':'Remark / Ignore'}</button>}{!row.order_no&&row.workflow_status!=='ignored'&&canManage&&row.whatsapp_link&&<a className="btn btn-outline btn-sm" href={row.whatsapp_link} target="_blank" rel="noreferrer">WhatsApp</a>}</div></td></tr>})}</tbody></table>}</div>
+        <div className="table-wrap">{summary.rows.length===0
+          ?<div className="empty"><div className="empty-title">Tiada QRPay diterima dalam period ini.</div></div>
+          :visibleRows.length===0
+            ?<div className="empty"><div className="empty-title">Tiada payment sepadan dengan filter.</div><div className="cell-sub">Cuba All atau kosongkan carian.</div></div>
+            :<table className="qrpay-progress-table">
+              <thead><tr><th>{singleDay?'Time':'Date / Time'}</th><th>Transaction</th><th>Customer / Phone</th><th>Amount</th><th>Payment</th><th>Order Progress</th><th>Remark</th><th>Proceed</th></tr></thead>
+              <tbody>{visibleRows.map((row)=>{
+                const status=statusInfo(row);
+                const progress=row.order_progress;
+                return <tr key={row.transaction_id} className={row.workflow_status==='missed'?'qrpay-row-missed':row.workflow_status==='ignored'?'qrpay-row-ignored':'row-hover'}>
+                  <td className="cell-sub qrpay-payment-date">{singleDay?time(row.paid_at):paymentDateTime(row.paid_at)}</td>
+                  <td><div className="cell-id">{row.transaction_id}</div><div className="cell-sub">{row.provider}</div></td>
+                  <td><div className="cell-name">{row.sender_name||'Customer belum dikenal pasti'}</div>{row.phone?<a className="qrpay-phone" href={row.whatsapp_link||undefined} target="_blank" rel="noreferrer">{row.phone}</a>:<div className="cell-sub">Phone belum jumpa</div>}</td>
+                  <td className="cell-amount">{money(row.amount)}</td>
+                  <td><span className={`badge ${status.cls}`}>{status.label}</span>{row.job_status&&<div className="cell-sub">AI: {row.job_status.replaceAll('_',' ')}</div>}{row.review_category&&<div className="cell-sub">{categoryLabels[row.review_category]||row.review_category}</div>}</td>
+                  <td><OrderProgressCell progress={progress}/></td>
+                  <td className="qrpay-remark-cell">{row.review_remark?<><span>{row.review_remark}</span><small>{row.review_updated_by||'admin'} · {dateTime(row.review_updated_at)}</small></>:<span className="cell-sub">—</span>}</td>
+                  <td><div className="qrpay-proceed-actions">
+                    {row.order_no
+                      ?<><button className="finance-order-link" onClick={()=>onOpenOrder?.(row.order_no!)}>{row.order_no}</button>{canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openMatch(row)}>Manage Match</button>}{canManage&&progress?.available_actions.map((action)=><button key={action} className="btn btn-primary btn-sm" disabled={orderActionKey!==null} onClick={()=>void runOrderAction(row,action)}>{orderActionKey===`${row.transaction_id}:${action}`?'Updating…':actionLabels[action]}</button>)}</>
+                      :row.workflow_status==='ignored'
+                        ?canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openReview(row)}>Review / Reopen</button>
+                        :canManage
+                          ?<><button className="btn btn-primary btn-sm" onClick={()=>openMatch(row)}>Match Order</button>{onCreateOrder&&<button className="btn btn-outline btn-sm" onClick={()=>onCreateOrder({transactionId:row.transaction_id,amount:Number(row.amount),phone:row.phone||'',customerName:row.sender_name||'',paidAt:row.paid_at})}>Create Order</button>}</>
+                          :row.whatsapp_link?<a className="btn btn-outline btn-sm" href={row.whatsapp_link} target="_blank" rel="noreferrer">WhatsApp</a>:<span className="cell-sub">Semak payment</span>}
+                    {canManage&&row.workflow_status!=='ignored'&&<button className="btn btn-outline btn-sm" onClick={()=>openReview(row)}>{row.review_remark?'Edit Remark':'Remark / Ignore'}</button>}
+                    {!row.order_no&&row.workflow_status!=='ignored'&&canManage&&row.whatsapp_link&&<a className="btn btn-outline btn-sm" href={row.whatsapp_link} target="_blank" rel="noreferrer">WhatsApp</a>}
+                  </div></td>
+                </tr>;
+              })}</tbody>
+            </table>}</div>
       </div>
     </>}
     {matchRow&&<div className="qrpay-match-backdrop" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget)closeMatch();}}><section className="qrpay-match-dialog" role="dialog" aria-modal="true" aria-labelledby="qrpay-match-title">
@@ -350,3 +419,13 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
 }
 
 function Metric({label,value,hint,cls}:{label:string;value:string;hint:string;cls:string}){return <div className={`stat-card ${cls}`}><div className="stat-label">{label}</div><div className="stat-value">{value}</div><div className="stat-hint">{hint}</div></div>;}
+
+function OrderProgressCell({progress}:{progress:OrderProgress|null}){
+  if(!progress)return <span className="cell-sub">Belum linked ke order</span>;
+  return <div className="qrpay-order-progress">
+    <div className="qrpay-order-progress-head"><span className={`badge ${progressBadgeClass(progress.overall_tone)}`}>{progress.overall_label}</span>{progress.components_total>0&&<b>{progress.progress_percent}%</b>}</div>
+    {progress.components_total>0&&<><div className="qrpay-progress-track" aria-label={`${progress.progress_percent}% complete`}><span style={{width:`${progress.progress_percent}%`}}/></div><div className="cell-sub">{progress.components_complete}/{progress.components_total} task complete</div><div className="qrpay-component-list">{progress.components.map((component)=><div className="qrpay-component-chip" key={component.id}><span>{component.label}</span>{component.task_url?<a href={component.task_url} target="_blank" rel="noreferrer" title={component.clickup_status||'Open ClickUp task'}>{component.customer_label||component.clickup_status||'Order Received'} · {component.progress_percent}%</a>:<small>{component.customer_label||'Belum linked ClickUp'} · {component.progress_percent}%</small>}</div>)}</div></>}
+    {progress.tracking_number&&<div className="qrpay-tracking-line"><span>{progress.courier||'Courier'} · {progress.tracking_number}</span>{progress.tracking_link&&<a href={progress.tracking_link} target="_blank" rel="noreferrer">Track parcel</a>}</div>}
+    <small className="qrpay-progress-source">{progress.shipment_status_group?'Courier status: ParcelDaily':'Task status: ClickUp webhook'}</small>
+  </div>;
+}

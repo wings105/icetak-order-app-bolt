@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       if ((from && !validDate(from)) || !validDate(to) || (from && from > to) || to > malaysiaToday()) {
         return json({ success: false, error: "Valid QRPay date range is required" }, 400);
       }
-      return json({ success: true, data: await rpc("finance_admin_qrpay_range", { p_from: from || null, p_to: to }) });
+      return json({ success: true, data: await rpc("finance_admin_qrpay_range_with_progress", { p_from: from || null, p_to: to }) });
     }
     if (action === "qrpay_match_candidates") {
       const transactionId = String(body.transaction_id || "").trim();
