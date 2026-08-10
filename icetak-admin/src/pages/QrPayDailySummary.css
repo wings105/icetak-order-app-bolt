@@ -1,6 +1,19 @@
 .qrpay-summary-page{padding-bottom:24px}
 .qrpay-summary-actions{display:flex;gap:8px;align-items:center}
 .qrpay-summary-actions input{height:40px;padding:0 12px;border:1px solid var(--border);border-radius:9px;background:#fff}
+.qrpay-period-control{display:grid;gap:11px;margin-bottom:14px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.03)}
+.qrpay-period-presets{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}
+.qrpay-period-presets button{min-width:max-content;height:36px;padding:0 13px;border:1px solid var(--border);border-radius:9px;background:#fff;color:#475569;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
+.qrpay-period-presets button:hover{border-color:#93c5fd;background:#f8fbff}
+.qrpay-period-presets button.active{border-color:var(--primary);background:var(--primary);color:#fff;box-shadow:0 4px 12px color-mix(in srgb,var(--primary) 24%,transparent)}
+.qrpay-period-inputs{display:flex;align-items:flex-end;gap:10px;min-height:42px}
+.qrpay-period-inputs label{display:grid;gap:5px;color:#475569;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.qrpay-period-inputs input{height:40px;padding:0 12px;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--text);font:inherit}
+.qrpay-period-inputs input:focus{border-color:var(--primary);outline:2px solid color-mix(in srgb,var(--primary) 18%,transparent)}
+.qrpay-period-result{display:flex;flex-direction:column;gap:3px;margin-left:auto;text-align:right}
+.qrpay-period-result b{font-size:12px}
+.qrpay-period-result span{color:var(--text-secondary);font-size:10.5px}
+.qrpay-payment-date{min-width:112px}
 .qrpay-summary-metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:14px}
 .qrpay-summary-metrics .stat-card.slate::before{background:#64748b}
 .qrpay-summary-note{display:flex;justify-content:space-between;gap:20px;margin-bottom:16px;padding:14px 18px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff}
@@ -94,4 +107,7 @@
   .qrpay-current-match>div:last-child{text-align:left}
   .qrpay-correction-actions{display:grid;grid-template-columns:1fr}
   .qrpay-review-actions{display:grid;grid-template-columns:1fr}
+  .qrpay-period-inputs{align-items:stretch;flex-direction:column}
+  .qrpay-period-inputs label,.qrpay-period-inputs input{width:100%}
+  .qrpay-period-result{margin-left:0;text-align:left}
 }
