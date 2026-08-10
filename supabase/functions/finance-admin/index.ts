@@ -154,6 +154,24 @@ Deno.serve(async (req) => {
         p_actor: admin.username,
       }) });
     }
+    if (action === "qrpay_identity_update") {
+      const transactionId = String(body.transaction_id || "").trim();
+      const name = String(body.name || "").trim();
+      const phone = String(body.phone || "").trim();
+      if (!transactionId || !name || !phone) {
+        return json({ success: false, error: "Transaction, customer name and phone are required" }, 400);
+      }
+      if (name.length > 200 || phone.length > 30) {
+        return json({ success: false, error: "Customer contact is too long" }, 400);
+      }
+      return json({ success: true, data: await rpc("finance_admin_qrpay_identity_update", {
+        p_transaction_id: transactionId,
+        p_name: name,
+        p_phone: phone,
+        p_update_order: body.update_order === true,
+        p_actor: admin.username,
+      }) });
+    }
     if (action === "qrpay_manual_match") {
       const transactionId = String(body.transaction_id || "").trim();
       const orderNo = String(body.order_no || "").trim();
