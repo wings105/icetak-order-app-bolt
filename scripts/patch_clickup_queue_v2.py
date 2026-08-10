@@ -20,3 +20,7 @@ repl2=needle2+"              {item.key === 'clickup-queue' && clickupAttention >
 if needle2 not in s: raise SystemExit('sidebar label marker not found')
 s=s.replace(needle2,repl2)
 sidebar.write_text(s)
+
+queue=Path('icetak-admin/src/pages/ClickUpQueue.tsx')
+s=queue.read_text().replace("const digits=(v:unknown)=>String(v||'').replace(/\\D/g,'');\n","")
+queue.write_text(s)
