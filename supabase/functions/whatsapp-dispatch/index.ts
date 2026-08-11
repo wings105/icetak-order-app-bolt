@@ -54,10 +54,21 @@ Deno.serve(async (req) => {
     const results: Array<Record<string, unknown>> = [];
     for (const job of jobs || []) {
       try {
+        const outbound = {
+          ...(job.payload || {}),
+          phone: job.phone || job.payload?.phone || null,
+          recipient_bsuid: job.recipient_bsuid || job.payload?.recipient_bsuid || job.payload?.bsuid || null,
+          recipient_username: job.recipient_username || job.payload?.recipient_username || job.payload?.username || null,
+          customer_id: job.customer_id || job.payload?.customer_id || null,
+          order_db_id: job.order_id || job.payload?.order_db_id || null,
+          queue_id: job.id,
+          idempotency_key: job.idempotency_key,
+          source: 'notification_queue',
+        };
         const response = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-send`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', authorization: `Bearer ${SERVICE_ROLE_KEY}` },
-          body: JSON.stringify({ ...(job.payload || {}), queue_id: job.id, idempotency_key: job.idempotency_key, source: 'notification_queue' }),
+          body: JSON.stringify(outbound),
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok || result.ok === false) throw new Error(result.error || `whatsapp-send ${response.status}`);
@@ -66,7 +77,7 @@ Deno.serve(async (req) => {
           provider_message_id: result.message_id || null, decision_mode: result.mode || null,
           decision_reason: result.decision_reason || null, last_error: null,
         });
-        results.push({ id: job.id, status: 'sent', mode: result.mode, message_id: result.message_id });
+        results.push({ id: job.id, status: 'sent', mode: result.mode, message_id: result.message_id, recipient_type: result.recipient_type });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (isAutomationSafetyStop(message)) {
