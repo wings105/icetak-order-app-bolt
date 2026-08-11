@@ -20,7 +20,17 @@ async function authorized(req: Request) {
   const { data, error } = await db.from('clickup_integration_settings').select('value').eq('setting_key', 'black_box').single();
   if (error) throw error;
   const expected = text(data?.value?.secret_sha256);
-  return Boolean(expected) && await sha256(req.headers.get('x-ap-secret') || '') === expected;
+  const raw = req.headers.get('x-ap-secret') || '';
+  const provided = raw.trim();
+  const ok = Boolean(expected) && Boolean(provided) && await sha256(provided) === expected;
+  if (!ok) {
+    console.warn('clickup-task-created-callback invalid_ap_secret', {
+      has_header: Boolean(raw),
+      raw_length: raw.length,
+      trimmed_length: provided.length,
+    });
+  }
+  return ok;
 }
 
 Deno.serve(async (req) => {
