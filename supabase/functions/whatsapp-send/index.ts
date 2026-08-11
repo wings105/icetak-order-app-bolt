@@ -7,13 +7,25 @@ const C = {
   'access-control-allow-methods': 'POST,OPTIONS',
   'access-control-allow-headers': 'content-type,authorization,apikey',
 };
+const BSUID_RE = /^[A-Z]{2}\.\d+$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), {
   status,
   headers: { ...C, 'content-type': 'application/json' },
 });
-const phoneOf = (phone: string) => {
-  const value = String(phone || '').replace(/\D/g, '');
-  return value.startsWith('60') ? value : value.startsWith('0') ? `6${value}` : value.startsWith('1') ? `60${value}` : value;
+const clean = (value: unknown) => String(value ?? '').trim();
+const bsuidOf = (value: unknown) => {
+  const raw = clean(value);
+  return BSUID_RE.test(raw) ? raw.toUpperCase() : '';
+};
+const phoneOf = (value: unknown) => {
+  const raw = clean(value);
+  if (!raw || BSUID_RE.test(raw)) return '';
+  let phone = raw.replace(/\D/g, '');
+  if (phone.startsWith('00')) phone = phone.slice(2);
+  if (phone.startsWith('0')) phone = `60${phone.slice(1)}`;
+  else if (phone.startsWith('1') && phone.length >= 9 && phone.length <= 10) phone = `60${phone}`;
+  return /^[1-9]\d{7,14}$/.test(phone) ? phone : '';
 };
 const render = (text: string, vars: Record<string, unknown>) => String(text || '')
   .replace(/\{\s*([a-zA-Z0-9_]+)\s*\}/g, (_match, key) => String(vars?.[key] ?? ''));
@@ -53,20 +65,16 @@ async function setting(key: string) {
 async function trackingAutoPreflight(body: Record<string, any>) {
   const shipmentId = String(body.shipment_id || body?.vars?.shipment_id || '').trim();
   if (!shipmentId) return { ok: false, error: 'tracking_shipment_id_required' };
-
   const settings = await rest('tracking_system_settings?singleton=eq.true&select=auto_send_enabled,provider_ready&limit=1').catch(() => []);
   const config = settings?.[0];
   if (!config?.auto_send_enabled) return { ok: false, error: 'tracking_auto_disabled' };
   if (!config?.provider_ready) return { ok: false, error: 'tracking_provider_not_ready' };
-
   const states = await rest(`shipment_tracking_state?shipment_id=eq.${encodeURIComponent(shipmentId)}&select=send_status,manual_cancelled_at&limit=1`).catch(() => []);
   const state = states?.[0];
   if (!state) return { ok: false, error: 'tracking_state_missing' };
   if (state.send_status === 'cancelled' || state.manual_cancelled_at) return { ok: false, error: 'tracking_cancelled' };
   if (state.send_status === 'sent') return { ok: true, duplicate: true };
-  if (!['queued', 'ready', 'failed'].includes(String(state.send_status || ''))) {
-    return { ok: false, error: `tracking_not_sendable:${state.send_status || 'unknown'}` };
-  }
+  if (!['queued', 'ready', 'failed'].includes(String(state.send_status || ''))) return { ok: false, error: `tracking_not_sendable:${state.send_status || 'unknown'}` };
   return { ok: true, duplicate: false };
 }
 
@@ -89,18 +97,71 @@ async function pickupAutoPreflight(body: Record<string, any>) {
   return { ok: true };
 }
 
-async function windowStatus(phone: string) {
+type Recipient = {
+  phone: string;
+  bsuid: string;
+  username: string;
+  customerMasterId: string;
+  customerId: string;
+};
+
+async function resolveRecipient(body: Record<string, any>): Promise<Recipient> {
+  const vars = body.vars || {};
+  let phone = phoneOf(body.phone || body.to || vars.phone || vars.customer_phone || vars.delivery_phone || '');
+  let bsuid = bsuidOf(body.recipient_bsuid || body.bsuid || body.recipient || vars.recipient_bsuid || vars.bsuid || '');
+  let username = clean(body.recipient_username || body.username || vars.recipient_username || vars.whatsapp_username || '');
+  let customerMasterId = clean(body.customer_master_id || vars.customer_master_id || '');
+  let customerId = clean(body.customer_id || vars.customer_id || '');
+  const candidateOrderId = clean(body.order_db_id || vars.order_db_id || body.order_uuid || vars.order_uuid || '');
+
+  if (UUID_RE.test(candidateOrderId)) {
+    const order = (await rest(`orders?id=eq.${encodeURIComponent(candidateOrderId)}&select=id,customer_id,delivery_phone&limit=1`).catch(() => []))?.[0];
+    if (order) {
+      customerId ||= clean(order.customer_id);
+      phone ||= phoneOf(order.delivery_phone);
+    }
+  }
+  if (customerId && UUID_RE.test(customerId)) {
+    const customer = (await rest(`customers?id=eq.${encodeURIComponent(customerId)}&select=id,phone,customer_master_id&limit=1`).catch(() => []))?.[0];
+    if (customer) {
+      phone ||= phoneOf(customer.phone);
+      customerMasterId ||= clean(customer.customer_master_id);
+    }
+  }
+  if (customerMasterId && UUID_RE.test(customerMasterId) && !bsuid) {
+    const rows = await rest(`customer_identifiers_master?customer_master_id=eq.${encodeURIComponent(customerMasterId)}&identifier_type=eq.whatsapp_bsuid&channel=eq.whatsapp&select=identifier_value,metadata,last_seen_at&order=last_seen_at.desc&limit=1`).catch(() => []);
+    const identity = rows?.[0];
+    if (identity) {
+      bsuid = bsuidOf(identity.identifier_value);
+      username ||= clean(identity.metadata?.current_username);
+      phone ||= phoneOf(identity.metadata?.last_phone_seen);
+    }
+  }
+  return { phone, bsuid, username, customerMasterId, customerId };
+}
+
+async function windowStatus(recipient: Recipient) {
   const url = await setting('unified_inbox_24h_url');
-  if (!url) return { ok: false, can_send_freeform: false, reason: 'missing_24h_url' };
+  if (!url) return { ok: false, can_send_freeform: false, reason: 'missing_24h_url', ...recipient };
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ phone }),
+    body: JSON.stringify({
+      phone: recipient.phone || undefined,
+      bsuid: recipient.bsuid || undefined,
+      customer_master_id: recipient.customerMasterId || undefined,
+    }),
   });
   const data = await response.json().catch(() => ({}));
-  return response.ok && data.ok !== false
-    ? data
-    : { ok: false, can_send_freeform: false, error: data.error || `24h_http_${response.status}` };
+  if (response.ok && data.ok !== false) {
+    return {
+      ...data,
+      phone: phoneOf(data.phone) || recipient.phone,
+      bsuid: bsuidOf(data.bsuid) || recipient.bsuid,
+      username: clean(data.username) || recipient.username,
+    };
+  }
+  return { ok: false, can_send_freeform: false, error: data.error || `24h_http_${response.status}`, ...recipient };
 }
 
 async function provider(path: string, payload: unknown) {
@@ -142,14 +203,14 @@ Deno.serve(async (req) => {
     if (!await authorized(req)) return json({ ok: false, error: 'Unauthorized' }, 401);
 
     const body = await req.json().catch(() => ({}));
-    const phone = phoneOf(body.phone || body.to || '');
-    if (!/^601\d{8,9}$/.test(phone)) return json({ ok: false, error: 'phone required' }, 400);
-
-    const eventType = body.event_type || 'manual';
     const vars = { ...(body.vars || body) };
     if (vars.otp && !vars.otp_code) vars.otp_code = vars.otp;
     if (!vars.expiry_minutes) vars.expiry_minutes = '10';
 
+    let recipient = await resolveRecipient(body);
+    if (!recipient.phone && !recipient.bsuid) return json({ ok: false, error: 'whatsapp_recipient_required: provide a real phone or BSUID' }, 400);
+
+    const eventType = body.event_type || 'manual';
     if (eventType === 'shipment_auto_tracking') {
       const preflight = await trackingAutoPreflight(body);
       if (preflight.duplicate) return json({ ok: true, duplicate: true, mode: 'auto', decision_reason: 'tracking_already_sent' });
@@ -163,7 +224,17 @@ Deno.serve(async (req) => {
     const rule = (await rest(`whatsapp_notification_rules?event_type=eq.${encodeURIComponent(eventType)}&limit=1`).catch(() => []))?.[0] || {};
     if (rule.enabled === false) return json({ ok: false, error: `notification_disabled:${eventType}` }, 409);
 
-    const window = await windowStatus(phone);
+    const window = await windowStatus(recipient);
+    recipient = {
+      ...recipient,
+      phone: phoneOf(window.phone) || recipient.phone,
+      bsuid: bsuidOf(window.bsuid) || recipient.bsuid,
+      username: clean(window.username) || recipient.username,
+    };
+    if (!recipient.phone && !recipient.bsuid) return json({ ok: false, error: 'whatsapp_recipient_unresolved' }, 422);
+    const recipientType = recipient.phone ? 'phone' : 'bsuid';
+    const recipientPayload = recipient.phone ? { to: recipient.phone } : { recipient: recipient.bsuid };
+
     const canSendFreeform = Boolean(window.can_send_freeform);
     const mode = body.mode && body.mode !== 'auto'
       ? body.mode
@@ -173,12 +244,13 @@ Deno.serve(async (req) => {
     let payload: Record<string, any>;
     let endpoint = '';
     let templateLanguage: string | null = null;
+    let templateCategory = '';
 
     if (mode === 'text') {
       if (rule.freeform_enabled === false) return json({ ok: false, error: 'freeform_disabled' }, 409);
       const text = body.text || render(rule.freeform_text || '', vars);
       if (!text.trim()) return json({ ok: false, error: 'freeform_message_empty' }, 400);
-      payload = { to: phone, text, preview_url: false };
+      payload = { ...recipientPayload, text, preview_url: false };
       endpoint = '/messages/send';
     } else {
       if (rule.template_enabled === false) return json({ ok: false, error: 'template_disabled' }, 409);
@@ -187,14 +259,19 @@ Deno.serve(async (req) => {
       templateLanguage = language;
       if (!name) return json({ ok: false, error: 'template_name_required' }, 400);
 
-      const approved = await rest(`whatsapp_templates?name=eq.${encodeURIComponent(name)}&language=eq.${encodeURIComponent(language)}&status=eq.APPROVED&limit=1`).catch(() => []);
+      const approved = await rest(`whatsapp_templates?name=eq.${encodeURIComponent(name)}&language=eq.${encodeURIComponent(language)}&status=eq.APPROVED&select=name,language,category,components&limit=1`).catch(() => []);
       if (!approved?.[0]) return json({ ok: false, error: `template_not_approved:${name}:${language}`, decision_reason: decisionReason, window }, 409);
+      templateCategory = clean(approved[0].category).toUpperCase();
+      if (templateCategory === 'AUTHENTICATION' && !recipient.phone) {
+        return json({ ok: false, error: 'authentication_template_requires_phone', recipient_type: recipientType }, 400);
+      }
 
       const keys = Array.isArray(body.template_params)
         ? body.template_params
         : Array.isArray(rule.template_params) ? rule.template_params : [];
+      const authRecipient = templateCategory === 'AUTHENTICATION' ? { to: recipient.phone } : recipientPayload;
       payload = {
-        to: phone,
+        ...authRecipient,
         template: {
           name,
           language: { code: language },
@@ -223,14 +300,31 @@ Deno.serve(async (req) => {
     }
 
     const baseLog = {
-      phone, event_type: eventType, customer_name: vars.customer_name || null,
-      order_no: vars.order_id || null, order_token: vars.order_token || null,
-      mode, message_type: mode === 'template' ? 'template' : 'text', body: payload.text || null,
-      template_name: payload.template?.name || null, template_language: templateLanguage,
-      template_components: payload.template?.components || null, can_send_freeform: canSendFreeform,
-      status: 'processing', request_payload: payload, response_payload: {}, source: body.source || 'system',
-      idempotency_key: idempotencyKey, attempt_count: 1, last_attempt_at: new Date().toISOString(),
-      decision_reason: decisionReason, window_payload: window,
+      phone: recipient.phone || null,
+      recipient_bsuid: recipient.bsuid || null,
+      recipient_username: recipient.username || null,
+      recipient_type: recipientType,
+      event_type: eventType,
+      customer_id: body.customer_id || null,
+      customer_name: vars.customer_name || null,
+      order_no: vars.order_id || null,
+      order_token: vars.order_token || null,
+      mode,
+      message_type: mode === 'template' ? 'template' : 'text',
+      body: payload.text || null,
+      template_name: payload.template?.name || null,
+      template_language: templateLanguage,
+      template_components: payload.template?.components || null,
+      can_send_freeform: canSendFreeform,
+      status: 'processing',
+      request_payload: payload,
+      response_payload: {},
+      source: body.source || 'system',
+      idempotency_key: idempotencyKey,
+      attempt_count: 1,
+      last_attempt_at: new Date().toISOString(),
+      decision_reason: decisionReason,
+      window_payload: window,
     };
 
     const logged = await logOutbox(baseLog);
@@ -247,7 +341,18 @@ Deno.serve(async (req) => {
           }),
         });
       }
-      return json({ ok: true, mode, to: phone, message_id: sent.message_id || sent.id || null, can_send_freeform: canSendFreeform, decision_reason: decisionReason, window });
+      return json({
+        ok: true,
+        mode,
+        recipient_type: recipientType,
+        to: recipient.phone || null,
+        recipient: recipient.bsuid || null,
+        username: recipient.username || null,
+        message_id: sent.message_id || sent.id || null,
+        can_send_freeform: canSendFreeform,
+        decision_reason: decisionReason,
+        window,
+      });
     } catch (error) {
       if (logId) {
         await rest(`whatsapp_outbox?id=eq.${logId}`, {
