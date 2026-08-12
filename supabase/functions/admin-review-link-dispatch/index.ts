@@ -14,18 +14,18 @@ async function provider(to:string,text:string){const base=await wset('base_url')
 async function adminPhone(){return await wset('admin_order_notify_phone')||'60129554732'}
 async function sendDraft(draftId:string){
   const {data:d,error}=await db.from('qrpay_order_drafts').select('*').eq('id',draftId).maybeSingle();if(error)throw error;if(!d)throw Error('draft_not_found');
-  const {data:r}=await db.from('admin_order_reviews').select('id,review_token,review_code,status').eq('draft_id',d.id).maybeSingle();
-  if(!r?.review_token)throw Error('draft_review_not_found');
-  const p=d.working_draft||{},items=Array.isArray(p.items)?p.items:[],link=`${U}/functions/v1/qrpay-draft-review?token=${encodeURIComponent(r.review_token)}`;
+  const {data:r}=await db.from('admin_order_reviews').select('id,review_code,status').eq('draft_id',d.id).maybeSingle();
+  if(!d.review_token||!/^qrd_[a-f0-9]{32}$/i.test(d.review_token))throw Error('draft_review_token_invalid');
+  const p=d.working_draft||{},items=Array.isArray(p.items)?p.items:[],link=`${U}/functions/v1/qrpay-draft-review?token=${encodeURIComponent(d.review_token)}`;
   const lines=items.map((x:any,i:number)=>`${i+1}. ${x.title||x.k||'Item'} x${Number(x.qty||1)} | RM${Number(x.price||0).toFixed(2)}${x.size?` | ${x.size}`:''}${x.wording?`\n   ${String(x.wording).replace(/\n/g,' / ')}`:''}`).join('\n');
-  const diff=Number(d.payment_difference||0),msg=['🟡 QRPay AI DRAFT — ADMIN CHECK',`Review: ${r.review_code||'-'}`,`Tx: ${d.transaction_id}`,`Payment received: RM${Number(d.payment_amount||0).toFixed(2)}`,`AI draft total: RM${Number(d.draft_total||0).toFixed(2)}`,`Difference: ${diff>=0?'+':''}RM${diff.toFixed(2)}`,`Customer: ${d.customer_name||'-'}`,`AI match: ${Math.round(Number(d.match_score||0)*100)}%`,'',lines||'Item belum cukup','',`Buka draft untuk edit / remove / add item / shipping / Date Need dan Confirm:`,link,'','⚠️ Draft ini BELUM jadi order dan BELUM create ClickUp.'].join('\n');
+  const diff=Number(d.payment_difference||0),msg=['🟡 QRPay AI DRAFT — ADMIN CHECK',`Review: ${r?.review_code||'-'}`,`Tx: ${d.transaction_id}`,`Payment received: RM${Number(d.payment_amount||0).toFixed(2)}`,`AI draft total: RM${Number(d.draft_total||0).toFixed(2)}`,`Difference: ${diff>=0?'+':''}RM${diff.toFixed(2)}`,`Customer: ${d.customer_name||'-'}`,`AI match: ${Math.round(Number(d.match_score||0)*100)}%`,'',lines||'Item belum cukup','',`Buka draft untuk edit / remove / add item / shipping / Date Need dan Confirm:`,link,'','⚠️ Draft ini BELUM jadi order dan BELUM create ClickUp.'].join('\n');
   const sent=await provider(await adminPhone(),msg);
   const now=new Date().toISOString();
   await Promise.all([
     db.from('qrpay_order_drafts').update({admin_link_sent_at:now,updated_at:now}).eq('id',d.id),
     db.from('admin_order_reviews').update({fallback_notified_at:now,last_notified_at:now,updated_at:now}).eq('draft_id',d.id)
   ]);
-  return{sent:true,draft_id:d.id,review_code:r.review_code,message_id:sent?.message_id||sent?.id||null};
+  return{sent:true,draft_id:d.id,review_code:r?.review_code||null,message_id:sent?.message_id||sent?.id||null};
 }
 async function legacySweep(){
   const {data:rows,error}=await db.from('admin_order_reviews').select('id,review_token,source_type,transaction_id,source_key,amount,candidate_name,status,draft_id').in('status',['pending_admin','awaiting_admin_detail']).is('fallback_notified_at',null).order('updated_at',{ascending:true}).limit(10);if(error)throw error;
