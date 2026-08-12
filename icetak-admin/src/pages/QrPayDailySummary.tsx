@@ -158,7 +158,7 @@ const progressCategory=(row:Row):Exclude<ProgressFilter,'all'>=>{
   if(progress.pickup_collected_at||progress.delivered_at||['collected','delivered','completed'].includes(fulfillment)||label==='customer collected'||label==='delivered')return 'completed';
   if(['awb_created','picked_up','shipped','in_transit','out_for_delivery'].includes(shipment))return 'shipping';
   if(progress.pickup_ready_at||fulfillment==='ready_for_pickup'||(progress.components_total>0&&progress.components_complete===progress.components_total))return 'ready';
-  if(progress.available_actions.includes('approve_production'))return 'approval';
+  if(progress.available_actions.includes('approve_production')||(!progress.production_approved&&Boolean(progress.approval_blockers?.length)))return 'approval';
   const stages=progress.components.map((component)=>String(component.customer_stage||component.customer_label||'').toLowerCase());
   if(stages.some((stage)=>['order received','design editing','waiting review','approved'].includes(stage)||stage.includes('design')||stage.includes('review')))return 'design';
   if(stages.some((stage)=>['production','finishing'].includes(stage))||progress.progress_percent>0)return 'production';
