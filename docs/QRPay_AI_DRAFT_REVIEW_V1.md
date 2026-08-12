@@ -6,7 +6,7 @@ Implemented 2026-08-13 for the iCetak Order System.
 
 `QRPay webhook -> immutable unmatched payment -> 3-minute QRPay AI job -> Unified Inbox WhatsApp match/extraction -> Order System draft -> admin WhatsApp review link -> admin edit/reconcile -> Confirm -> real order + linked payment + production components + ClickUp outbox`.
 
-The core safety rule is **Draft != Order**. Before admin confirmation there must be no real order number, no sales order, no `payment_transactions` allocation, no production release, and no ClickUp create outbox.
+The core safety rule is **Draft != Order**. Before admin confirmation there is no real order number, no sales order, no `payment_transactions` allocation, no production release, and no ClickUp create outbox.
 
 ## Admin draft review
 
@@ -25,6 +25,19 @@ Confirmation is server-blocked unless:
 
 Only `icetak_confirm_qrpay_order_draft` creates the actual order and calls `enqueue_clickup_production_order`.
 
+## Wrong customer / true rematch
+
+`Wrong Customer / Rematch` is a real retry path, not a dead-end review state.
+
+- the rejected conversation ID is appended to `qrpay_ai_jobs.evidence.excluded_conversation_ids`;
+- the job returns to `retry` immediately;
+- worker `qrpay-ai-draft-v10-rematch` skips excluded conversations;
+- the next suitable WhatsApp candidate refreshes the **same draft ID**;
+- the prior AI attempt remains in `qrpay_order_draft_events`;
+- the refreshed draft is sent to admin again.
+
+This prevents the worker from repeatedly selecting a conversation the admin has already rejected while preserving the full AI -> human -> AI audit trail.
+
 ## Audit and learning
 
 Every draft preserves:
@@ -32,7 +45,7 @@ Every draft preserves:
 - immutable payment/webhook snapshot;
 - conversation evidence and message IDs;
 - original AI draft;
-- every admin save/confirm event;
+- every admin save/rematch/confirm event;
 - final human-confirmed payload;
 - field-level AI-vs-human corrections;
 - candidate learning rules and examples.
@@ -52,7 +65,7 @@ Current strategy keys include:
 
 ## Hard auto-create cut
 
-`qrpay-ai-order-bridge` is the safety boundary. Both `create_draft` and the legacy `create_order` action are redirected to draft creation. This prevents an older worker from bypassing admin review. An attempted legacy `order_created` status is also normalized back to `draft_created` when no real order exists.
+`qrpay-ai-order-bridge` is the safety boundary. Both `create_draft` and the legacy `create_order` action are redirected to draft creation. This prevents an older worker from bypassing admin review. An attempted legacy `order_created` status is normalized back to `draft_created` when no real order exists.
 
 Unknown shipping remains `unknown`; it is never silently converted to Pickup.
 
@@ -60,17 +73,17 @@ Pickup AI remains a separate flow and is not converted into the QRPay draft life
 
 ## Worker
 
-Production worker identity: `qrpay-ai-draft-v9`.
+Production worker identity: `qrpay-ai-draft-v10-rematch`.
 
-The Order System cron invokes the Unified Inbox worker once per minute. There is no competing QRPay cron in Unified Inbox. The worker reads WhatsApp context, builds a draft, records evidence, uses active learning rules, and never creates the real QRPay order itself.
+The Order System cron invokes the Unified Inbox worker once per minute. There is no competing QRPay cron in Unified Inbox. The worker reads WhatsApp context, builds a draft, records evidence, uses active learning rules, excludes admin-rejected conversations on rematch, and never creates the real QRPay order itself.
 
-Important extraction changes in V1:
+Important extraction behavior:
 
-- explicit seller `RM` quote is preferred; no more splitting the payment amount into invented item prices;
+- explicit seller `RM` quote is preferred; no payment-total splitting into invented item prices;
 - unresolved item price is left as 0 so reconciliation visibly fails;
 - unresolved delivery is `unknown`, not Pickup;
 - explicit multiline `Wording:` is extracted;
-- multi-product categories are retained instead of deliberately collapsing to one product;
+- multi-product categories are retained;
 - Date Need and delivery are mandatory at admin confirmation.
 
 ## Production database objects
@@ -95,9 +108,11 @@ Core RPCs:
 
 ## Verification performed
 
-Two rollback-only production DB tests were run after deployment:
+All production tests below ran inside explicit transactions and were rolled back, so they created no test customer order or ClickUp task.
 
 1. **Draft isolation**: payment -> draft created; asserted no order, no allocated payment and no ClickUp outbox before confirmation; unmatched payment remained preserved.
-2. **Admin confirm + learning**: after confirm, asserted paid/production-ready order, Date Need + delivery fee, payment audit snapshot, ClickUp create outbox, confirmed draft lock, correction record and candidate learning rule.
+2. **Admin confirm + learning**: asserted paid/production-ready order, Date Need + delivery fee, payment audit snapshots, ClickUp create outbox, confirmed draft lock, correction record and candidate learning rule.
+3. **Final multi-item confirmation**: two items preserved canonical `sort_index`, wording/customization/product snapshot mapped to the correct items, payment audit remained intact and ClickUp outbox was queued only after confirmation.
+4. **True rematch state machine**: conversation A rejected -> A excluded -> job retry -> conversation B refreshed the same draft -> both human rematch and AI rematch events remained in the audit trail.
 
-Both tests passed and were rolled back, so they created no test production orders or ClickUp tasks.
+All four verification paths passed.
