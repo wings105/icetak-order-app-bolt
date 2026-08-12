@@ -20,6 +20,7 @@ type OrderProgress = {
   pickup_collected_at:string|null; delivered_at:string|null; components_total:number; components_complete:number;
   progress_percent:number; components:OrderComponentProgress[]; shipment_status:string|null;
   shipment_status_group:string|null; tracking_number:string|null; tracking_link:string|null; courier:string|null;
+  approval_blockers?:string[];
   overall_label:string; overall_tone:'success'|'warning'|'info'|'error'|'neutral';
   available_actions:('approve_production'|'ready_pickup'|'pickup_collected')[];
   task_status_source:'clickup_webhook'; shipment_status_source:'parceldaily';
@@ -445,7 +446,7 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
                   <td className="qrpay-remark-cell">{row.review_remark?<><span>{row.review_remark}</span><small>{row.review_updated_by||'admin'} · {dateTime(row.review_updated_at)}</small></>:<span className="cell-sub">—</span>}</td>
                   <td><div className="qrpay-proceed-actions">
                     {row.order_no
-                      ?<><button className="finance-order-link" onClick={()=>onOpenOrder?.(row.order_no!)}>{row.order_no}</button>{canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openMatch(row)}>Manage Match</button>}{canManage&&progress?.available_actions.map((action)=><button key={action} className="btn btn-primary btn-sm" disabled={orderActionKey!==null} onClick={()=>void runOrderAction(row,action)}>{orderActionKey===`${row.transaction_id}:${action}`?'Updating…':actionLabels[action]}</button>)}</>
+                      ?<><button className="finance-order-link" onClick={()=>onOpenOrder?.(row.order_no!)}>{row.order_no}</button>{canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openMatch(row)}>Manage Match</button>}{canManage&&progress&&!progress.production_approved&&Boolean(progress.approval_blockers?.length)&&<button className="btn btn-outline btn-sm" onClick={()=>onOpenOrder?.(row.order_no!)}>Fix Order</button>}{canManage&&progress?.available_actions.map((action)=><button key={action} className="btn btn-primary btn-sm" disabled={orderActionKey!==null} onClick={()=>void runOrderAction(row,action)}>{orderActionKey===`${row.transaction_id}:${action}`?'Updating…':actionLabels[action]}</button>)}</>
                       :row.workflow_status==='ignored'
                         ?canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openReview(row)}>Review / Reopen</button>
                         :canManage
@@ -507,6 +508,7 @@ function OrderProgressCell({progress}:{progress:OrderProgress|null}){
   return <div className="qrpay-order-progress">
     <div className="qrpay-order-progress-head"><span className={`badge ${progressBadgeClass(progress.overall_tone)}`}>{progress.overall_label}</span>{progress.components_total>0&&<b>{progress.progress_percent}%</b>}</div>
     {progress.components_total>0&&<><div className="qrpay-progress-track" aria-label={`${progress.progress_percent}% complete`}><span style={{width:`${progress.progress_percent}%`}}/></div><div className="cell-sub">{progress.components_complete}/{progress.components_total} task complete</div><div className="qrpay-component-list">{progress.components.map((component)=><div className="qrpay-component-chip" key={component.id}><span>{component.label}</span>{component.task_url?<a href={component.task_url} target="_blank" rel="noreferrer" title={component.clickup_status||'Open ClickUp task'}>{component.customer_label||component.clickup_status||'Order Received'} · {component.progress_percent}%</a>:<small>{component.customer_label||'Belum linked ClickUp'} · {component.progress_percent}%</small>}</div>)}</div></>}
+    {!!progress.approval_blockers?.length&&<div style={{marginTop:6,padding:'6px 8px',borderRadius:8,background:'#fff7ed',color:'#b45309',fontSize:12,fontWeight:700}}>Fix order before approval: {progress.approval_blockers.join(' · ')}</div>}
     {progress.tracking_number&&<div className="qrpay-tracking-line"><span>{progress.courier||'Courier'} · {progress.tracking_number}</span>{progress.tracking_link&&<a href={progress.tracking_link} target="_blank" rel="noreferrer">Track parcel</a>}</div>}
     <small className="qrpay-progress-source">{progress.shipment_status_group?'Courier status: ParcelDaily':'Task status: ClickUp webhook'}</small>
   </div>;
