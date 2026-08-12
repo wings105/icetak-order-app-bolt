@@ -7,6 +7,9 @@ import {
 type SendStatus = 'not_ready' | 'blocked' | 'ready' | 'queued' | 'opened' | 'sent' | 'failed' | 'cancelled';
 type TrackingAction = 'opened' | 'sent' | 'reopen' | 'cancel' | 'restore' | 'retry_auto';
 
+type MatchCandidate = { orderDbId?: string; orderNo?: string; status?: string; adminStatus?: string; delivery?: string; courier?: string; createdAt?: string };
+type MatchSuggestion = { candidateCount?: number; autoLinkable?: boolean; reason?: string; orderDbId?: string; orderNo?: string; confidence?: number; candidates?: MatchCandidate[] };
+
 type ProviderStatus = {
   ready?: boolean;
   provider?: string;
@@ -56,6 +59,7 @@ type TrackingRow = {
   auto_next_retry_at: string | null;
   last_error: string | null;
   message_body: string;
+  match_suggestion?: MatchSuggestion | null;
 };
 
 type DashboardPayload = {
@@ -280,6 +284,33 @@ export default function Shipping() {
     void trackingAction(row, 'opened');
   };
 
+  const linkShipmentOrder = async (row: TrackingRow, suggestedRef?: string) => {
+    const suggestion = row.match_suggestion;
+    const initial = suggestedRef || suggestion?.orderNo || '';
+    const orderRef = suggestedRef || window.prompt(
+      suggestion?.orderNo
+        ? `Link tracking ${row.tracking_no} ke order iCetak?\n\nSuggested: ${suggestion.orderNo} (${suggestion.confidence || 0}% match)\nBoleh ubah Order ID jika perlu.`
+        : `Masukkan Order ID iCetak untuk tracking ${row.tracking_no}.\nContoh: IC260810-7539`,
+      initial,
+    );
+    if (!orderRef?.trim()) return;
+    const confirmed = window.confirm(`Link ${row.tracking_no} → ${orderRef.trim()}?\n\nStatus shipment semasa akan sync ke order tersebut.`);
+    if (!confirmed) return;
+    setBusyId(row.id);
+    setError(null);
+    const { data, error: linkError } = await supabase.rpc('icetak_admin_link_shipment_order', {
+      p_shipment_id: row.id,
+      p_order_ref: orderRef.trim(),
+    });
+    if (linkError) setError(linkError.message);
+    else {
+      const linked = (data || {}) as { orderNo?: string };
+      setNotice(`Tracking linked ke ${linked.orderNo || orderRef.trim()}.`);
+      await load(true);
+    }
+    setBusyId(null);
+  };
+
   const toggleAutoSend = async () => {
     const next = !settings.auto_send_enabled;
     const confirmed = window.confirm(next
@@ -435,6 +466,16 @@ export default function Shipping() {
                             </a>
                           </div>
                         )}
+                        {!row.order_id && row.match_suggestion?.orderNo && (
+                          <div style={{ marginTop: 4 }}>
+                            <span className={`badge ${row.match_suggestion.autoLinkable ? 'badge-success' : 'badge-warning'}`}>
+                              Suggested {row.match_suggestion.orderNo} · {row.match_suggestion.confidence || 0}%
+                            </span>
+                            <div className="cell-sub" style={{ marginTop: 3 }}>
+                              {row.match_suggestion.reason === 'phone_unique_courier_mismatch' ? 'Phone exact · courier perlu semak' : 'Phone + courier match'}
+                            </div>
+                          </div>
+                        )}
                       </td>
                       <td><a href={row.tracking_link || '#'} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 700 }}>{row.tracking_no}</a></td>
                       <td>{row.courier ? row.courier.toUpperCase() : '—'}</td>
@@ -451,6 +492,14 @@ export default function Shipping() {
                       <td className="cell-sub">{formatDate(row.created_at)}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', minWidth: 230 }}>
+                          {!row.order_id && row.match_suggestion?.orderNo && (
+                            <button className={row.match_suggestion.autoLinkable ? 'btn btn-primary' : 'btn btn-outline'} disabled={busy} onClick={() => void linkShipmentOrder(row, row.match_suggestion?.orderNo || undefined)}>
+                              Link {row.match_suggestion.orderNo}
+                            </button>
+                          )}
+                          {!row.order_id && (
+                            <button className="btn btn-outline" disabled={busy} onClick={() => void linkShipmentOrder(row)}>Link Order</button>
+                          )}
                           {cancelled ? (
                             <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'restore')}><IconRefresh size={14} /> Restore</button>
                           ) : (
