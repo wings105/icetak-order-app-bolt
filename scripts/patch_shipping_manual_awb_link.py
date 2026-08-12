@@ -1,4 +1,5 @@
 from pathlib import Path
+# temporary scoped patch; removed after successful build
 p=Path('icetak-admin/src/pages/Shipping.tsx')
 s=p.read_text()
 
