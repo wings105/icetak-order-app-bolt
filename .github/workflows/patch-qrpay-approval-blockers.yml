@@ -1,0 +1,34 @@
+name: Patch QRPay Approval Blockers
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/patch_qrpay_approval_blockers.py'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Patch QRPay UI
+        run: python scripts/patch_qrpay_approval_blockers.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: icetak-admin/package-lock.json
+      - name: Build Admin V2
+        run: npm ci && npm run build
+        working-directory: icetak-admin
+      - name: Commit final patch and cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm scripts/patch_qrpay_approval_blockers.py .github/workflows/patch-qrpay-approval-blockers.yml
+          git add icetak-admin/src/pages/QrPayDailySummary.tsx
+          git commit -m "fix QRPay AI approval blockers"
+          git push
