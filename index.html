@@ -20,25 +20,40 @@
 </head>
 <body>
     <div id="app"></div>
-    <script type="module" src="./src/legacy-customer-token-compat.ts"></script>
-    <script type="module" src="./src/main.ts"></script>
-    <script type="module" src="./src/product-catalog.ts"></script>
-    <script type="module" src="./src/catalog-route-context-fix.ts"></script>
-    <script type="module" src="./src/catalog-configurator.ts"></script>
-    <script type="module" src="./src/customer-portal.ts"></script>
-    <script type="module" src="./src/customer-order-lifecycle-ui.ts"></script>
-    <script type="module" src="./src/customer-catalog-dashboard.ts"></script>
-    <script type="module" src="./src/cash-pickup-flow.ts"></script>
-    <script type="module" src="./src/pickup-payment-state-fix.ts"></script>
+    <script type="module">
+      (async () => {
+        const adminRoute = new URLSearchParams(location.search).get('admin');
+        const isAdmin = adminRoute === 'v2' || adminRoute === '1';
 
-    <!-- Single admin runtime: all admin UI lives in icetak-admin React V2. -->
-    <script type="module" src="./src/admin-v2-route.tsx"></script>
+        if (isAdmin) {
+          await import('./src/admin-v2-route.tsx');
+          return;
+        }
 
-    <script type="module" src="./src/customer-whatsapp-login.ts"></script>
-    <script type="module" src="./src/customer-account-stability.ts"></script>
-    <script type="module" src="./src/customer-account.ts"></script>
-    <script type="module" src="./src/customer-address-validation.ts"></script>
-    <script type="module" src="./src/secure-customer-address-validation.ts"></script>
-    <script type="module" src="./src/shipping-dashboard.ts"></script>
+        await import('./src/legacy-customer-token-compat.ts');
+        await import('./src/main.ts');
+        await import('./src/product-catalog.ts');
+        await import('./src/catalog-route-context-fix.ts');
+        await import('./src/catalog-configurator.ts');
+        await import('./src/customer-portal.ts');
+        await import('./src/customer-order-lifecycle-ui.ts');
+        await import('./src/customer-catalog-dashboard.ts');
+        await import('./src/cash-pickup-flow.ts');
+        await import('./src/pickup-payment-state-fix.ts');
+        await import('./src/customer-whatsapp-login.ts');
+        await import('./src/customer-account-stability.ts');
+        await import('./src/customer-account.ts');
+        await import('./src/customer-address-validation.ts');
+        await import('./src/secure-customer-address-validation.ts');
+        await import('./src/shipping-dashboard.ts');
+        await import('./src/admin-v2-route.tsx');
+      })().catch((error) => {
+        console.error('[boot]', error);
+        const app = document.getElementById('app');
+        if (app && !app.childElementCount) {
+          app.innerHTML = '<div style="padding:24px;font-family:Arial,sans-serif">App failed to start. Please refresh.</div>';
+        }
+      });
+    </script>
 </body>
 </html>
