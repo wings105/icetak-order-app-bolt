@@ -1,1 +1,1 @@
-Trigger Cloudflare rebuild after configuring VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.
+Trigger frontend rebuild for Unified Order Draft Engine V1 — 2026-08-13. Includes admin draft and customer review/payment pages.
