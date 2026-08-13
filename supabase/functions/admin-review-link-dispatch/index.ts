@@ -18,7 +18,8 @@ async function sendDraft(draftId:string){
   const {data:r}=await db.from('admin_order_reviews').select('id,review_code,status').eq('draft_id',d.id).maybeSingle();
   if(!d.review_token||!/^qrd_[a-f0-9]{32}$/i.test(d.review_token))throw Error('draft_review_token_invalid');
   const p=d.working_draft||{},items=Array.isArray(p.items)?p.items:[];
-  const link=`https://icetak.bolt.host/qrpay-draft.html?token=${encodeURIComponent(d.review_token)}`;
+  const raw=`https://raw.githubusercontent.com/wings105/icetak-order-app-bolt/main/public/qrpay-draft.html?v=1&token=${encodeURIComponent(d.review_token)}`;
+  const link=`https://htmlpreview.github.io/?${raw}`;
   const lines=items.map((x:any,i:number)=>`${i+1}. ${x.title||x.k||'Item'} x${Number(x.qty||1)} | RM${Number(x.price||0).toFixed(2)}${x.size?` | ${x.size}`:''}${x.wording?`\n   ${String(x.wording).replace(/\n/g,' / ')}`:''}`).join('\n');
   const itemSubtotal=items.reduce((s:number,x:any)=>s+(Number(x.price||0)*Math.max(1,Number(x.qty||1))),0);
   const shippingFee=Number(p.delivery_fee??d.shipping_fee??0);
