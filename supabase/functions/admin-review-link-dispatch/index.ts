@@ -1,52 +1,10 @@
 // @ts-nocheck
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-const U=Deno.env.get('SUPABASE_URL')||'',K=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
-const db=createClient(U,K,{auth:{persistSession:false}});
-const H={'content-type':'application/json','cache-control':'no-store'};
-const out=(x:any,s=200)=>new Response(JSON.stringify(x),{status:s,headers:H});
-const t=(v:any)=>v==null?'':String(v).trim();
-const digits=(v:any)=>t(v).replace(/\D/g,'');
-async function pset(k:string){const {data}=await db.from('private_runtime_settings').select('setting_value').eq('setting_key',k).maybeSingle();return t(data?.setting_value)}
-async function wset(k:string){const {data}=await db.from('whatsapp_settings').select('text_value,secret_value').eq('key',k).maybeSingle();return t(data?.secret_value||data?.text_value)}
-async function auth(req:Request){const x=req.headers.get('x-admin-order-token')||'';return!!x&&x===await pset('qrpay_ai_worker_token')}
-async function provider(to:string,text:string){const base=await wset('base_url')||'https://officialapi.wasapflow.com/bridge/v1',partner=await wset('partner_key'),waba=await wset('waba_id');if(!partner||!waba)throw Error('WasapFlow credentials incomplete');const r=await fetch(`${base}/messages/send`,{method:'POST',headers:{'content-type':'application/json','x-partner-key':partner,'x-waba-id':waba},body:JSON.stringify({to:digits(to),text,preview_url:false})});const j=await r.json().catch(()=>({}));if(!r.ok||j.success===false)throw Error(j?.error?.message||j?.message||`HTTP ${r.status}`);return j}
-async function adminPhone(){return await wset('admin_order_notify_phone')||'60129554732'}
-function methodLabel(v:any){const s=t(v).toLowerCase();return s==='pickup'?'Pickup':s==='spx'?'SPX':s==='jnt'?'J&T':s==='ninja'?'Ninja Van':s?String(v):'Not set'}
-function itemLines(items:any[]){return items.map((x:any,i:number)=>`${i+1}. ${x.title||x.product_type||x.k||'Item'} x${Number(x.qty||1)} | RM${Number(x.price||0).toFixed(2)}${x.size?` | ${x.size}`:''}${x.wording?`\n   ${String(x.wording).replace(/\n/g,' / ')}`:''}`).join('\n')}
-function totals(p:any,payment:number){const items=Array.isArray(p?.items)?p.items:[],sub=items.reduce((s:number,x:any)=>s+(Number(x.price||0)*Math.max(1,Number(x.qty||1))),0),ship=Number(p?.delivery_fee||0),total=sub+ship;return{sub,ship,total,diff:total-payment}}
-async function sendDraft(draftId:string){
-  const {data:d,error}=await db.from('qrpay_order_drafts').select('*').eq('id',draftId).maybeSingle();if(error)throw error;if(!d)throw Error('draft_not_found');
-  const {data:r}=await db.from('admin_order_reviews').select('id,review_code,status').eq('draft_id',d.id).maybeSingle();
-  const {data:j}=d.qrpay_job_id?await db.from('qrpay_ai_jobs').select('extraction,status,updated_at').eq('id',d.qrpay_job_id).maybeSingle():{data:null};
-  if(!d.review_token||!/^qrd_[a-f0-9]{32}$/i.test(d.review_token))throw Error('draft_review_token_invalid');
-  const link=`https://icetak.bolt.host/qrpay-draft.html?token=${encodeURIComponent(d.review_token)}`;
-  const payment=Number(d.payment_amount||0),confirmed=d.status==='confirmed',p=(confirmed?(d.confirmed_draft||d.working_draft):d.working_draft)||{},tt=totals(p,payment),lines=itemLines(Array.isArray(p.items)?p.items:[]);
-  let msg:string;
-  if(confirmed){
-    const ai=j?.extraction||{},aiHist=Boolean(ai?.evidence?.historical_recovery?.used),ait=totals(ai,payment),aiLines=itemLines(Array.isArray(ai.items)?ai.items:[]);
-    msg=[
-      '✅ QRPay ORDER CONFIRMED — ADMIN RECORD',
-      `Tx: ${d.transaction_id}`,
-      `Order: ${d.order_no||'-'}`,
-      `Customer: ${d.customer_name||'-'}`,
-      `Payment Received: RM${payment.toFixed(2)}`,
-      '',
-      'HUMAN FINAL / CONFIRMED',
-      lines||'Item tidak tersedia',
-      `Shipping: ${methodLabel(p.delivery)} | RM${tt.ship.toFixed(2)}`,
-      `TOTAL: RM${tt.total.toFixed(2)}`,
-      `Difference: ${tt.diff>=0?'+':''}RM${tt.diff.toFixed(2)}`,
-      ...(aiHist?['','LATEST AI RECOVERY — AUDIT ONLY (tidak overwrite human)',aiLines||'No items',`Shipping: ${methodLabel(ai.delivery)} | RM${ait.ship.toFixed(2)}`,`AI Total: RM${ait.total.toFixed(2)}`,`Difference vs Payment: ${ait.diff>=0?'+':''}RM${ait.diff.toFixed(2)}`]:[]),
-      '',
-      'Buka record (read-only):',link,'','🔒 Sudah Confirm. Link ini tidak akan create order kedua.'
-    ].join('\n');
-  }else{
-    msg=['🟡 QRPay AI DRAFT — ADMIN CHECK',`Tx: ${d.transaction_id}`,`Customer: ${d.customer_name||'-'}`,`AI match: ${Math.round(Number(d.match_score||0)*100)}%`,`Date Need: ${p.date_need||'-'}`,'','ORDER',lines||'Item belum cukup','',`Shipping: ${methodLabel(p.delivery)} | RM${tt.ship.toFixed(2)}`,`Item Subtotal: RM${tt.sub.toFixed(2)}`,`TOTAL: RM${tt.total.toFixed(2)}`,`Payment Received: RM${payment.toFixed(2)}`,`Difference: ${tt.diff>=0?'+':''}RM${tt.diff.toFixed(2)}`,'','Buka draft untuk edit / remove / add item / shipping / Date Need dan Confirm:',link,'','⚠️ Draft ini BELUM jadi order dan BELUM create ClickUp.'].join('\n');
-  }
-  const sent=await provider(await adminPhone(),msg),now=new Date().toISOString();
-  await Promise.all([db.from('qrpay_order_drafts').update({admin_link_sent_at:now,updated_at:now}).eq('id',d.id),db.from('admin_order_reviews').update({fallback_notified_at:now,last_notified_at:now,updated_at:now}).eq('draft_id',d.id)]);
-  return{sent:true,draft_id:d.id,review_code:r?.review_code||null,status:d.status,public_link:link,message_id:sent?.message_id||sent?.id||null};
-}
-async function legacySweep(){const {data:rows,error}=await db.from('admin_order_reviews').select('id,review_token,source_type,transaction_id,source_key,amount,candidate_name,status,draft_id').in('status',['pending_admin','awaiting_admin_detail']).is('fallback_notified_at',null).order('updated_at',{ascending:true}).limit(10);if(error)throw error;const results=[];for(const r of rows||[]){try{if(r.source_type==='qrpay_draft'&&r.draft_id){results.push(await sendDraft(r.draft_id));continue}const link=`${U}/functions/v1/admin-order-review?token=${encodeURIComponent(r.review_token)}`,label=r.source_type==='qrpay'?'QRPay':'Pickup',msg=`🔗 Admin Review fallback\n${label}: ${r.transaction_id||r.source_key}\n${r.amount!=null?'RM: '+Number(r.amount).toFixed(2)+'\n':''}${r.candidate_name?'Customer: '+r.candidate_name+'\n':''}\nBuka review:\n${link}`;const sent=await provider(await adminPhone(),msg);await db.from('admin_order_reviews').update({fallback_notified_at:new Date().toISOString()}).eq('id',r.id);results.push({id:r.id,sent:true,message_id:sent?.message_id||sent?.id||null})}catch(e){results.push({id:r.id,sent:false,error:String(e)})}}return results;}
-Deno.serve(async req=>{if(req.method!=='POST')return out({ok:false,error:'POST required'},405);if(!await auth(req))return out({ok:false,error:'Unauthorized'},401);try{const b=await req.json().catch(()=>({}));if(b.action==='send_draft_link'&&b.draft_id)return out({ok:true,result:await sendDraft(String(b.draft_id))});const rs=await legacySweep();return out({ok:true,count:rs.length,results:rs})}catch(e){console.error('admin-review-link-dispatch',e);return out({ok:false,error:e instanceof Error?e.message:String(e)},500)}});
+const U=Deno.env.get('SUPABASE_URL')||'',K=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'',db=createClient(U,K,{auth:{persistSession:false}});
+const H={'content-type':'application/json','cache-control':'no-store'},out=(x:any,s=200)=>new Response(JSON.stringify(x),{status:s,headers:H}),t=(v:any)=>String(v??'').trim(),digits=(v:any)=>t(v).replace(/\D/g,'');
+async function pset(k:string){const q=await db.from('private_runtime_settings').select('setting_value').eq('setting_key',k).maybeSingle();return t(q.data?.setting_value)}async function wset(k:string){const q=await db.from('whatsapp_settings').select('text_value,secret_value').eq('key',k).maybeSingle();return t(q.data?.secret_value||q.data?.text_value)}async function auth(req:Request){const x=req.headers.get('x-admin-order-token')||'';return!!x&&x===await pset('qrpay_ai_worker_token')}async function adminPhone(){return await wset('admin_order_notify_phone')||'60129554732'}
+async function provider(to:string,text:string){const base=await wset('base_url')||'https://officialapi.wasapflow.com/bridge/v1',partner=await wset('partner_key'),waba=await wset('waba_id');if(!partner||!waba)throw Error('WasapFlow credentials incomplete');const r=await fetch(`${base}/messages/send`,{method:'POST',headers:{'content-type':'application/json','x-partner-key':partner,'x-waba-id':waba},body:JSON.stringify({to:digits(to),text,preview_url:false})}),j=await r.json().catch(()=>({}));if(!r.ok||j.success===false)throw Error(j?.error?.message||j?.message||`HTTP ${r.status}`);return j}
+function method(v:any){const s=t(v).toLowerCase();return s==='pickup'?'Pickup':s==='spx'?'SPX':s==='jnt'?'J&T':s==='ninja'?'Ninja Van':s||'Not set'}function items(xs:any[]){return xs.map((x:any,i:number)=>`${i+1}. ${x.title||x.product_type||x.k||'Item'} x${Number(x.qty||1)} | RM${Number(x.price||0).toFixed(2)}${x.size?` | ${x.size}`:''}${x.wording?`\n   ${String(x.wording).replace(/\n/g,' / ')}`:''}`).join('\n')}function totals(p:any){const xs=Array.isArray(p?.items)?p.items:[],sub=xs.reduce((s:number,x:any)=>s+Number(x.price||0)*Math.max(1,Number(x.qty||1)),0),ship=Number(p?.delivery_fee||0);return{sub,ship,total:sub+ship}}
+async function sendDraft(id:string){const q=await db.from('qrpay_order_drafts').select('*').eq('id',id).maybeSingle();if(q.error)throw q.error;const d=q.data;if(!d)throw Error('draft_not_found');if(!/^qrd_[a-f0-9]{32}$/i.test(t(d.review_token)))throw Error('draft_review_token_invalid');const link=`https://icetak.bolt.host/qrpay-draft.html?token=${encodeURIComponent(d.review_token)}`,p=(d.status==='confirmed'?(d.confirmed_draft||d.working_draft):d.working_draft)||{},tt=totals(p),line=items(Array.isArray(p.items)?p.items:[]),source=t(d.source_type||'qrpay_payment'),paid=source==='qrpay_payment',cash=['cash_counter','cash_at_counter'].includes(t(d.payment_mode)),title=d.status==='confirmed'?'✅ ORDER CONFIRMED — ADMIN RECORD':source==='pickup_trigger'?'🟡 PICKUP AI DRAFT — ADMIN CHECK':source==='chat_trigger'?'🟡 CHAT ORDER DRAFT — ADMIN CHECK':'🟡 QRPay AI DRAFT — ADMIN CHECK';let payLine=paid?`Payment Received: RM${Number(d.payment_amount||0).toFixed(2)}`:cash?'Payment: Cash at Counter':'Payment: Awaiting customer confirmation / web payment';const msg=[title,`Ref: ${d.transaction_id||d.request_key||String(d.id).slice(0,8)}`,`Customer: ${d.customer_name||'-'}`,`Source: ${source}`,`Date Need: ${p.date_need||'-'}`,'','ORDER',line||'Item belum cukup','',`Shipping: ${method(p.delivery)} | RM${tt.ship.toFixed(2)}`,`Item Subtotal: RM${tt.sub.toFixed(2)}`,`TOTAL: RM${tt.total.toFixed(2)}`,payLine,...(paid?[`Difference: ${(tt.total-Number(d.payment_amount||0))>=0?'+':''}RM${(tt.total-Number(d.payment_amount||0)).toFixed(2)}`]:[]),'',d.status==='confirmed'?'Buka record (read-only):':'Buka draft untuk edit / add / remove item / shipping / Date Need:',link,'',d.status==='confirmed'?'🔒 Sudah Confirm.':'⚠️ Draft sahaja. Belum create Order / ClickUp.'].join('\n');const sent=await provider(await adminPhone(),msg),now=new Date().toISOString();await db.from('qrpay_order_drafts').update({admin_link_sent_at:now,updated_at:now}).eq('id',d.id);return{sent:true,draft_id:d.id,status:d.status,public_link:link,message_id:sent?.message_id||sent?.id||null}}
+Deno.serve(async req=>{if(req.method!=='POST')return out({ok:false,error:'POST required'},405);if(!await auth(req))return out({ok:false,error:'Unauthorized'},401);try{const b=await req.json().catch(()=>({}));if(b.action==='send_draft_link'&&b.draft_id)return out({ok:true,result:await sendDraft(String(b.draft_id))});return out({ok:true,count:0,results:[]})}catch(e){return out({ok:false,error:e instanceof Error?e.message:String(e)},500)}});
