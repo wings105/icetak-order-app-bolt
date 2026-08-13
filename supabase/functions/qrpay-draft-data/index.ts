@@ -1,46 +1,6 @@
 // @ts-nocheck
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const U = Deno.env.get('SUPABASE_URL') || '';
-const K = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const db = createClient(U, K, { auth: { persistSession: false } });
-const H = {
-  'content-type': 'application/json; charset=utf-8',
-  'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET,OPTIONS',
-  'access-control-allow-headers': 'content-type',
-  'cache-control': 'no-store',
-};
-const out = (x: unknown, status = 200) => new Response(JSON.stringify(x), { status, headers: H });
-const t = (v: unknown) => v == null ? '' : String(v).trim();
-
-Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: H });
-  if (req.method !== 'GET') return out({ ok: false, error: 'GET required' }, 405);
-  try {
-    const token = t(new URL(req.url).searchParams.get('token'));
-    if (!/^qrd_[a-f0-9]{32}$/i.test(token)) return out({ ok: false, error: 'Invalid draft token' }, 401);
-
-    const { data: draft, error } = await db.from('qrpay_order_drafts').select('*').eq('review_token', token).maybeSingle();
-    if (error) throw error;
-    if (!draft) return out({ ok: false, error: 'Draft not found' }, 404);
-
-    const [{ data: events }, { data: corrections }, { data: review }] = await Promise.all([
-      db.from('qrpay_order_draft_events').select('*').eq('draft_id', draft.id).order('created_at'),
-      db.from('qrpay_ai_corrections').select('*,qrpay_ai_learning_rules(*)').eq('draft_id', draft.id).order('created_at'),
-      db.from('admin_order_reviews').select('id,review_code,status').eq('draft_id', draft.id).maybeSingle(),
-    ]);
-
-    let order = null;
-    if (draft.order_id) {
-      const q = await db.from('orders').select('id,order_no,public_token,total,date_need,delivery_method,payment_status').eq('id', draft.order_id).maybeSingle();
-      order = q.data || null;
-    }
-
-    return out({ ok: true, draft: { ...draft, events: events || [], corrections: corrections || [], review: review || null, order } });
-  } catch (e) {
-    console.error('qrpay-draft-data', e);
-    return out({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500);
-  }
-});
+const U=Deno.env.get('SUPABASE_URL')||'',K=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'',db=createClient(U,K,{auth:{persistSession:false}});
+const H={'content-type':'application/json; charset=utf-8','access-control-allow-origin':'*','access-control-allow-methods':'GET,OPTIONS','access-control-allow-headers':'content-type','cache-control':'no-store'},out=(x:any,s=200)=>new Response(JSON.stringify(x),{status:s,headers:H}),t=(v:any)=>String(v??'').trim(),digits=(v:any)=>t(v).replace(/\D/g,'');
+Deno.serve(async req=>{if(req.method==='OPTIONS')return new Response('ok',{headers:H});if(req.method!=='GET')return out({ok:false,error:'GET required'},405);try{const token=t(new URL(req.url).searchParams.get('token'));if(!/^qrd_[a-f0-9]{32}$/i.test(token))return out({ok:false,error:'Invalid draft token'},401);const {data:draft,error}=await db.from('qrpay_order_drafts').select('*').eq('review_token',token).maybeSingle();if(error)throw error;if(!draft)return out({ok:false,error:'Draft not found'},404);const [{data:events},{data:corrections},{data:review}]=await Promise.all([db.from('qrpay_order_draft_events').select('*').eq('draft_id',draft.id).order('created_at'),db.from('qrpay_ai_corrections').select('*,qrpay_ai_learning_rules(*)').eq('draft_id',draft.id).order('created_at'),db.from('admin_order_reviews').select('id,review_code,status').eq('draft_id',draft.id).maybeSingle()]);let order=null;if(draft.order_id){const q=await db.from('orders').select('id,order_no,public_token,total,date_need,delivery_method,payment_status').eq('id',draft.order_id).maybeSingle();order=q.data||null}const ph=digits(draft.customer_phone||draft.working_draft?.customer?.phone),candidates=[];if(ph){const q=await db.from('orders').select('id,order_no,status,admin_status,fulfillment_stage,shipment_status_group,tracking,delivery_method,created_at,delivery_phone').gte('created_at',new Date(Date.now()-14*86400000).toISOString()).order('created_at',{ascending:false}).limit(80);for(const o of q.data||[]){if(digits(o.delivery_phone)!==ph||o.id===draft.order_id)continue;const terminal=['in_transit','collected','delivered','completed','shipped'];if(terminal.includes(t(o.fulfillment_stage).toLowerCase())||terminal.includes(t(o.shipment_status_group).toLowerCase()))continue;candidates.push(o);if(candidates.length>=5)break}}return out({ok:true,draft:{...draft,events:events||[],corrections:corrections||[],review:review||null,order,combine_candidates:candidates}})}catch(e){return out({ok:false,error:e instanceof Error?e.message:String(e)},500)}});
