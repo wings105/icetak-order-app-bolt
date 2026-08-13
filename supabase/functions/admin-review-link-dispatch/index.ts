@@ -12,20 +12,48 @@ async function wset(k:string){const {data}=await db.from('whatsapp_settings').se
 async function auth(req:Request){const x=req.headers.get('x-admin-order-token')||'';return!!x&&x===await pset('qrpay_ai_worker_token')}
 async function provider(to:string,text:string){const base=await wset('base_url')||'https://officialapi.wasapflow.com/bridge/v1',partner=await wset('partner_key'),waba=await wset('waba_id');if(!partner||!waba)throw Error('WasapFlow credentials incomplete');const r=await fetch(`${base}/messages/send`,{method:'POST',headers:{'content-type':'application/json','x-partner-key':partner,'x-waba-id':waba},body:JSON.stringify({to:digits(to),text,preview_url:false})});const j=await r.json().catch(()=>({}));if(!r.ok||j.success===false)throw Error(j?.error?.message||j?.message||`HTTP ${r.status}`);return j}
 async function adminPhone(){return await wset('admin_order_notify_phone')||'60129554732'}
+function methodLabel(v:any){const s=t(v).toLowerCase();return s==='pickup'?'Pickup':s==='spx'?'SPX':s==='jnt'?'J&T':s==='ninja'?'Ninja Van':s?String(v):'Not set'}
 async function sendDraft(draftId:string){
   const {data:d,error}=await db.from('qrpay_order_drafts').select('*').eq('id',draftId).maybeSingle();if(error)throw error;if(!d)throw Error('draft_not_found');
   const {data:r}=await db.from('admin_order_reviews').select('id,review_code,status').eq('draft_id',d.id).maybeSingle();
   if(!d.review_token||!/^qrd_[a-f0-9]{32}$/i.test(d.review_token))throw Error('draft_review_token_invalid');
-  const p=d.working_draft||{},items=Array.isArray(p.items)?p.items:[],link=`${U}/functions/v1/qrpay-draft-review?token=${encodeURIComponent(d.review_token)}`;
+  const p=d.working_draft||{},items=Array.isArray(p.items)?p.items:[];
+  const link=`https://icetak.bolt.host/qrpay-draft.html?token=${encodeURIComponent(d.review_token)}`;
   const lines=items.map((x:any,i:number)=>`${i+1}. ${x.title||x.k||'Item'} x${Number(x.qty||1)} | RM${Number(x.price||0).toFixed(2)}${x.size?` | ${x.size}`:''}${x.wording?`\n   ${String(x.wording).replace(/\n/g,' / ')}`:''}`).join('\n');
-  const diff=Number(d.payment_difference||0),msg=['🟡 QRPay AI DRAFT — ADMIN CHECK',`Review: ${r?.review_code||'-'}`,`Tx: ${d.transaction_id}`,`Payment received: RM${Number(d.payment_amount||0).toFixed(2)}`,`AI draft total: RM${Number(d.draft_total||0).toFixed(2)}`,`Difference: ${diff>=0?'+':''}RM${diff.toFixed(2)}`,`Customer: ${d.customer_name||'-'}`,`AI match: ${Math.round(Number(d.match_score||0)*100)}%`,'',lines||'Item belum cukup','',`Buka draft untuk edit / remove / add item / shipping / Date Need dan Confirm:`,link,'','⚠️ Draft ini BELUM jadi order dan BELUM create ClickUp.'].join('\n');
+  const itemSubtotal=items.reduce((s:number,x:any)=>s+(Number(x.price||0)*Math.max(1,Number(x.qty||1))),0);
+  const shippingFee=Number(p.delivery_fee??d.shipping_fee??0);
+  const total=itemSubtotal+shippingFee;
+  const payment=Number(d.payment_amount||0);
+  const diff=total-payment;
+  const delivery=methodLabel(p.delivery);
+  const msg=[
+    '🟡 QRPay AI DRAFT — ADMIN CHECK',
+    `Tx: ${d.transaction_id}`,
+    `Customer: ${d.customer_name||'-'}`,
+    `AI match: ${Math.round(Number(d.match_score||0)*100)}%`,
+    `Date Need: ${p.date_need||'-'}`,
+    '',
+    'ORDER',
+    lines||'Item belum cukup',
+    '',
+    `Shipping: ${delivery} | RM${shippingFee.toFixed(2)}`,
+    `Item Subtotal: RM${itemSubtotal.toFixed(2)}`,
+    `TOTAL: RM${total.toFixed(2)}`,
+    `Payment Received: RM${payment.toFixed(2)}`,
+    `Difference: ${diff>=0?'+':''}RM${diff.toFixed(2)}`,
+    '',
+    'Buka draft untuk edit / remove / add item / shipping / Date Need dan Confirm:',
+    link,
+    '',
+    '⚠️ Draft ini BELUM jadi order dan BELUM create ClickUp.'
+  ].join('\n');
   const sent=await provider(await adminPhone(),msg);
   const now=new Date().toISOString();
   await Promise.all([
     db.from('qrpay_order_drafts').update({admin_link_sent_at:now,updated_at:now}).eq('id',d.id),
     db.from('admin_order_reviews').update({fallback_notified_at:now,last_notified_at:now,updated_at:now}).eq('draft_id',d.id)
   ]);
-  return{sent:true,draft_id:d.id,review_code:r?.review_code||null,message_id:sent?.message_id||sent?.id||null};
+  return{sent:true,draft_id:d.id,review_code:r?.review_code||null,public_link:link,message_id:sent?.message_id||sent?.id||null};
 }
 async function legacySweep(){
   const {data:rows,error}=await db.from('admin_order_reviews').select('id,review_token,source_type,transaction_id,source_key,amount,candidate_name,status,draft_id').in('status',['pending_admin','awaiting_admin_detail']).is('fallback_notified_at',null).order('updated_at',{ascending:true}).limit(10);if(error)throw error;
