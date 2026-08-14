@@ -44,5 +44,38 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Vite dev server smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 > /tmp/vite-dev.log 2>&1 &
+          VITE_PID=$!
+          cleanup() { kill "$VITE_PID" 2>/dev/null || true; }
+          trap cleanup EXIT
+
+          ready=0
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5173/ >/tmp/home.html; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/vite-dev.log
+            echo 'Vite dev server did not become ready.'
+            exit 1
+          fi
+
+          grep -q 'DecoCake.my' /tmp/home.html
+          curl -fsS http://127.0.0.1:5173/manifest.webmanifest | grep -q 'DecoCake.my'
+          curl -fsS -o /dev/null http://127.0.0.1:5173/favicon.ico
+          curl -fsS -o /dev/null http://127.0.0.1:5173/android-chrome-192x192.png
+          curl -fsS -o /dev/null http://127.0.0.1:5173/android-chrome-512x512.png
+          curl -fsS -o /dev/null http://127.0.0.1:5173/src/main.ts
+          curl -fsS -o /dev/null http://127.0.0.1:5173/src/catalog-configurator.ts
+          curl -fsS -o /dev/null http://127.0.0.1:5173/src/admin-v2-route.tsx
+          echo 'Vite dev server smoke test passed.'
+
       - name: Build production frontend
         run: npm run build
