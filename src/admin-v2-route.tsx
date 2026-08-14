@@ -27,7 +27,11 @@ async function ensureRoot() {
   if (rootHandle) return rootHandle;
   const { createRoot } = await import('react-dom/client');
   host.innerHTML = '';
-  rootHandle = createRoot(host);
+  const mount = document.createElement('div');
+  mount.id = 'root';
+  mount.style.minHeight = '100%';
+  host.append(mount);
+  rootHandle = createRoot(mount);
   return rootHandle;
 }
 
