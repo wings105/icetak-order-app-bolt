@@ -4,8 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
-      - shipping-agent-complete-20260719
+      - production
     paths:
       - 'supabase/functions/shipping-agent/**'
       - 'supabase/functions/shipping-awb/**'
@@ -22,8 +21,12 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       PROJECT_REF: buivecgahhmrhlmfujgt
     steps:
-      - name: Checkout
+      - name: Checkout approved production source
         uses: actions/checkout@v4
+
+      - name: Guard production branch
+        run: |
+          test "$GITHUB_REF_NAME" = "production" || (echo "Supabase production deploys are allowed only from production" && exit 1)
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
