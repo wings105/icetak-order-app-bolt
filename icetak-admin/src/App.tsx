@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
+import Customers from './pages/Customers';
 import QuickOrder, { type LinkedQrPayment } from './pages/QuickOrder';
 import ManualOrder from './pages/ManualOrder';
 import Payments from './pages/Payments';
@@ -21,6 +22,7 @@ import Settings from './pages/Settings';
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Order Control Tower', subtitle: 'Business Overview' },
   orders: { title: 'Orders', subtitle: 'Full order lifecycle' },
+  customers: { title: 'Customer CRM', subtitle: 'Customer 360° & relationship management' },
   'quick-order': { title: 'Quick Order', subtitle: 'Counter & auto-priced orders' },
   'manual-order': { title: 'Manual Order', subtitle: 'Custom item & price' },
   payments: { title: 'Payments Center', subtitle: 'Transactions' },
@@ -46,6 +48,7 @@ type Props = { adminData?: AdminData };
 export default function App({ adminData }: Props) {
   const initialParams=new URLSearchParams(window.location.search);
   const linkedOrder = initialParams.get('order')?.trim() || '';
+  const linkedCustomer = initialParams.get('customer')?.trim() || '';
   const linkedView = initialParams.get('view')?.trim() || '';
   const initialPayment:LinkedQrPayment|null=initialParams.get('qrpay_tx')?{
     transactionId:initialParams.get('qrpay_tx')||'',
@@ -54,16 +57,19 @@ export default function App({ adminData }: Props) {
     customerName:initialParams.get('qrpay_name')||'',
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
-  const [page, setPage] = useState(linkedOrder ? 'orders' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : linkedView==='quick-order'&&initialPayment?'quick-order':'dashboard');
+  const [page, setPage] = useState(linkedOrder ? 'orders' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : linkedView==='quick-order'&&initialPayment?'quick-order':'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [linkedPayment,setLinkedPayment]=useState<LinkedQrPayment|null>(initialPayment);
   const permissions = adminData?.admin?.permissions || [];
+  const canViewCustomers = permissions.includes('view_customers') || permissions.includes('manage_customers') || permissions.includes('manage_admins');
 
   const navigate = (key: string) => {
     setLinkedPayment(null);
     const url = new URL(window.location.href);
     if (key !== 'orders') url.searchParams.delete('order');
-    if (key === 'qrpay-summary') url.searchParams.set('view','qrpay-summary');
+    if (key !== 'customers') url.searchParams.delete('customer');
+    if (key === 'customers') url.searchParams.set('view','customers');
+    else if (key === 'qrpay-summary') url.searchParams.set('view','qrpay-summary');
     else { url.searchParams.delete('view'); url.searchParams.delete('date'); }
     ['qrpay_tx','qrpay_amount','qrpay_phone','qrpay_name','qrpay_paid_at'].forEach((param)=>url.searchParams.delete(param));
     window.history.replaceState({}, '', url);
@@ -76,7 +82,7 @@ export default function App({ adminData }: Props) {
     url.searchParams.set('qrpay_tx',payment.transactionId);url.searchParams.set('qrpay_amount',String(payment.amount));
     url.searchParams.set('qrpay_phone',payment.phone);url.searchParams.set('qrpay_name',payment.customerName);
     url.searchParams.set('qrpay_paid_at',payment.paidAt);
-    url.searchParams.delete('date');url.searchParams.delete('order');
+    url.searchParams.delete('date');url.searchParams.delete('order');url.searchParams.delete('customer');
     window.history.replaceState({},'',url);
     setPage('quick-order');setMobileOpen(false);
   };
@@ -86,6 +92,7 @@ export default function App({ adminData }: Props) {
     url.searchParams.set('order',orderNo);
     url.searchParams.delete('view');
     url.searchParams.delete('date');
+    url.searchParams.delete('customer');
     ['qrpay_tx','qrpay_amount','qrpay_phone','qrpay_name','qrpay_paid_at'].forEach((param)=>url.searchParams.delete(param));
     window.history.replaceState({},'',url);
     setPage('orders');
@@ -103,6 +110,7 @@ export default function App({ adminData }: Props) {
     switch (page) {
       case 'dashboard': return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'orders': return <Orders permissions={permissions} initialOrder={linkedOrder} />;
+      case 'customers': return canViewCustomers ? <Customers permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'quick-order': return <QuickOrder permissions={permissions} onOpenOrder={openOrder} linkedPayment={linkedPayment} />;
       case 'manual-order': return <ManualOrder permissions={permissions} onOpenOrder={openOrder} />;
       case 'payments': return <Payments onOpenOrder={openOrder} />;
@@ -120,5 +128,5 @@ export default function App({ adminData }: Props) {
     }
   };
 
-  return <div className="app-layout"><Sidebar active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} canViewFinance={permissions.includes('view_finance')} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} /><div className="content-area">{renderPage()}</div></div></div>;
+  return <div className="app-layout"><Sidebar active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} canViewFinance={permissions.includes('view_finance')} canViewCustomers={canViewCustomers} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} /><div className="content-area">{renderPage()}</div></div></div>;
 }
