@@ -64,22 +64,26 @@ Verified correction strategies were promoted from candidate to active:
 
 Customer-identity inference and generic human-override rules remain candidates because they are not safe to auto-apply.
 
-## Canonical ClickUp status
+## Canonical ClickUp status V3
 
-`icetak_clickup_initial_status_v2` is now the single initial-status resolver. It validates every result against active `clickup_status_mapping` rows.
+`icetak_clickup_initial_status_v2` remains the single initial-status resolver and validates every result against active `clickup_status_mapping` rows.
 
 Current canonical behavior:
 
 - Printed editing / review -> `design editing -topper`
 - Printed new design -> `new custom`
-- Printed no-review/ready-stock -> `ready stock`
+- Printed no review -> `design editing -topper`
 - Edible -> `design edible image`
 - Wafer -> `wafer paper`
 - Acrylic and Mirror Gold -> `acrylic`
-- Burn Away -> `design edible image`
-- Unknown products -> `lain2`
+- Burn Away -> two production components:
+  - Edible Layer -> `design edible image`
+  - Wafer Layer -> `wafer paper`
+- Unknown products -> `design editing -topper`
 
-`clickup-production-outbox` v31 no longer keeps its own product/status decision tree. Each component receives:
+Burn Away is modeled as one order item with two production components. The resolver uses the actual component type/label, so the parent `burnaway` product cannot force both components into the edible status.
+
+`clickup-production-outbox` no longer keeps its own product/status decision tree. Each component receives:
 
 - `initial_clickup_status` from the DB resolver
 - `status_source = icetak_clickup_initial_status_v2`
@@ -91,9 +95,21 @@ Current canonical behavior:
 
 AP remains a transport layer and can continue reading `components[0].initial_clickup_status`. Multi-component orders are intentionally processed one component per AP run; the callback returns the outbox to retry until all components are linked.
 
+## Admin WhatsApp after ClickUp tasks are ready
+
+The final admin notification is sent only after all production components have ClickUp task IDs. It now includes separate links for:
+
+- `Admin / Edit Order` -> admin v2 order page
+- `Customer Order Link` -> customer-facing order page
+- `WhatsApp Customer` -> direct customer chat
+- ClickUp task link(s)
+
+This prevents the admin notification from exposing only the admin page when the customer-facing order link is needed for forwarding or review.
+
 ## Production migrations
 
 - `20260814174702 draft_ai_feedback_v14_and_canonical_clickup_status`
 - `20260814174854 draft_ai_v14_address_cleanup`
 - `20260814175031 activate_verified_draft_learning_rules_v14`
 - `20260814175121 lock_internal_ai_v14_helpers`
+- `20260814222915 clickup_status_rules_v3_burnaway_dual_component`
