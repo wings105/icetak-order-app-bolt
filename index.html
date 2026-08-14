@@ -31,6 +31,8 @@
         }
 
         await import('./src/legacy-customer-token-compat.ts');
+        // Register the canonical WhatsApp OTP interceptor before legacy UI handlers.
+        await import('./src/customer-whatsapp-login.ts');
         await import('./src/main.ts');
         await import('./src/product-catalog.ts');
         await import('./src/catalog-route-context-fix.ts');
@@ -40,7 +42,6 @@
         await import('./src/customer-catalog-dashboard.ts');
         await import('./src/cash-pickup-flow.ts');
         await import('./src/pickup-payment-state-fix.ts');
-        await import('./src/customer-whatsapp-login.ts');
         await import('./src/customer-account-stability.ts');
         await import('./src/customer-account.ts');
         await import('./src/customer-address-validation.ts');
