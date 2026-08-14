@@ -12,6 +12,7 @@ type CustomerOrder = {
 
 let safetyRequest = 0;
 let queued = false;
+let lastRouteRefresh = '';
 
 const normalize = (value: unknown) => String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
 const finalWorkflows = new Set([
@@ -24,12 +25,21 @@ function exactOrderToken() {
 }
 
 function clearStaleHistoryOrderToken() {
-  if (exactOrderToken()) return;
+  if (exactOrderToken()) return false;
   const state = history.state;
-  if (!state || typeof state !== 'object' || !('orderToken' in state)) return;
+  if (!state || typeof state !== 'object' || !('orderToken' in state)) return false;
   const next = { ...(state as Record<string, unknown>) };
   delete next.orderToken;
   history.replaceState(next, '', location.href);
+  return true;
+}
+
+function refreshNonOrderHashRoute() {
+  if (exactOrderToken() || !location.hash.startsWith('#/')) return;
+  const key = `${location.pathname}${location.search}${location.hash}`;
+  if (lastRouteRefresh === key) return;
+  lastRouteRefresh = key;
+  queueMicrotask(() => window.dispatchEvent(new HashChangeEvent('hashchange')));
 }
 
 function removePickupActions(card: HTMLElement) {
@@ -73,7 +83,8 @@ function componentsComplete(order: CustomerOrder) {
 }
 
 async function enforcePickupSafety() {
-  clearStaleHistoryOrderToken();
+  const clearedStaleState = clearStaleHistoryOrderToken();
+  if (clearedStaleState) refreshNonOrderHashRoute();
 
   const detail = document.querySelector<HTMLElement>('.order-detail-page');
   const card = detail?.querySelector<HTMLElement>('.cp-pickup-card');
@@ -83,6 +94,7 @@ async function enforcePickupSafety() {
   if (!token) {
     // Never show an actionable pickup state without an explicit order URL.
     card.remove();
+    refreshNonOrderHashRoute();
     return;
   }
 
