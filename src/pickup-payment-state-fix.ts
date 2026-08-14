@@ -3,6 +3,7 @@ import { api, supabase } from './appdeploy-client';
 export {};
 
 type PaymentSession = {
+  id: string;
   status: string;
   orderId: string;
   expectedAmount: number;
@@ -37,6 +38,7 @@ let cachedToken = '';
 let cachedAt = 0;
 let cachedState: OrderState | null = null;
 let paymentPoll = 0;
+let cancellingPayment = false;
 
 function normalize(value: unknown) {
   return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
@@ -342,8 +344,56 @@ function applyPickup(detail: HTMLElement, state: OrderState) {
 function closePaymentModal(reload = false) {
   if (paymentPoll) window.clearInterval(paymentPoll);
   paymentPoll = 0;
+  cancellingPayment = false;
   document.querySelector('[data-qr-switch-modal]')?.remove();
   if (reload) location.reload();
+}
+
+async function cancelPaymentSession(session: PaymentSession) {
+  if (cancellingPayment) return;
+  const token = selectedOrderToken();
+  if (!token || !session.id) {
+    closePaymentModal(true);
+    return;
+  }
+
+  if (paymentPoll) window.clearInterval(paymentPoll);
+  paymentPoll = 0;
+  cancellingPayment = true;
+  const modal = document.querySelector<HTMLElement>('[data-qr-switch-modal]');
+  const closeButton = modal?.querySelector<HTMLButtonElement>('[data-close-qr]') || null;
+  if (closeButton) {
+    closeButton.disabled = true;
+    closeButton.textContent = '…';
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('icetak_cancel_payment', {
+      p_order_token: token,
+      p_session_id: session.id,
+    });
+    if (error) throw error;
+    const result: any = data || {};
+    if (result.already_paid) {
+      closePaymentModal();
+      toast('Bayaran sudah diterima ✅');
+      window.setTimeout(() => location.reload(), 500);
+      return;
+    }
+    if (result.ok === false) throw new Error(result.error || 'QR Pay tidak dapat dibatalkan');
+
+    closePaymentModal();
+    cachedAt = 0;
+    toast('QR Pay dibatalkan. Kaedah bayaran asal dikekalkan.');
+    window.setTimeout(() => location.reload(), 500);
+  } catch (error) {
+    cancellingPayment = false;
+    if (closeButton) {
+      closeButton.disabled = false;
+      closeButton.textContent = '✕';
+    }
+    toast(error instanceof Error ? error.message : 'QR Pay tidak dapat dibatalkan', true);
+  }
 }
 
 function showPaymentModal(session: PaymentSession) {
@@ -361,21 +411,21 @@ function showPaymentModal(session: PaymentSession) {
     boxShadow: '0 24px 80px rgba(0,0,0,.3)',
   });
   const left = Math.max(0, session.expiresAt - Date.now());
-  panel.innerHTML = `<button data-close-qr style="float:right;border:0;border-radius:999px;width:36px;height:36px;font-size:18px">✕</button>
+  panel.innerHTML = `<button data-close-qr aria-label="Batal QR Pay" style="float:right;border:0;border-radius:999px;width:36px;height:36px;font-size:18px">✕</button>
     <small>Order ${session.orderId}</small><h2 style="margin:8px 0">Bayar QR Sekarang</h2>
     <p>Scan DuitNow QR dan bayar jumlah tepat.</p>
     <img src="${QR_URL}" alt="DuitNow QR" style="display:block;width:min(100%,310px);margin:12px auto;border-radius:12px">
     <button data-copy-amount style="width:100%;padding:14px;border:1px solid #ee4d2d;border-radius:12px;background:#fff;color:#ee4d2d;font-weight:800">Jumlah Tepat: ${money(session.expectedAmount)}</button>
     <p style="margin:12px 0 0">Session: <b data-countdown>${String(Math.floor(left / 60000)).padStart(2, '0')}:${String(Math.floor((left % 60000) / 1000)).padStart(2, '0')}</b></p>
-    <small>Status bayaran akan dikesan automatik. Progress task tidak berubah.</small>`;
-  panel.querySelector<HTMLButtonElement>('[data-close-qr]')!.onclick = () => closePaymentModal(true);
+    <small>Status bayaran akan dikesan automatik. Tekan ✕ untuk batal QR dan kekalkan kaedah bayaran asal.</small>`;
+  panel.querySelector<HTMLButtonElement>('[data-close-qr]')!.onclick = () => void cancelPaymentSession(session);
   panel.querySelector<HTMLButtonElement>('[data-copy-amount]')!.onclick = async () => {
     await navigator.clipboard.writeText(session.expectedAmount.toFixed(2));
     toast('Jumlah disalin');
   };
   wrap.append(panel);
   wrap.onclick = (event) => {
-    if (event.target === wrap) closePaymentModal(true);
+    if (event.target === wrap) void cancelPaymentSession(session);
   };
   document.body.append(wrap);
 
@@ -407,6 +457,7 @@ async function switchToQr(button: HTMLButtonElement) {
     const response: any = await api.post(`/api/orders/${encodeURIComponent(token)}/payment-session`, {});
     const payment = response?.data?.payment ?? response?.payment ?? response?.data ?? response;
     showPaymentModal({
+      id: String(payment?.id || ''),
       status: String(payment?.status || 'pending'),
       orderId: String(payment?.orderId || cachedState?.id || ''),
       expectedAmount: Number(payment?.expectedAmount || 0),
