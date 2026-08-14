@@ -15,6 +15,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: IconDashboard },
   { key: 'orders', label: 'Orders', icon: IconOrders },
+  { key: 'customers', label: 'Customers CRM', icon: IconStaff },
   {
     key: 'create-orders', label: 'Create Order', icon: IconOrders,
     children: [
@@ -49,10 +50,15 @@ type Props = {
   onCloseMobile: () => void;
   onLogout?: () => void;
   canViewFinance?: boolean;
+  canViewCustomers?: boolean;
 };
 
-export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false }: Props) {
-  const visibleNavItems = canViewFinance ? navItems : navItems.filter((item) => !['finance','qrpay-summary'].includes(item.key));
+export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false, canViewCustomers = false }: Props) {
+  const visibleNavItems = navItems.filter((item) => {
+    if (['finance','qrpay-summary'].includes(item.key) && !canViewFinance) return false;
+    if (item.key === 'customers' && !canViewCustomers) return false;
+    return true;
+  });
   const [expanded, setExpanded] = useState<string | null>(
     visibleNavItems.find((n) => n.children?.some((c) => c.key === active))?.key ?? null
   );
