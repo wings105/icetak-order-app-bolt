@@ -1,0 +1,48 @@
+name: Public Domain Guard
+
+on:
+  push:
+    branches:
+      - main
+      - production
+  pull_request:
+    branches:
+      - main
+      - production
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Block legacy Bolt URLs in active runtime source
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=()
+          for p in src public supabase/functions .github/workflows; do
+            [ -e "$p" ] && paths+=("$p")
+          done
+          if grep -RIn --exclude='public-domain-guard.yml' -- 'icetak\.bolt\.host' "${paths[@]}"; then
+            echo 'Legacy icetak.bolt.host URL found in active runtime source.'
+            exit 1
+          fi
+          echo 'No legacy Bolt public URL in active runtime source.'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production frontend
+        run: npm run build
