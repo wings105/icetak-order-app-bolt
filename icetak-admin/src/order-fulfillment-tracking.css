@@ -1,0 +1,58 @@
+.erp-fulfillment-enhanced > .erp-kv { display: none; }
+.erp-fulfillment-enhanced { min-height: 0; }
+.ful360-root { display: flex; flex-direction: column; gap: 12px; margin-top: 2px; }
+.ful360-loading { color: #718096; font-size: 13px; padding: 12px 0; }
+.ful360-hero { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px 14px; background: #f8fafc; }
+.ful360-hero.success { background: #f0fdf4; border-color: #bbf7d0; }
+.ful360-hero.info { background: #eff6ff; border-color: #bfdbfe; }
+.ful360-hero.warning { background: #fffbeb; border-color: #fde68a; }
+.ful360-hero.danger { background: #fef2f2; border-color: #fecaca; }
+.ful360-hero-top { display: flex; align-items: center; gap: 10px; }
+.ful360-dot { width: 10px; height: 10px; border-radius: 999px; background: #64748b; flex: 0 0 auto; }
+.ful360-hero.success .ful360-dot { background: #16a34a; }
+.ful360-hero.info .ful360-dot { background: #2563eb; }
+.ful360-hero.warning .ful360-dot { background: #d97706; }
+.ful360-hero.danger .ful360-dot { background: #dc2626; }
+.ful360-hero-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ful360-hero-title b { font-size: 15px; color: #0f172a; }
+.ful360-hero-title small, .ful360-hero-time { color: #64748b; font-size: 12px; }
+.ful360-hero-time { margin-top: 8px; padding-left: 20px; }
+.ful360-meta { border-top: 1px solid #eef2f7; }
+.ful360-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid #eef2f7; font-size: 13px; }
+.ful360-meta-row > span { color: #94a3b8; }
+.ful360-meta-value { display: flex; align-items: center; justify-content: flex-end; gap: 7px; min-width: 0; text-align: right; }
+.ful360-meta-value b { color: #0f172a; word-break: break-word; }
+.ful360-inline-actions { display: inline-flex; align-items: center; gap: 6px; }
+.ful360-copy, .ful360-track { appearance: none; border: 1px solid #dbe2ea; background: #fff; color: #1d4ed8; border-radius: 7px; padding: 4px 7px; font-size: 11px; font-weight: 700; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.ful360-copy:hover, .ful360-track:hover { background: #f8fafc; }
+.ful360-copy:disabled, .ful360-track[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.ful360-section-title { color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 7px; }
+.ful360-latest { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 11px 12px; display: flex; flex-direction: column; gap: 5px; }
+.ful360-latest-headline { color: #0f172a; font-size: 13px; line-height: 1.35; }
+.ful360-location { color: #475569; font-size: 12px; }
+.ful360-latest small { color: #94a3b8; }
+.ful360-alert { border-radius: 9px; padding: 9px 11px; font-size: 12px; line-height: 1.4; }
+.ful360-alert.warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+.ful360-alert.danger { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.ful360-journey { display: flex; flex-direction: column; }
+.ful360-step { display: grid; grid-template-columns: 22px 1fr; gap: 8px; min-height: 37px; position: relative; }
+.ful360-step:not(:last-child)::before { content: ''; position: absolute; left: 10px; top: 20px; bottom: -2px; width: 2px; background: #e2e8f0; }
+.ful360-step.done:not(:last-child)::before { background: #86efac; }
+.ful360-step-marker { width: 20px; height: 20px; border-radius: 999px; display: grid; place-items: center; font-size: 11px; font-weight: 900; background: #f1f5f9; color: #94a3b8; z-index: 1; }
+.ful360-step.done .ful360-step-marker { background: #dcfce7; color: #15803d; }
+.ful360-step.active .ful360-step-marker { background: #dbeafe; color: #1d4ed8; }
+.ful360-step-body { display: flex; flex-direction: column; gap: 2px; padding-bottom: 10px; }
+.ful360-step-body b { font-size: 12px; color: #334155; }
+.ful360-step.future .ful360-step-body b { color: #94a3b8; font-weight: 600; }
+.ful360-step-body small { color: #94a3b8; font-size: 11px; line-height: 1.25; }
+.ful360-events { border-top: 1px solid #eef2f7; padding-top: 9px; }
+.ful360-events > summary { cursor: pointer; color: #2563eb; font-size: 12px; font-weight: 700; }
+.ful360-event-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+.ful360-event-row > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ful360-event-row b { color: #334155; font-size: 11px; line-height: 1.35; }
+.ful360-event-row small { color: #94a3b8; font-size: 10px; }
+@media (max-width: 760px) {
+  .ful360-meta-row { align-items: flex-start; }
+  .ful360-meta-value { flex-direction: column; align-items: flex-end; }
+  .ful360-inline-actions { flex-wrap: wrap; justify-content: flex-end; }
+}
