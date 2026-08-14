@@ -3,6 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 const CORS = { "access-control-allow-origin": "*", "access-control-allow-methods": "POST,OPTIONS", "access-control-allow-headers": "content-type,authorization,apikey" };
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const PUBLIC_APP_FALLBACK = "https://shop.decocake.my";
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...CORS, "content-type": "application/json" } });
 function normalizePhone(phone: string) { const v = String(phone || "").replace(/\D/g, ""); return v.startsWith("60") ? v : v.startsWith("0") ? `6${v}` : v.startsWith("1") ? `60${v}` : v; }
 async function sha256(value: string) { const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)); return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join(""); }
@@ -30,7 +31,7 @@ Deno.serve(async (req) => {
       const random = new Uint32Array(1); crypto.getRandomValues(random);
       const otp = String(100000 + (random[0] % 900000));
       const token = crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
-      const baseUrl = (await setting("customer_app_base_url")) || "https://icetak.bolt.host";
+      const baseUrl = (await setting("customer_app_base_url")) || PUBLIC_APP_FALLBACK;
       const magicLink = `${baseUrl.replace(/\/$/, "")}/?magic_token=${token}`;
       await rest("customer_login_otps", { method: "POST", body: JSON.stringify({ customer_id: customer.id, customer_token: customer.public_token, phone, code_hash: await sha256(otp), magic_token_hash: await sha256(token), purpose: "login", status: "pending", attempts: 0, expires_at: new Date(Date.now() + 600000).toISOString() }) });
       const sent = await sendLoginMessage(phone, body.customer_name || customer.name || "Customer", otp, magicLink);
