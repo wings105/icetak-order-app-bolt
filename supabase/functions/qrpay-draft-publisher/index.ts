@@ -11,13 +11,14 @@ Deno.serve(async req=>{
   const token=req.headers.get('x-admin-order-token')||'';
   if(!token||token!==await secret('qrpay_ai_worker_token'))return out({ok:false,error:'Unauthorized'},401);
   try{
-    const src='https://raw.githubusercontent.com/wings105/icetak-order-app-bolt/main/public/qrpay-draft.html';
+    // Production publisher must never read unapproved development/main source.
+    const src='https://raw.githubusercontent.com/wings105/icetak-order-app-bolt/production/public/qrpay-draft.html';
     const r=await fetch(src,{headers:{'cache-control':'no-cache'}});if(!r.ok)throw Error(`github_fetch_${r.status}`);const html=await r.text();
     const bucket='qrpay-admin-public';
     const {data:b}=await db.storage.getBucket(bucket);if(!b){const c=await db.storage.createBucket(bucket,{public:true,fileSizeLimit:1048576,allowedMimeTypes:['text/html']});if(c.error)throw c.error}
     else if(!b.public){const u=await db.storage.updateBucket(bucket,{public:true,fileSizeLimit:1048576,allowedMimeTypes:['text/html']});if(u.error)throw u.error}
     const up=await db.storage.from(bucket).upload('qrpay-draft.html',new Blob([html],{type:'text/html; charset=utf-8'}),{contentType:'text/html; charset=utf-8',upsert:true,cacheControl:'60'});if(up.error)throw up.error;
     const pub=db.storage.from(bucket).getPublicUrl('qrpay-draft.html');
-    return out({ok:true,size:html.length,url:pub.data.publicUrl});
+    return out({ok:true,size:html.length,url:pub.data.publicUrl,source_branch:'production'});
   }catch(e){console.error(e);return out({ok:false,error:e instanceof Error?e.message:String(e)},500)}
 });
