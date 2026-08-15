@@ -22,10 +22,17 @@ async function savedAddresses(d:any){
     if(!/^601\d{8,9}$/.test(p))return[];
     const variants=[`+${p}`,p,`0${p.slice(2)}`];
     const cq=await db.from('customers').select('id,customer_master_id,name,phone').in('phone',variants).limit(1);
-    const c=cq.data?.[0];
-    if(!c)return[];
+    const c=cq.data?.[0]||null;
+    let masterId=c?.customer_master_id||null;
+    if(!masterId){
+      const iq=await db.from('customer_identifiers_master').select('customer_master_id').eq('identifier_type','phone').eq('normalized_value',p).eq('scope','global').limit(1);
+      masterId=iq.data?.[0]?.customer_master_id||null;
+    }
+    if(!c&&!masterId)return[];
     let q:any=db.from('customer_addresses').select('id,label,recipient_name,phone,address_line1,address_line2,city,postcode,state,country,is_default,is_verified,last_used_at,source_provider').is('archived_at',null);
-    q=c.customer_master_id?q.or(`customer_id.eq.${c.id},customer_master_id.eq.${c.customer_master_id}`):q.eq('customer_id',c.id);
+    if(c&&masterId)q=q.or(`customer_id.eq.${c.id},customer_master_id.eq.${masterId}`);
+    else if(masterId)q=q.eq('customer_master_id',masterId);
+    else q=q.eq('customer_id',c.id);
     const a=await q.order('is_default',{ascending:false}).order('last_used_at',{ascending:false,nullsFirst:false}).order('created_at',{ascending:false}).limit(8);
     return a.error?[]:(a.data||[]);
   }catch{return[]}
