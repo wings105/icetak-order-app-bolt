@@ -15,45 +15,31 @@ type OrderLifecycle = {
   paymentMethod: string;
   productionApproved: boolean;
   customerConfirmed: boolean;
-  customerConfirmedAt: string | null;
   createdAt: string | null;
   productionCompletedAt: string | null;
   pickupReadyAt: string | null;
   pickupCollectedAt: string | null;
   deliveredAt: string | null;
-  updatedAt: string | null;
 };
 
 type Shipment = {
-  id: string;
   trackingNo: string;
   courier: string;
   trackingLink: string;
-  connoteUrl: string;
   status: string;
   statusGroup: string;
   normalizedStatus: string;
-  awbStatus: string;
-  awbError: string;
-  bookedAt: string | null;
-  shippedAt: string | null;
-  deliveredAt: string | null;
-  cancelledAt: string | null;
-  createdAt: string | null;
-  updatedAt: string | null;
-  provider: string;
-  serviceProvider: string;
-  recipientName: string;
-  recipientPhone: string;
   firstScanAt: string | null;
   firstScanStatus: string;
-  sendStatus: string;
-  trackingMessageSentAt: string | null;
+  bookedAt: string | null;
+  createdAt: string | null;
+  deliveredAt: string | null;
+  cancelledAt: string | null;
+  awbError: string;
   trackingMessageError: string;
 };
 
 type ShipmentEvent = {
-  id: string;
   status: string;
   statusGroup: string;
   normalizedStatus: string;
@@ -61,9 +47,6 @@ type ShipmentEvent = {
   at: string | null;
   location: string;
   description: string;
-  courier: string;
-  source: string;
-  provider: string;
 };
 
 type FulfillmentPayload = {
@@ -74,35 +57,52 @@ type FulfillmentPayload = {
   events: ShipmentEvent[];
 };
 
-type StatusView = { label: string; tone: 'success' | 'info' | 'warning' | 'danger' | 'neutral'; sub?: string };
-
 type Step = { label: string; done: boolean; at?: string | null; detail?: string };
+type Tone = 'success' | 'info' | 'warning' | 'danger' | 'neutral';
 
+const REFRESH_MS = 30_000;
 const cache = new Map<string, { at: number; data: FulfillmentPayload }>();
 const inflight = new Map<string, Promise<FulfillmentPayload>>();
-const REFRESH_MS = 30_000;
-
 const slug = (value: unknown) => String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
-const isPickup = (order: OrderLifecycle) => slug(order.delivery).includes('pickup');
-const isPaid = (order: OrderLifecycle) => ['paid', 'matched', 'payment_received'].includes(slug(order.payment));
-
-const formatDateTime = (value?: string | null) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat('en-MY', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'Asia/Kuala_Lumpur',
-  }).format(date);
-};
-
 const element = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => {
   const node = document.createElement(tag);
   if (className) node.className = className;
   if (text) node.textContent = text;
   return node;
 };
+
+function formatDateTime(value?: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-MY', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kuala_Lumpur' }).format(date);
+}
+
+function drawerContext() {
+  const drawer = document.querySelector<HTMLElement>('.erp-order-drawer');
+  const orderRef = drawer?.querySelector<HTMLElement>('.erp-drawer-title h2')?.textContent?.trim() || '';
+  return { drawer, orderRef };
+}
+
+function findCard(drawer: HTMLElement, title: string) {
+  return Array.from(drawer.querySelectorAll<HTMLElement>('.erp-drawer-card')).find((card) =>
+    card.querySelector(':scope > h3')?.textContent?.trim().toLowerCase() === title.toLowerCase()
+  ) || null;
+}
+
+function cleanupLegacyFulfillment(drawer: HTMLElement) {
+  drawer.querySelectorAll<HTMLElement>('.erp-drawer-card:not([data-fulfillment-card]) [data-fulfillment-360]').forEach((node) => node.remove());
+  drawer.querySelectorAll<HTMLElement>('.erp-drawer-card.erp-fulfillment-enhanced:not([data-fulfillment-card])').forEach((card) => {
+    card.classList.remove('erp-fulfillment-enhanced');
+    delete card.dataset.fulfillmentOrder;
+    const heading = card.querySelector(':scope > h3');
+    if (heading?.textContent?.trim() === 'Fulfillment / Tracking') heading.textContent = 'Fulfillment';
+  });
+}
+
+function isPickup(order: OrderLifecycle) {
+  return slug(order.delivery).includes('pickup');
+}
 
 function statusRank(value: unknown) {
   const v = slug(value);
@@ -114,38 +114,54 @@ function statusRank(value: unknown) {
   return 0;
 }
 
-function courierStatus(payload: FulfillmentPayload): StatusView {
-  const shipment = payload.shipment;
-  const event = payload.latestEvent;
-  const values = [event?.normalizedStatus, event?.statusGroup, event?.status, shipment?.normalizedStatus, shipment?.statusGroup, shipment?.status]
-    .map(slug).filter(Boolean);
-  const joined = values.join(' ');
-
-  if (shipment?.cancelledAt || /cancel|failed|exception|return_to_sender|delivery_failed/.test(joined)) {
-    return { label: 'Delivery Exception', tone: 'danger', sub: event?.description || event?.status || shipment?.status || 'Shipment needs attention' };
+function compactStatus(payload: FulfillmentPayload): { label: string; tone: Tone; sub: string } {
+  const { order, shipment, latestEvent } = payload;
+  if (isPickup(order)) {
+    if (order.pickupCollectedAt) return { label: 'Customer Collected', tone: 'success', sub: 'Pickup' };
+    if (order.pickupReadyAt) return { label: 'Ready for Pickup', tone: 'success', sub: 'Pickup' };
+    if (order.productionCompletedAt) return { label: 'Production Completed', tone: 'info', sub: 'Pickup' };
+    if (order.productionApproved) return { label: 'In Production', tone: 'info', sub: 'Pickup' };
+    return { label: 'Order Received', tone: 'neutral', sub: 'Pickup' };
   }
-  if (values.some((v) => statusRank(v) >= 5)) return { label: 'Delivered', tone: 'success' };
-  if (values.some((v) => statusRank(v) === 4)) return { label: 'Out for Delivery', tone: 'warning' };
-  if (values.some((v) => statusRank(v) === 3)) return { label: 'In Transit', tone: 'info' };
-  if (shipment?.firstScanAt) return { label: 'Courier Accepted', tone: 'info' };
-  if (shipment?.trackingNo || payload.order.tracking) return { label: 'AWB Created · Waiting Courier', tone: 'neutral' };
-  if (payload.order.productionCompletedAt) return { label: 'Ready to Ship · Waiting AWB', tone: 'warning' };
-  if (payload.order.productionApproved) return { label: 'In Production', tone: 'info' };
-  return { label: 'Order Received', tone: 'neutral' };
+
+  const values = [latestEvent?.normalizedStatus, latestEvent?.statusGroup, latestEvent?.status, shipment?.normalizedStatus, shipment?.statusGroup, shipment?.status];
+  const rank = values.reduce((max, value) => Math.max(max, statusRank(value)), 0);
+  const joined = values.map(slug).join(' ');
+  const courier = shipment?.courier || order.courier || order.delivery || 'Courier';
+  if (shipment?.cancelledAt || /cancel|failed|exception|return_to_sender|delivery_failed/.test(joined)) return { label: 'Delivery Exception', tone: 'danger', sub: courier };
+  if (rank >= 5 || order.deliveredAt) return { label: 'Delivered', tone: 'success', sub: courier };
+  if (rank === 4) return { label: 'Out for Delivery', tone: 'warning', sub: courier };
+  if (rank >= 3) return { label: 'In Transit', tone: 'info', sub: courier };
+  if (shipment?.firstScanAt || rank >= 2) return { label: 'Courier Accepted', tone: 'info', sub: courier };
+  if (shipment?.trackingNo || order.tracking) return { label: 'AWB Created', tone: 'neutral', sub: courier };
+  if (order.productionCompletedAt) return { label: 'Ready to Ship', tone: 'warning', sub: courier };
+  if (order.productionApproved) return { label: 'In Production', tone: 'info', sub: courier };
+  return { label: 'Order Received', tone: 'neutral', sub: courier };
 }
 
-function pickupStatus(order: OrderLifecycle): StatusView {
-  const stage = slug(order.fulfillmentStage);
-  if (order.pickupCollectedAt || stage === 'collected') return { label: 'Customer Collected', tone: 'success' };
-  if (order.pickupReadyAt || stage === 'ready_for_pickup') return { label: 'Ready for Pickup', tone: 'success' };
-  if (order.productionCompletedAt) return { label: 'Production Completed', tone: 'info' };
-  if (order.productionApproved) return { label: 'In Production', tone: 'info' };
-  if (order.customerConfirmed) return { label: 'Order Confirmed', tone: 'neutral' };
-  return { label: 'Order Received', tone: 'neutral' };
-}
-
-function statusFor(payload: FulfillmentPayload) {
-  return isPickup(payload.order) ? pickupStatus(payload.order) : courierStatus(payload);
+function journeySteps(payload: FulfillmentPayload): Step[] {
+  const { order, shipment, latestEvent } = payload;
+  if (isPickup(order)) {
+    return [
+      { label: 'Order Received', done: true, at: order.createdAt },
+      { label: 'Production Approved', done: Boolean(order.productionApproved || order.productionCompletedAt || order.pickupReadyAt || order.pickupCollectedAt) },
+      { label: 'Production Completed', done: Boolean(order.productionCompletedAt || order.pickupReadyAt || order.pickupCollectedAt), at: order.productionCompletedAt },
+      { label: 'Ready for Pickup', done: Boolean(order.pickupReadyAt || order.pickupCollectedAt), at: order.pickupReadyAt },
+      { label: 'Customer Collected', done: Boolean(order.pickupCollectedAt), at: order.pickupCollectedAt },
+    ];
+  }
+  const rank = [latestEvent?.normalizedStatus, latestEvent?.statusGroup, latestEvent?.status, shipment?.normalizedStatus, shipment?.statusGroup, shipment?.status]
+    .reduce((max, value) => Math.max(max, statusRank(value)), 0);
+  const delivered = Boolean(order.deliveredAt || shipment?.deliveredAt || rank >= 5);
+  return [
+    { label: 'Order Received', done: true, at: order.createdAt },
+    { label: 'Production Completed', done: Boolean(order.productionCompletedAt || shipment), at: order.productionCompletedAt },
+    { label: 'AWB Created', done: Boolean(shipment?.trackingNo || order.tracking), at: shipment?.bookedAt || shipment?.createdAt },
+    { label: 'Courier First Scan', done: Boolean(shipment?.firstScanAt || rank >= 2), at: shipment?.firstScanAt, detail: shipment?.firstScanStatus },
+    { label: 'In Transit', done: rank >= 3 || delivered },
+    { label: 'Out for Delivery', done: rank >= 4 || delivered },
+    { label: 'Delivered', done: delivered, at: order.deliveredAt || shipment?.deliveredAt },
+  ];
 }
 
 function appendMeta(parent: HTMLElement, label: string, value: string, action?: HTMLElement) {
@@ -167,256 +183,302 @@ function copyButton(value: string) {
     try {
       await navigator.clipboard.writeText(value);
       button.textContent = 'Copied ✓';
-      window.setTimeout(() => { button.textContent = 'Copy'; }, 1600);
+      window.setTimeout(() => { button.textContent = 'Copy'; }, 1200);
     } catch {
       button.textContent = 'Copy failed';
-      window.setTimeout(() => { button.textContent = 'Copy'; }, 1600);
     }
   });
   return button;
 }
 
-function trackingLink(value: string) {
+function trackLink(url: string) {
   const link = element('a', 'ful360-track', 'Track parcel');
-  link.href = value || '#';
+  link.href = url || '#';
   link.target = '_blank';
   link.rel = 'noreferrer';
-  if (!value) {
+  if (!url) {
     link.setAttribute('aria-disabled', 'true');
     link.addEventListener('click', (event) => event.preventDefault());
   }
   return link;
 }
 
-function journeySteps(payload: FulfillmentPayload): Step[] {
-  const { order, shipment, latestEvent } = payload;
-  if (isPickup(order)) {
-    return [
-      { label: 'Order Received', done: true, at: order.createdAt },
-      { label: 'Production Approved', done: Boolean(order.productionApproved || order.productionCompletedAt || order.pickupReadyAt || order.pickupCollectedAt) },
-      { label: 'Production Completed', done: Boolean(order.productionCompletedAt || order.pickupReadyAt || order.pickupCollectedAt), at: order.productionCompletedAt },
-      { label: 'Ready for Pickup', done: Boolean(order.pickupReadyAt || order.pickupCollectedAt), at: order.pickupReadyAt },
-      { label: 'Customer Collected', done: Boolean(order.pickupCollectedAt), at: order.pickupCollectedAt },
-    ];
-  }
-
-  const rawStatuses = [latestEvent?.normalizedStatus, latestEvent?.statusGroup, latestEvent?.status, shipment?.normalizedStatus, shipment?.statusGroup, shipment?.status];
-  const rank = rawStatuses.reduce((max, value) => Math.max(max, statusRank(value)), 0);
-  const delivered = Boolean(order.deliveredAt || shipment?.deliveredAt || rank >= 5);
-  return [
-    { label: 'Order Received', done: true, at: order.createdAt },
-    { label: 'Production Completed', done: Boolean(order.productionCompletedAt || shipment), at: order.productionCompletedAt },
-    { label: 'AWB Created', done: Boolean(shipment?.trackingNo || order.tracking), at: shipment?.bookedAt || shipment?.createdAt },
-    { label: 'Courier First Scan', done: Boolean(shipment?.firstScanAt || rank >= 2), at: shipment?.firstScanAt, detail: shipment?.firstScanStatus },
-    { label: 'In Transit', done: rank >= 3 || delivered },
-    { label: 'Out for Delivery', done: rank >= 4 || delivered },
-    { label: 'Delivered', done: delivered, at: order.deliveredAt || shipment?.deliveredAt },
-  ];
-}
-
-function renderJourney(parent: HTMLElement, steps: Step[]) {
-  const wrap = element('div', 'ful360-journey');
-  wrap.append(element('div', 'ful360-section-title', 'Order journey'));
-  const firstOpen = steps.findIndex((step) => !step.done);
-  steps.forEach((step, index) => {
-    const row = element('div', `ful360-step ${step.done ? 'done' : index === firstOpen ? 'active' : 'future'}`);
-    const marker = element('span', 'ful360-step-marker', step.done ? '✓' : index === firstOpen ? '●' : '○');
-    const body = element('div', 'ful360-step-body');
-    body.append(element('b', '', step.label));
-    const meta = [step.at ? formatDateTime(step.at) : '', step.detail || ''].filter(Boolean).join(' · ');
-    if (meta) body.append(element('small', '', meta));
-    row.append(marker, body);
-    wrap.append(row);
-  });
-  parent.append(wrap);
-}
-
-function latestUpdate(parent: HTMLElement, payload: FulfillmentPayload) {
-  const event = payload.latestEvent;
-  const shipment = payload.shipment;
-  if (!event && !shipment?.firstScanAt) return;
-  const box = element('div', 'ful360-latest');
-  box.append(element('div', 'ful360-section-title', 'Latest courier update'));
-  const headline = event?.description || event?.eventName || event?.status || shipment?.firstScanStatus || shipment?.status || 'Courier scan received';
-  box.append(element('b', 'ful360-latest-headline', headline));
-  if (event?.location) box.append(element('div', 'ful360-location', `📍 ${event.location}`));
-  const at = event?.at || shipment?.firstScanAt || shipment?.updatedAt;
-  if (at) box.append(element('small', '', formatDateTime(at)));
-  parent.append(box);
-}
-
-function warningBox(parent: HTMLElement, payload: FulfillmentPayload) {
-  const shipment = payload.shipment;
-  const status = statusFor(payload);
-  const messages: string[] = [];
-  if (shipment?.awbError) messages.push(`AWB: ${shipment.awbError}`);
-  if (shipment?.trackingMessageError) messages.push(`Tracking WhatsApp: ${shipment.trackingMessageError}`);
-  if (status.tone === 'danger' && status.sub) messages.push(status.sub);
-  if (shipment?.trackingNo && !shipment.firstScanAt && !shipment.cancelledAt) messages.push('AWB sudah dibuat tetapi courier belum ada first scan.');
-  if (!messages.length) return;
-  const box = element('div', `ful360-alert ${status.tone === 'danger' ? 'danger' : 'warning'}`);
-  messages.forEach((message) => box.append(element('div', '', `⚠ ${message}`)));
-  parent.append(box);
-}
-
-function render(card: HTMLElement, payload: FulfillmentPayload, orderRef: string) {
-  card.classList.add('erp-fulfillment-enhanced');
-  card.dataset.fulfillmentOrder = orderRef;
-  const heading = card.querySelector(':scope > h3');
-  if (heading && heading.textContent !== 'Fulfillment / Tracking') heading.textContent = 'Fulfillment / Tracking';
-
-  card.querySelector('[data-fulfillment-360]')?.remove();
+function renderFulfillment(card: HTMLElement, payload: FulfillmentPayload, orderRef: string, cacheAt: number) {
+  const heading = element('h3', '', 'Fulfillment / Tracking');
   const root = element('div', 'ful360-root');
   root.dataset.fulfillment360 = 'true';
 
-  const state = statusFor(payload);
+  const state = compactStatus(payload);
   const hero = element('div', `ful360-hero ${state.tone}`);
   const heroTop = element('div', 'ful360-hero-top');
   heroTop.append(element('span', 'ful360-dot'));
-  const title = element('div', 'ful360-hero-title');
-  title.append(element('b', '', state.label));
-  const deliveryLabel = isPickup(payload.order) ? 'Pickup' : (payload.shipment?.courier || payload.order.courier || payload.order.delivery || 'Courier');
-  title.append(element('small', '', deliveryLabel));
-  heroTop.append(title);
+  const heroTitle = element('div', 'ful360-hero-title');
+  heroTitle.append(element('b', '', state.label), element('small', '', state.sub));
+  heroTop.append(heroTitle);
   hero.append(heroTop);
-
-  if (isPickup(payload.order)) {
-    if (payload.order.pickupCollectedAt) hero.append(element('div', 'ful360-hero-time', `Collected ${formatDateTime(payload.order.pickupCollectedAt)}`));
-    else if (payload.order.pickupReadyAt) hero.append(element('div', 'ful360-hero-time', `Ready since ${formatDateTime(payload.order.pickupReadyAt)}`));
-    else if (payload.order.productionCompletedAt) hero.append(element('div', 'ful360-hero-time', `Production completed ${formatDateTime(payload.order.productionCompletedAt)}`));
-  } else if (payload.latestEvent?.at) {
-    hero.append(element('div', 'ful360-hero-time', `Updated ${formatDateTime(payload.latestEvent.at)}`));
-  }
   root.append(hero);
 
   const meta = element('div', 'ful360-meta');
   if (isPickup(payload.order)) {
     appendMeta(meta, 'Payment', [payload.order.payment, payload.order.paymentMethod].filter(Boolean).join(' · '));
-    appendMeta(meta, 'Fulfillment', pickupStatus(payload.order).label);
+    appendMeta(meta, 'Stage', payload.order.fulfillmentStage || state.label);
   } else {
     const trackingNo = payload.shipment?.trackingNo || payload.order.tracking || '';
     const courier = payload.shipment?.courier || payload.order.courier || payload.order.delivery || '';
     const url = payload.shipment?.trackingLink || payload.order.trackingLink || '';
     appendMeta(meta, 'Courier', courier);
     const actions = element('div', 'ful360-inline-actions');
-    actions.append(copyButton(trackingNo), trackingLink(url));
+    actions.append(copyButton(trackingNo), trackLink(url));
     appendMeta(meta, 'Tracking No.', trackingNo, actions);
-    if (payload.shipment?.firstScanAt) appendMeta(meta, 'First scan', formatDateTime(payload.shipment.firstScanAt));
   }
   root.append(meta);
 
-  warningBox(root, payload);
-  if (!isPickup(payload.order)) latestUpdate(root, payload);
-  renderJourney(root, journeySteps(payload));
-
-  if (!isPickup(payload.order) && payload.events?.length) {
-    const details = element('details', 'ful360-events');
-    const summary = element('summary', '', `Courier event history (${payload.events.length})`);
-    details.append(summary);
-    payload.events.slice(0, 8).forEach((event) => {
-      const row = element('div', 'ful360-event-row');
-      const text = event.description || event.eventName || event.status || event.normalizedStatus || 'Shipment event';
-      const left = element('div');
-      left.append(element('b', '', text));
-      if (event.location) left.append(element('small', '', event.location));
-      row.append(left, element('small', '', formatDateTime(event.at)));
-      details.append(row);
-    });
-    root.append(details);
+  const latest = payload.latestEvent;
+  if (!isPickup(payload.order) && (latest || payload.shipment?.firstScanAt)) {
+    const latestBox = element('div', 'ful360-latest');
+    latestBox.append(element('div', 'ful360-section-title', 'Latest courier update'));
+    latestBox.append(element('b', 'ful360-latest-headline', latest?.description || latest?.eventName || latest?.status || payload.shipment?.firstScanStatus || payload.shipment?.status || 'Courier update received'));
+    const latestMeta = [latest?.location || '', formatDateTime(latest?.at || payload.shipment?.firstScanAt)].filter(Boolean).join(' · ');
+    if (latestMeta) latestBox.append(element('small', '', latestMeta));
+    root.append(latestBox);
   }
 
-  card.append(root);
-}
+  const errors = [payload.shipment?.awbError, payload.shipment?.trackingMessageError].filter(Boolean) as string[];
+  if (errors.length) {
+    const warning = element('div', 'ful360-alert warning');
+    errors.forEach((value) => warning.append(element('div', '', `⚠ ${value}`)));
+    root.append(warning);
+  }
 
-function renderLoading(card: HTMLElement, orderRef: string) {
-  card.classList.add('erp-fulfillment-enhanced');
-  card.dataset.fulfillmentOrder = orderRef;
-  const heading = card.querySelector(':scope > h3');
-  if (heading) heading.textContent = 'Fulfillment / Tracking';
-  card.querySelector('[data-fulfillment-360]')?.remove();
-  const root = element('div', 'ful360-root ful360-loading', 'Loading live fulfillment…');
-  root.dataset.fulfillment360 = 'true';
-  card.append(root);
-}
+  const details = element('details', 'ful360-details');
+  details.append(element('summary', '', 'View order journey'));
+  const journey = element('div', 'ful360-journey');
+  const steps = journeySteps(payload);
+  const firstOpen = steps.findIndex((step) => !step.done);
+  steps.forEach((step, index) => {
+    const row = element('div', `ful360-step ${step.done ? 'done' : index === firstOpen ? 'active' : 'future'}`);
+    const marker = element('span', 'ful360-step-marker', step.done ? '✓' : index === firstOpen ? '●' : '○');
+    const body = element('div', 'ful360-step-body');
+    body.append(element('b', '', step.label));
+    const metaText = [step.at ? formatDateTime(step.at) : '', step.detail || ''].filter(Boolean).join(' · ');
+    if (metaText) body.append(element('small', '', metaText));
+    row.append(marker, body);
+    journey.append(row);
+  });
+  details.append(journey);
+  if (!isPickup(payload.order) && payload.events?.length) {
+    const eventList = element('div', 'ful360-events');
+    payload.events.slice(0, 6).forEach((event) => {
+      const row = element('div', 'ful360-event-row');
+      const left = element('div');
+      left.append(element('b', '', event.description || event.eventName || event.status || 'Shipment event'));
+      if (event.location) left.append(element('small', '', event.location));
+      row.append(left, element('small', '', formatDateTime(event.at)));
+      eventList.append(row);
+    });
+    details.append(eventList);
+  }
+  root.append(details);
 
-function renderError(card: HTMLElement, orderRef: string, message: string) {
-  card.classList.add('erp-fulfillment-enhanced');
+  card.replaceChildren(heading, root);
+  card.dataset.fulfillmentCard = 'true';
   card.dataset.fulfillmentOrder = orderRef;
-  card.querySelector('[data-fulfillment-360]')?.remove();
-  const root = element('div', 'ful360-root');
-  root.dataset.fulfillment360 = 'true';
-  const box = element('div', 'ful360-alert danger', `Unable to load live tracking: ${message}`);
-  root.append(box);
-  card.append(root);
+  card.dataset.fulfillmentVersion = String(cacheAt);
 }
 
 async function getPayload(orderRef: string, force = false) {
   const cached = cache.get(orderRef);
-  if (!force && cached && Date.now() - cached.at < REFRESH_MS) return cached.data;
+  if (!force && cached && Date.now() - cached.at < REFRESH_MS) return cached;
   const pending = inflight.get(orderRef);
-  if (pending) return pending;
-
+  if (pending) return { at: cached?.at || Date.now(), data: await pending };
   const request = (async () => {
     const { data, error } = await supabase.rpc('icetak_admin_order_fulfillment_by_ref_v1', { p_order_ref: orderRef });
     if (error) throw error;
-    const payload = data as FulfillmentPayload;
-    cache.set(orderRef, { at: Date.now(), data: payload });
-    return payload;
+    if (!data) throw new Error('No fulfillment data');
+    return data as FulfillmentPayload;
   })();
   inflight.set(orderRef, request);
-  try { return await request; }
-  finally { inflight.delete(orderRef); }
-}
-
-async function enhance(force = false) {
-  const drawer = document.querySelector<HTMLElement>('.erp-order-drawer');
-  if (!drawer) return;
-  const orderRef = drawer.querySelector<HTMLElement>('.erp-drawer-title h2')?.textContent?.trim() || '';
-  if (!orderRef) return;
-  const cards = Array.from(drawer.querySelectorAll<HTMLElement>('.erp-drawer-card'));
-  const card = cards.find((candidate) => candidate.querySelector(':scope > h3')?.textContent?.trim().toLowerCase().startsWith('fulfillment'));
-  if (!card) return;
-
-  const current = cache.get(orderRef);
-  const existing = card.querySelector('[data-fulfillment-360]');
-  if (!force && existing && card.dataset.fulfillmentOrder === orderRef && current && Date.now() - current.at < REFRESH_MS) return;
-  if (current && !force) render(card, current.data, orderRef);
-  else renderLoading(card, orderRef);
-
   try {
-    const payload = await getPayload(orderRef, force);
-    const liveDrawer = document.querySelector<HTMLElement>('.erp-order-drawer');
-    const liveRef = liveDrawer?.querySelector<HTMLElement>('.erp-drawer-title h2')?.textContent?.trim() || '';
-    if (liveRef !== orderRef) return;
-    const liveCards = Array.from(liveDrawer?.querySelectorAll<HTMLElement>('.erp-drawer-card') || []);
-    const liveCard = liveCards.find((candidate) => candidate.querySelector(':scope > h3')?.textContent?.trim().toLowerCase().startsWith('fulfillment'));
-    if (liveCard) render(liveCard, payload, orderRef);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error || 'Unknown error');
-    renderError(card, orderRef, message);
+    const data = await request;
+    const result = { at: Date.now(), data };
+    cache.set(orderRef, result);
+    return result;
+  } finally {
+    inflight.delete(orderRef);
   }
 }
 
+async function enhanceFulfillment(force = false) {
+  const { drawer, orderRef } = drawerContext();
+  if (!drawer || !orderRef) return;
+  cleanupLegacyFulfillment(drawer);
+
+  const productionCard = findCard(drawer, 'Production');
+  if (!productionCard) return;
+  const grid = productionCard.parentElement as HTMLElement | null;
+  if (!grid?.classList.contains('erp-drawer-grid')) return;
+
+  const clickupCard = findCard(drawer, 'ClickUp Components');
+  clickupCard?.classList.add('ful360-clickup-wide');
+
+  let card = Array.from(grid.children).find((child) => (child as HTMLElement).dataset.fulfillmentCard === 'true') as HTMLElement | undefined;
+  if (!card) {
+    card = element('section', 'erp-drawer-card ful360-card');
+    card.dataset.fulfillmentCard = 'true';
+    card.append(element('h3', '', 'Fulfillment / Tracking'), element('div', 'ful360-loading', 'Loading live fulfillment…'));
+    grid.insertBefore(card, clickupCard || productionCard.nextSibling);
+  }
+
+  const cached = cache.get(orderRef);
+  if (!force && cached && card.dataset.fulfillmentOrder === orderRef && card.dataset.fulfillmentVersion === String(cached.at)) return;
+
+  try {
+    const result = await getPayload(orderRef, force);
+    const live = drawerContext();
+    if (!live.drawer || live.orderRef !== orderRef || !document.body.contains(card)) return;
+    renderFulfillment(card, result.data, orderRef, result.at);
+  } catch (error) {
+    card.replaceChildren(element('h3', '', 'Fulfillment / Tracking'));
+    const root = element('div', 'ful360-root');
+    root.dataset.fulfillment360 = 'true';
+    root.append(element('div', 'ful360-alert danger', `Unable to load tracking: ${error instanceof Error ? error.message : String(error)}`));
+    card.append(root);
+  }
+}
+
+function kvText(card: HTMLElement, label: string) {
+  for (const row of Array.from(card.querySelectorAll<HTMLElement>('.erp-kv'))) {
+    const key = row.querySelector('span')?.textContent?.trim().toLowerCase();
+    if (key === label.toLowerCase()) return row.querySelector('b')?.textContent?.trim() || '';
+  }
+  return '';
+}
+
+function methodValue(current: string) {
+  const value = slug(current);
+  if (value.includes('bank') || value.includes('duitnow') || value.includes('online_banking')) return 'bank_transfer';
+  if (value.includes('cash') || value.includes('counter') || value.includes('pickup')) return 'cash_at_counter';
+  if (value.includes('card')) return 'card';
+  if (value.includes('qr')) return 'qr_pay_manual';
+  return 'other';
+}
+
+function isPaymentPaid(card: HTMLElement) {
+  const status = slug(kvText(card, 'Status'));
+  const paidAt = kvText(card, 'Paid At');
+  return ['paid', 'matched', 'payment_received', 'success', 'completed'].includes(status) || Boolean(paidAt && paidAt !== '—' && paidAt !== '-');
+}
+
+function setRecoveryMessage(box: HTMLElement, message: string, tone: 'success' | 'error' | 'neutral' = 'neutral') {
+  box.textContent = message;
+  box.className = `payrec-message ${tone}`;
+}
+
+function enhancePaymentRecovery() {
+  const { drawer, orderRef } = drawerContext();
+  if (!drawer || !orderRef) return;
+  const card = findCard(drawer, 'Payment Summary');
+  if (!card) return;
+  if (card.querySelector('[data-manual-payment-recovery]')) return;
+
+  const wrap = element('div', 'payrec-wrap');
+  wrap.dataset.manualPaymentRecovery = 'true';
+  wrap.append(element('div', 'payrec-title', 'Manual Payment Recovery'));
+  wrap.append(element('p', 'payrec-note', 'Guna bila QRPay webhook / automation gagal tetapi bayaran customer sudah disahkan secara manual. Semua tindakan direkod dalam audit log.'));
+
+  const selectLabel = element('label', 'payrec-field');
+  selectLabel.append(element('span', '', 'Payment method'));
+  const select = element('select', 'payrec-select') as HTMLSelectElement;
+  [
+    ['qr_pay_manual', 'QR Pay (Manual)'],
+    ['bank_transfer', 'Bank Transfer'],
+    ['cash_at_counter', 'Cash at Counter'],
+    ['card', 'Card'],
+    ['other', 'Other'],
+  ].forEach(([value, label]) => {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; select.append(option);
+  });
+  select.value = methodValue(kvText(card, 'Method'));
+  selectLabel.append(select);
+
+  const referenceLabel = element('label', 'payrec-field');
+  referenceLabel.append(element('span', '', 'Reference / note (optional)'));
+  const reference = element('input', 'payrec-input') as HTMLInputElement;
+  reference.type = 'text';
+  reference.maxLength = 180;
+  reference.placeholder = 'contoh: receipt checked / DuitNow ref';
+  referenceLabel.append(reference);
+
+  const actions = element('div', 'payrec-actions');
+  const saveMethod = element('button', 'btn btn-outline btn-sm', 'Save Payment Method') as HTMLButtonElement;
+  saveMethod.type = 'button';
+  const confirmPaid = element('button', 'btn btn-primary btn-sm', 'Mark Paid Manually') as HTMLButtonElement;
+  confirmPaid.type = 'button';
+  const paid = isPaymentPaid(card);
+  if (paid) {
+    confirmPaid.disabled = true;
+    confirmPaid.textContent = 'Already Paid';
+  }
+  actions.append(saveMethod, confirmPaid);
+  const message = element('div', 'payrec-message neutral');
+
+  const callOverride = async (action: 'set_method' | 'confirm_paid') => {
+    saveMethod.disabled = true;
+    confirmPaid.disabled = true;
+    setRecoveryMessage(message, action === 'confirm_paid' ? 'Confirming payment…' : 'Saving payment method…');
+    const { data, error } = await supabase.rpc('icetak_admin_payment_override_v1', {
+      p_payload: {
+        order_id: orderRef,
+        action,
+        payment_method: select.value,
+        reference: reference.value.trim() || null,
+      },
+    });
+    if (error) {
+      saveMethod.disabled = false;
+      confirmPaid.disabled = paid;
+      setRecoveryMessage(message, error.message, 'error');
+      return;
+    }
+    const result = (data || {}) as { already_paid?: boolean };
+    setRecoveryMessage(message, result.already_paid ? 'Order memang sudah Paid. Payment method telah dikemaskini.' : action === 'confirm_paid' ? 'Payment confirmed. Production release sedang diproses.' : 'Payment method saved.', 'success');
+    window.setTimeout(() => window.location.reload(), 700);
+  };
+
+  saveMethod.addEventListener('click', () => { void callOverride('set_method'); });
+  confirmPaid.addEventListener('click', () => {
+    const total = kvText(card, 'Total') || 'order total';
+    const label = select.options[select.selectedIndex]?.textContent || select.value;
+    if (!window.confirm(`Confirm customer sudah bayar ${total} melalui ${label}?\n\nIni akan mark order Paid dan boleh release production ikut approval rule.`)) return;
+    void callOverride('confirm_paid');
+  });
+
+  wrap.append(selectLabel, referenceLabel, actions, message);
+  card.append(wrap);
+}
+
 let queued = false;
-const scheduleEnhance = () => {
+function scheduleEnhance() {
   if (queued) return;
   queued = true;
   window.requestAnimationFrame(() => {
     queued = false;
-    void enhance(false);
+    const { drawer } = drawerContext();
+    if (!drawer) return;
+    cleanupLegacyFulfillment(drawer);
+    enhancePaymentRecovery();
+    void enhanceFulfillment(false);
   });
-};
+}
 
 const observer = new MutationObserver(scheduleEnhance);
-const start = () => {
+function start() {
   const root = document.getElementById('root');
   if (!root) return;
   observer.observe(root, { childList: true, subtree: true });
   scheduleEnhance();
-  window.setInterval(() => {
-    if (document.querySelector('.erp-order-drawer')) void enhance(true);
-  }, REFRESH_MS);
-};
+  window.setInterval(() => { void enhanceFulfillment(true); }, REFRESH_MS);
+}
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
 else start();
