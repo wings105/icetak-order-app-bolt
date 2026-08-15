@@ -7,6 +7,17 @@ const C = {
   'access-control-allow-methods': 'POST,OPTIONS',
   'access-control-allow-headers': 'content-type,authorization,apikey',
 };
+const CUSTOMER_LIFECYCLE_EVENTS = new Set([
+  'order_created',
+  'payment_pending',
+  'payment_received',
+  'production_started',
+  'review_ready',
+  'order_ready_pickup',
+  'order_shipped',
+  'order_delivered',
+  'order_cancelled',
+]);
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), {
   status,
   headers: { ...C, 'content-type': 'application/json' },
@@ -17,6 +28,19 @@ const phoneOf = (phone: string) => {
 };
 const render = (text: string, vars: Record<string, unknown>) => String(text || '')
   .replace(/\{\s*([a-zA-Z0-9_]+)\s*\}/g, (_match, key) => String(vars?.[key] ?? ''));
+const enabledValue = (value: unknown) => ['true', '1', 'yes', 'enabled', 'on'].includes(String(value ?? '').trim().toLowerCase());
+const cancelledOrder = (order: Record<string, unknown>) => `${order.status || ''} ${order.admin_status || ''} ${order.fulfillment_stage || ''}`.toLowerCase().includes('cancel');
+const paidOrder = (order: Record<string, unknown>) => /(paid|matched|payment_received)/i.test(`${order.payment_status || ''} ${order.payment || ''}`);
+
+async function fetchTimed(url: string, init: RequestInit = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 async function rest(path: string, init: RequestInit = {}) {
   const response = await fetch(`${U}/rest/v1/${path}`, {
@@ -83,24 +107,69 @@ async function pickupAutoPreflight(body: Record<string, any>) {
   if (!String(order.delivery_method || order.delivery || '').toLowerCase().includes('pickup')) return { ok: false, error: 'pickup_not_pickup' };
   if (!order.pickup_ready_at) return { ok: false, error: 'pickup_order_not_ready' };
   if (order.pickup_collected_at) return { ok: false, error: 'pickup_collected' };
-  const state = `${order.status || ''} ${order.admin_status || ''} ${order.fulfillment_stage || ''}`.toLowerCase();
-  if (state.includes('cancel')) return { ok: false, error: 'pickup_cancelled' };
+  if (cancelledOrder(order)) return { ok: false, error: 'pickup_cancelled' };
   if (config.auto_send_activated_at && new Date(order.pickup_ready_at).getTime() < new Date(config.auto_send_activated_at).getTime()) return { ok: false, error: 'pickup_historical_ready' };
+  return { ok: true };
+}
+
+async function orderLifecyclePreflight(body: Record<string, any>, eventType: string) {
+  if (!CUSTOMER_LIFECYCLE_EVENTS.has(eventType)) return { ok: true };
+
+  const master = await setting('enabled');
+  if (master && !enabledValue(master)) return { ok: false, error: 'order_auto_disabled' };
+
+  const orderId = String(body.order_db_id || body?.vars?.order_db_id || '').trim();
+  if (!orderId) return { ok: false, error: 'order_auto_order_id_required' };
+
+  const orders = await rest(
+    `orders?id=eq.${encodeURIComponent(orderId)}&select=id,whatsapp_opt_in,status,admin_status,fulfillment_stage,payment_status,payment,delivery_method,delivery,pickup_ready_at,pickup_collected_at&limit=1`,
+  ).catch(() => []);
+  const order = orders?.[0];
+  if (!order) return { ok: false, error: 'order_auto_order_missing' };
+  if (order.whatsapp_opt_in === false) return { ok: false, error: 'order_auto_opted_out' };
+
+  const isCancelled = cancelledOrder(order);
+  if (eventType === 'order_cancelled') {
+    if (!isCancelled) return { ok: false, error: 'order_cancel_notice_not_applicable' };
+  } else if (isCancelled) {
+    return { ok: false, error: 'order_auto_cancelled' };
+  }
+
+  if (eventType === 'payment_pending' && paidOrder(order)) {
+    return { ok: false, error: 'order_payment_already_received' };
+  }
+
+  if (eventType === 'order_ready_pickup') {
+    if (!String(order.delivery_method || order.delivery || '').toLowerCase().includes('pickup')) {
+      return { ok: false, error: 'order_ready_pickup_not_pickup' };
+    }
+    if (!order.pickup_ready_at) return { ok: false, error: 'order_ready_pickup_not_ready' };
+    if (order.pickup_collected_at) return { ok: false, error: 'order_ready_pickup_collected' };
+  }
+
   return { ok: true };
 }
 
 async function windowStatus(phone: string) {
   const url = await setting('unified_inbox_24h_url');
   if (!url) return { ok: false, can_send_freeform: false, reason: 'missing_24h_url' };
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ phone }),
-  });
-  const data = await response.json().catch(() => ({}));
-  return response.ok && data.ok !== false
-    ? data
-    : { ok: false, can_send_freeform: false, error: data.error || `24h_http_${response.status}` };
+  try {
+    const response = await fetchTimed(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    }, 8000);
+    const data = await response.json().catch(() => ({}));
+    return response.ok && data.ok !== false
+      ? data
+      : { ok: false, can_send_freeform: false, error: data.error || `24h_http_${response.status}` };
+  } catch (error) {
+    return {
+      ok: false,
+      can_send_freeform: false,
+      error: error instanceof Error ? `24h_check_failed:${error.message}` : '24h_check_failed',
+    };
+  }
 }
 
 async function provider(path: string, payload: unknown) {
@@ -108,11 +177,11 @@ async function provider(path: string, payload: unknown) {
   const partner = await setting('partner_key');
   const waba = await setting('waba_id');
   if (!partner || !waba) throw new Error('WasapFlow credential belum lengkap');
-  const response = await fetch(`${base}${path}`, {
+  const response = await fetchTimed(`${base}${path}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-partner-key': partner, 'x-waba-id': waba },
     body: JSON.stringify(payload),
-  });
+  }, 15000);
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.success === false) {
     const detail = data?.error?.message || data?.message || JSON.stringify(data);
@@ -157,6 +226,10 @@ Deno.serve(async (req) => {
     }
     if (eventType === 'order_ready_pickup_auto') {
       const preflight = await pickupAutoPreflight(body);
+      if (!preflight.ok) return json({ ok: false, error: preflight.error }, 409);
+    }
+    if (CUSTOMER_LIFECYCLE_EVENTS.has(eventType)) {
+      const preflight = await orderLifecyclePreflight(body, eventType);
       if (!preflight.ok) return json({ ok: false, error: preflight.error }, 409);
     }
 
@@ -206,6 +279,21 @@ Deno.serve(async (req) => {
       endpoint = '/messages/template';
     }
 
+    if (body.dry_run === true) {
+      return json({
+        ok: true,
+        dry_run: true,
+        mode,
+        to: phone,
+        endpoint,
+        decision_reason: decisionReason,
+        can_send_freeform: canSendFreeform,
+        message_preview: mode === 'text' ? payload.text : null,
+        template_preview: mode === 'template' ? payload.template : null,
+        window,
+      });
+    }
+
     const idempotencyKey = body.idempotency_key || null;
     if (idempotencyKey) {
       const old = await rest(`whatsapp_outbox?idempotency_key=eq.${encodeURIComponent(idempotencyKey)}&status=eq.sent&limit=1`).catch(() => []);
@@ -219,6 +307,10 @@ Deno.serve(async (req) => {
     }
     if (eventType === 'order_ready_pickup_auto') {
       const finalPreflight = await pickupAutoPreflight(body);
+      if (!finalPreflight.ok) return json({ ok: false, error: finalPreflight.error }, 409);
+    }
+    if (CUSTOMER_LIFECYCLE_EVENTS.has(eventType)) {
+      const finalPreflight = await orderLifecyclePreflight(body, eventType);
       if (!finalPreflight.ok) return json({ ok: false, error: finalPreflight.error }, 409);
     }
 
