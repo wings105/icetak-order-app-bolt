@@ -1,0 +1,76 @@
+name: WhatsApp Automation Safety CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/functions/whatsapp-send/**'
+      - 'supabase/functions/whatsapp-dispatch/**'
+      - 'supabase/functions/admin-order-control/**'
+      - 'supabase/functions/wasapflow-proxy/**'
+      - 'supabase/migrations/*whatsapp*'
+      - '.github/workflows/whatsapp-safety-ci.yml'
+  pull_request:
+    branches:
+      - production
+    paths:
+      - 'supabase/functions/whatsapp-send/**'
+      - 'supabase/functions/whatsapp-dispatch/**'
+      - 'supabase/functions/admin-order-control/**'
+      - 'supabase/functions/wasapflow-proxy/**'
+      - 'supabase/migrations/*whatsapp*'
+      - '.github/workflows/whatsapp-safety-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: whatsapp-safety-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deno-check:
+    name: Deno check + activation guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Type-check WhatsApp edge functions
+        run: |
+          deno check supabase/functions/whatsapp-send/index.ts
+          deno check supabase/functions/whatsapp-dispatch/index.ts
+          deno check supabase/functions/admin-order-control/index.ts
+          deno check supabase/functions/wasapflow-proxy/index.ts
+
+      - name: Guard against accidental activation
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          paths = list(Path('supabase/migrations').glob('*whatsapp*.sql'))
+          forbidden = [
+              re.compile(r"update\s+public\.whatsapp_settings[\s\S]{0,300}?key\s*=\s*'enabled'[\s\S]{0,300}?(text_value|secret_value)\s*=\s*'?(true|1|yes|enabled|on)'?", re.I),
+              re.compile(r"update\s+public\.pickup_notification_settings[\s\S]{0,300}?auto_send_enabled\s*=\s*true", re.I),
+              re.compile(r"update\s+public\.pickup_notification_settings[\s\S]{0,300}?auto_send_activated_at\s*=\s*now\s*\(\s*\)", re.I),
+          ]
+
+          violations = []
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+              for pattern in forbidden:
+                  if pattern.search(text):
+                      violations.append(f'{path}: {pattern.pattern}')
+
+          if violations:
+              raise SystemExit('Accidental WhatsApp activation detected:\n' + '\n'.join(violations))
+
+          print(f'Checked {len(paths)} WhatsApp migration file(s): no auto-activation statements found.')
