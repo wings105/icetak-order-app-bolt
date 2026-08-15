@@ -51,7 +51,7 @@ Deno.serve(async req=>{
     const d=await load(token);
     if(body.action==='confirm'){
       if(!d.admin_approved_at)return out({ok:false,error:'Draft belum diluluskan admin'},409);
-      const c=body.customer||{},allowed:any={name:t(c.name)||undefined,phone:t(c.phone)||undefined,address_line1:t(c.address_line1)||undefined,address_line2:t(c.address_line2)||undefined,postcode:t(c.postcode)||undefined,city:t(c.city)||undefined,state:t(c.state)||undefined};
+      const c=body.customer||{},line1=t(c.address_line1),line2=t(c.address_line2),allowed:any={name:t(c.name)||undefined,phone:t(c.phone)||undefined,address_line1:line1?(line2?`${line1}, ${line2}`:line1):undefined,address_line2:line2||undefined,postcode:t(c.postcode)||undefined,city:t(c.city)||undefined,state:t(c.state)||undefined};
       if(Object.prototype.hasOwnProperty.call(c,'address_id'))allowed.address_id=t(c.address_id)||null;
       Object.keys(allowed).forEach(k=>allowed[k]===undefined&&delete allowed[k]);
       const q=await db.rpc('icetak_customer_confirm_draft',{p_customer_token:token,p_customer:allowed,p_actor:'customer-link'});if(q.error)throw q.error;
