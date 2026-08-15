@@ -18,6 +18,10 @@ const CUSTOMER_LIFECYCLE_EVENTS = new Set([
   'order_delivered',
   'order_cancelled',
 ]);
+const PAID_STATES = new Set([
+  'paid', 'matched', 'payment_received', 'payment received', 'received',
+  'verified', 'success', 'successful', 'fully_paid', 'fully paid',
+]);
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), {
   status,
   headers: { ...C, 'content-type': 'application/json' },
@@ -30,7 +34,8 @@ const render = (text: string, vars: Record<string, unknown>) => String(text || '
   .replace(/\{\s*([a-zA-Z0-9_]+)\s*\}/g, (_match, key) => String(vars?.[key] ?? ''));
 const enabledValue = (value: unknown) => ['true', '1', 'yes', 'enabled', 'on'].includes(String(value ?? '').trim().toLowerCase());
 const cancelledOrder = (order: Record<string, unknown>) => `${order.status || ''} ${order.admin_status || ''} ${order.fulfillment_stage || ''}`.toLowerCase().includes('cancel');
-const paidOrder = (order: Record<string, unknown>) => /(paid|matched|payment_received)/i.test(`${order.payment_status || ''} ${order.payment || ''}`);
+const paidOrder = (order: Record<string, unknown>) => [order.payment_status, order.payment]
+  .some((value) => PAID_STATES.has(String(value ?? '').trim().toLowerCase()));
 
 async function fetchTimed(url: string, init: RequestInit = {}, timeoutMs = 15000) {
   const controller = new AbortController();
