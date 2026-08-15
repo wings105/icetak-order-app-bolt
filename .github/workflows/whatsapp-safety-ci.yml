@@ -9,6 +9,7 @@ on:
       - 'supabase/functions/admin-order-control/**'
       - 'supabase/functions/wasapflow-proxy/**'
       - 'supabase/migrations/*whatsapp*'
+      - 'supabase/tests/whatsapp_automation_hardening_ci.sql'
       - '.github/workflows/whatsapp-safety-ci.yml'
   pull_request:
     branches: [production]
@@ -18,6 +19,7 @@ on:
       - 'supabase/functions/admin-order-control/**'
       - 'supabase/functions/wasapflow-proxy/**'
       - 'supabase/migrations/*whatsapp*'
+      - 'supabase/tests/whatsapp_automation_hardening_ci.sql'
       - '.github/workflows/whatsapp-safety-ci.yml'
   workflow_dispatch:
 
@@ -80,3 +82,34 @@ jobs:
           if violations:
               raise SystemExit('Accidental WhatsApp activation detected:\n' + '\n'.join(violations))
           print(f'Checked {len(paths)} WhatsApp migration file(s): no auto-activation statements found.')
+
+  sql-hardening-test:
+    name: Disposable Postgres hardening test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGPASSWORD: postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Ensure PostgreSQL client
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Apply hardening migration and run safety scenarios
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres \
+            -f supabase/tests/whatsapp_automation_hardening_ci.sql
