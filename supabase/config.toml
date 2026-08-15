@@ -23,3 +23,7 @@ verify_jwt = false
 # Cron receiver protected by a private per-function token in code.
 [functions.qrpay-daily-summary]
 verify_jwt = false
+
+# Admin draft review capability-token endpoint. SQL mutation remains service-role only.
+[functions.order-draft-manual-paid]
+verify_jwt = false
