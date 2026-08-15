@@ -50,7 +50,7 @@ jobs:
             supabase/functions/admin-order-control/index.ts \
             supabase/functions/wasapflow-proxy/index.ts
           do
-            output="$(deno check "$file" 2>&1)"
+            output="$(deno check --node-modules-dir=auto "$file" 2>&1)"
             code=$?
             printf '%s\n' "$output"
             if [ $code -ne 0 ]; then
