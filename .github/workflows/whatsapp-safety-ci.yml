@@ -2,8 +2,7 @@ name: WhatsApp Automation Safety CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'supabase/functions/whatsapp-send/**'
       - 'supabase/functions/whatsapp-dispatch/**'
@@ -12,8 +11,7 @@ on:
       - 'supabase/migrations/*whatsapp*'
       - '.github/workflows/whatsapp-safety-ci.yml'
   pull_request:
-    branches:
-      - production
+    branches: [production]
     paths:
       - 'supabase/functions/whatsapp-send/**'
       - 'supabase/functions/whatsapp-dispatch/**'
@@ -36,41 +34,49 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@v5
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-
       - name: Type-check WhatsApp edge functions
+        shell: bash
         run: |
-          deno check supabase/functions/whatsapp-send/index.ts
-          deno check supabase/functions/whatsapp-dispatch/index.ts
-          deno check supabase/functions/admin-order-control/index.ts
-          deno check supabase/functions/wasapflow-proxy/index.ts
-
+          set +e
+          failed=0
+          for file in \
+            supabase/functions/whatsapp-send/index.ts \
+            supabase/functions/whatsapp-dispatch/index.ts \
+            supabase/functions/admin-order-control/index.ts \
+            supabase/functions/wasapflow-proxy/index.ts
+          do
+            output="$(deno check "$file" 2>&1)"
+            code=$?
+            printf '%s\n' "$output"
+            if [ $code -ne 0 ]; then
+              summary="$(printf '%s' "$output" | tail -n 25 | tr '\n' ' ' | cut -c1-1800)"
+              echo "::error file=$file::$summary"
+              failed=1
+            fi
+          done
+          exit $failed
       - name: Guard against accidental activation
         shell: python
         run: |
           from pathlib import Path
           import re
-
           paths = list(Path('supabase/migrations').glob('*whatsapp*.sql'))
           forbidden = [
               re.compile(r"update\s+public\.whatsapp_settings[\s\S]{0,300}?key\s*=\s*'enabled'[\s\S]{0,300}?(text_value|secret_value)\s*=\s*'?(true|1|yes|enabled|on)'?", re.I),
               re.compile(r"update\s+public\.pickup_notification_settings[\s\S]{0,300}?auto_send_enabled\s*=\s*true", re.I),
               re.compile(r"update\s+public\.pickup_notification_settings[\s\S]{0,300}?auto_send_activated_at\s*=\s*now\s*\(\s*\)", re.I),
           ]
-
           violations = []
           for path in paths:
               text = path.read_text(encoding='utf-8')
               for pattern in forbidden:
                   if pattern.search(text):
                       violations.append(f'{path}: {pattern.pattern}')
-
           if violations:
               raise SystemExit('Accidental WhatsApp activation detected:\n' + '\n'.join(violations))
-
           print(f'Checked {len(paths)} WhatsApp migration file(s): no auto-activation statements found.')
