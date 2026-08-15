@@ -9,7 +9,7 @@ on:
       - 'supabase/functions/admin-order-control/**'
       - 'supabase/functions/wasapflow-proxy/**'
       - 'supabase/migrations/*whatsapp*'
-      - 'supabase/tests/whatsapp_automation_hardening_ci.sql'
+      - 'supabase/tests/whatsapp_*_ci.sql'
       - '.github/workflows/whatsapp-safety-ci.yml'
   pull_request:
     branches: [production]
@@ -19,7 +19,7 @@ on:
       - 'supabase/functions/admin-order-control/**'
       - 'supabase/functions/wasapflow-proxy/**'
       - 'supabase/migrations/*whatsapp*'
-      - 'supabase/tests/whatsapp_automation_hardening_ci.sql'
+      - 'supabase/tests/whatsapp_*_ci.sql'
       - '.github/workflows/whatsapp-safety-ci.yml'
   workflow_dispatch:
 
@@ -109,7 +109,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y postgresql-client
           fi
-      - name: Apply hardening migration and run safety scenarios
+      - name: Apply both hardening migrations and run regression scenarios
         run: |
           psql -h 127.0.0.1 -U postgres -d postgres \
-            -f supabase/tests/whatsapp_automation_hardening_ci.sql
+            -f supabase/tests/whatsapp_trigger_hardening_ci.sql
