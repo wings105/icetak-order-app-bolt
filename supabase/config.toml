@@ -27,3 +27,7 @@ verify_jwt = false
 # Admin draft review capability-token endpoint. SQL mutation remains service-role only.
 [functions.order-draft-manual-paid]
 verify_jwt = false
+
+# Internal cron dispatcher protected by x-shipping-alert-token in code.
+[functions.shipping-attention-dispatch]
+verify_jwt = false
