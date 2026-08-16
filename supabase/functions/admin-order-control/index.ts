@@ -1,8 +1,217 @@
 // @ts-nocheck
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import {createClient} from 'https://esm.sh/@supabase/supabase-js@2';
-const db=createClient(Deno.env.get('SUPABASE_URL')||'',Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'',{auth:{persistSession:false}});const H={'content-type':'application/json','access-control-allow-origin':'*'};const out=(x,s=200)=>new Response(JSON.stringify(x),{status:s,headers:H});const t=v=>v==null?'':String(v).trim();const digits=v=>{let d=t(v).replace(/\D/g,'');if(!d)return'';if(d[0]=='0')d='60'+d.slice(1);else if(d[0]=='1')d='60'+d;else if(!d.startsWith('60'))d='60'+d;return d};const wa=v=>digits(v)?`https://wa.me/${digits(v)}`:'';
-async function secret(k){const {data}=await db.from('private_runtime_settings').select('setting_value').eq('setting_key',k).maybeSingle();return t(data?.setting_value)}async function setting(k){const {data}=await db.from('whatsapp_settings').select('text_value,secret_value').eq('key',k).maybeSingle();return t(data?.secret_value||data?.text_value)}async function publicBase(){return (await setting('customer_app_base_url')||'https://shop.decocake.my').replace(/\/$/,'')}async function auth(req){const k=req.headers.get('x-admin-order-token')||'';return !!k&&k===await secret('qrpay_ai_worker_token')}
-async function provider(path,payload){const base=await setting('base_url')||'https://officialapi.wasapflow.com/bridge/v1',partner=await setting('partner_key'),waba=await setting('waba_id');const r=await fetch(`${base}${path}`,{method:'POST',headers:{'content-type':'application/json','x-partner-key':partner,'x-waba-id':waba},body:JSON.stringify(payload)});const j=await r.json().catch(()=>({}));if(!r.ok||j.success===false)throw Error(j?.error?.message||j?.message||`WasapFlow ${r.status}`);return j}async function send(to,text){return provider('/messages/send',{to:digits(to),text,preview_url:true})}
-async function finalNotification(id){const {data:q,error}=await db.from('admin_order_notification_queue').select('*').eq('id',id).single();if(error)throw error;const {data:o,error:oe}=await db.from('orders').select('*').eq('id',q.order_id).single();if(oe)throw oe;const {data:items}=await db.from('order_items').select('title,qty,price,size,style,wording,custom_text,customization').eq('order_id',o.id).order('created_at');const {data:pay}=await db.from('payment_transactions').select('*').eq('order_id',o.id).order('paid_at',{ascending:false}).limit(1).maybeSingle();const {data:tasks}=await db.from('clickup_tasks').select('clickup_task_id,url').eq('order_id',o.id);const phone=digits(o.delivery_phone),missing=[];if(!o.date_need)missing.push('Date');for(const [i,x] of (items||[]).entries())if(!t(x.size))missing.push(`Item ${i+1} size/variation`);const auto=!!o.production_approved,status=auto?'🟢 ORDER AUTO CREATED':'🟡 ORDER CREATED · CHECK NEEDED',base=await publicBase(),orderLink=`${base}/?admin=v2&order=${encodeURIComponent(o.public_token)}`,customerLink=`${base}/?order=${encodeURIComponent(o.public_token)}`;const itemText=(items||[]).map((x,i)=>[`${i+1}. ${x.title}`,t(x.size),t(x.style),`Qty ${x.qty}`,`RM${Number(x.price||0).toFixed(2)}`,t(x.wording||x.custom_text)?`Wording: ${t(x.wording||x.custom_text).replace(/\n/g,' / ')}`:''].filter(Boolean).join(' · ')).join('\n');const click=(tasks||[]).map(x=>x.url||`https://app.clickup.com/t/${x.clickup_task_id}`).filter(Boolean),remark=t(o.admin_remark),cm=remark.match(/AI CONFIDENCE: customer (\d+)% \| order (\d+)% \| payment (\d+)%/),msg=[status,`*${o.order_no||o.order_id}*`,'',`Customer: ${o.delivery_name||'Customer'}`,`Phone: ${phone||'-'}`,`Payment: QRPay · RM${Number(pay?.amount??o.total??0).toFixed(2)}`,`Delivery: ${String(o.delivery_method||o.delivery||'-').toUpperCase()}`,`Date: ${o.date_need||'⚠️ belum pasti'}`,'','ORDER',itemText||'-','',`AI CHECK`,`Customer: ${cm?cm[1]+'%':'-'}`,`Order detail: ${cm?cm[2]+'%':'-'}`,`Payment: ${pay?.transaction_id?'Matched ✓':'Check'}`,`Missing: ${missing.length?missing.join(', '):'None'}`,'',`Admin / Edit Order: ${orderLink}`,`Customer Order Link: ${customerLink}`,phone?`WhatsApp Customer: ${wa(phone)}`:'',click.length?`ClickUp: ${click.join('\n')}`:auto?'ClickUp: sedang dibuat':'Production: belum dilepaskan'].filter(Boolean).join('\n');const admin=await setting('admin_order_notify_phone')||'60129554732',sent=await send(admin,msg);await db.from('admin_order_notification_queue').update({status:'sent',provider_message_id:sent?.message_id||sent?.id||null,sent_at:new Date().toISOString(),locked_at:null,last_error:null,updated_at:new Date().toISOString()}).eq('id',q.id);return{sent:true,admin_order_link:orderLink,customer_order_link:customerLink}}
-Deno.serve(async req=>{if(req.method==='OPTIONS')return new Response('ok',{headers:H});if(req.method!=='POST')return out({ok:false,error:'POST required'},405);if(!await auth(req))return out({ok:false,error:'Unauthorized'},401);const b=await req.json().catch(()=>({}));try{if(b.action==='send_final_notification')return out({ok:true,result:await finalNotification(b.queue_id)});if(b.action==='incoming')return out({ok:true,result:{ignored:true,reason:'admin replies no longer used for QRPay draft workflow'}});if(b.action==='create_review')return out({ok:true,ignored:true,reason:'draft-first workflow'});return out({ok:false,error:'unsupported action'},400)}catch(e){console.error(e);if(b.queue_id)await db.from('admin_order_notification_queue').update({status:'retry',locked_at:null,last_error:String(e).slice(0,2000),scheduled_at:new Date(Date.now()+60000).toISOString(),updated_at:new Date().toISOString()}).eq('id',b.queue_id);return out({ok:false,error:e instanceof Error?e.message:String(e)},500)}});
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const db = createClient(
+  Deno.env.get('SUPABASE_URL') || '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
+  { auth: { persistSession: false } },
+);
+const H = { 'content-type': 'application/json', 'access-control-allow-origin': '*' };
+const out = (x, s = 200) => new Response(JSON.stringify(x), { status: s, headers: H });
+const t = (v) => v == null ? '' : String(v).trim();
+const digits = (v) => {
+  let d = t(v).replace(/\D/g, '');
+  if (!d) return '';
+  if (d[0] === '0') d = `60${d.slice(1)}`;
+  else if (d[0] === '1') d = `60${d}`;
+  else if (!d.startsWith('60')) d = `60${d}`;
+  return d;
+};
+const wa = (v) => digits(v) ? `https://wa.me/${digits(v)}` : '';
+const isCancelled = (order) => `${order?.status || ''} ${order?.admin_status || ''} ${order?.fulfillment_stage || ''}`.toLowerCase().includes('cancel');
+
+async function fetchTimed(url, init = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function secret(k) {
+  const { data } = await db.from('private_runtime_settings').select('setting_value').eq('setting_key', k).maybeSingle();
+  return t(data?.setting_value);
+}
+async function setting(k) {
+  const { data } = await db.from('whatsapp_settings').select('text_value,secret_value').eq('key', k).maybeSingle();
+  return t(data?.secret_value || data?.text_value);
+}
+async function publicBase() {
+  return (await setting('customer_app_base_url') || 'https://shop.decocake.my').replace(/\/$/, '');
+}
+async function auth(req) {
+  const k = req.headers.get('x-admin-order-token') || '';
+  return Boolean(k && k === await secret('qrpay_ai_worker_token'));
+}
+async function provider(path, payload) {
+  const base = await setting('base_url') || 'https://officialapi.wasapflow.com/bridge/v1';
+  const partner = await setting('partner_key');
+  const waba = await setting('waba_id');
+  if (!partner || !waba) throw new Error('WasapFlow credential belum lengkap');
+  const r = await fetchTimed(`${base}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-partner-key': partner, 'x-waba-id': waba },
+    body: JSON.stringify(payload),
+  }, 15000);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.success === false) throw new Error(j?.error?.message || j?.message || `WasapFlow ${r.status}`);
+  return j;
+}
+async function send(to, text) {
+  return provider('/messages/send', { to: digits(to), text, preview_url: true });
+}
+
+async function markCancelled(queueId, reason) {
+  await db.from('admin_order_notification_queue').update({
+    status: 'cancelled',
+    locked_at: null,
+    last_error: reason,
+    updated_at: new Date().toISOString(),
+  }).eq('id', queueId);
+}
+
+async function scheduleFailure(queueId, error) {
+  if (!queueId) return;
+  const { data: current } = await db.from('admin_order_notification_queue')
+    .select('status,attempts')
+    .eq('id', queueId)
+    .maybeSingle();
+  if (!current || ['sent', 'cancelled'].includes(String(current.status || ''))) return;
+
+  const attempts = Number(current.attempts || 1);
+  const terminal = attempts >= 5;
+  const delayMinutes = [1, 5, 15, 60, 240][Math.min(Math.max(attempts - 1, 0), 4)];
+  await db.from('admin_order_notification_queue').update({
+    status: terminal ? 'failed' : 'retry',
+    locked_at: null,
+    last_error: String(error).slice(0, 2000),
+    scheduled_at: terminal ? undefined : new Date(Date.now() + delayMinutes * 60000).toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq('id', queueId);
+}
+
+async function finalNotification(id) {
+  const { data: initial, error: initialError } = await db.from('admin_order_notification_queue').select('*').eq('id', id).single();
+  if (initialError) throw initialError;
+  if (initial.status === 'sent') return { sent: false, duplicate: true, reason: 'already_sent' };
+  if (['cancelled', 'failed'].includes(String(initial.status || ''))) {
+    return { sent: false, skipped: true, reason: `queue_${initial.status}` };
+  }
+  if (initial.status !== 'sending') {
+    return { sent: false, skipped: true, reason: `queue_not_sendable:${initial.status || 'unknown'}` };
+  }
+
+  const now = new Date().toISOString();
+  const { data: claimed, error: claimError } = await db.from('admin_order_notification_queue')
+    .update({ status: 'dispatching', locked_at: now, updated_at: now })
+    .eq('id', id)
+    .eq('status', 'sending')
+    .select('id,order_id,attempts')
+    .maybeSingle();
+  if (claimError) throw claimError;
+  if (!claimed) {
+    const { data: current } = await db.from('admin_order_notification_queue').select('status').eq('id', id).maybeSingle();
+    if (current?.status === 'sent') return { sent: false, duplicate: true, reason: 'already_sent' };
+    return { sent: false, skipped: true, reason: `queue_claim_lost:${current?.status || 'unknown'}` };
+  }
+
+  const { data: o, error: oe } = await db.from('orders').select('*').eq('id', claimed.order_id).single();
+  if (oe) throw oe;
+  if (isCancelled(o)) {
+    await markCancelled(id, 'order_cancelled_before_admin_notification');
+    return { sent: false, cancelled: true, reason: 'order_cancelled_before_admin_notification' };
+  }
+
+  const { data: items } = await db.from('order_items').select('title,qty,price,size,style,wording,custom_text,customization').eq('order_id', o.id).order('created_at');
+  const { data: pay } = await db.from('payment_transactions').select('*').eq('order_id', o.id).order('paid_at', { ascending: false }).limit(1).maybeSingle();
+  const { data: tasks } = await db.from('clickup_tasks').select('clickup_task_id,url').eq('order_id', o.id);
+  const phone = digits(o.delivery_phone);
+  const missing = [];
+  if (!o.date_need) missing.push('Date');
+  for (const [i, x] of (items || []).entries()) if (!t(x.size)) missing.push(`Item ${i + 1} size/variation`);
+
+  const auto = Boolean(o.production_approved);
+  const status = auto ? '🟢 ORDER AUTO CREATED' : '🟡 ORDER CREATED · CHECK NEEDED';
+  const base = await publicBase();
+  const orderLink = `${base}/?admin=v2&order=${encodeURIComponent(o.public_token)}`;
+  const customerLink = `${base}/?order=${encodeURIComponent(o.public_token)}`;
+  const itemText = (items || []).map((x, i) => [
+    `${i + 1}. ${x.title}`,
+    t(x.size),
+    t(x.style),
+    `Qty ${x.qty}`,
+    `RM${Number(x.price || 0).toFixed(2)}`,
+    t(x.wording || x.custom_text) ? `Wording: ${t(x.wording || x.custom_text).replace(/\n/g, ' / ')}` : '',
+  ].filter(Boolean).join(' · ')).join('\n');
+  const click = (tasks || []).map((x) => x.url || `https://app.clickup.com/t/${x.clickup_task_id}`).filter(Boolean);
+  const remark = t(o.admin_remark);
+  const cm = remark.match(/AI CONFIDENCE: customer (\d+)% \| order (\d+)% \| payment (\d+)%/);
+  const msg = [
+    status,
+    `*${o.order_no || o.order_id}*`,
+    '',
+    `Customer: ${o.delivery_name || 'Customer'}`,
+    `Phone: ${phone || '-'}`,
+    `Payment: QRPay · RM${Number(pay?.amount ?? o.total ?? 0).toFixed(2)}`,
+    `Delivery: ${String(o.delivery_method || o.delivery || '-').toUpperCase()}`,
+    `Date: ${o.date_need || '⚠️ belum pasti'}`,
+    '',
+    'ORDER',
+    itemText || '-',
+    '',
+    'AI CHECK',
+    `Customer: ${cm ? `${cm[1]}%` : '-'}`,
+    `Order detail: ${cm ? `${cm[2]}%` : '-'}`,
+    `Payment: ${pay?.transaction_id ? 'Matched ✓' : 'Check'}`,
+    `Missing: ${missing.length ? missing.join(', ') : 'None'}`,
+    '',
+    `Admin / Edit Order: ${orderLink}`,
+    `Customer Order Link: ${customerLink}`,
+    phone ? `WhatsApp Customer: ${wa(phone)}` : '',
+    click.length ? `ClickUp: ${click.join('\n')}` : auto ? 'ClickUp: sedang dibuat' : 'Production: belum dilepaskan',
+  ].filter(Boolean).join('\n');
+
+  // Re-read immediately before the provider call so a cancellation made while the
+  // message was being prepared cannot leak a stale "order created" notification.
+  const { data: latestOrder, error: latestError } = await db.from('orders')
+    .select('status,admin_status,fulfillment_stage')
+    .eq('id', o.id)
+    .single();
+  if (latestError) throw latestError;
+  if (isCancelled(latestOrder)) {
+    await markCancelled(id, 'order_cancelled_during_admin_notification_prepare');
+    return { sent: false, cancelled: true, reason: 'order_cancelled_during_admin_notification_prepare' };
+  }
+
+  const admin = await setting('admin_order_notify_phone') || '60129554732';
+  const sent = await send(admin, msg);
+  await db.from('admin_order_notification_queue').update({
+    status: 'sent',
+    provider_message_id: sent?.message_id || sent?.id || null,
+    sent_at: new Date().toISOString(),
+    locked_at: null,
+    last_error: null,
+    updated_at: new Date().toISOString(),
+  }).eq('id', id).eq('status', 'dispatching');
+  return { sent: true, admin_order_link: orderLink, customer_order_link: customerLink };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: H });
+  if (req.method !== 'POST') return out({ ok: false, error: 'POST required' }, 405);
+  if (!await auth(req)) return out({ ok: false, error: 'Unauthorized' }, 401);
+  const b = await req.json().catch(() => ({}));
+  try {
+    if (b.action === 'send_final_notification') return out({ ok: true, result: await finalNotification(b.queue_id) });
+    if (b.action === 'incoming') return out({ ok: true, result: { ignored: true, reason: 'admin replies no longer used for QRPay draft workflow' } });
+    if (b.action === 'create_review') return out({ ok: true, ignored: true, reason: 'draft-first workflow' });
+    return out({ ok: false, error: 'unsupported action' }, 400);
+  } catch (e) {
+    console.error(e);
+    if (b.queue_id) await scheduleFailure(b.queue_id, e instanceof Error ? e.message : String(e));
+    return out({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500);
+  }
+});

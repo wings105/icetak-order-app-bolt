@@ -1,0 +1,153 @@
+name: WhatsApp Automation Safety CI
+
+on:
+  push:
+    branches: [production]
+    paths:
+      - 'supabase/functions/whatsapp-send/**'
+      - 'supabase/functions/whatsapp-dispatch/**'
+      - 'supabase/functions/admin-order-control/**'
+      - 'supabase/functions/wasapflow-proxy/**'
+      - 'supabase/migrations/*whatsapp*'
+      - 'supabase/tests/whatsapp_*_ci.sql'
+      - '.github/workflows/whatsapp-safety-ci.yml'
+  pull_request:
+    branches: [production]
+    paths:
+      - 'supabase/functions/whatsapp-send/**'
+      - 'supabase/functions/whatsapp-dispatch/**'
+      - 'supabase/functions/admin-order-control/**'
+      - 'supabase/functions/wasapflow-proxy/**'
+      - 'supabase/migrations/*whatsapp*'
+      - 'supabase/tests/whatsapp_*_ci.sql'
+      - '.github/workflows/whatsapp-safety-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: whatsapp-safety-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deno-check:
+    name: Deno check + activation guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production source
+        uses: actions/checkout@v5
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check WhatsApp edge functions
+        shell: bash
+        run: |
+          set +e
+          failed=0
+          for file in \
+            supabase/functions/whatsapp-send/index.ts \
+            supabase/functions/whatsapp-dispatch/index.ts \
+            supabase/functions/admin-order-control/index.ts \
+            supabase/functions/wasapflow-proxy/index.ts
+          do
+            output="$(deno check --node-modules-dir=auto "$file" 2>&1)"
+            code=$?
+            printf '%s\n' "$output"
+            if [ $code -ne 0 ]; then
+              summary="$(printf '%s' "$output" | tail -n 25 | tr '\n' ' ' | cut -c1-1800)"
+              echo "::error file=$file::$summary"
+              failed=1
+            fi
+          done
+          exit $failed
+      - name: Guard against accidental activation
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          paths = list(Path('supabase/migrations').glob('*whatsapp*.sql'))
+          forbidden = [
+              re.compile(r"update\s+public\.whatsapp_settings[\s\S]{0,300}?key\s*=\s*'enabled'[\s\S]{0,300}?(text_value|secret_value)\s*=\s*'?(true|1|yes|enabled|on)'?", re.I),
+              re.compile(r"update\s+public\.pickup_notification_settings[\s\S]{0,300}?auto_send_enabled\s*=\s*true", re.I),
+              re.compile(r"update\s+public\.pickup_notification_settings[\s\S]{0,300}?auto_send_activated_at\s*=\s*now\s*\(\s*\)", re.I),
+          ]
+          violations = []
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+              for pattern in forbidden:
+                  if pattern.search(text):
+                      violations.append(f'{path}: {pattern.pattern}')
+          if violations:
+              raise SystemExit('Accidental WhatsApp activation detected:\n' + '\n'.join(violations))
+          print(f'Checked {len(paths)} WhatsApp migration file(s): no auto-activation statements found.')
+
+  sql-hardening-test:
+    name: Disposable Postgres hardening test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGPASSWORD: postgres
+    steps:
+      - name: Checkout production source
+        uses: actions/checkout@v5
+      - name: Ensure PostgreSQL client
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Prepare disposable migration aliases
+        run: |
+          cp supabase/migrations/20260817015000_whatsapp_automation_safety_hardening.sql \
+             supabase/migrations/20260815081500_whatsapp_automation_safety_hardening.sql
+          cp supabase/migrations/20260817015100_whatsapp_event_trigger_hardening.sql \
+             supabase/migrations/20260815083200_whatsapp_event_trigger_hardening.sql
+      - name: Run queue and trigger regression suite
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres \
+            -f supabase/tests/whatsapp_trigger_hardening_ci.sql
+      - name: Apply and verify fail-closed master guard
+        shell: bash
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          update public.whatsapp_settings set text_value='false' where key='enabled';
+          \i supabase/migrations/20260817015200_whatsapp_fail_closed_master_guard.sql
+
+          do $$
+          declare
+            v text;
+            o uuid;
+            q uuid;
+          begin
+            update public.whatsapp_settings set text_value=null where key='enabled';
+            select text_value into v from public.whatsapp_settings where key='enabled';
+            if v <> 'false' then
+              raise exception 'master null did not fail closed: %',v;
+            end if;
+
+            select id into o from public.orders where order_no='IC-POSITIVE' limit 1;
+            if o is null then raise exception 'positive-control order missing'; end if;
+            q := public.icetak_enqueue_whatsapp_event('order_created',o,'{}'::jsonb,'fail_closed_check',now());
+            if q is not null then raise exception 'master OFF still allowed lifecycle enqueue'; end if;
+
+            begin
+              delete from public.whatsapp_settings where key='enabled';
+              raise exception 'master setting delete unexpectedly succeeded';
+            exception when others then
+              if position('cannot be deleted' in sqlerrm)=0 then raise; end if;
+            end;
+          end $$;
+          SQL

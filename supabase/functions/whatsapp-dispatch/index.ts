@@ -38,7 +38,8 @@ async function authorized(req: Request) {
 async function updateJob(id: string, payload: Record<string, unknown>) {
   await rest(`notification_queue?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
 }
-const isAutomationSafetyStop = (message: string) => /tracking_(auto_disabled|cancelled|already_sent|not_sendable|state_missing|shipment_id_required)|pickup_(auto_disabled|provider_not_ready|order_id_required|order_missing|not_pickup|order_not_ready|collected|cancelled|historical_ready)/i.test(message);
+const isAutomationSafetyStop = (message: string) => /tracking_(auto_disabled|provider_not_ready|cancelled|already_sent|not_sendable|state_missing|shipment_id_required)|pickup_(auto_disabled|provider_not_ready|order_id_required|order_missing|not_pickup|order_not_ready|collected|cancelled|historical_ready)|order_auto_(disabled|opted_out|order_id_required|order_missing|cancelled)|order_cancel_notice_not_applicable|order_payment_already_received|order_ready_pickup_(not_pickup|not_ready|collected)/i.test(message);
+const isPermanentFailure = (message: string) => /notification_disabled:|freeform_disabled|freeform_message_empty|template_disabled|template_name_required|template_not_approved:|phone required/i.test(message);
 
 Deno.serve(async (req) => {
   try {
@@ -57,7 +58,13 @@ Deno.serve(async (req) => {
         const response = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-send`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', authorization: `Bearer ${SERVICE_ROLE_KEY}` },
-          body: JSON.stringify({ ...(job.payload || {}), queue_id: job.id, idempotency_key: job.idempotency_key, source: 'notification_queue' }),
+          body: JSON.stringify({
+            ...(job.payload || {}),
+            order_db_id: job.order_id || job.payload?.order_db_id || job.payload?.vars?.order_db_id || null,
+            queue_id: job.id,
+            idempotency_key: job.idempotency_key,
+            source: 'notification_queue',
+          }),
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok || result.ok === false) throw new Error(result.error || `whatsapp-send ${response.status}`);
@@ -72,18 +79,29 @@ Deno.serve(async (req) => {
         if (isAutomationSafetyStop(message)) {
           await updateJob(job.id, {
             status: 'cancelled', processed_at: new Date().toISOString(), locked_at: null,
-            last_error: message, decision_reason: 'automation_safety_stop',
+            last_error: message, decision_mode: 'cancelled', decision_reason: 'automation_safety_stop',
           });
           results.push({ id: job.id, status: 'cancelled', reason: message });
+          continue;
+        }
+        if (isPermanentFailure(message)) {
+          await updateJob(job.id, {
+            status: 'failed', processed_at: new Date().toISOString(), locked_at: null,
+            last_error: message, decision_reason: 'non_retryable_configuration_error',
+          });
+          results.push({ id: job.id, status: 'failed', reason: message });
           continue;
         }
 
         const attempts = Number(job.attempts || 1);
         const terminal = attempts >= 5;
-        const delayMinutes = [1, 5, 15, 60, 240][Math.min(attempts - 1, 4)];
+        const delayMinutes = [1, 5, 15, 60, 240][Math.min(Math.max(attempts - 1, 0), 4)];
         const nextRetry = new Date(Date.now() + delayMinutes * 60000).toISOString();
         await updateJob(job.id, {
-          status: terminal ? 'failed' : 'pending', scheduled_at: nextRetry, locked_at: null,
+          status: terminal ? 'failed' : 'pending',
+          scheduled_at: terminal ? job.scheduled_at : nextRetry,
+          processed_at: terminal ? new Date().toISOString() : null,
+          locked_at: null,
           last_error: message,
         });
         results.push({ id: job.id, status: terminal ? 'failed' : 'retry', next_retry_at: terminal ? null : nextRetry });
