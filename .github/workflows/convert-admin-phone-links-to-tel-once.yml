@@ -1,0 +1,113 @@
+name: Convert admin phone links to tel once
+
+on:
+  push:
+    branches: [production]
+    paths:
+      - .github/workflows/convert-admin-phone-links-to-tel-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production
+        uses: actions/checkout@v4
+        with:
+          ref: production
+          fetch-depth: 0
+
+      - name: Convert simple wa.me phone links to tel
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('icetak-admin/src')
+          template_simple = re.compile(r'https://wa\.me/(\$\{[^}\n]+\})(?!\?text=)')
+          static_simple = re.compile(r'https://wa\.me/([0-9+]+)(?!\?text=)')
+          changed = []
+
+          for path in root.rglob('*'):
+              if path.suffix not in {'.ts', '.tsx', '.js', '.jsx'}:
+                  continue
+              old = path.read_text(encoding='utf-8')
+              new = template_simple.sub(r'tel:\1', old)
+              new = static_simple.sub(r'tel:\1', new)
+
+              # tel: should launch the phone handler directly, not a new browser tab.
+              new = re.sub(
+                  r'(href=\{`tel:[^`]+`\})\s+target="_blank"\s+rel="noreferrer"',
+                  r'\1',
+                  new,
+              )
+
+              # QRPay still uses the legacy JSON key `whatsapp_link` for API compatibility,
+              # but Supabase now returns a tel: value in that field.
+              if path.name == 'QrPayDailySummary.tsx':
+                  new = new.replace(
+                      'href={row.whatsapp_link||undefined} target="_blank" rel="noreferrer"',
+                      'href={row.whatsapp_link||undefined}',
+                  )
+                  new = new.replace(
+                      'href={row.whatsapp_link} target="_blank" rel="noreferrer"',
+                      'href={row.whatsapp_link}',
+                  )
+                  new = new.replace('href={row.whatsapp_link}>WhatsApp</a>', 'href={row.whatsapp_link}>Call</a>')
+
+              # Customer CRM action is now a phone call, not a WhatsApp deep-link.
+              if path.name == 'Customers.tsx':
+                  new = new.replace('<IconPhone size={15}/> WhatsApp</a>', '<IconPhone size={15}/> Call</a>')
+
+              # Shipping recipient number itself is a call link. The separate
+              # "Send Tracking" composer remains WhatsApp because it carries a prefilled message.
+              if path.name == 'Shipping.tsx':
+                  new = new.replace('title={`Open WhatsApp ${phone}`}', 'title={`Call ${phone}`}')
+
+              if new != old:
+                  path.write_text(new, encoding='utf-8')
+                  changed.append(str(path))
+
+          print('Changed files:')
+          for item in changed:
+              print(f' - {item}')
+
+          if not changed:
+              raise SystemExit('No admin phone-link files changed; refusing empty conversion.')
+
+          # All simple wa.me anchors must be gone. The only allowed wa.me URL is an
+          # intentional message composer carrying ?text= (e.g. manual tracking message).
+          leftovers = []
+          for path in root.rglob('*'):
+              if path.suffix not in {'.ts', '.tsx', '.js', '.jsx'}:
+                  continue
+              for no, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
+                  if 'https://wa.me/' in line and '?text=' not in line:
+                      leftovers.append(f'{path}:{no}: {line.strip()}')
+          if leftovers:
+              print('\nUnconverted simple wa.me links:')
+              print('\n'.join(leftovers))
+              raise SystemExit(1)
+          PY
+
+      - name: Install admin dependencies
+        working-directory: icetak-admin
+        run: npm ci
+
+      - name: Build admin
+        working-directory: icetak-admin
+        run: npm run build
+
+      - name: Commit conversion and remove one-time workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/convert-admin-phone-links-to-tel-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix: use tel links for admin phone numbers"
+          git push origin HEAD:production
