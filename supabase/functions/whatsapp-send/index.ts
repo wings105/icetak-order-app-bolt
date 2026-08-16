@@ -121,7 +121,7 @@ async function orderLifecyclePreflight(body: Record<string, any>, eventType: str
   if (!CUSTOMER_LIFECYCLE_EVENTS.has(eventType)) return { ok: true };
 
   const master = await setting('enabled');
-  if (master && !enabledValue(master)) return { ok: false, error: 'order_auto_disabled' };
+  if (!enabledValue(master)) return { ok: false, error: 'order_auto_disabled' };
 
   const orderId = String(body.order_db_id || body?.vars?.order_db_id || '').trim();
   if (!orderId) return { ok: false, error: 'order_auto_order_id_required' };
