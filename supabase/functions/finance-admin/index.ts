@@ -9,11 +9,7 @@ const CORS = {
 };
 
 type JsonObject = Record<string, unknown>;
-type FinanceAdmin = {
-  username: string;
-  role: string;
-  permissions: string[];
-};
+type FinanceAdmin = { username: string; role: string; permissions: string[] };
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -42,11 +38,7 @@ async function rest(path: string) {
 async function rpc(name: string, body: JsonObject = {}) {
   const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      apikey: SERVICE_ROLE_KEY,
-      authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-    },
+    headers: { "content-type": "application/json", apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` },
     body: JSON.stringify(body),
   });
   const data = await response.json().catch(() => ({ error: `RPC ${name} returned invalid JSON` }));
@@ -62,7 +54,6 @@ async function currentFinanceAdmin(req: Request): Promise<FinanceAdmin | null> {
   });
   const user = await authResponse.json().catch(() => null);
   if (!authResponse.ok || !user?.id) return null;
-
   const admins = await rest(`admin_users?auth_user_id=eq.${encodeURIComponent(user.id)}&is_active=eq.true&select=username,role&limit=1`);
   const admin = admins?.[0];
   if (!admin?.username) return null;
@@ -83,53 +74,37 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({})) as JsonObject;
     const action = String(body.action || "snapshot");
 
-    if (action === "snapshot") {
-      return json({ success: true, data: await rpc("finance_admin_snapshot") });
-    }
-    if (action === "transactions") {
-      return json({
-        success: true,
-        data: await rpc("finance_admin_transactions", {
-          p_limit: Math.min(Math.max(Number(body.limit) || 100, 1), 500),
-          p_offset: Math.max(Number(body.offset) || 0, 0),
-          p_status: body.status || null,
-          p_direction: body.direction || null,
-          p_query: body.query || null,
-          p_from: body.from || null,
-          p_to: body.to || null,
-        }),
-      });
-    }
+    if (action === "snapshot") return json({ success: true, data: await rpc("finance_admin_snapshot") });
+    if (action === "transactions") return json({ success: true, data: await rpc("finance_admin_transactions", {
+      p_limit: Math.min(Math.max(Number(body.limit) || 100, 1), 500), p_offset: Math.max(Number(body.offset) || 0, 0),
+      p_status: body.status || null, p_direction: body.direction || null, p_query: body.query || null, p_from: body.from || null, p_to: body.to || null,
+    }) });
     if (action === "qrpay_daily") {
       const date = String(body.date || "");
-      if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return json({ success: false, error: "Valid QRPay summary date is required" }, 400);
-      }
+      if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ success: false, error: "Valid QRPay summary date is required" }, 400);
       return json({ success: true, data: await rpc("finance_admin_qrpay_daily", { p_date: date || null }) });
     }
     if (action === "qrpay_range") {
-      const from = String(body.from || "");
-      const to = String(body.to || "");
+      const from = String(body.from || ""), to = String(body.to || "");
       const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
-      if ((from && !validDate(from)) || !validDate(to) || (from && from > to) || to > malaysiaToday()) {
-        return json({ success: false, error: "Valid QRPay date range is required" }, 400);
-      }
+      if ((from && !validDate(from)) || !validDate(to) || (from && from > to) || to > malaysiaToday()) return json({ success: false, error: "Valid QRPay date range is required" }, 400);
       return json({ success: true, data: await rpc("finance_admin_qrpay_range_with_progress", { p_from: from || null, p_to: to }) });
     }
     if (action === "qrpay_match_candidates") {
       const transactionId = String(body.transaction_id || "").trim();
       if (!transactionId) return json({ success: false, error: "QRPay transaction is required" }, 400);
-      return json({ success: true, data: await rpc("finance_admin_qrpay_match_candidates", {
-        p_transaction_id: transactionId,
-        p_query: String(body.query || "").trim() || null,
-      }) });
+      const args = { p_transaction_id: transactionId, p_query: String(body.query || "").trim() || null };
+      const [orders, drafts] = await Promise.all([
+        rpc("finance_admin_qrpay_match_candidates", args),
+        rpc("finance_admin_qrpay_draft_candidates", args),
+      ]);
+      const draftCandidates = Array.isArray(drafts?.candidates) ? drafts.candidates : [];
+      const orderCandidates = Array.isArray(orders?.candidates) ? orders.candidates : [];
+      return json({ success: true, data: { ...orders, transaction: orders?.transaction || drafts?.transaction, candidates: [...draftCandidates, ...orderCandidates] } });
     }
     if (action === "report") {
-      const from = String(body.from || "");
-      const to = String(body.to || "");
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
-        return json({ success: false, error: "Valid report dates are required" }, 400);
-      }
+      const from = String(body.from || ""), to = String(body.to || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) return json({ success: false, error: "Valid report dates are required" }, 400);
       return json({ success: true, data: await rpc("finance_admin_report", { p_from: from, p_to: to }) });
     }
     if (!admin.permissions.includes("manage_finance")) return json({ success: false, error: "Manage Finance permission required" }, 403);
@@ -139,102 +114,59 @@ Deno.serve(async (req) => {
       const reviewAction = String(body.review_action || "").trim();
       const remark = String(body.remark || "").trim();
       const category = String(body.category || "").trim() || null;
-      if (!transactionId || !["save_remark", "ignore", "reopen"].includes(reviewAction)) {
-        return json({ success: false, error: "Valid QRPay review action is required" }, 400);
-      }
+      if (!transactionId || !["save_remark", "ignore", "reopen"].includes(reviewAction)) return json({ success: false, error: "Valid QRPay review action is required" }, 400);
       if (remark.length > 2000) return json({ success: false, error: "Remark cannot exceed 2000 characters" }, 400);
-      if (reviewAction === "ignore" && (!remark || !category)) {
-        return json({ success: false, error: "Category and remark are required before ignoring a payment" }, 400);
-      }
-      return json({ success: true, data: await rpc("finance_admin_qrpay_review_action", {
-        p_transaction_id: transactionId,
-        p_action: reviewAction,
-        p_remark: remark || null,
-        p_category: category,
-        p_actor: admin.username,
-      }) });
+      if (reviewAction === "ignore" && (!remark || !category)) return json({ success: false, error: "Category and remark are required before ignoring a payment" }, 400);
+      return json({ success: true, data: await rpc("finance_admin_qrpay_review_action", { p_transaction_id: transactionId, p_action: reviewAction, p_remark: remark || null, p_category: category, p_actor: admin.username }) });
     }
     if (action === "qrpay_identity_update") {
-      const transactionId = String(body.transaction_id || "").trim();
-      const name = String(body.name || "").trim();
-      const phone = String(body.phone || "").trim();
-      if (!transactionId || !name || !phone) {
-        return json({ success: false, error: "Transaction, customer name and phone are required" }, 400);
-      }
-      if (name.length > 200 || phone.length > 30) {
-        return json({ success: false, error: "Customer contact is too long" }, 400);
-      }
-      return json({ success: true, data: await rpc("finance_admin_qrpay_identity_update", {
-        p_transaction_id: transactionId,
-        p_name: name,
-        p_phone: phone,
-        p_update_order: body.update_order === true,
-        p_actor: admin.username,
-      }) });
+      const transactionId = String(body.transaction_id || "").trim(), name = String(body.name || "").trim(), phone = String(body.phone || "").trim();
+      if (!transactionId || !name || !phone) return json({ success: false, error: "Transaction, customer name and phone are required" }, 400);
+      if (name.length > 200 || phone.length > 30) return json({ success: false, error: "Customer contact is too long" }, 400);
+      return json({ success: true, data: await rpc("finance_admin_qrpay_identity_update", { p_transaction_id: transactionId, p_name: name, p_phone: phone, p_update_order: body.update_order === true, p_actor: admin.username }) });
     }
     if (action === "qrpay_manual_match") {
       const transactionId = String(body.transaction_id || "").trim();
       const orderNo = String(body.order_no || "").trim();
-      if (!transactionId || !orderNo) return json({ success: false, error: "QRPay transaction and order number are required" }, 400);
+      if (!transactionId || !orderNo) return json({ success: false, error: "QRPay transaction and order/draft are required" }, 400);
+      if (/^DRAFT:[0-9a-f-]{36}$/i.test(orderNo)) {
+        const draftId = orderNo.slice(6);
+        const data = await rpc("icetak_admin_link_payment_to_draft", {
+          p_transaction_id: transactionId,
+          p_draft_id: draftId,
+          p_actor: admin.username,
+          p_confirm_mismatch: body.confirm_mismatch === true,
+        });
+        return json({ success: data?.success !== false, data, error: data?.success === false ? "Confirmation required before linking draft" : undefined });
+      }
       const data = await rpc("finance_admin_manual_match_qrpay", {
-        p_transaction_id: transactionId,
-        p_order_no: orderNo,
-        p_actor: admin.username,
-        p_confirm_mismatch: body.confirm_mismatch === true,
+        p_transaction_id: transactionId, p_order_no: orderNo, p_actor: admin.username, p_confirm_mismatch: body.confirm_mismatch === true,
       });
       return json({ success: data?.success !== false, data, error: data?.success === false ? "Confirmation required before matching" : undefined });
     }
     if (action === "qrpay_correct_match") {
       const transactionId = String(body.transaction_id || "").trim();
       const correctionAction = String(body.correction_action || "").trim();
-      if (!transactionId || !["unmatch", "unmatch_create", "relink"].includes(correctionAction)) {
-        return json({ success: false, error: "Valid QRPay correction action is required" }, 400);
-      }
-      if (correctionAction === "relink" && !String(body.target_order_no || "").trim()) {
-        return json({ success: false, error: "Target order is required for relink" }, 400);
-      }
+      if (!transactionId || !["unmatch", "unmatch_create", "relink"].includes(correctionAction)) return json({ success: false, error: "Valid QRPay correction action is required" }, 400);
+      if (correctionAction === "relink" && !String(body.target_order_no || "").trim()) return json({ success: false, error: "Target order is required for relink" }, 400);
       const data = await rpc("finance_admin_correct_qrpay_match", {
-        p_transaction_id: transactionId,
-        p_action: correctionAction,
-        p_target_order_no: String(body.target_order_no || "").trim() || null,
-        p_actor: admin.username,
-        p_confirm_processed: body.confirm_processed === true,
-        p_confirm_mismatch: body.confirm_mismatch === true,
+        p_transaction_id: transactionId, p_action: correctionAction, p_target_order_no: String(body.target_order_no || "").trim() || null,
+        p_actor: admin.username, p_confirm_processed: body.confirm_processed === true, p_confirm_mismatch: body.confirm_mismatch === true,
         p_cancel_source: body.cancel_source === true,
       });
-      return json({
-        success: data?.success !== false,
-        data,
-        error: data?.success === false ? "Confirmation required before correcting this match" : undefined,
-      });
+      return json({ success: data?.success !== false, data, error: data?.success === false ? "Confirmation required before correcting this match" : undefined });
     }
-
     if (action === "classify") {
-      const transactionId = Number(body.transaction_id);
-      const accountCode = String(body.account_code || "");
+      const transactionId = Number(body.transaction_id), accountCode = String(body.account_code || "");
       if (!Number.isInteger(transactionId) || !accountCode) return json({ success: false, error: "Transaction and account are required" }, 400);
-      return json({ success: true, data: await rpc("finance_admin_classify_transaction", {
-        p_transaction_id: transactionId,
-        p_account_code: accountCode,
-        p_actor: admin.username,
-      }) });
+      return json({ success: true, data: await rpc("finance_admin_classify_transaction", { p_transaction_id: transactionId, p_account_code: accountCode, p_actor: admin.username }) });
     }
     if (action === "resolve") {
-      const caseId = Number(body.case_id);
-      const resolution = String(body.resolution || "");
-      if (!Number.isInteger(caseId) || !["confirm_same", "keep_separate", "ignore"].includes(resolution)) {
-        return json({ success: false, error: "Valid reconciliation action is required" }, 400);
-      }
-      return json({ success: true, data: await rpc("finance_admin_resolve_reconciliation", {
-        p_case_id: caseId,
-        p_action: resolution,
-        p_actor: admin.username,
-        p_notes: body.notes || null,
-      }) });
+      const caseId = Number(body.case_id), resolution = String(body.resolution || "");
+      if (!Number.isInteger(caseId) || !["confirm_same", "keep_separate", "ignore"].includes(resolution)) return json({ success: false, error: "Valid reconciliation action is required" }, 400);
+      return json({ success: true, data: await rpc("finance_admin_resolve_reconciliation", { p_case_id: caseId, p_action: resolution, p_actor: admin.username, p_notes: body.notes || null }) });
     }
-    if (action === "sync_shopee") {
-      return json({ success: true, data: await rpc("finance_admin_sync_shopee") });
-    }
+    if (action === "sync_shopee") return json({ success: true, data: await rpc("finance_admin_sync_shopee") });
     return json({ success: false, error: `Unknown Finance action: ${action}` }, 404);
   } catch (error) {
     return json({ success: false, error: error instanceof Error ? error.message : "Finance server error" }, 500);
