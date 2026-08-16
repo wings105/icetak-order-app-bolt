@@ -6,6 +6,7 @@ import {
 
 type SendStatus = 'not_ready' | 'blocked' | 'ready' | 'queued' | 'opened' | 'sent' | 'failed' | 'cancelled';
 type TrackingAction = 'opened' | 'sent' | 'reopen' | 'cancel' | 'restore' | 'retry_auto';
+type AttentionFilter = 'all' | 'stuck' | 'critical';
 
 type MatchCandidate = { orderDbId?: string; orderNo?: string; status?: string; adminStatus?: string; delivery?: string; courier?: string; createdAt?: string };
 type MatchSuggestion = { candidateCount?: number; autoLinkable?: boolean; reason?: string; orderDbId?: string; orderNo?: string; confidence?: number; candidates?: MatchCandidate[] };
@@ -27,6 +28,13 @@ type TrackingSettings = {
   updated_at: string | null;
   provider_error: string | null;
   provider_status?: ProviderStatus;
+};
+
+type ShippingAttention = {
+  attention?: number;
+  critical?: number;
+  threshold_hours?: number;
+  oldest_hours?: number;
 };
 
 type TrackingRow = {
@@ -60,10 +68,15 @@ type TrackingRow = {
   last_error: string | null;
   message_body: string;
   match_suggestion?: MatchSuggestion | null;
+  last_movement_at?: string | null;
+  stuck_hours?: number | null;
+  needs_attention?: boolean;
+  attention_level?: 'warning' | 'critical' | null;
 };
 
 type DashboardPayload = {
   settings?: Partial<TrackingSettings>;
+  attention?: ShippingAttention;
   rows?: TrackingRow[];
 };
 
@@ -82,7 +95,7 @@ const defaultSettings: TrackingSettings = {
   provider_error: null,
 };
 
-const formatDate = (value: string | null) => {
+const formatDate = (value: string | null | undefined) => {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
@@ -91,6 +104,14 @@ const formatDate = (value: string | null) => {
     timeStyle: 'short',
     timeZone: 'Asia/Kuala_Lumpur',
   }).format(date);
+};
+
+const formatDuration = (hours: number | null | undefined) => {
+  const h = Math.max(0, Number(hours || 0));
+  const days = Math.floor(h / 24);
+  const remain = Math.floor(h % 24);
+  if (days <= 0) return `${Math.floor(h)} jam`;
+  return `${days} hari${remain ? ` ${remain} jam` : ''}`;
 };
 
 const normalizePhone = (value: string | null) => {
@@ -160,6 +181,7 @@ const unavailableLabel = (row: TrackingRow) => {
 export default function Shipping() {
   const [rows, setRows] = useState<TrackingRow[]>([]);
   const [settings, setSettings] = useState<TrackingSettings>(defaultSettings);
+  const [attention, setAttention] = useState<ShippingAttention>({ attention: 0, critical: 0, threshold_hours: 48, oldest_hours: 0 });
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [settingBusy, setSettingBusy] = useState(false);
@@ -169,6 +191,7 @@ export default function Shipping() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [courierFilter, setCourierFilter] = useState('all');
   const [parcelStatusFilter, setParcelStatusFilter] = useState('all');
+  const [attentionFilter, setAttentionFilter] = useState<AttentionFilter>('all');
 
   const load = async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -183,6 +206,7 @@ export default function Shipping() {
       const payload = (data || {}) as DashboardPayload;
       setRows(Array.isArray(payload.rows) ? payload.rows : []);
       setSettings({ ...defaultSettings, ...(payload.settings || {}) });
+      setAttention(payload.attention || { attention: 0, critical: 0, threshold_hours: 48, oldest_hours: 0 });
     }
     if (!quiet) setLoading(false);
   };
@@ -199,10 +223,14 @@ export default function Shipping() {
     return () => window.clearTimeout(timer);
   }, [notice]);
 
+  const attentionCount = Number(attention.attention ?? rows.filter((row) => row.needs_attention).length);
+  const criticalCount = Number(attention.critical ?? rows.filter((row) => row.attention_level === 'critical').length);
+  const oldestHours = Number(attention.oldest_hours ?? Math.max(0, ...rows.filter((row) => row.needs_attention).map((row) => Number(row.stuck_hours || 0))));
+
   const stats = useMemo(() => ({
     total: rows.length,
     firstScan: rows.filter((row) => Boolean(row.first_scan_at)).length,
-    pending: rows.filter((row) => ['ready', 'queued', 'opened', 'failed'].includes(row.send_status)).length,
+    stuck: rows.filter((row) => Boolean(row.needs_attention)).length,
     sent: rows.filter((row) => row.send_status === 'sent').length,
   }), [rows]);
 
@@ -221,7 +249,9 @@ export default function Shipping() {
 
   const filtered = useMemo(() => {
     const search = query.trim().toLowerCase();
-    return rows.filter((row) => {
+    const result = rows.filter((row) => {
+      if (attentionFilter === 'stuck' && !row.needs_attention) return false;
+      if (attentionFilter === 'critical' && row.attention_level !== 'critical') return false;
       if (statusFilter !== 'all' && row.send_status !== statusFilter) return false;
       if (courierFilter !== 'all' && String(row.courier || '').toLowerCase() !== courierFilter) return false;
       if (parcelStatusFilter !== 'all' && parcelBadge(row).label !== parcelStatusFilter) return false;
@@ -229,7 +259,20 @@ export default function Shipping() {
       return [row.tracking_no, row.recipient_phone, row.recipient_name, row.reference, row.order_no, row.status]
         .some((value) => String(value || '').toLowerCase().includes(search));
     });
-  }, [rows, query, statusFilter, courierFilter, parcelStatusFilter]);
+    if (attentionFilter !== 'all') {
+      return [...result].sort((a, b) => Number(b.stuck_hours || 0) - Number(a.stuck_hours || 0));
+    }
+    return result;
+  }, [rows, query, statusFilter, courierFilter, parcelStatusFilter, attentionFilter]);
+
+  const showAttention = (mode: AttentionFilter) => {
+    setAttentionFilter(mode);
+    setQuery('');
+    setStatusFilter('all');
+    setCourierFilter('all');
+    setParcelStatusFilter('all');
+    window.setTimeout(() => document.getElementById('tracking-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  };
 
   const trackingAction = async (row: TrackingRow, action: TrackingAction) => {
     if (action === 'cancel') {
@@ -314,7 +357,7 @@ export default function Shipping() {
   const toggleAutoSend = async () => {
     const next = !settings.auto_send_enabled;
     const confirmed = window.confirm(next
-      ? 'Aktifkan Auto Send Tracking melalui Wasapflow?\n\nHanya first scan baharu selepas switch ON akan dihantar. Tracking lama tidak akan dihantar semula.'
+      ? 'Aktifkan Auto Send Tracking melalui Wasapflow?\n\nHanya first courier scan baharu selepas switch ON akan dihantar. Tracking lama tidak akan dihantar semula.'
       : 'Matikan Auto Send Tracking?\n\nSemua auto job yang masih pending akan dihentikan.');
     if (!confirmed) return;
 
@@ -346,6 +389,47 @@ export default function Shipping() {
           <IconRefresh size={16} /> Refresh
         </button>
       </div>
+
+      {attentionCount > 0 && (
+        <div style={{
+          marginBottom: 18,
+          padding: '18px 20px',
+          borderRadius: 16,
+          background: criticalCount > 0
+            ? 'linear-gradient(135deg, #991b1b 0%, #dc2626 58%, #ef4444 100%)'
+            : 'linear-gradient(135deg, #92400e 0%, #d97706 58%, #f59e0b 100%)',
+          color: '#fff',
+          boxShadow: criticalCount > 0 ? '0 12px 28px rgba(220,38,38,.22)' : '0 12px 28px rgba(217,119,6,.18)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 18, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+              <div style={{ width: 46, height: 46, borderRadius: 14, background: 'rgba(255,255,255,.16)', display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
+                <IconAlert size={25} />
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.08em', opacity: .86 }}>ADMIN ATTENTION REQUIRED</div>
+                <div style={{ fontSize: 23, lineHeight: 1.15, fontWeight: 900, marginTop: 3 }}>
+                  {attentionCount} parcel stuck lebih 2 hari
+                </div>
+                <div style={{ marginTop: 7, opacity: .92, fontSize: 13 }}>
+                  Tiada courier movement melebihi 48 jam. Paling lama: <b>{formatDuration(oldestHours)}</b>
+                  {criticalCount > 0 ? ` · ${criticalCount} critical melebihi 3 hari` : ''}.
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {criticalCount > 0 && (
+                <button className="btn" onClick={() => showAttention('critical')} style={{ background: '#7f1d1d', color: '#fff', border: '1px solid rgba(255,255,255,.35)', fontWeight: 900 }}>
+                  Critical &gt;3 Hari ({criticalCount})
+                </button>
+              )}
+              <button className="btn" onClick={() => showAttention('stuck')} style={{ background: '#fff', color: criticalCount > 0 ? '#b91c1c' : '#92400e', border: 0, fontWeight: 900 }}>
+                View Stuck Only ({attentionCount})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="panel" style={{ marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between', flexWrap: 'wrap' }}>
@@ -382,21 +466,31 @@ export default function Shipping() {
       <div className="stats-grid">
         <div className="stat-card new"><div className="stat-label">Total Tracking</div><div className="stat-value">{stats.total}</div><div className="stat-hint">Semua rekod DB</div></div>
         <div className="stat-card pay"><div className="stat-label">First Scan</div><div className="stat-value">{stats.firstScan}</div><div className="stat-hint">Courier sudah scan</div></div>
-        <div className="stat-card problem"><div className="stat-label">Pending Send</div><div className="stat-value">{stats.pending}</div><div className="stat-hint">Ready, queue atau failed</div></div>
+        <div className="stat-card problem" onClick={() => attentionCount > 0 && showAttention('stuck')} style={{ cursor: attentionCount > 0 ? 'pointer' : 'default' }}>
+          <div className="stat-label">Stuck &gt;2 Hari</div><div className="stat-value">{attentionCount}</div><div className="stat-hint">{criticalCount > 0 ? `${criticalCount} critical >3 hari` : 'Perlu perhatian admin'}</div>
+        </div>
         <div className="stat-card ready"><div className="stat-label">Sent</div><div className="stat-value">{stats.sent}</div><div className="stat-hint">Manual atau Wasapflow</div></div>
       </div>
 
-      <div className="panel">
+      <div className="panel" id="tracking-list">
         <div className="panel-header" style={{ gap: 12, flexWrap: 'wrap' }}>
           <div>
             <div className="panel-title">Tracking List</div>
-            <div className="panel-subtitle">{filtered.length} daripada {rows.length} tracking · auto refresh 30 saat</div>
+            <div className="panel-subtitle">
+              {filtered.length} daripada {rows.length} tracking · auto refresh 30 saat
+              {attentionFilter !== 'all' ? ` · ${attentionFilter === 'critical' ? 'CRITICAL ONLY' : 'STUCK ONLY'}` : ''}
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginLeft: 'auto' }}>
             <label style={{ position: 'relative' }}>
               <IconSearch size={15} style={{ position: 'absolute', left: 10, top: 10, color: 'var(--text-muted)' }} />
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tracking, phone, nama, order..." style={{ minWidth: 230, padding: '9px 12px 9px 32px' }} />
             </label>
+            <select value={attentionFilter} onChange={(event) => setAttentionFilter(event.target.value as AttentionFilter)} style={attentionFilter !== 'all' ? { borderColor: '#ef4444', color: '#b91c1c', fontWeight: 800 } : undefined}>
+              <option value="all">All attention</option>
+              <option value="stuck">⚠ Stuck &gt;2 days ({attentionCount})</option>
+              <option value="critical">🔴 Critical &gt;3 days ({criticalCount})</option>
+            </select>
             <select value={courierFilter} onChange={(event) => setCourierFilter(event.target.value)}>
               <option value="all">All couriers</option>
               {couriers.map((courier) => <option key={courier} value={courier}>{courier.toUpperCase()}</option>)}
@@ -416,6 +510,9 @@ export default function Shipping() {
               <option value="failed">Auto Failed</option>
               <option value="cancelled">Cancelled</option>
             </select>
+            {attentionFilter !== 'all' && (
+              <button className="btn btn-outline" onClick={() => setAttentionFilter('all')}>Clear Attention Filter</button>
+            )}
           </div>
         </div>
 
@@ -426,10 +523,10 @@ export default function Shipping() {
           {loading ? (
             <div className="loading"><span className="spinner" /><span style={{ marginLeft: 8 }}>Loading tracking…</span></div>
           ) : filtered.length === 0 ? (
-            <div className="empty"><div className="empty-icon"><IconShipping size={22} /></div><div className="empty-title">Tiada tracking dijumpai</div><div>Semak filter atau carian.</div></div>
+            <div className="empty"><div className="empty-icon"><IconShipping size={22} /></div><div className="empty-title">Tiada tracking dijumpai</div><div>{attentionFilter !== 'all' ? 'Tiada parcel dalam attention filter ini.' : 'Semak filter atau carian.'}</div></div>
           ) : (
             <table>
-              <thead><tr><th>Customer</th><th>Tracking</th><th>Courier</th><th>Parcel Status</th><th>First Scan</th><th>Send Status</th><th>Created</th><th>Action</th></tr></thead>
+              <thead><tr><th>Customer</th><th>Tracking</th><th>Courier</th><th>Parcel Status</th><th>First Scan / Movement</th><th>Send Status</th><th>Created</th><th>Action</th></tr></thead>
               <tbody>
                 {filtered.map((row) => {
                   const cancelled = row.send_status === 'cancelled';
@@ -438,14 +535,30 @@ export default function Shipping() {
                   const delivery = sendBadge(row.send_status);
                   const busy = busyId === row.id;
                   const phone = normalizePhone(row.recipient_phone);
+                  const isAttention = Boolean(row.needs_attention);
+                  const isCritical = row.attention_level === 'critical';
                   const canSend = Boolean(
                     row.first_scan_at && row.recipient_phone && row.tracking_link &&
                     !['blocked', 'cancelled', 'queued', 'sent'].includes(row.send_status),
                   );
 
                   return (
-                    <tr key={row.id} className="row-hover">
+                    <tr
+                      key={row.id}
+                      className="row-hover"
+                      style={isAttention ? {
+                        background: isCritical ? '#fff1f2' : '#fffbeb',
+                        boxShadow: `inset 4px 0 0 ${isCritical ? '#dc2626' : '#f59e0b'}`,
+                      } : undefined}
+                    >
                       <td>
+                        {isAttention && (
+                          <div style={{ marginBottom: 6 }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px', borderRadius: 999, background: isCritical ? '#dc2626' : '#f59e0b', color: '#fff', fontSize: 10, fontWeight: 900, letterSpacing: '.03em' }}>
+                              ⚠ {isCritical ? 'CRITICAL' : 'STUCK'} · {formatDuration(row.stuck_hours)}
+                            </span>
+                          </div>
+                        )}
                         <div style={{ fontWeight: 700 }}>{row.recipient_name || 'Nama tiada'}</div>
                         {phone ? (
                           <a href={`https://wa.me/${phone}`} target="_blank" rel="noreferrer" className="cell-sub" title={`Open WhatsApp ${phone}`} style={{ display: 'inline-block', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
@@ -480,10 +593,24 @@ export default function Shipping() {
                           </div>
                         )}
                       </td>
-                      <td><a href={row.tracking_link || '#'} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 700 }}>{row.tracking_no}</a></td>
+                      <td>
+                        <a href={row.tracking_link || '#'} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 700 }}>{row.tracking_no}</a>
+                        {isAttention && <div style={{ color: isCritical ? '#b91c1c' : '#b45309', fontWeight: 800, fontSize: 11, marginTop: 5 }}>No movement {formatDuration(row.stuck_hours)}</div>}
+                      </td>
                       <td>{row.courier ? row.courier.toUpperCase() : '—'}</td>
-                      <td><span className={`badge ${parcel.cls}`}>{parcel.label}</span><div className="cell-sub" style={{ marginTop: 5 }}>{cancelled ? `PD: ${row.status || row.normalized_status || '—'}` : (row.status || row.normalized_status || '—')}</div></td>
-                      <td><div>{formatDate(row.first_scan_at)}</div>{row.first_scan_status && <div className="cell-sub" style={{ marginTop: 5 }}>{row.first_scan_status}</div>}</td>
+                      <td>
+                        <span className={`badge ${parcel.cls}`}>{parcel.label}</span>
+                        <div className="cell-sub" style={{ marginTop: 5 }}>{cancelled ? `PD: ${row.status || row.normalized_status || '—'}` : (row.status || row.normalized_status || '—')}</div>
+                      </td>
+                      <td>
+                        <div>{formatDate(row.first_scan_at)}</div>
+                        {row.first_scan_status && <div className="cell-sub" style={{ marginTop: 5 }}>{row.first_scan_status}</div>}
+                        {row.last_movement_at && (
+                          <div style={{ marginTop: 6, fontSize: 11, fontWeight: isAttention ? 800 : 500, color: isAttention ? (isCritical ? '#b91c1c' : '#b45309') : 'var(--text-muted)' }}>
+                            Last movement: {formatDate(row.last_movement_at)}
+                          </div>
+                        )}
+                      </td>
                       <td>
                         <span className={`badge ${delivery.cls}`}>{delivery.label}</span>
                         {row.send_method && row.send_status === 'sent' && <div className="cell-sub" style={{ marginTop: 5 }}>{row.send_method === 'wasapflow_api' ? 'Wasapflow API' : 'Manual WhatsApp'}</div>}
