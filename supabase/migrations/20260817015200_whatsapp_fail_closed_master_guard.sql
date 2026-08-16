@@ -2,13 +2,15 @@
 -- Activation-neutral: this migration never turns customer lifecycle or pickup automation ON.
 
 -- Ensure the canonical master switch row exists. Missing master state must mean OFF.
-insert into public.whatsapp_settings(key,text_value,is_secret)
-values ('enabled','false',false)
+-- Keep this insert limited to the core columns so the guard is portable across the
+-- production schema and the disposable CI harness.
+insert into public.whatsapp_settings(key,text_value)
+values ('enabled','false')
 on conflict(key) do nothing;
 
 -- Normalize only missing/blank master values to OFF. Explicit true/false is preserved.
 update public.whatsapp_settings
-set text_value='false', updated_at=now()
+set text_value='false'
 where key='enabled'
   and nullif(btrim(coalesce(text_value,'')),'') is null;
 
