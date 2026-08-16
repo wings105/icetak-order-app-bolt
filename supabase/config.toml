@@ -43,3 +43,7 @@ verify_jwt = false
 # Optional Activepieces task-created callback uses the same x-ap-secret contract.
 [functions.clickup-task-created-callback]
 verify_jwt = false
+
+# Make/ClickUp legacy address importer protected by x-icetak-address-key in code.
+[functions.address-import]
+verify_jwt = false
