@@ -406,9 +406,13 @@ async function prepareEvent(candidate: any, settingsValue: any) {
   const setField = text(settingsValue.manifest?.field_id);
   const mapped: any[] = [];
 
+  // Activepieces is deliberately given one component per claim. This keeps
+  // response size and downstream execution identical to the proven single-item
+  // path; linking that component immediately releases the same outbox for the
+  // next component.
   for (
     let pendingIndex = 0;
-    pendingIndex < components.length;
+    pendingIndex < Math.min(components.length, 1);
     pendingIndex++
   ) {
     const component = components[pendingIndex];
@@ -647,7 +651,9 @@ Deno.serve(async (req: Request) => {
           user_agent: text(req.headers.get('user-agent')) || null,
           detail: {
             missing_components: prepared.missing_count,
+            dispatched_components: prepared.result.components.length,
             claim_strategy: 'prepare_then_claim_v3',
+            component_dispatch_mode: 'one_per_claim',
             whatsapp_identity_mode: 'cached_only',
           },
         });
@@ -736,6 +742,7 @@ Deno.serve(async (req: Request) => {
       events: results,
       request_id: requestId,
       claim_strategy: 'prepare_then_claim_v3',
+      component_dispatch_mode: 'one_per_claim',
       whatsapp_identity_mode: 'cached_only',
     }, 200, requestId);
   } catch (error) {
