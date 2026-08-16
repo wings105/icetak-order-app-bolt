@@ -31,3 +31,7 @@ verify_jwt = false
 # Internal cron dispatcher protected by x-shipping-alert-token in code.
 [functions.shipping-attention-dispatch]
 verify_jwt = false
+
+# Internal cron dispatcher protected by x-payment-order-alert-token in code.
+[functions.payment-order-attention-dispatch]
+verify_jwt = false
