@@ -561,7 +561,7 @@ export default function Shipping() {
                         )}
                         <div style={{ fontWeight: 700 }}>{row.recipient_name || 'Nama tiada'}</div>
                         {phone ? (
-                          <a href={`https://wa.me/${phone}`} target="_blank" rel="noreferrer" className="cell-sub" title={`Open WhatsApp ${phone}`} style={{ display: 'inline-block', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
+                          <a href={`tel:${phone}`} className="cell-sub" title={`Call ${phone}`} style={{ display: 'inline-block', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
                             {row.recipient_phone}
                           </a>
                         ) : <div className="cell-sub">Phone tiada</div>}

@@ -439,7 +439,7 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
                 return <tr key={row.transaction_id} className={row.workflow_status==='missed'?'qrpay-row-missed':row.workflow_status==='ignored'?'qrpay-row-ignored':'row-hover'}>
                   <td className="cell-sub qrpay-payment-date">{singleDay?time(row.paid_at):paymentDateTime(row.paid_at)}</td>
                   <td><div className="cell-id">{row.transaction_id}</div><div className="cell-sub">{row.provider}</div></td>
-                  <td><div className="cell-name">{row.sender_name||'Customer belum dikenal pasti'}</div>{row.phone?<a className="qrpay-phone" href={row.whatsapp_link||undefined} target="_blank" rel="noreferrer">{row.phone}</a>:<div className="cell-sub">Phone belum jumpa</div>}<div className="qrpay-identity-meta">{row.identity_confirmed&&<span className="qrpay-confirmed-badge" title={`${row.identity_confirmed_by||'admin'} · ${dateTime(row.identity_confirmed_at)}`}>Admin confirmed</span>}{canManage&&<button type="button" className="qrpay-edit-contact" onClick={()=>openIdentity(row)}>{row.identity_confirmed?'Edit confirmed contact':'Edit customer'}</button>}</div></td>
+                  <td><div className="cell-name">{row.sender_name||'Customer belum dikenal pasti'}</div>{row.phone?<a className="qrpay-phone" href={row.whatsapp_link||undefined}>{row.phone}</a>:<div className="cell-sub">Phone belum jumpa</div>}<div className="qrpay-identity-meta">{row.identity_confirmed&&<span className="qrpay-confirmed-badge" title={`${row.identity_confirmed_by||'admin'} · ${dateTime(row.identity_confirmed_at)}`}>Admin confirmed</span>}{canManage&&<button type="button" className="qrpay-edit-contact" onClick={()=>openIdentity(row)}>{row.identity_confirmed?'Edit confirmed contact':'Edit customer'}</button>}</div></td>
                   <td className="cell-amount">{money(row.amount)}</td>
                   <td><span className={`badge ${status.cls}`}>{status.label}</span>{row.job_status&&<div className="cell-sub">AI: {row.job_status.replaceAll('_',' ')}</div>}{row.review_category&&<div className="cell-sub">{categoryLabels[row.review_category]||row.review_category}</div>}</td>
                   <td><OrderProgressCell progress={progress}/></td>
@@ -451,9 +451,9 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
                         ?canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openReview(row)}>Review / Reopen</button>
                         :canManage
                           ?<><button className="btn btn-primary btn-sm" onClick={()=>openMatch(row)}>Match Order</button>{onCreateOrder&&<button className="btn btn-outline btn-sm" onClick={()=>onCreateOrder({transactionId:row.transaction_id,amount:Number(row.amount),phone:row.phone||'',customerName:row.sender_name||'',paidAt:row.paid_at})}>Create Order</button>}</>
-                          :row.whatsapp_link?<a className="btn btn-outline btn-sm" href={row.whatsapp_link} target="_blank" rel="noreferrer">WhatsApp</a>:<span className="cell-sub">Semak payment</span>}
+                          :row.whatsapp_link?<a className="btn btn-outline btn-sm" href={row.whatsapp_link}>Call</a>:<span className="cell-sub">Semak payment</span>}
                     {canManage&&row.workflow_status!=='ignored'&&<button className="btn btn-outline btn-sm" onClick={()=>openReview(row)}>{row.review_remark?'Edit Remark':'Remark / Ignore'}</button>}
-                    {!row.order_no&&row.workflow_status!=='ignored'&&canManage&&row.whatsapp_link&&<a className="btn btn-outline btn-sm" href={row.whatsapp_link} target="_blank" rel="noreferrer">WhatsApp</a>}
+                    {!row.order_no&&row.workflow_status!=='ignored'&&canManage&&row.whatsapp_link&&<a className="btn btn-outline btn-sm" href={row.whatsapp_link}>Call</a>}
                   </div></td>
                 </tr>;
               })}</tbody>
