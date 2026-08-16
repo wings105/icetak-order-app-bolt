@@ -35,3 +35,11 @@ verify_jwt = false
 # Internal cron dispatcher protected by x-payment-order-alert-token in code.
 [functions.payment-order-attention-dispatch]
 verify_jwt = false
+
+# Activepieces poller uses x-ap-secret SHA-256 verification inside the function.
+[functions.clickup-production-outbox]
+verify_jwt = false
+
+# Optional Activepieces task-created callback uses the same x-ap-secret contract.
+[functions.clickup-task-created-callback]
+verify_jwt = false
