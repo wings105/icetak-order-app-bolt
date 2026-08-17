@@ -88,7 +88,17 @@ Deno.serve(async (req) => {
       const from = String(body.from || ""), to = String(body.to || "");
       const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
       if ((from && !validDate(from)) || !validDate(to) || (from && from > to) || to > malaysiaToday()) return json({ success: false, error: "Valid QRPay date range is required" }, 400);
-      return json({ success: true, data: await rpc("finance_admin_qrpay_range_with_progress", { p_from: from || null, p_to: to }) });
+      const summary = await rpc("finance_admin_qrpay_range_with_progress", { p_from: from || null, p_to: to });
+      const rows = Array.isArray(summary?.rows) ? summary.rows : [];
+      const transactionIds = [...new Set(rows.map((row: JsonObject) => String(row.transaction_id || "")).filter(Boolean))];
+      const linkedDrafts = transactionIds.length ? await rpc("finance_admin_qrpay_linked_drafts", { p_transaction_ids: transactionIds }) : {};
+      return json({ success: true, data: {
+        ...summary,
+        rows: rows.map((row: JsonObject) => {
+          const linked = linkedDrafts?.[String(row.transaction_id || "")];
+          return linked ? { ...row, draft_id: linked.draft_id, draft_status: linked.draft_status, draft_payment_status: linked.payment_status } : row;
+        }),
+      } });
     }
     if (action === "qrpay_match_candidates") {
       const transactionId = String(body.transaction_id || "").trim();
