@@ -280,7 +280,9 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
       const isDraft=selected.candidate_kind==='draft'||selected.order_no.startsWith('DRAFT:');
       const waiting=Array.isArray(data.waiting_for)?data.waiting_for:[];
       setSuccess(isDraft
-        ? `${matchRow.transaction_id} sudah linked ke draft. Payment direkod sebagai Paid; alamat dan pengesahan customer boleh dilengkapkan kemudian.${waiting.length?` Menunggu: ${waiting.join(', ')}.`:''}`
+        ? data.finalized&&data.order_no
+          ? `${data.order_no} berjaya dicipta daripada QRPay ${matchRow.transaction_id}. Payment Paid dan ClickUp production sudah di-queue.`
+          : `${matchRow.transaction_id} sudah linked ke draft. Payment direkod sebagai Paid.${waiting.length?` Menunggu: ${waiting.join(', ')}.`:''}`
         : `${matchRow.transaction_id} sudah dipadankan kepada ${data.order_no||selected.order_no}.`);
       setMatchRow(null);setCandidateData(null);setSelected(null);
       await load();
