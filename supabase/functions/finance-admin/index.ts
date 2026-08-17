@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
       if (!transactionId || !orderNo) return json({ success: false, error: "QRPay transaction and order/draft are required" }, 400);
       if (/^DRAFT:[0-9a-f-]{36}$/i.test(orderNo)) {
         const draftId = orderNo.slice(6);
-        const data = await rpc("icetak_admin_link_payment_to_draft", {
+        const data = await rpc("icetak_admin_link_payment_to_draft_and_finalize", {
           p_transaction_id: transactionId,
           p_draft_id: draftId,
           p_actor: admin.username,
