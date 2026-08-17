@@ -97,7 +97,13 @@ begin
   where id=v_order_id;
 
   update public.orders
-  set admin_remark = concat_ws(
+  set payment='Paid',
+      payment_status='paid',
+      payment_method='QR Pay / DuitNow',
+      payment_transaction_id=p_transaction_id,
+      payment_verified_at=coalesce(payment_verified_at,now()),
+      payment_verified_by=coalesce(nullif(p_actor,''),'admin1'),
+      admin_remark=concat_ws(
         E'\n',
         nullif(admin_remark,''),
         case when v_address_pending then 'Alamat penghantaran belum lengkap — kemas kini sebelum booking courier.' end
