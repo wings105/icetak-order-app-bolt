@@ -16,6 +16,12 @@ V14 also treated the courier menu as a courier selection and allowed dates print
 - Preserves the upstream `Need Review`/`No Review` decision instead of changing every non-printed item to `No Review`.
 - Records ignored message IDs, scoped message IDs, product evidence, date evidence, and applied rule keys in the draft evidence.
 
+## Admin correction audit
+
+`draft_admin_correction_diff_v15.sql` fills an empty `qrpay_order_draft_events.diff` for future admin save, approve, and confirm events. It records leaf-level changes to `customer`, `items`, `date_need`, and `delivery`, while excluding derived totals, transaction IDs, timestamps, and workflow state.
+
+These rows form a reviewable feedback dataset. They are not automatic model training and are not promoted to active rules merely because one admin edited one draft. Rule promotion should require repeated confirmed corrections and an explicit approval threshold.
+
 ## Safe rollout
 
 The migration creates `draft_ai_normalizer_version` in `private_runtime_settings` with the default value `v14`. Deploying the migration therefore does not alter live draft behavior.
