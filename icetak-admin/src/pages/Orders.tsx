@@ -100,10 +100,11 @@ type OrderItem = {
   customText?: string; workflow?: string; reviewRequired?: boolean; previewUrl?: string;
   components?: Array<{ id: string; label?: string; workflow?: string; customerLabel?: string; reviewStatus?: string; previewUrl?: string; progressPercent?: number; clickupTaskId?: string; clickupStatus?: string }>;
 };
+type PaymentRow = { id: string; provider?: string; transactionId?: string; amount?: number; paidAt?: string; senderName?: string };
 type OrderDetail = {
   order: OrderRow & { deliveryName?: string; deliveryPhone?: string; deliveryAddress?: string; deliveryCity?: string; deliveryPostcode?: string; deliveryState?: string; customerConfirmedAt?: string | null };
   items: OrderItem[];
-  payments: Array<{ id: string; provider?: string; transactionId?: string; amount?: number; paidAt?: string; senderName?: string }>;
+  payments: PaymentRow[];
   notifications: Array<{ id: string; eventType?: string; status?: string; attempts?: number; at?: string; error?: string; mode?: string }>;
   timeline: Array<{ type?: string; label?: string; at?: string; actor?: string; detail?: Record<string, unknown> }>;
 };
@@ -129,6 +130,7 @@ const QUICK_VIEWS: Array<{ key: QuickView; label: string; count: keyof Summary }
 const money = (v: unknown) => `RM ${Number(v || 0).toFixed(2)}`;
 const digits = (v: unknown) => String(v || '').replace(/\D/g, '');
 const norm = (v: unknown) => String(v || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+const canUndoSyntheticManualPayment = (payment: PaymentRow) => norm(payment.provider) === 'manual_qrpay' && String(payment.transactionId || '').startsWith('draft_manual:');
 const localDateKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const formatDate = (value?: string | null) => value ? new Date(`${String(value).slice(0, 10)}T00:00:00`).toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const formatDateTime = (value?: string | null) => value ? new Date(value).toLocaleString('en-MY', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -522,7 +524,7 @@ function OrderDrawer({ detail, loading, permissions, busyId, onClose, onReload, 
 }) {
   const [tab, setTab] = useState<'overview' | 'items' | 'payment' | 'production' | 'whatsapp' | 'timeline'>('overview');
   const order = detail?.order;
-  const [dateNeed, setDateNeed] = useState(''); const [remark, setRemark] = useState(''); const [items, setItems] = useState<OrderItem[]>([]); const [saving, setSaving] = useState(false); const [localError, setLocalError] = useState<string | null>(null);
+  const [dateNeed, setDateNeed] = useState(''); const [remark, setRemark] = useState(''); const [items, setItems] = useState<OrderItem[]>([]); const [saving, setSaving] = useState(false); const [localError, setLocalError] = useState<string | null>(null); const [localNotice, setLocalNotice] = useState<string | null>(null); const [undoPaymentId, setUndoPaymentId] = useState<string | null>(null);
   const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'spx' | 'jnt' | 'ninja'>('spx');
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
@@ -579,6 +581,23 @@ function OrderDrawer({ detail, loading, permissions, busyId, onClose, onReload, 
     const { error } = await supabase.rpc('icetak_admin_order_update', { p_payload: payload });
     setSaving(false); if (error) { setLocalError(error.message); return; } await onReload();
   };
+  const undoManualPayment = async (payment: PaymentRow) => {
+    if (!order || !canUndoSyntheticManualPayment(payment)) return;
+    const confirmed = window.confirm(
+      `Undo manual payment ${money(payment.amount)} untuk ${order.id}?\n\n` +
+      'Order akan dikira semula berdasarkan payment yang masih sah. QRPay sebenar, production dan ClickUp tidak dipadam.'
+    );
+    if (!confirmed) return;
+    setUndoPaymentId(payment.id); setLocalError(null); setLocalNotice(null);
+    const { error } = await supabase.rpc('icetak_admin_undo_manual_payment', {
+      p_payment_id: payment.id,
+      p_reason: 'Manual payment linked by mistake',
+    });
+    setUndoPaymentId(null);
+    if (error) { setLocalError(error.message); return; }
+    setLocalNotice(`${money(payment.amount)} manual payment berjaya di-undo. QRPay sebenar masih selamat untuk dimatch.`);
+    await onReload();
+  };
   const link = order ? customerOrderLink(order) : '';
   return <div className="erp-drawer-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}><aside className="erp-order-drawer">
     {loading || !order ? <div className="loading"><span className="spinner" /> Loading order detail...</div> : <>
@@ -586,6 +605,7 @@ function OrderDrawer({ detail, loading, permissions, busyId, onClose, onReload, 
       <nav className="erp-drawer-tabs">{([['overview','Overview'],['items','Items'],['payment','Payment'],['production','Production'],['whatsapp','WhatsApp'],['timeline','Timeline']] as const).map(([k,l]) => <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>)}</nav>
       <div className="erp-drawer-body">
         {localError && <div className="erp-notice error">{localError}</div>}
+        {localNotice && <div className="erp-notice success">{localNotice}</div>}
         {tab === 'overview' && <div className="erp-drawer-grid"><DrawerCard title="Customer"><KV k="Name" v={order.customerName || '—'} /><KV k="Phone" v={order.customerPhone ? <a className="erp-inline-link" href={`tel:${digits(order.customerPhone)}`}>{order.customerPhone}</a> : '—'} />{customerProfile?.locked && <div style={{ margin: '8px 0' }}><span className="erp-status-pill success">ADMIN NAME LOCKED</span></div>}{customerProfileLoading ? <p className="cell-sub">Loading customer profile…</p> : customerProfileEditing ? <div style={{ marginTop: 10 }}><FilterField label="Preferred Customer Name"><input autoFocus maxLength={200} disabled={customerProfileSaving} value={customerProfileName} onChange={(e) => setCustomerProfileName(e.target.value)} /></FilterField><p className="cell-sub">Nama ini jadi nama utama customer. WhatsApp display name tak boleh overwrite selepas disimpan.</p><div className="erp-card-actions"><button className="btn btn-primary btn-sm" disabled={customerProfileSaving || !customerProfileName.trim()} onClick={() => void saveCustomerProfile()}>{customerProfileSaving ? 'Saving…' : 'Save Preferred Name'}</button><button className="btn btn-outline btn-sm" disabled={customerProfileSaving} onClick={() => { setCustomerProfileEditing(false); setCustomerProfileName(String(customerProfile?.name || order.customerName || '')); }}>Cancel</button></div></div> : <div className="erp-card-actions" style={{ marginTop: 8 }}>{canEdit && <button className="btn btn-outline btn-sm" onClick={() => { setCustomerProfileName(String(customerProfile?.name || order.customerName || '')); setCustomerProfileEditing(true); }}>Edit Profile</button>}{canEdit && customerProfile?.locked && <button className="btn btn-ghost btn-sm" disabled={customerProfileSaving} onClick={() => void clearCustomerProfileLock()}>Use WhatsApp Name Again</button>}</div>}{customerProfile?.locked && <p className="cell-sub">Preferred name disimpan oleh {customerProfile.admin_name_updated_by || 'admin'}{customerProfile.admin_name_updated_at ? ` · ${formatDateTime(customerProfile.admin_name_updated_at)}` : ''}. Future AI orders akan guna nama ini.</p>}<KV k="Created" v={formatDateTime(order.createdAt)} /><KV k="Updated" v={formatDateTime(order.updatedAt)} /></DrawerCard><DrawerCard title="Fulfillment"><KV k="Delivery" v={order.delivery || '—'} /><KV k="Courier" v={order.courier || '—'} /><KV k="Tracking" v={order.tracking ? <a className="erp-inline-link" href={order.trackingLink || '#'} target="_blank" rel="noreferrer">{order.tracking}</a> : '—'} /><KV k="Stage" v={order.fulfillmentStage || '—'} /></DrawerCard><DrawerCard title="Address"><p>{[order.deliveryAddress, order.deliveryPostcode, order.deliveryCity, order.deliveryState].filter(Boolean).join(', ') || 'Pickup / no delivery address'}</p></DrawerCard><DrawerCard title="Admin Edit"><FilterField label="Date Need"><input type="date" disabled={!canEdit} value={dateNeed} onChange={(e) => setDateNeed(e.target.value)} /></FilterField><FilterField label="Delivery / Courier"><select disabled={!canEdit || deliveryLocked} value={deliveryMethod} onChange={(e) => { const value = e.target.value as 'pickup' | 'spx' | 'jnt' | 'ninja'; setDeliveryMethod(value); if (value === 'pickup') setDeliveryFee(0); }}><option value="pickup">Pickup</option><option value="spx">SPX</option><option value="jnt">J&amp;T</option><option value="ninja">NinjaVan</option></select></FilterField><FilterField label="Shipping Fee (RM)"><input type="number" min="0" step="0.01" disabled={!canEdit || deliveryMethod === 'pickup'} value={effectiveDeliveryFee} onChange={(e) => setDeliveryFee(Math.max(0, Number(e.target.value || 0)))} /></FilterField><div className="erp-kv"><span>Order Total</span><b>{money(previewTotal)}</b></div><p className="cell-sub">Item {money(itemSubtotal)} + Shipping {money(effectiveDeliveryFee)}. Payment transaction asal tidak diubah.</p>{deliveryLocked && <p className="cell-sub erp-text-danger">Courier dikunci sebab tracking sudah dibuat. Shipping Fee masih boleh dibetulkan.</p>}<FilterField label="Admin Remark"><textarea rows={4} disabled={!canEdit} value={remark} onChange={(e) => setRemark(e.target.value)} /></FilterField>{canEdit && <button className="btn btn-primary btn-sm" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save Changes'}</button>}</DrawerCard></div>}
         {tab === 'items' && <OrderItemStructuralEditor
           orderDbId={order.dbId}
@@ -595,7 +615,19 @@ function OrderDrawer({ detail, loading, permissions, busyId, onClose, onReload, 
           structuralLockReason="Courier sudah scan / order sudah Ready Pickup, Collected, Delivered atau Cancelled."
           onSaved={onReload}
         />}
-        {tab === 'payment' && <div className="erp-drawer-grid"><DrawerCard title="Payment Summary"><KV k="Status" v={order.payment || '—'} /><KV k="Method" v={order.paymentMethod || '—'} /><KV k="Shipping Fee" v={money(order.deliveryFee)} /><KV k="Total" v={money(order.total)} /><KV k="Paid At" v={formatDateTime(order.paidAt)} /><KV k="Verified By" v={order.paymentVerifiedBy || '—'} /><div className="erp-card-actions">{norm(order.delivery).includes('pickup') && order.isUnpaid && canEdit && !order.isCash && <button className="btn btn-outline btn-sm" onClick={() => onAction(order, 'set_pay_at_pickup')}>Set Pay at Pickup</button>}{norm(order.delivery).includes('pickup') && order.isUnpaid && order.isCash && canVerify && <button className="btn btn-primary btn-sm" onClick={() => onAction(order, 'confirm_cash_paid')}>Confirm Cash Paid</button>}</div></DrawerCard><DrawerCard title="Transactions">{detail.payments.length ? detail.payments.map((p) => <div className="erp-history-row" key={p.id}><div><b>{money(p.amount)}</b><span>{p.provider || 'payment'} · {p.senderName || '—'}</span></div><div>{formatDateTime(p.paidAt)}</div></div>) : <p className="cell-sub">No payment transaction recorded.</p>}</DrawerCard></div>}
+        {tab === 'payment' && <div className="erp-drawer-grid">
+          <DrawerCard title="Payment Summary">
+            <KV k="Status" v={order.payment || '—'} /><KV k="Method" v={order.paymentMethod || '—'} /><KV k="Shipping Fee" v={money(order.deliveryFee)} /><KV k="Total" v={money(order.total)} /><KV k="Paid At" v={formatDateTime(order.paidAt)} /><KV k="Verified By" v={order.paymentVerifiedBy || '—'} />
+            <div className="erp-card-actions">{norm(order.delivery).includes('pickup') && order.isUnpaid && canEdit && !order.isCash && <button className="btn btn-outline btn-sm" onClick={() => onAction(order, 'set_pay_at_pickup')}>Set Pay at Pickup</button>}{norm(order.delivery).includes('pickup') && order.isUnpaid && order.isCash && canVerify && <button className="btn btn-primary btn-sm" onClick={() => onAction(order, 'confirm_cash_paid')}>Confirm Cash Paid</button>}</div>
+          </DrawerCard>
+          <DrawerCard title="Transactions">
+            {detail.payments.length ? detail.payments.map((p) => <div className="erp-history-row" key={p.id}>
+              <div><b>{money(p.amount)}</b><span>{p.provider || 'payment'} · {p.senderName || '—'}</span>{p.transactionId && <span>{p.transactionId}</span>}{canVerify && canUndoSyntheticManualPayment(p) && <button className="btn btn-danger btn-sm" disabled={undoPaymentId !== null} onClick={() => void undoManualPayment(p)}>{undoPaymentId === p.id ? 'Undoing…' : 'Undo Manual Payment'}</button>}</div>
+              <div>{formatDateTime(p.paidAt)}</div>
+            </div>) : <p className="cell-sub">No payment transaction recorded.</p>}
+            {detail.payments.some(canUndoSyntheticManualPayment) && <p className="cell-sub">Undo hanya membatalkan rekod manual sintetik. QRPay sebenar, production dan ClickUp dikekalkan.</p>}
+          </DrawerCard>
+        </div>}
         {tab === 'production' && <div className="erp-drawer-grid"><DrawerCard title="Production"><KV k="State" v={productionLabel(order)} /><KV k="Stage" v={order.fulfillmentStage || '—'} /><KV k="Completed" v={formatDateTime(order.productionCompletedAt)} /><KV k="Ready Pickup" v={formatDateTime(order.pickupReadyAt)} /><KV k="Collected" v={formatDateTime(order.pickupCollectedAt)} /><div className="erp-card-actions">{!order.isUnpaid && requiresProductionApproval(order) && canApprove && <button className="btn btn-primary btn-sm" onClick={() => onAction(order, 'approve_production')}>Approve AI Order</button>}{norm(order.delivery).includes('pickup') && order.productionApproved && !order.pickupReadyAt && Number(order.componentsTotal || 0) === 0 && canApprove && <button className="btn btn-primary btn-sm" onClick={() => onAction(order, 'ready_pickup')}>Ready Pickup</button>}{norm(order.delivery).includes('pickup') && order.pickupReadyAt && !order.pickupCollectedAt && canApprove && <button className="btn btn-primary btn-sm" onClick={() => onAction(order, 'pickup_collected')}>Customer Collected</button>}</div></DrawerCard><DrawerCard title="ClickUp Components">{items.flatMap((i) => i.components || []).length ? items.flatMap((i) => i.components || []).map((c) => <div className="erp-history-row" key={c.id}><div><b>{c.label || 'Component'}</b><span>{c.customerLabel || c.workflow || '—'} · {c.progressPercent || 0}%</span></div><div>{c.clickupTaskId ? <a className="erp-inline-link" href={`https://app.clickup.com/t/3747262/${c.clickupTaskId}`} target="_blank" rel="noreferrer">Open Task</a> : 'Not linked'}</div></div>) : <p className="cell-sub">No production components.</p>}</DrawerCard></div>}
         {tab === 'whatsapp' && <div className="erp-drawer-grid"><DrawerCard title="WhatsApp Control"><KV k="Order Notifications" v={order.whatsappEnabled ? 'ON' : 'OFF'} /><button className={`btn btn-sm ${order.whatsappEnabled ? 'btn-outline':'btn-primary'}`} disabled={busyId === order.dbId} onClick={() => onWhatsapp(order)}>Turn {order.whatsappEnabled ? 'OFF' : 'ON'}</button><p className="cell-sub" style={{ marginTop: 8 }}>Turning OFF cancels pending order notifications for this order.</p></DrawerCard><DrawerCard title="Notification History">{detail.notifications.length ? detail.notifications.map((n) => <div className="erp-history-row" key={n.id}><div><b>{n.eventType || 'notification'}</b><span className={norm(n.status) === 'failed' ? 'erp-text-danger' : ''}>{n.status || '—'} · {n.mode || '—'}{n.error ? ` · ${n.error}` : ''}</span></div><div>{formatDateTime(n.at)}</div></div>) : <p className="cell-sub">No notification history.</p>}</DrawerCard></div>}
         {tab === 'timeline' && <div className="erp-timeline">{detail.timeline.length ? detail.timeline.map((t, i) => <div className="erp-timeline-item" key={`${t.type}-${t.at}-${i}`}><i /><div><div className="erp-timeline-head"><b>{t.label || t.type}</b><span>{formatDateTime(t.at)}</span></div><div className="cell-sub">Actor: {t.actor || 'system'}</div>{t.detail && Object.keys(t.detail).length > 0 && <details><summary>Audit detail</summary><pre>{JSON.stringify(t.detail, null, 2)}</pre></details>}</div></div>) : <p className="cell-sub">No audit events recorded.</p>}</div>}
