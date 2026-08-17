@@ -29,6 +29,7 @@ type Row = {
   source:'matched'|'unmatched'; transaction_id:string; amount:number|string; paid_at:string; sender_name:string|null;
   provider:string; workflow_status:'matched_order'|'needs_review'|'processing'|'pending'|'missed'|'ignored';
   order_id:string|null; order_no:string|null; phone:string|null; whatsapp_link:string|null; order_link:string|null;
+  draft_id?:string|null; draft_status?:string|null; draft_payment_status?:string|null;
   job_status:string|null; review_status:string|null;
   workflow_state:'active'|'ignored'|null; review_category:string|null; review_remark:string|null;
   review_updated_at:string|null; review_updated_by:string|null; ignored_at:string|null; ignored_by:string|null;
@@ -121,6 +122,7 @@ async function invokeFinance<T>(body:Record<string,unknown>):Promise<T>{
 
 const loadRange=(from:string|null,to:string)=>invokeFinance<Summary>({action:'qrpay_range',from,to});
 const statusInfo=(row:Row)=>{
+  if(row.draft_id)return {label:`Draft linked · ${row.draft_payment_status==='paid'?'Paid':row.draft_status||'Pending'}`,cls:'badge-success'};
   if(row.workflow_status==='matched_order')return {label:row.provider==='qrpay_ai'?'Order auto-created':'Matched to order',cls:'badge-success'};
   if(row.workflow_status==='needs_review')return {label:'Needs review',cls:'badge-warning'};
   if(row.workflow_status==='missed')return {label:'Missed / failed',cls:'badge-error'};
@@ -448,12 +450,14 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
                   <td><div className="cell-name">{row.sender_name||'Customer belum dikenal pasti'}</div>{row.phone?<a className="qrpay-phone" href={row.whatsapp_link||undefined}>{row.phone}</a>:<div className="cell-sub">Phone belum jumpa</div>}<div className="qrpay-identity-meta">{row.identity_confirmed&&<span className="qrpay-confirmed-badge" title={`${row.identity_confirmed_by||'admin'} · ${dateTime(row.identity_confirmed_at)}`}>Admin confirmed</span>}{canManage&&<button type="button" className="qrpay-edit-contact" onClick={()=>openIdentity(row)}>{row.identity_confirmed?'Edit confirmed contact':'Edit customer'}</button>}</div></td>
                   <td className="cell-amount">{money(row.amount)}</td>
                   <td><span className={`badge ${status.cls}`}>{status.label}</span>{row.job_status&&<div className="cell-sub">AI: {row.job_status.replaceAll('_',' ')}</div>}{row.review_category&&<div className="cell-sub">{categoryLabels[row.review_category]||row.review_category}</div>}</td>
-                  <td><OrderProgressCell progress={progress}/></td>
+                  <td><OrderProgressCell progress={progress} draftId={row.draft_id}/></td>
                   <td className="qrpay-remark-cell">{row.review_remark?<><span>{row.review_remark}</span><small>{row.review_updated_by||'admin'} · {dateTime(row.review_updated_at)}</small></>:<span className="cell-sub">—</span>}</td>
                   <td><div className="qrpay-proceed-actions">
                     {row.order_no
                       ?<><button className="finance-order-link" onClick={()=>onOpenOrder?.(row.order_no!)}>{row.order_no}</button>{canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openMatch(row)}>Manage Match</button>}{canManage&&progress&&!progress.production_approved&&Boolean(progress.approval_blockers?.length)&&<button className="btn btn-outline btn-sm" onClick={()=>onOpenOrder?.(row.order_no!)}>Fix Order</button>}{canManage&&progress?.available_actions.map((action)=><button key={action} className="btn btn-primary btn-sm" disabled={orderActionKey!==null} onClick={()=>void runOrderAction(row,action)}>{orderActionKey===`${row.transaction_id}:${action}`?'Updating…':actionLabels[action]}</button>)}</>
-                      :row.workflow_status==='ignored'
+                      :row.draft_id
+                        ?<button className="btn btn-outline btn-sm" disabled>Draft Linked · {row.draft_payment_status==='paid'?'Paid':'Pending'}</button>
+                        :row.workflow_status==='ignored'
                         ?canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openReview(row)}>Review / Reopen</button>
                         :canManage
                           ?<><button className="btn btn-primary btn-sm" onClick={()=>openMatch(row)}>Match Order</button>{onCreateOrder&&<button className="btn btn-outline btn-sm" onClick={()=>onCreateOrder({transactionId:row.transaction_id,amount:Number(row.amount),phone:row.phone||'',customerName:row.sender_name||'',paidAt:row.paid_at})}>Create Order</button>}</>
@@ -509,8 +513,8 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
 
 function Metric({label,value,hint,cls}:{label:string;value:string;hint:string;cls:string}){return <div className={`stat-card ${cls}`}><div className="stat-label">{label}</div><div className="stat-value">{value}</div><div className="stat-hint">{hint}</div></div>;}
 
-function OrderProgressCell({progress}:{progress:OrderProgress|null}){
-  if(!progress)return <span className="cell-sub">Belum linked ke order</span>;
+function OrderProgressCell({progress,draftId}:{progress:OrderProgress|null;draftId?:string|null}){
+  if(!progress)return draftId?<span className="badge badge-success">Linked to Draft</span>:<span className="cell-sub">Belum linked ke order</span>;
   return <div className="qrpay-order-progress">
     <div className="qrpay-order-progress-head"><span className={`badge ${progressBadgeClass(progress.overall_tone)}`}>{progress.overall_label}</span>{progress.components_total>0&&<b>{progress.progress_percent}%</b>}</div>
     {progress.components_total>0&&<><div className="qrpay-progress-track" aria-label={`${progress.progress_percent}% complete`}><span style={{width:`${progress.progress_percent}%`}}/></div><div className="cell-sub">{progress.components_complete}/{progress.components_total} task complete</div><div className="qrpay-component-list">{progress.components.map((component)=><div className="qrpay-component-chip" key={component.id}><span>{component.label}</span>{component.task_url?<a href={component.task_url} target="_blank" rel="noreferrer" title={component.clickup_status||'Open ClickUp task'}>{component.customer_label||component.clickup_status||'Order Received'} · {component.progress_percent}%</a>:<small>{component.customer_label||'Belum linked ClickUp'} · {component.progress_percent}%</small>}</div>)}</div></>}
