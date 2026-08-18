@@ -26,6 +26,7 @@ const navItems: NavItem[] = [
   { key: 'payments', label: 'Payments', icon: IconPayments },
   { key: 'finance', label: 'Finance', icon: IconFinance },
   { key: 'qrpay-summary', label: 'QRPay Daily', icon: IconPayments },
+  { key: 'draft-orders', label: 'Draft Orders', icon: IconOrders },
   { key: 'shipping', label: 'Shipping', icon: IconShipping },
   { key: 'clickup-queue', label: 'ClickUp Queue', icon: IconIntegration },
   {
@@ -57,7 +58,7 @@ type ShippingAttention = { attention?: number; critical?: number; oldest_hours?:
 
 export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false, canViewCustomers = false }: Props) {
   const visibleNavItems = navItems.filter((item) => {
-    if (['finance','qrpay-summary'].includes(item.key) && !canViewFinance) return false;
+    if (['finance','qrpay-summary','draft-orders'].includes(item.key) && !canViewFinance) return false;
     if (item.key === 'customers' && !canViewCustomers) return false;
     return true;
   });
