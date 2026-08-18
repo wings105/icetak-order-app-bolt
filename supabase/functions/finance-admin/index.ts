@@ -112,6 +112,11 @@ Deno.serve(async (req) => {
       const orderCandidates = Array.isArray(orders?.candidates) ? orders.candidates : [];
       return json({ success: true, data: { ...orders, transaction: orders?.transaction || drafts?.transaction, candidates: [...draftCandidates, ...orderCandidates] } });
     }
+    if (action === "draft_orders") return json({ success: true, data: await rpc("finance_admin_draft_orders", {
+      p_query: String(body.query || "").trim() || null,
+      p_status: String(body.status || "").trim() || null,
+      p_limit: Math.min(Math.max(Number(body.limit) || 100, 1), 300),
+    }) });
     if (action === "report") {
       const from = String(body.from || ""), to = String(body.to || "");
       if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) return json({ success: false, error: "Valid report dates are required" }, 400);
@@ -128,6 +133,23 @@ Deno.serve(async (req) => {
       if (remark.length > 2000) return json({ success: false, error: "Remark cannot exceed 2000 characters" }, 400);
       if (reviewAction === "ignore" && (!remark || !category)) return json({ success: false, error: "Category and remark are required before ignoring a payment" }, 400);
       return json({ success: true, data: await rpc("finance_admin_qrpay_review_action", { p_transaction_id: transactionId, p_action: reviewAction, p_remark: remark || null, p_category: category, p_actor: admin.username }) });
+    }
+    if (action === "draft_detach_payment") {
+      const draftId = String(body.draft_id || "").trim();
+      if (!/^[0-9a-f-]{36}$/i.test(draftId)) return json({ success: false, error: "Valid draft is required" }, 400);
+      return json({ success: true, data: await rpc("finance_admin_detach_qrpay_from_draft", {
+        p_draft_id: draftId, p_actor: admin.username,
+      }) });
+    }
+    if (action === "draft_link_payment") {
+      const draftId = String(body.draft_id || "").trim();
+      const transactionId = String(body.transaction_id || "").trim();
+      if (!/^[0-9a-f-]{36}$/i.test(draftId) || !transactionId) return json({ success: false, error: "Draft and QRPay transaction are required" }, 400);
+      const data = await rpc("icetak_admin_link_payment_to_draft_and_finalize", {
+        p_transaction_id: transactionId, p_draft_id: draftId, p_actor: admin.username,
+        p_confirm_mismatch: body.confirm_mismatch === true,
+      });
+      return json({ success: data?.success !== false, data, error: data?.success === false ? "Confirmation required before linking draft" : undefined });
     }
     if (action === "qrpay_identity_update") {
       const transactionId = String(body.transaction_id || "").trim(), name = String(body.name || "").trim(), phone = String(body.phone || "").trim();
