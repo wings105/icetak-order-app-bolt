@@ -11,6 +11,7 @@ import ManualOrder from './pages/ManualOrder';
 import Payments from './pages/Payments';
 import Finance from './pages/Finance';
 import QrPayDailySummary, { type QrPayCreatePayload } from './pages/QrPayDailySummary';
+import DraftOrders from './pages/DraftOrders';
 import Shipping from './pages/Shipping';
 import ClickUpQueue from './pages/ClickUpQueue';
 import WhatsAppControl from './pages/WhatsAppControl';
@@ -29,6 +30,7 @@ const pageMap: Record<string, { title: string; subtitle?: string }> = {
   payments: { title: 'Payments Center', subtitle: 'Transactions' },
   finance: { title: 'Finance', subtitle: 'Bank, wallet & accounting' },
   'qrpay-summary': { title: 'QRPay Daily', subtitle: 'Daily payment control' },
+  'draft-orders': { title: 'Draft Orders', subtitle: 'Review, edit & payment linking' },
   shipping: { title: 'Shipping & Tracking', subtitle: 'Parcels' },
   'clickup-queue': { title: 'ClickUp Queue', subtitle: 'Activepieces production task queue' },
   'whatsapp-control': { title: 'WhatsApp Control', subtitle: 'Pipeline' },
@@ -58,7 +60,7 @@ export default function App({ adminData }: Props) {
     customerName:initialParams.get('qrpay_name')||'',
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
-  const [page, setPage] = useState(linkedOrder ? 'orders' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : linkedView==='quick-order'&&initialPayment?'quick-order':'dashboard');
+  const [page, setPage] = useState(linkedOrder ? 'orders' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : linkedView === 'draft-orders' ? 'draft-orders' : linkedView==='quick-order'&&initialPayment?'quick-order':'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [linkedPayment,setLinkedPayment]=useState<LinkedQrPayment|null>(initialPayment);
   const permissions = adminData?.admin?.permissions || [];
@@ -71,6 +73,7 @@ export default function App({ adminData }: Props) {
     if (key !== 'customers') url.searchParams.delete('customer');
     if (key === 'customers') url.searchParams.set('view','customers');
     else if (key === 'qrpay-summary') url.searchParams.set('view','qrpay-summary');
+    else if (key === 'draft-orders') url.searchParams.set('view','draft-orders');
     else { url.searchParams.delete('view'); url.searchParams.delete('date'); }
     ['qrpay_tx','qrpay_amount','qrpay_phone','qrpay_name','qrpay_paid_at'].forEach((param)=>url.searchParams.delete(param));
     window.history.replaceState({}, '', url);
@@ -116,6 +119,7 @@ export default function App({ adminData }: Props) {
       case 'manual-order': return <ManualOrder permissions={permissions} onOpenOrder={openOrder} />;
       case 'payments': return <Payments onOpenOrder={openOrder} />;
       case 'finance': return permissions.includes('view_finance') ? <Finance canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
+      case 'draft-orders': return permissions.includes('view_finance') ? <DraftOrders canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'qrpay-summary': return permissions.includes('view_finance') ? <QrPayDailySummary canManage={permissions.includes('manage_finance')} onCreateOrder={permissions.includes('create_order')&&permissions.includes('verify_payments')?createOrderFromQrPay:undefined} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'shipping': return <Shipping />;
       case 'clickup-queue': return <ClickUpQueue permissions={permissions} onOpenOrder={openOrder} />;
