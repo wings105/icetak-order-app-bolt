@@ -37,7 +37,7 @@ export default function DraftOrders({canManage=false,onOpenOrder}:{canManage?:bo
     setBusy(d.id);setError('');try{
       let r=await finance<{success?:boolean;requires_confirmation?:boolean;requires_mismatch_confirmation?:boolean;order_no?:string}>({action:'draft_link_payment',draft_id:d.id,transaction_id:tx,confirm_mismatch:confirmed});
       if(!r.success&&(r.data?.requires_confirmation||r.data?.requires_mismatch_confirmation)){
-        if(confirm('Phone atau jumlah tidak sepadan. Teruskan dengan amaran?'))r=await finance({action:'draft_link_payment',draft_id:d.id,transaction_id:tx,confirm_mismatch:true});
+        if(confirm('Phone atau jumlah tidak sepadan. Teruskan dengan amaran?'))r=await finance<{success?:boolean;requires_confirmation?:boolean;requires_mismatch_confirmation?:boolean;order_no?:string}>({action:'draft_link_payment',draft_id:d.id,transaction_id:tx,confirm_mismatch:true});
       }
       if(!r.success)throw new Error(r.error||'Link payment failed');
       const orderNo=(r.data as {order_no?:string}|undefined)?.order_no; if(orderNo&&onOpenOrder)onOpenOrder(orderNo);else await load();
