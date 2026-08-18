@@ -141,6 +141,27 @@ Deno.serve(async (req) => {
         p_draft_id: draftId, p_actor: admin.username,
       }) });
     }
+    if (action === "draft_cancel") {
+      const reviewToken = String(body.review_token || "").trim();
+      const reason = String(body.reason || "").trim();
+      if (!/^qrd_[a-f0-9]{32}$/i.test(reviewToken) || !reason) return json({ success: false, error: "Draft and cancellation reason are required" }, 400);
+      if (reason.length > 500) return json({ success: false, error: "Cancellation reason is too long" }, 400);
+      return json({ success: true, data: await rpc("icetak_reject_qrpay_order_draft", {
+        p_review_token: reviewToken, p_actor: admin.username, p_reason: reason,
+      }) });
+    }
+    if (action === "draft_manual_paid") {
+      const reviewToken = String(body.review_token || "").trim();
+      const method = String(body.payment_method || "").trim();
+      const reference = String(body.reference || "").trim();
+      if (!/^qrd_[a-f0-9]{32}$/i.test(reviewToken) || !["bank_transfer","card","other","qr_pay_manual"].includes(method)) {
+        return json({ success: false, error: "Draft and valid manual payment method are required" }, 400);
+      }
+      if (reference.length > 180) return json({ success: false, error: "Payment reference is too long" }, 400);
+      return json({ success: true, data: await rpc("icetak_admin_confirm_paid_draft", {
+        p_review_token: reviewToken, p_payment_method: method, p_reference: reference || null, p_actor: admin.username,
+      }) });
+    }
     if (action === "draft_link_payment") {
       const draftId = String(body.draft_id || "").trim();
       const transactionId = String(body.transaction_id || "").trim();
