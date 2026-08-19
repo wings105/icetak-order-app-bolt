@@ -55,3 +55,7 @@ verify_jwt = false
 # Public customer draft checkout protected by a high-entropy qrc_ capability token.
 [functions.order-draft-customer]
 verify_jwt = false
+
+# Internal 24-hour admin window monitor protected by x-admin-window-token in code.
+[functions.admin-whatsapp-window-monitor]
+verify_jwt = false
