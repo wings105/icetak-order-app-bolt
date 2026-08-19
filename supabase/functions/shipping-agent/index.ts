@@ -14,6 +14,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
   headers: cors,
 });
 const cfg = (key: string) => Deno.env.get(key) || '';
+const singleLine = (value: unknown) => String(value ?? '').replace(/\s+/g, ' ').trim();
 const first = (...items: unknown[]) => {
   for (const item of items) {
     if (item !== undefined && item !== null && String(item).trim() !== '') return String(item).trim();
@@ -283,27 +284,27 @@ Deno.serve(async (req) => {
     }
 
     const pickup = {
-      fullName: origin.fullName || origin.name,
+      fullName: singleLine(origin.fullName || origin.name),
       countryCode: '+60',
       phone: String(origin.phone || '').replace(/^60/, '').replace(/^0/, ''),
-      email: origin.email || '',
-      line1: origin.line1,
-      line2: origin.line2 || '',
-      city: origin.city,
+      email: singleLine(origin.email),
+      line1: singleLine(origin.line1),
+      line2: singleLine(origin.line2),
+      city: singleLine(origin.city),
       postcode: String(origin.postcode),
-      state: origin.state,
-      country: origin.country || 'Malaysia',
+      state: singleLine(origin.state),
+      country: singleLine(origin.country || 'Malaysia'),
     };
     const receiver = {
-      fullName: order.delivery_name,
+      fullName: singleLine(order.delivery_name),
       countryCode: '+60',
       phone: String(order.delivery_phone || '').replace(/^60/, '').replace(/^0/, ''),
       email: '',
-      line1: order.delivery_address,
+      line1: singleLine(order.delivery_address),
       line2: '',
-      city: order.delivery_city,
+      city: singleLine(order.delivery_city),
       postcode: String(order.delivery_postcode),
-      state: order.delivery_state,
+      state: singleLine(order.delivery_state),
       country: 'Malaysia',
     };
     const createRequest = {
