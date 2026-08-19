@@ -51,6 +51,14 @@ type LookupAddress = {
 
 type LookupCustomer = { id: string; name: string; phone: string; addresses?: LookupAddress[] };
 
+type AddressFetchResult = {
+  ok?: boolean;
+  found?: boolean;
+  error?: string;
+  customer?: { name?: string; phone?: string };
+  address?: { address_line1?: string; postcode?: string; city?: string; state?: string };
+};
+
 type PaidItem = {
   id:string; kind:AdminProductKind; title:string; qty:number; price:number; process:string;
   size:string; style:string; review:ProductReview; customText:string; referenceUrl:string;
@@ -311,6 +319,8 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
   const [addressModal,setAddressModal]=useState(false);
   const [addressPaste,setAddressPaste]=useState('');
   const [addressParse,setAddressParse]=useState<ParsedMalaysiaAddress|null>(null);
+  const [addressFetching,setAddressFetching]=useState(false);
+  const [addressFetchStatus,setAddressFetchStatus]=useState<{message:string;error:boolean}|null>(null);
   const [result, setResult] = useState<PaidResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -330,7 +340,7 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
     setMatches(((data as { matches?: LookupCustomer[] })?.matches || []));
   };
 
-  const useCustomer = (customer: LookupCustomer) => {
+  const applyCustomer = (customer: LookupCustomer) => {
     setName(customer.name || ''); setPhone(customer.phone || '');
     const a = [...(customer.addresses || [])].sort((x, y) => Number(Boolean(y.is_default)) - Number(Boolean(x.is_default)))[0];
     if (a) setAddress({ address_line1: a.address_line1 || '', address_line2: a.address_line2 || '', city: a.city || '', postcode: a.postcode || '', state: a.state || '' });
@@ -350,6 +360,42 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
       state:parsed.state||current.state,
     }));
     if(parsed.addressLine1||parsed.postcode||parsed.city||parsed.state)setAddressModal(false);
+  };
+
+  const fetchClickupAddress=async()=>{
+    if(addressFetching||busy)return;
+    if(!phone.trim()){
+      setAddressFetchStatus({message:'Masukkan nombor WhatsApp dahulu.',error:true});
+      return;
+    }
+    setAddressFetching(true);
+    setAddressFetchStatus({message:'Sedang mencari alamat dalam ClickUp…',error:false});
+    setError(null);
+    const {data,error:functionError}=await supabase.functions.invoke('draft-address-fetch',{
+      body:{mode:'manual',phone:phone.trim()},
+    });
+    setAddressFetching(false);
+    const fetched=(data||{}) as AddressFetchResult;
+    if(functionError||fetched.ok===false){
+      setAddressFetchStatus({message:fetched.error||functionError?.message||'Gagal ambil alamat ClickUp.',error:true});
+      return;
+    }
+    if(fetched.found!==true){
+      setAddressFetchStatus({message:'Alamat tidak dijumpai dalam ClickUp.',error:true});
+      return;
+    }
+    const customer=fetched.customer||{};
+    const fetchedAddress=fetched.address||{};
+    if(customer.name)setName(String(customer.name));
+    if(customer.phone)setPhone(String(customer.phone));
+    setAddress((current)=>({
+      ...current,
+      address_line1:String(fetchedAddress.address_line1||''),
+      city:String(fetchedAddress.city||''),
+      postcode:String(fetchedAddress.postcode||''),
+      state:String(fetchedAddress.state||''),
+    }));
+    setAddressFetchStatus({message:'Alamat ClickUp dimasukkan ke form. Semak sebelum create order.',error:false});
   };
 
   const submit = async () => {
@@ -392,10 +438,11 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
       {error && <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: '#fef3f2', color: '#b42318' }}>{error}</div>}
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div className="panel">
-          <div className="panel-header"><div><div className="panel-title">Customer & delivery</div><div className="panel-subtitle">Alamat boleh dilengkapkan kemudian sebelum shipping</div></div><button className="btn btn-outline" onClick={()=>{setAddressParse(null);setAddressModal(true);}}>Paste & Parse Address</button></div>
+          <div className="panel-header"><div><div className="panel-title">Customer & delivery</div><div className="panel-subtitle">Alamat boleh dilengkapkan kemudian sebelum shipping</div></div><div style={{display:'flex',gap:8,flexWrap:'wrap',justifyContent:'flex-end'}}><button type="button" className="btn btn-outline" disabled={addressFetching||busy} onClick={()=>void fetchClickupAddress()}>{addressFetching?'Mencari alamat…':'Ambil Alamat ClickUp'}</button><button type="button" className="btn btn-outline" disabled={addressFetching||busy} onClick={()=>{setAddressParse(null);setAddressModal(true);}}>Paste & Parse Address</button></div></div>
           <div style={{ padding: 18, display: 'grid', gap: 10 }}>
-            <Field label="WhatsApp *"><div style={{ display: 'flex', gap: 8 }}><input style={{ flex: 1 }} value={phone} onChange={(e) => setPhone(e.target.value)} /><button className="btn btn-outline" onClick={() => void lookup()}>Find Customer</button></div></Field>
-            {matches.length > 0 && <div style={{ display: 'grid', gap: 6 }}>{matches.map((c) => <button key={c.id} className="btn btn-outline" onClick={() => useCustomer(c)}>{c.name} · {c.phone}</button>)}</div>}
+            <Field label="WhatsApp *"><div style={{ display: 'flex', gap: 8 }}><input style={{ flex: 1 }} disabled={addressFetching} value={phone} onChange={(e) => {setPhone(e.target.value);setAddressFetchStatus(null);}} /><button type="button" className="btn btn-outline" disabled={addressFetching||busy} onClick={() => void lookup()}>Find Customer</button></div></Field>
+            {addressFetchStatus&&<div className={`finance-alert ${addressFetchStatus.error?'':'qrpay-match-success'}`} style={{marginBottom:0}}><b>{addressFetchStatus.error?'Alamat ClickUp':'Alamat dijumpai'}</b><span>{addressFetchStatus.message}</span></div>}
+            {matches.length > 0 && <div style={{ display: 'grid', gap: 6 }}>{matches.map((c) => <button key={c.id} className="btn btn-outline" onClick={() => applyCustomer(c)}>{c.name} · {c.phone}</button>)}</div>}
             <Field label="Nama *"><input value={name} onChange={(e) => setName(e.target.value)} /></Field>
             <Field label="Date Need *"><input type="date" min={today()} value={dateNeed} onChange={(e) => setDateNeed(e.target.value)} /></Field>
             <Field label="Delivery"><select value={delivery} onChange={(e) => setDelivery(e.target.value as DeliveryKind)}>{(Object.keys(DELIVERY) as DeliveryKind[]).map((key) => <option key={key} value={key}>{DELIVERY[key].label}</option>)}</select></Field>
