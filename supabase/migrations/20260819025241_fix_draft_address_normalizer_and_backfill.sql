@@ -1,3 +1,4 @@
+-- Supabase migration history version: 20260819025241
 create or replace function public.icetak_clean_draft_address_v14(p_payload jsonb)
 returns jsonb
 language plpgsql
