@@ -47,3 +47,7 @@ verify_jwt = false
 # Make/ClickUp legacy address importer protected by x-icetak-address-key in code.
 [functions.address-import]
 verify_jwt = false
+
+# Admin draft capability-token endpoint. Calls Make server-side and persists validated address.
+[functions.draft-address-fetch]
+verify_jwt = false
