@@ -10,6 +10,7 @@ const headers = {
   'access-control-allow-methods': 'GET,POST,OPTIONS',
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers });
+const singleLine = (value: unknown) => String(value ?? '').replace(/\s+/g, ' ').trim();
 
 async function sha256(value: string) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
@@ -185,12 +186,12 @@ async function createDirectOrder(body: any) {
     payment: 'paid',
     production_approved: true,
     total: Number(body.order_context?.order_total_rm || body.parcel?.content_value_rm || 50),
-    delivery_name: a.fullName,
+    delivery_name: singleLine(a.fullName),
     delivery_phone: normalizedPhone(a.phone),
-    delivery_address: [a.line1, a.line2].filter(Boolean).join(', '),
-    delivery_city: a.city,
+    delivery_address: [a.line1, a.line2].map(singleLine).filter(Boolean).join(', '),
+    delivery_city: singleLine(a.city),
     delivery_postcode: String(a.postcode),
-    delivery_state: a.state,
+    delivery_state: singleLine(a.state),
     delivery_method: 'courier',
   }).select('*').single();
   if (error) throw error;

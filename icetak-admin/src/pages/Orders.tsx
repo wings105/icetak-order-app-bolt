@@ -147,6 +147,7 @@ const QUICK_VIEWS: Array<{ key: QuickView; label: string; count: keyof Summary }
 const money = (v: unknown) => `RM ${Number(v || 0).toFixed(2)}`;
 const digits = (v: unknown) => String(v || '').replace(/\D/g, '');
 const norm = (v: unknown) => String(v || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+const singleLine = (v: unknown) => String(v || '').replace(/\s+/g, ' ').trim();
 const canUndoSyntheticManualPayment = (payment: PaymentRow) => norm(payment.provider) === 'manual_qrpay' && String(payment.transactionId || '').startsWith('draft_manual:');
 const localDateKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const formatDate = (value?: string | null) => value ? new Date(`${String(value).slice(0, 10)}T00:00:00`).toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
@@ -661,12 +662,12 @@ function OrderDrawer({ detail, loading, permissions, busyId, onClose, onReload, 
     const { error } = await supabase.rpc('icetak_admin_order_recipient_update', {
       p_payload: {
         order_db_id: order.dbId,
-        delivery_name: recipient.name.trim(),
+        delivery_name: singleLine(recipient.name),
         delivery_phone: recipient.phone.trim(),
-        delivery_address: recipient.address.trim(),
+        delivery_address: singleLine(recipient.address),
         delivery_postcode: recipient.postcode.trim(),
-        delivery_city: recipient.city.trim(),
-        delivery_state: recipient.state.trim(),
+        delivery_city: singleLine(recipient.city),
+        delivery_state: singleLine(recipient.state),
       },
     });
     setRecipientSaving(false);
