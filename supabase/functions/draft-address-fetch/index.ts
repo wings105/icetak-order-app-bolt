@@ -174,6 +174,54 @@ async function fetchOrderAddress(request: Request, body: any) {
   });
 }
 
+async function fetchManualAddress(request: Request, body: any) {
+  const admin = await currentAdmin(request);
+  if (!admin) return out({ ok: false, error: "Unauthorized" }, 401);
+  if (!admin.permissions.some((permission) =>
+    ["create_order", "quick_arrange", "verify_payments"].includes(permission)
+  )) {
+    return out({ ok: false, error: "Missing manual order permission" }, 403);
+  }
+
+  const lookupPhone = normalizePhone(body.phone);
+  if (!lookupPhone) return out({ ok: false, error: "Invalid Malaysia phone" }, 422);
+
+  const payload = await fetchWebhookPayload(lookupPhone);
+  const found = payload?.found === true || String(payload?.found || "").toLowerCase() === "true";
+  if (!found) return out({ ok: true, found: false, phone: lookupPhone });
+
+  const responsePhone = normalizePhone(payload?.phone);
+  if (responsePhone && responsePhone !== lookupPhone) {
+    return out({ ok: false, error: "ClickUp address phone does not match manual order lookup" }, 409);
+  }
+
+  const addressLine1 = text(payload?.address, 500);
+  const city = text(payload?.bandar, 100);
+  const postcode = String(payload?.poskod ?? "").replace(/\D/g, "");
+  const state = canonicalState(payload?.negeri);
+  const returnedName = text(payload?.nama, 120);
+  const invalidPlaceholder = (value: string) => !value || value === "," || /^sila\s+isi$/i.test(value);
+  if (
+    invalidPlaceholder(addressLine1) ||
+    invalidPlaceholder(city) ||
+    !/^\d{5}$/.test(postcode) ||
+    postcode === "00000" ||
+    invalidPlaceholder(state)
+  ) {
+    return out({ ok: false, error: "ClickUp returned an incomplete address" }, 422);
+  }
+
+  return out({
+    ok: true,
+    found: true,
+    customer: {
+      name: invalidPlaceholder(returnedName) ? "" : returnedName,
+      phone: responsePhone || lookupPhone,
+    },
+    address: { address_line1: addressLine1, city, postcode, state },
+  });
+}
+
 async function event(
   draftId: string,
   eventType: string,
@@ -199,6 +247,9 @@ Deno.serve(async (request: Request) => {
 
   try {
     const body = await request.json().catch(() => ({}));
+    if (text(body.mode, 20).toLowerCase() === "manual") {
+      return await fetchManualAddress(request, body);
+    }
     if (text(body.mode, 20).toLowerCase() === "order") {
       return await fetchOrderAddress(request, body);
     }
