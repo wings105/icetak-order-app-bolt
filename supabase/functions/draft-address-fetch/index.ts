@@ -10,10 +10,12 @@ const HEADERS = {
   "content-type": "application/json; charset=utf-8",
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "POST,OPTIONS",
-  "access-control-allow-headers": "content-type",
+  "access-control-allow-headers": "content-type,authorization,apikey,x-client-info",
   "cache-control": "no-store",
   "x-content-type-options": "nosniff",
 };
+
+type AdminUser = { username: string; permissions: string[] };
 
 const out = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: HEADERS });
@@ -51,6 +53,127 @@ async function setting(key: string): Promise<string> {
   return text(data?.setting_value, 1000);
 }
 
+async function currentAdmin(request: Request): Promise<AdminUser | null> {
+  const token = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!token) return null;
+
+  const authResponse = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { apikey: SERVICE_KEY, authorization: `Bearer ${token}` },
+  });
+  const user = await authResponse.json().catch(() => null);
+  if (!authResponse.ok || !user?.id) return null;
+
+  const { data: admin, error: adminError } = await db
+    .from("admin_users")
+    .select("username")
+    .eq("auth_user_id", user.id)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+  if (adminError || !admin?.username) return null;
+
+  const { data: permissionRow, error: permissionError } = await db
+    .from("admin_permissions")
+    .select("permissions")
+    .eq("username", admin.username)
+    .limit(1)
+    .maybeSingle();
+  if (permissionError) return null;
+
+  return {
+    username: String(admin.username),
+    permissions: Array.isArray(permissionRow?.permissions)
+      ? permissionRow.permissions.map(String)
+      : [],
+  };
+}
+
+async function fetchWebhookPayload(lookupPhone: string) {
+  const webhookUrl = await setting("draft_address_make_webhook_url");
+  if (!webhookUrl) throw new Error("Address webhook is not configured");
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  try {
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ phone: lookupPhone }),
+      signal: controller.signal,
+    });
+    const raw = await response.text();
+    let payload: any = {};
+    try {
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      throw new Error("Address webhook returned invalid JSON");
+    }
+    if (!response.ok) throw new Error(payload?.message || "Address webhook failed");
+    return payload;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function fetchOrderAddress(request: Request, body: any) {
+  const admin = await currentAdmin(request);
+  if (!admin) return out({ ok: false, error: "Unauthorized" }, 401);
+  if (!admin.permissions.includes("edit_order")) {
+    return out({ ok: false, error: "Missing edit_order permission" }, 403);
+  }
+
+  const orderId = text(body.order_db_id, 80);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(orderId)) {
+    return out({ ok: false, error: "Invalid order ID" }, 422);
+  }
+  const { data: order, error: orderError } = await db
+    .from("orders")
+    .select("id")
+    .eq("id", orderId)
+    .limit(1)
+    .maybeSingle();
+  if (orderError) throw orderError;
+  if (!order) return out({ ok: false, error: "Order not found" }, 404);
+
+  const lookupPhone = normalizePhone(body.phone);
+  if (!lookupPhone) return out({ ok: false, error: "Invalid Malaysia phone" }, 422);
+
+  const payload = await fetchWebhookPayload(lookupPhone);
+  const found = payload?.found === true || String(payload?.found || "").toLowerCase() === "true";
+  if (!found) return out({ ok: true, found: false, phone: lookupPhone });
+
+  const responsePhone = normalizePhone(payload?.phone);
+  if (responsePhone && responsePhone !== lookupPhone) {
+    return out({ ok: false, error: "ClickUp address phone does not match order lookup" }, 409);
+  }
+
+  const addressLine1 = text(payload?.address, 500);
+  const city = text(payload?.bandar, 100);
+  const postcode = String(payload?.poskod ?? "").replace(/\D/g, "");
+  const state = canonicalState(payload?.negeri);
+  const returnedName = text(payload?.nama, 120);
+  const invalidPlaceholder = (value: string) => !value || value === "," || /^sila\s+isi$/i.test(value);
+  if (
+    invalidPlaceholder(addressLine1) ||
+    invalidPlaceholder(city) ||
+    !/^\d{5}$/.test(postcode) ||
+    postcode === "00000" ||
+    invalidPlaceholder(state)
+  ) {
+    return out({ ok: false, error: "ClickUp returned an incomplete address" }, 422);
+  }
+
+  return out({
+    ok: true,
+    found: true,
+    customer: {
+      name: invalidPlaceholder(returnedName) ? "" : returnedName,
+      phone: responsePhone || lookupPhone,
+    },
+    address: { address_line1: addressLine1, city, postcode, state },
+  });
+}
+
 async function event(
   draftId: string,
   eventType: string,
@@ -76,6 +199,9 @@ Deno.serve(async (request: Request) => {
 
   try {
     const body = await request.json().catch(() => ({}));
+    if (text(body.mode, 20).toLowerCase() === "order") {
+      return await fetchOrderAddress(request, body);
+    }
     const token = text(body.token, 80);
     if (!/^qrd_[a-f0-9]{32}$/i.test(token)) return out({ ok: false, error: "Invalid draft token" }, 401);
 
