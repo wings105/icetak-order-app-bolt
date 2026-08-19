@@ -66,6 +66,35 @@ async function send(to: string, text: string) {
   return provider('/messages/send', { to: digits(to), text, preview_url: false });
 }
 
+async function sendWindowWarning(to: string, text: string) {
+  const phone = digits(to);
+  try {
+    const result = await provider('/messages/interactive', {
+      to: phone,
+      interactive: {
+        type: 'button',
+        body: { text },
+        action: {
+          buttons: [
+            {
+              type: 'reply',
+              reply: {
+                id: 'refresh_admin_window',
+                title: 'Refresh 24 Jam',
+              },
+            },
+          ],
+        },
+      },
+    });
+    return { ...result, delivery_mode: 'interactive' };
+  } catch (error) {
+    console.warn('Interactive admin window warning failed; falling back to text', error);
+    const fallback = await send(phone, `${text}\n\nJika button tidak tersedia, reply apa sahaja pada chat ini untuk refresh 24 jam.`);
+    return { ...fallback, delivery_mode: 'text_fallback' };
+  }
+}
+
 function formatMY(iso: string) {
   return new Intl.DateTimeFormat('en-MY', {
     timeZone: 'Asia/Kuala_Lumpur',
@@ -82,7 +111,7 @@ function warningText(level: '6h' | '2h' | '30m', expiresAt: string) {
     'Free-form tinggal kurang ±6 jam.',
     `Window dijangka tamat: *${expiry}*`,
     '',
-    'Reply apa sahaja pada chat ini untuk refresh semula 24 jam.',
+    'Tekan *Refresh 24 Jam* untuk reset semula window admin.',
   ].join('\n');
   if (level === '2h') return [
     '🟠 *URGENT — WHATSAPP WINDOW*',
@@ -90,7 +119,7 @@ function warningText(level: '6h' | '2h' | '30m', expiresAt: string) {
     'Free-form tinggal kurang ±2 jam.',
     `Window dijangka tamat: *${expiry}*`,
     '',
-    '*REPLY SEKARANG* pada chat ini untuk reset semula kepada 24 jam.',
+    'Tekan *Refresh 24 Jam* sekarang untuk reset semula window admin.',
   ].join('\n');
   return [
     '🔴 *CRITICAL — WHATSAPP WINDOW*',
@@ -98,7 +127,7 @@ function warningText(level: '6h' | '2h' | '30m', expiresAt: string) {
     'Free-form tinggal kurang ±30 minit.',
     `Window dijangka tamat: *${expiry}*`,
     '',
-    '*REPLY SEKARANG.* Apa sahaja reply akan refresh semula 24 jam.',
+    'Tekan *Refresh 24 Jam* sekarang.',
   ].join('\n');
 }
 
@@ -181,7 +210,7 @@ async function checkWindow() {
   }
 
   const message = warningText(level, state.window_expires_at);
-  const result = await send(admin, message);
+  const result = await sendWindowWarning(admin, message);
   const sentAt = new Date().toISOString();
   const providerMessageId = result?.message_id || result?.id || null;
 
@@ -208,6 +237,7 @@ async function checkWindow() {
     status: 'open',
     warning_sent: true,
     warning_level: level,
+    delivery_mode: result?.delivery_mode || null,
     remaining_minutes: Math.ceil(remainingMs / 60000),
     window_expires_at: state.window_expires_at,
   };
