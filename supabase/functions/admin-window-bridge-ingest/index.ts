@@ -44,11 +44,46 @@ Deno.serve(async (req: Request) => {
     return out({ ok: true, result: { updated: false, ignored: true, reason: 'not_admin_phone' } });
   }
 
+  const parsedReceivedAt = body.received_at ? new Date(String(body.received_at)) : new Date();
   const now = new Date();
-  const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const eventTime = !Number.isFinite(parsedReceivedAt.getTime()) || parsedReceivedAt.getTime() > now.getTime() + 5 * 60 * 1000
+    ? now
+    : parsedReceivedAt;
+  const { data: current, error: currentError } = await db.from('admin_whatsapp_window_monitor')
+    .select('last_inbound_at,last_provider_message_id,window_expires_at')
+    .eq('admin_phone', admin)
+    .maybeSingle();
+  if (currentError) return out({ ok: false, error: currentError.message }, 500);
+  if (current?.last_provider_message_id && t(body.provider_message_id) === current.last_provider_message_id) {
+    return out({
+      ok: true,
+      result: {
+        updated: false,
+        ignored: true,
+        reason: 'duplicate_provider_message',
+        window_expires_at: current.window_expires_at,
+      },
+    });
+  }
+  if (current?.last_inbound_at && new Date(current.last_inbound_at).getTime() >= eventTime.getTime()) {
+    return out({
+      ok: true,
+      result: {
+        updated: false,
+        ignored: true,
+        reason: 'older_or_duplicate_inbound',
+        window_expires_at: current.window_expires_at,
+      },
+    });
+  }
+
+  const expires = new Date(eventTime.getTime() + 24 * 60 * 60 * 1000);
+  if (expires.getTime() <= now.getTime()) {
+    return out({ ok: true, result: { updated: false, ignored: true, reason: 'stale_inbound' } });
+  }
   const payload = {
     admin_phone: admin,
-    last_inbound_at: now.toISOString(),
+    last_inbound_at: eventTime.toISOString(),
     window_expires_at: expires.toISOString(),
     window_status: 'open',
     warn_6h_sent_at: null,
@@ -67,9 +102,12 @@ Deno.serve(async (req: Request) => {
     result: {
       updated: true,
       admin_phone: admin,
+      last_inbound_at: eventTime.toISOString(),
       window_expires_at: expires.toISOString(),
+      remaining_minutes: Math.ceil((expires.getTime() - now.getTime()) / 60000),
       source: body.source || 'unified_inbox',
       button_id: body.button_id || null,
+      refresh_requested: t(body.button_id) === 'refresh_admin_window' || /^refresh\s+24\s+jam$/i.test(t(body.text)),
       provider_message_id: body.provider_message_id || null,
     },
   });
