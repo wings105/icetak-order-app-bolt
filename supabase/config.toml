@@ -59,3 +59,7 @@ verify_jwt = false
 # Internal 24-hour admin window monitor protected by x-admin-window-token in code.
 [functions.admin-whatsapp-window-monitor]
 verify_jwt = false
+
+# Authenticated cross-project bridge from Unified Inbox.
+[functions.admin-window-bridge-ingest]
+verify_jwt = false
