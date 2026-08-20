@@ -103,12 +103,21 @@ function formatMY(iso: string) {
   }).format(new Date(iso));
 }
 
-function warningText(level: '6h' | '2h' | '30m', expiresAt: string) {
+function formatRemaining(remainingMs: number) {
+  const totalMinutes = Math.max(0, Math.ceil(remainingMs / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (!hours) return `${minutes} minit`;
+  return minutes ? `${hours} jam ${minutes} minit` : `${hours} jam`;
+}
+
+function warningText(level: '6h' | '2h' | '30m', expiresAt: string, remainingMs: number) {
   const expiry = formatMY(expiresAt);
+  const remaining = formatRemaining(remainingMs);
   if (level === '6h') return [
     '⚠️ *WHATSAPP ADMIN WINDOW*',
     '',
-    'Free-form tinggal kurang ±6 jam.',
+    `Baki free-form sebenar: *${remaining}*`,
     `Window dijangka tamat: *${expiry}*`,
     '',
     'Tekan *Refresh 24 Jam* untuk reset semula window admin.',
@@ -116,7 +125,7 @@ function warningText(level: '6h' | '2h' | '30m', expiresAt: string) {
   if (level === '2h') return [
     '🟠 *URGENT — WHATSAPP WINDOW*',
     '',
-    'Free-form tinggal kurang ±2 jam.',
+    `Baki free-form sebenar: *${remaining}*`,
     `Window dijangka tamat: *${expiry}*`,
     '',
     'Tekan *Refresh 24 Jam* sekarang untuk reset semula window admin.',
@@ -124,35 +133,64 @@ function warningText(level: '6h' | '2h' | '30m', expiresAt: string) {
   return [
     '🔴 *CRITICAL — WHATSAPP WINDOW*',
     '',
-    'Free-form tinggal kurang ±30 minit.',
+    `Baki free-form sebenar: *${remaining}*`,
     `Window dijangka tamat: *${expiry}*`,
     '',
     'Tekan *Refresh 24 Jam* sekarang.',
   ].join('\n');
 }
 
-async function recordInbound(phoneInput: unknown) {
+function receivedAt(value: unknown) {
+  const parsed = value ? new Date(String(value)) : new Date();
+  const now = new Date();
+  if (!Number.isFinite(parsed.getTime()) || parsed.getTime() > now.getTime() + 5 * 60 * 1000) return now;
+  return parsed;
+}
+
+async function recordInbound(phoneInput: unknown, receivedAtInput?: unknown, providerMessageId?: unknown) {
   const admin = digits(await setting('admin_order_notify_phone') || '60129554732');
   const phone = digits(phoneInput);
   if (!phone || phone !== admin) return { updated: false, ignored: true, reason: 'not_admin_phone' };
 
+  const eventTime = receivedAt(receivedAtInput);
   const now = new Date();
-  const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const { data: current, error: currentError } = await db.from('admin_whatsapp_window_monitor')
+    .select('last_inbound_at,last_provider_message_id')
+    .eq('admin_phone', admin)
+    .maybeSingle();
+  if (currentError) throw currentError;
+  if (current?.last_provider_message_id && t(providerMessageId) === current.last_provider_message_id) {
+    return { updated: false, ignored: true, reason: 'duplicate_provider_message' };
+  }
+  if (current?.last_inbound_at && new Date(current.last_inbound_at).getTime() >= eventTime.getTime()) {
+    return { updated: false, ignored: true, reason: 'older_or_duplicate_inbound' };
+  }
+
+  const expires = new Date(eventTime.getTime() + 24 * 60 * 60 * 1000);
+  if (expires.getTime() <= now.getTime()) {
+    return { updated: false, ignored: true, reason: 'stale_inbound' };
+  }
   const payload = {
     admin_phone: admin,
-    last_inbound_at: now.toISOString(),
+    last_inbound_at: eventTime.toISOString(),
     window_expires_at: expires.toISOString(),
     window_status: 'open',
     warn_6h_sent_at: null,
     warn_2h_sent_at: null,
     warn_30m_sent_at: null,
     last_warning_level: null,
-    last_provider_message_id: null,
+    last_provider_message_id: t(providerMessageId) || null,
     updated_at: now.toISOString(),
   };
   const { error } = await db.from('admin_whatsapp_window_monitor').upsert(payload, { onConflict: 'admin_phone' });
   if (error) throw error;
-  return { updated: true, admin_phone: admin, window_expires_at: expires.toISOString() };
+  return {
+    updated: true,
+    admin_phone: admin,
+    last_inbound_at: eventTime.toISOString(),
+    window_expires_at: expires.toISOString(),
+    remaining_minutes: Math.ceil((expires.getTime() - now.getTime()) / 60000),
+  };
 }
 
 async function bootstrapState(admin: string) {
@@ -209,7 +247,7 @@ async function checkWindow() {
     return { checked: true, status: 'open', warning_sent: false, remaining_minutes: Math.ceil(remainingMs / 60000) };
   }
 
-  const message = warningText(level, state.window_expires_at);
+  const message = warningText(level, state.window_expires_at, remainingMs);
   const result = await sendWindowWarning(admin, message);
   const sentAt = new Date().toISOString();
   const providerMessageId = result?.message_id || result?.id || null;
@@ -261,7 +299,12 @@ Deno.serve(async (req: Request) => {
   if (!await auth(req)) return out({ ok: false, error: 'Unauthorized' }, 401);
   const body = await req.json().catch(() => ({}));
   try {
-    if (body.action === 'incoming') return out({ ok: true, result: await recordInbound(body.phone) });
+    if (body.action === 'incoming') {
+      return out({
+        ok: true,
+        result: await recordInbound(body.phone, body.received_at, body.provider_message_id),
+      });
+    }
     if (body.action === 'check') return out({ ok: true, result: await checkWindow() });
     if (body.action === 'status') return out({ ok: true, result: await status() });
     return out({ ok: false, error: 'unsupported action' }, 400);
