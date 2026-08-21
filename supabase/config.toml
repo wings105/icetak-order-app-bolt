@@ -63,3 +63,7 @@ verify_jwt = false
 # Authenticated cross-project bridge from Unified Inbox.
 [functions.admin-window-bridge-ingest]
 verify_jwt = false
+
+# Private ChatGPT action protected by x-icetak-gpt-token SHA-256 verification in code.
+[functions.gpt-order-actions]
+verify_jwt = false

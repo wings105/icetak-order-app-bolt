@@ -1,0 +1,149 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "iCetak Order Actions",
+    "description": "Private iCetak admin assistant. Look up an exact customer, read live catalog prices, preview an order, and only create a draft or order after explicit admin confirmation.",
+    "version": "1.0.0"
+  },
+  "servers": [{ "url": "https://buivecgahhmrhlmfujgt.supabase.co" }],
+  "security": [{ "IcetakGptToken": [] }],
+  "paths": {
+    "/functions/v1/gpt-order-actions/catalog": {
+      "get": {
+        "operationId": "getIcetakCatalog",
+        "summary": "Get live iCetak products, sizes, prices and delivery fees",
+        "parameters": [
+          { "name": "product", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/ProductKind" } },
+          { "name": "size", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "process", "in": "query", "required": false, "schema": { "type": "string", "enum": ["Pre-order", "Urgent"] } }
+        ],
+        "responses": { "200": { "description": "Current production catalog prices and shipping options" } }
+      }
+    },
+    "/functions/v1/gpt-order-actions/customers": {
+      "get": {
+        "operationId": "findIcetakCustomer",
+        "summary": "Find one customer by exact Malaysian phone, WhatsApp BSUID or username",
+        "parameters": [
+          { "name": "identifier", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Examples: 60129554732, MY.2403797133469318 or @zaimuddin.alias" }
+        ],
+        "responses": { "200": { "description": "Matching customer identity and saved delivery addresses" } }
+      }
+    },
+    "/functions/v1/gpt-order-actions/payments": {
+      "get": {
+        "operationId": "findIcetakPayment",
+        "summary": "Check one exact QRPay transaction before linking it to an order",
+        "parameters": [
+          { "name": "transaction_id", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Exact QRPay payment and whether it remains available" } }
+      }
+    },
+    "/functions/v1/gpt-order-actions/preview": {
+      "post": {
+        "operationId": "previewIcetakOrder",
+        "summary": "Calculate a live-priced draft without creating anything",
+        "description": "Always run first. Show the customer, every item, delivery, discount and final total. Keep its request_id for the confirmed order call.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OrderPreviewRequest" } } } },
+        "responses": { "200": { "description": "Calculated preview, missing fields and reusable request_id" } }
+      }
+    },
+    "/functions/v1/gpt-order-actions/orders": {
+      "post": {
+        "operationId": "createIcetakOrder",
+        "summary": "Create a confirmed draft, send prepaid review or finalize an authorized paid/pickup order",
+        "description": "This action writes production records. Call only after the admin explicitly confirms the preview and the chosen operation. Reuse the exact preview request_id to prevent duplicate orders.",
+        "x-openai-isConsequential": true,
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OrderCreateRequest" } } } },
+        "responses": { "200": { "description": "Created draft, delivered review or finalized production order" }, "409": { "description": "Admin confirmation or payment mismatch confirmation is required" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "IcetakGptToken": { "type": "apiKey", "in": "header", "name": "x-icetak-gpt-token" }
+    },
+    "schemas": {
+      "ProductKind": { "type": "string", "enum": ["edible", "burnaway", "wafer", "printed", "mirror", "acrylic"] },
+      "Customer": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "Customer name shown on the order" },
+          "phone": { "type": "string", "description": "Malaysian mobile such as 0123456789 or 60123456789; can be omitted when BSUID exists" },
+          "bsuid": { "type": "string", "description": "WhatsApp user ID such as MY.2403797133469318; supports customers without visible phone" },
+          "username": { "type": "string", "description": "WhatsApp username, without needing to replace BSUID" },
+          "address_line1": { "type": "string" },
+          "address_line2": { "type": "string" },
+          "city": { "type": "string" },
+          "postcode": { "type": "string" },
+          "state": { "type": "string" }
+        }
+      },
+      "OrderItem": {
+        "type": "object",
+        "required": ["product"],
+        "properties": {
+          "product": { "$ref": "#/components/schemas/ProductKind" },
+          "size": { "type": "string", "description": "Catalog size such as 5 inch, A7, A6 Standard or 1 pc" },
+          "style": { "type": "string", "description": "For example Round / Bulat, Square / Petak, Gold or Silver" },
+          "quantity": { "type": "integer", "minimum": 1, "maximum": 500, "default": 1 },
+          "process": { "type": "string", "enum": ["Pre-order", "Urgent"] },
+          "review": { "type": "string", "enum": ["Need Review", "No Review"] },
+          "seller_deal_price": { "type": "number", "minimum": 0.01, "description": "Explicit seller-negotiated unit price overriding the live catalog price" },
+          "unit_price": { "type": "number", "minimum": 0.01, "description": "Required for a fully custom noncatalog item" },
+          "title": { "type": "string", "description": "Required custom item title when is_custom_item is true" },
+          "is_custom_item": { "type": "boolean", "default": false },
+          "wording": { "type": "string" },
+          "price_reason": { "type": "string" },
+          "reference_url": { "type": "string" }
+        }
+      },
+      "PriceAdjustments": {
+        "type": "object",
+        "properties": {
+          "custom_addon": { "type": "number", "minimum": 0 },
+          "custom_addon_reason": { "type": "string" },
+          "discount_type": { "type": "string", "enum": ["amount", "percent"], "default": "amount" },
+          "discount_value": { "type": "number", "minimum": 0 },
+          "discount_reason": { "type": "string" },
+          "rounding": { "type": "number", "minimum": -1000, "maximum": 1000 },
+          "rounding_reason": { "type": "string" }
+        }
+      },
+      "OrderPreviewRequest": {
+        "type": "object",
+        "required": ["customer", "items", "delivery", "payment_flow"],
+        "properties": {
+          "customer": { "$ref": "#/components/schemas/Customer" },
+          "items": { "type": "array", "minItems": 1, "maxItems": 30, "items": { "$ref": "#/components/schemas/OrderItem" } },
+          "delivery": { "type": "string", "enum": ["pickup", "spx", "jnt", "ninja"] },
+          "payment_flow": { "type": "string", "enum": ["prepaid", "cash_counter", "paid", "qrpay"] },
+          "date_need": { "type": "string", "format": "date" },
+          "delivery_fee": { "type": "number", "minimum": 0 },
+          "price_adjustments": { "$ref": "#/components/schemas/PriceAdjustments" },
+          "request_id": { "type": "string", "format": "uuid" }
+        }
+      },
+      "OrderCreateRequest": {
+        "allOf": [
+          { "$ref": "#/components/schemas/OrderPreviewRequest" },
+          {
+            "type": "object",
+            "required": ["operation", "request_id", "confirmed", "date_need"],
+            "properties": {
+              "operation": { "type": "string", "enum": ["save_draft", "send_customer", "confirm_pickup", "confirm_paid", "confirm_qrpay"] },
+              "request_id": { "type": "string", "format": "uuid", "description": "Reuse the exact UUID returned by previewIcetakOrder" },
+              "confirmed": { "type": "boolean", "description": "Set true only after the admin explicitly confirmed this exact order" },
+              "date_need": { "type": "string", "format": "date" },
+              "payment_method": { "type": "string", "enum": ["bank_transfer", "card", "other", "qr_pay_manual"] },
+              "payment_reference": { "type": "string" },
+              "transaction_id": { "type": "string", "description": "Exact QRPay transaction ID for confirm_qrpay" },
+              "confirm_mismatch": { "type": "boolean" }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
