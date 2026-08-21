@@ -41,7 +41,15 @@ const navItems: NavItem[] = [
   },
   { key: 'integrations', label: 'Integrations', icon: IconIntegration },
   { key: 'staff', label: 'Staff / Roles', icon: IconStaff },
-  { key: 'settings', label: 'Settings', icon: IconSettings },
+  {
+    key: 'settings',
+    label: 'Settings',
+    icon: IconSettings,
+    children: [
+      { key: 'settings', label: 'General Settings' },
+      { key: 'ai-learning', label: 'AI Learning' },
+    ],
+  },
 ];
 
 type Props = {
@@ -61,7 +69,9 @@ export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile,
     if (['finance','qrpay-summary','draft-orders'].includes(item.key) && !canViewFinance) return false;
     if (item.key === 'customers' && !canViewCustomers) return false;
     return true;
-  });
+  }).map((item) => item.key === 'settings' && !canViewFinance
+    ? { ...item, children: item.children?.filter((child) => child.key !== 'ai-learning') }
+    : item);
   const [expanded, setExpanded] = useState<string | null>(
     visibleNavItems.find((n) => n.children?.some((c) => c.key === active))?.key ?? null
   );

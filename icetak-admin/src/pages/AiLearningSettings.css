@@ -1,0 +1,335 @@
+.ai-learning-page {
+  display: grid;
+  gap: 18px;
+}
+
+.ai-learning-header {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.ai-learning-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ai-learning-loading,
+.ai-learning-empty {
+  padding: 36px 18px;
+  color: #64748b;
+  text-align: center;
+}
+
+.ai-learning-alert {
+  padding: 12px 15px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.ai-learning-alert.error {
+  color: #b42318;
+  background: #fff1f0;
+  border-color: #fecaca;
+}
+
+.ai-learning-alert.success {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.ai-learning-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ai-learning-metric {
+  display: grid;
+  gap: 5px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.ai-learning-metric > span,
+.ai-learning-metric > small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.ai-learning-metric > strong {
+  color: #0f172a;
+  font-size: 29px;
+  line-height: 1.15;
+}
+
+.ai-learning-metric > strong.is-date {
+  padding-top: 5px;
+  font-size: 15px;
+}
+
+.ai-learning-settings-panel {
+  overflow: hidden;
+}
+
+.ai-learning-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.ai-learning-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.ai-learning-setting > div {
+  display: grid;
+  gap: 4px;
+}
+
+.ai-learning-setting > div strong {
+  font-size: 13px;
+}
+
+.ai-learning-setting > div span,
+.ai-learning-run-note {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.ai-learning-run-note {
+  padding: 0 16px 16px;
+}
+
+.ai-learning-switch {
+  display: inline-flex;
+  align-items: center;
+  width: 42px;
+  height: 24px;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: #cbd5e1;
+  cursor: pointer;
+}
+
+.ai-learning-switch > span {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .15s ease;
+}
+
+.ai-learning-switch.is-on {
+  background: #16a34a;
+}
+
+.ai-learning-switch.is-on > span {
+  transform: translateX(18px);
+}
+
+.ai-learning-switch:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.ai-learning-threshold,
+.ai-learning-filter {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.ai-learning-threshold {
+  width: 68px;
+  text-align: center;
+}
+
+.ai-learning-tabs {
+  margin: 0;
+  overflow-x: auto;
+}
+
+.ai-learning-table-panel {
+  overflow: hidden;
+}
+
+.ai-learning-table-panel > .panel-header {
+  gap: 10px;
+}
+
+.ai-learning-table-wrap {
+  overflow-x: auto;
+}
+
+.ai-learning-table {
+  width: 100%;
+  min-width: 940px;
+  border-collapse: collapse;
+}
+
+.ai-learning-table th,
+.ai-learning-table td {
+  padding: 12px 13px;
+  border-bottom: 1px solid #edf2f7;
+  vertical-align: top;
+  text-align: left;
+  font-size: 12px;
+}
+
+.ai-learning-table th {
+  color: #475569;
+  background: #f8fafc;
+  font-weight: 700;
+}
+
+.ai-learning-table td > strong,
+.ai-learning-table td > span {
+  display: block;
+}
+
+.ai-learning-code,
+.ai-learning-lesson,
+.ai-learning-meta {
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.ai-learning-code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.ai-learning-lesson {
+  max-width: 310px;
+  line-height: 1.45;
+}
+
+.ai-learning-badge {
+  display: inline-flex !important;
+  align-items: center;
+  width: max-content;
+  margin: 0 5px 4px 0;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.ai-learning-badge.active {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.ai-learning-badge.candidate {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.ai-learning-badge.rejected {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.ai-learning-badge.locked {
+  color: #334155;
+  background: #e2e8f0;
+}
+
+.ai-learning-action-list {
+  display: flex;
+  max-width: 190px;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ai-learning-action {
+  padding: 5px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  color: #334155;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ai-learning-action.positive {
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.ai-learning-action.warning {
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.ai-learning-action.danger {
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.ai-learning-action:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.ai-learning-value {
+  display: inline-block;
+  max-width: 230px;
+  overflow-wrap: anywhere;
+}
+
+.ai-learning-value.before {
+  color: #991b1b;
+}
+
+.ai-learning-value.after {
+  color: #166534;
+  font-weight: 600;
+}
+
+.ai-learning-error-text {
+  max-width: 210px;
+  color: #b42318;
+}
+
+@media (max-width: 900px) {
+  .ai-learning-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .ai-learning-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .ai-learning-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-learning-table-panel > .panel-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

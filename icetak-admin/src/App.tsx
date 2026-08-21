@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { supabase } from './lib/supabase';
 import './order-fulfillment-tracking';
 import Sidebar from './components/Sidebar';
@@ -21,6 +21,8 @@ import Integrations from './pages/Integrations';
 import StaffRoles from './pages/StaffRoles';
 import Settings from './pages/Settings';
 
+const AiLearningSettings = lazy(() => import('./pages/AiLearningSettings'));
+
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Order Control Tower', subtitle: 'Business Overview' },
   orders: { title: 'Orders', subtitle: 'Full order lifecycle' },
@@ -39,6 +41,7 @@ const pageMap: Record<string, { title: string; subtitle?: string }> = {
   integrations: { title: 'Integrations', subtitle: 'Third-party' },
   staff: { title: 'Staff / Roles' },
   settings: { title: 'Settings', subtitle: 'Admin system settings' },
+  'ai-learning': { title: 'AI Learning', subtitle: 'Weekly draft learning, rules and rollback' },
 };
 
 type AdminData = {
@@ -60,7 +63,7 @@ export default function App({ adminData }: Props) {
     customerName:initialParams.get('qrpay_name')||'',
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
-  const [page, setPage] = useState(linkedOrder ? 'orders' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : linkedView === 'draft-orders' ? 'draft-orders' : linkedView==='quick-order'&&initialPayment?'quick-order':'dashboard');
+  const [page, setPage] = useState(linkedOrder ? 'orders' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : linkedView === 'draft-orders' ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : linkedView==='quick-order'&&initialPayment?'quick-order':'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [linkedPayment,setLinkedPayment]=useState<LinkedQrPayment|null>(initialPayment);
   const permissions = adminData?.admin?.permissions || [];
@@ -74,6 +77,7 @@ export default function App({ adminData }: Props) {
     if (key === 'customers') url.searchParams.set('view','customers');
     else if (key === 'qrpay-summary') url.searchParams.set('view','qrpay-summary');
     else if (key === 'draft-orders') url.searchParams.set('view','draft-orders');
+    else if (key === 'ai-learning') url.searchParams.set('view','ai-learning');
     else { url.searchParams.delete('view'); url.searchParams.delete('date'); }
     ['qrpay_tx','qrpay_amount','qrpay_phone','qrpay_name','qrpay_paid_at'].forEach((param)=>url.searchParams.delete(param));
     window.history.replaceState({}, '', url);
@@ -128,7 +132,10 @@ export default function App({ adminData }: Props) {
       case 'whatsapp-outbox': return <WhatsAppOutbox />;
       case 'integrations': return <Integrations />;
       case 'staff': return <StaffRoles currentPermissions={permissions} />;
-      case 'settings': return <Settings permissions={permissions} />;
+      case 'settings': return <Settings permissions={permissions} onOpenAiLearning={() => navigate('ai-learning')} />;
+      case 'ai-learning': return permissions.includes('view_finance') || permissions.includes('manage_admins')
+        ? <Suspense fallback={<div style={{ padding: 24 }}>Loading AI Learning...</div>}><AiLearningSettings /></Suspense>
+        : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       default: return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
     }
   };

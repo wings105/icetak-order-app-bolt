@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
- type Props = { permissions?: string[] };
+ type Props = { permissions?: string[]; onOpenAiLearning?: () => void };
 
-export default function Settings({ permissions = [] }: Props) {
+export default function Settings({ permissions = [], onOpenAiLearning }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canExport = permissions.includes('export_data');
@@ -36,6 +36,7 @@ export default function Settings({ permissions = [] }: Props) {
       <div className="panel"><div className="panel-header"><div><div className="panel-title">Data Export</div><div className="panel-subtitle">Replacement for V1 admin export.</div></div></div><div style={{padding:20}}>{canExport?<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button className="btn btn-primary" disabled={busy} onClick={()=>void exportData('json')}>Download JSON Backup</button><button className="btn btn-outline" disabled={busy} onClick={()=>void exportData('csv')}>Download Orders CSV</button></div>:<div className="cell-sub">Permission export_data diperlukan.</div>}</div></div>
       <div className="panel"><div className="panel-header"><div><div className="panel-title">System ownership</div><div className="panel-subtitle">Admin frontend selepas migration</div></div></div><div style={{padding:20}}><div className="kv-list"><div className="kv-row"><span className="k">Admin UI</span><span className="v">React Admin V2</span></div><div className="kv-row"><span className="k">Database / actions</span><span className="v">Supabase RPC + Edge Functions</span></div><div className="kv-row"><span className="k">Legacy V1</span><span className="v">Retiring after parity QA</span></div></div></div></div>
       <div className="panel"><div className="panel-header"><div><div className="panel-title">WhatsApp & integrations</div><div className="panel-subtitle">Configuration moved to dedicated pages.</div></div></div><div style={{padding:20}}><p>WhatsApp rules, credentials and queue are managed in <b>WhatsApp → Control Center</b>. Provider values remain in Supabase/Integrations.</p></div></div>
+      {(permissions.includes('view_finance') || permissions.includes('manage_admins')) && <div className="panel"><div className="panel-header"><div><div className="panel-title">AI Draft Learning</div><div className="panel-subtitle">Weekly rule update, correction history, lock and rollback.</div></div></div><div style={{padding:20}}><button className="btn btn-primary" onClick={onOpenAiLearning}>Open AI Learning Control Center</button></div></div>}
       <div className="panel"><div className="panel-header"><div className="panel-title">Session</div></div><div style={{padding:20}}><button className="btn btn-outline" onClick={()=>void signOut()}>Log Out Admin</button></div></div>
     </div>
   </div>;
