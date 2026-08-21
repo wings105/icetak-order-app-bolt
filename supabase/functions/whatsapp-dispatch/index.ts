@@ -39,7 +39,7 @@ async function updateJob(id: string, payload: Record<string, unknown>) {
   await rest(`notification_queue?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
 }
 const isAutomationSafetyStop = (message: string) => /tracking_(auto_disabled|provider_not_ready|cancelled|already_sent|not_sendable|state_missing|shipment_id_required)|pickup_(auto_disabled|provider_not_ready|order_id_required|order_missing|not_pickup|order_not_ready|collected|cancelled|historical_ready)|order_auto_(disabled|opted_out|order_id_required|order_missing|cancelled)|order_cancel_notice_not_applicable|order_payment_already_received|order_ready_pickup_(not_pickup|not_ready|collected)/i.test(message);
-const isPermanentFailure = (message: string) => /notification_disabled:|freeform_disabled|freeform_message_empty|template_disabled|template_name_required|template_not_approved:|phone required/i.test(message);
+const isPermanentFailure = (message: string) => /notification_disabled:|freeform_disabled|freeform_message_empty|template_disabled|template_name_required|template_not_approved:|phone required|WhatsApp phone or user ID required/i.test(message);
 
 Deno.serve(async (req) => {
   try {

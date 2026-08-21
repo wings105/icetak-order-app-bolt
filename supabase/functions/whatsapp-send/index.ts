@@ -155,14 +155,14 @@ async function orderLifecyclePreflight(body: Record<string, any>, eventType: str
   return { ok: true };
 }
 
-async function windowStatus(phone: string) {
+async function windowStatus(phone: string, bsuid = '') {
   const url = await setting('unified_inbox_24h_url');
   if (!url) return { ok: false, can_send_freeform: false, reason: 'missing_24h_url' };
   try {
     const response = await fetchTimed(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ phone }),
+      body: JSON.stringify({ phone: phone || null, bsuid: bsuid || null }),
     }, 8000);
     const data = await response.json().catch(() => ({}));
     return response.ok && data.ok !== false
@@ -216,8 +216,12 @@ Deno.serve(async (req) => {
     if (!await authorized(req)) return json({ ok: false, error: 'Unauthorized' }, 401);
 
     const body = await req.json().catch(() => ({}));
-    const phone = phoneOf(body.phone || body.to || '');
-    if (!/^601\d{8,9}$/.test(phone)) return json({ ok: false, error: 'phone required' }, 400);
+    const rawTo = String(body.to || '').trim();
+    const bsuid = String(body.bsuid || body.user_id || body.recipient_bsuid || body.recipient || (/^[A-Z]{2}\./i.test(rawTo) ? rawTo : '')).trim();
+    const phone = phoneOf(body.phone || (/^[A-Z]{2}\./i.test(rawTo) ? '' : rawTo));
+    if (!/^601\d{8,9}$/.test(phone) && !/^[A-Z]{2}\.(?:ENT\.)?[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/i.test(bsuid)) return json({ ok: false, error: 'WhatsApp phone or user ID required' }, 400);
+    const validPhone = /^601\d{8,9}$/.test(phone) ? phone : '';
+    const recipient = validPhone ? { to: validPhone } : { user_id: bsuid };
 
     const eventType = body.event_type || 'manual';
     const vars = { ...(body.vars || body) };
@@ -241,7 +245,7 @@ Deno.serve(async (req) => {
     const rule = (await rest(`whatsapp_notification_rules?event_type=eq.${encodeURIComponent(eventType)}&limit=1`).catch(() => []))?.[0] || {};
     if (rule.enabled === false) return json({ ok: false, error: `notification_disabled:${eventType}` }, 409);
 
-    const window = await windowStatus(phone);
+    const window = await windowStatus(validPhone, bsuid);
     const canSendFreeform = Boolean(window.can_send_freeform);
     const mode = body.mode && body.mode !== 'auto'
       ? body.mode
@@ -256,7 +260,7 @@ Deno.serve(async (req) => {
       if (rule.freeform_enabled === false) return json({ ok: false, error: 'freeform_disabled' }, 409);
       const text = body.text || render(rule.freeform_text || '', vars);
       if (!text.trim()) return json({ ok: false, error: 'freeform_message_empty' }, 400);
-      payload = { to: phone, text, preview_url: false };
+      payload = { ...recipient, text, preview_url: false };
       endpoint = '/messages/send';
     } else {
       if (rule.template_enabled === false) return json({ ok: false, error: 'template_disabled' }, 409);
@@ -272,7 +276,7 @@ Deno.serve(async (req) => {
         ? body.template_params
         : Array.isArray(rule.template_params) ? rule.template_params : [];
       payload = {
-        to: phone,
+        ...recipient,
         template: {
           name,
           language: { code: language },
@@ -289,7 +293,9 @@ Deno.serve(async (req) => {
         ok: true,
         dry_run: true,
         mode,
-        to: phone,
+        to: validPhone || bsuid,
+        recipient_type: validPhone ? 'phone' : 'bsuid',
+        recipient_bsuid: bsuid || null,
         endpoint,
         decision_reason: decisionReason,
         can_send_freeform: canSendFreeform,
@@ -320,7 +326,7 @@ Deno.serve(async (req) => {
     }
 
     const baseLog = {
-      phone, event_type: eventType, customer_name: vars.customer_name || null,
+      phone: validPhone || null, recipient_bsuid: bsuid || null, recipient_username: body.recipient_username || body.username || null, recipient_type: validPhone ? 'phone' : 'bsuid', event_type: eventType, customer_name: vars.customer_name || null,
       order_no: vars.order_id || null, order_token: vars.order_token || null,
       mode, message_type: mode === 'template' ? 'template' : 'text', body: payload.text || null,
       template_name: payload.template?.name || null, template_language: templateLanguage,
@@ -344,7 +350,7 @@ Deno.serve(async (req) => {
           }),
         });
       }
-      return json({ ok: true, mode, to: phone, message_id: sent.message_id || sent.id || null, can_send_freeform: canSendFreeform, decision_reason: decisionReason, window });
+      return json({ ok: true, mode, to: validPhone || bsuid, recipient_type: validPhone ? 'phone' : 'bsuid', recipient_bsuid: bsuid || null, message_id: sent.message_id || sent.id || null, can_send_freeform: canSendFreeform, decision_reason: decisionReason, window });
     } catch (error) {
       if (logId) {
         await rest(`whatsapp_outbox?id=eq.${logId}`, {

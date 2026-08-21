@@ -15,6 +15,9 @@
 .draft-card-top>div{min-width:0}
 .draft-card h2{font-size:16px;margin:6px 0 2px;overflow-wrap:anywhere}
 .draft-card a{font-size:12px;color:#175cd3}
+.draft-contact-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#667085;font-size:12px}
+.draft-contact-links a{display:inline-flex;align-items:center;padding:3px 7px;border:1px solid #dbeafe;border-radius:6px;background:#eff6ff;text-decoration:none}
+.draft-contact-links small{font-size:10px;color:#667085;overflow-wrap:anywhere}
 .draft-card-top>strong{flex:0 0 auto;font-size:17px}
 .draft-status{padding:3px 6px;border-radius:999px;background:#fff4e5;color:#b54708;font-size:9px;font-weight:800;text-transform:uppercase}
 .draft-meta{display:flex;gap:0;flex-wrap:wrap;color:#667085;font-size:11px}

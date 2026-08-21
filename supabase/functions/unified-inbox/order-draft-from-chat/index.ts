@@ -42,8 +42,8 @@ Deno.serve(async req => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    if (!body.conversation_id && !body.phone) {
-      return out({ ok: false, error: 'conversation_id or phone required' }, 400);
+    if (!body.conversation_id && !body.phone && !body.bsuid && !body.user_id && !body.recipient_bsuid) {
+      return out({ ok: false, error: 'conversation_id, phone or WhatsApp user ID required' }, 400);
     }
 
     const r = await fetch(`${U}/functions/v1/order-draft-trigger`, {
@@ -53,7 +53,7 @@ Deno.serve(async req => {
         ...body,
         source_type: 'chat_trigger',
         payment_mode: 'prepaid',
-        request_key: body.request_key || `staff:${body.conversation_id || body.phone}:${body.trigger_message_id || body.cutoff_at || new Date().toISOString()}`,
+        request_key: body.request_key || `prepaid:${body.conversation_id || body.bsuid || body.user_id || body.phone}:${body.provider_message_id || body.message_id || body.trigger_message_id || body.cutoff_at || new Date().toISOString()}`,
       }),
     });
     const j = await r.json().catch(() => ({}));
