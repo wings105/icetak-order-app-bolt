@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import {
   applyLearningRules,
   buildLearningPrompt,
+  filterOrderEvidenceMessages,
   quickOrderPrice,
+  sellerMessageFilterReason,
 } from '../supabase/functions/unified-inbox/_shared/ai-learning-engine.ts';
 
 const rules = [
@@ -87,5 +89,41 @@ const sensitivePrompt = buildLearningPrompt([{
 assert.match(sensitivePrompt, /MANDATORY ACTIVE RULES/);
 assert.doesNotMatch(sensitivePrompt, /60123456789/, 'another customer phone must never leak into a later AI prompt');
 
+const priceSnippet = {
+  id: 'snippet-acrylic',
+  shortcut: 'acrylic',
+  message: 'HARGA ACRYLIC CAKE TOPPER\n\n*PRE-ORDER*\nA7 Mini — RM12\nA6 Standard — RM20\nA5 Large — RM35',
+};
+const courierSnippet = {
+  id: 'snippet-courier',
+  shortcut: 'pos',
+  message: '1️⃣ SPX: rm4.50\n2️⃣ JNT rm5.90\n3️⃣ Ninjavan: rm6.90\n*Prefer courier apa?*',
+};
+const filtered = filterOrderEvidenceMessages([
+  message('inbound', 'Nak edible A5 1pc', 1),
+  message('outbound', priceSnippet.message, 2),
+  message('outbound', courierSnippet.message, 3),
+  message('outbound', 'Edible A5 RM12\nAcrylic A7 RM12', 4),
+  message('outbound', 'Edible A5 RM11 khas untuk order ini', 5),
+  message('inbound', priceSnippet.message, 6),
+], [priceSnippet, courierSnippet]);
+
+assert.deepEqual(filtered.excluded.map((entry) => entry.id), ['message-2', 'message-3']);
+assert.equal(filtered.messages.length, 4, 'customer messages and seller-specific quotes must remain visible');
+assert.equal(sellerMessageFilterReason(message('outbound', 'Acrylic A7 RM12', 1)), '', 'one negotiated price is not a price list');
+assert.equal(sellerMessageFilterReason(message('outbound', 'Edible A5 RM12\nAcrylic A7 RM12', 1)), '', 'two real items in one seller quote are not a catalog');
+assert.equal(sellerMessageFilterReason(message('outbound', courierSnippet.message, 1)), 'seller_courier_menu', 'courier menus are blocked even without a saved snippet match');
+
+const ignoredMenu = applyLearningRules(initial([
+  { k: 'edible', product_type: 'edible', title: 'Edible Image', size: 'A5', qty: 1, price: 0 },
+]), [
+  message('inbound', 'Nak edible A5 1pc', 1),
+  message('outbound', priceSnippet.message, 2),
+  message('outbound', 'Edible A5 RM11 khas untuk order ini', 3),
+], rules, { flow: 'chat_trigger', referenceTime: '2026-08-21T10:00:00Z' });
+assert.deepEqual(ignoredMenu.items.map((item) => item.k), ['edible'], 'seller catalogs must not create phantom acrylic items');
+assert.equal(ignoredMenu.items[0].price, 11, 'the current seller-specific deal still overrides catalog pricing');
+
 console.log('PASS: active rules change draft values, seller deals, products, quantity, courier, dates and identity.');
 console.log('PASS: inactive rules do not execute and private customer examples are redacted from AI instructions.');
+console.log('PASS: saved seller snippets, price catalogs and courier menus are excluded without dropping real deal quotes.');

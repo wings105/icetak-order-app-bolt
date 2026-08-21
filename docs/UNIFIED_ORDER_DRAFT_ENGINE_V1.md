@@ -27,6 +27,20 @@ Legacy pickup auto-create is disabled; the old pickup endpoint proxies into the 
 
 A closed/converted Order Session is a hard extraction boundary. A new payment or trigger after a real order was created starts a new Order Session. Old order details cannot be reused across a closed boundary.
 
+### Production isolation hardening
+
+- `order_sessions` is the single lifecycle store for chat/prepaid, pickup, QRPay and manual order flows.
+- Every pending draft, including a payment-first QRPay draft, is linked to exactly one active customer/conversation session.
+- Database triggers close that session immediately when any real order is created or a draft is confirmed with an order ID.
+- Historical QRPay confirmations are restored as closed sessions with their original order/confirmation times; previously stranded open sessions are reconciled.
+- Partial unique indexes and transaction advisory locks prevent concurrent prepaid, pickup or QRPay requests from opening duplicate active sessions.
+- Unified Inbox extraction reads messages strictly after the last closed-order boundary and includes the active `order_session_id` in its evidence.
+- Active `quick_snippets` plus built-in catalog/courier/template detection exclude seller price lists, courier menus and generic help messages before matching, heuristic extraction, AI prompts and learning rules.
+- Customer messages, customer-specific seller quotes, multiple real order items and reference media remain available to the extractor.
+- A session containing only an older confirmed order or seller snippets cannot create a new draft.
+
+Regression checks: `node scripts/check-order-session-isolation.mjs` and `node scripts/check-ai-learning-engine.mjs`.
+
 ## Fulfillment / combine shipment
 
 Order Session and fulfillment are separate concepts. A new order may be grouped for shipment with an older unshipped order via `fulfillment_groups` / `fulfillment_group_orders`, while both orders retain separate accounting, payment and item records.

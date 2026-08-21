@@ -32,6 +32,18 @@ type ChatLine = {
   offerOnly: boolean;
 };
 
+export type SellerSnippet = {
+  id?: string;
+  shortcut?: string;
+  title?: string;
+  message?: string;
+};
+
+export type FilteredOrderMessages = {
+  messages: JsonMap[];
+  excluded: Array<{ id: string; reason: string }>;
+};
+
 type Change = {
   field: string;
   before: unknown;
@@ -68,6 +80,72 @@ const DELIVERY_FEES: Record<string, number> = {
 const text = (value: unknown) => String(value ?? "").trim();
 const amount = (value: unknown) => Number(Number(value || 0).toFixed(2));
 const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
+
+function normalizedSnippet(value: unknown) {
+  return text(value)
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, " url ")
+    .replace(/[^\p{L}\p{N}\s.&]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function sellerMessageFilterReason(message: JsonMap, snippets: SellerSnippet[] = []): string {
+  if (text(message?.direction).toLowerCase() !== "outbound") return "";
+
+  const value = text(message.text_content || message.caption || message.text);
+  if (!value) return "";
+  const normalized = normalizedSnippet(value);
+
+  for (const snippet of snippets || []) {
+    const known = normalizedSnippet(snippet?.message);
+    if (known.length < 18) continue;
+    if (normalized === known) return "saved_seller_snippet";
+    const shorter = Math.min(normalized.length, known.length);
+    const longer = Math.max(normalized.length, known.length);
+    if (shorter >= 55 && shorter / longer >= 0.86 && (normalized.includes(known) || known.includes(normalized))) {
+      return "saved_seller_snippet";
+    }
+  }
+
+  const courierCount = [
+    /\b(?:spx|shopee\s*express)\b/i,
+    /\b(?:j\s*&?\s*t|jnt)\b/i,
+    /\bninja(?:\s*van)?\b/i,
+  ].filter((matcher) => matcher.test(value)).length;
+  if (courierCount >= 2) return "seller_courier_menu";
+
+  const prices = [...value.matchAll(/\brm\s*\d+(?:\.\d{1,2})?/gi)].length;
+  const sizes = [...new Set((value.match(/\bA[4-7]\b/gi) || []).map((size) => size.toUpperCase()))].length;
+  if (/\b(?:price\s*list|senarai\s*harga|harga\s*panduan|rujukan\s+saiz)\b/i.test(value)) {
+    return "seller_price_list";
+  }
+  if (/^\s*harga\s+(?:acrylic|akrilik|edible|wafer|cake\s+topper)\b/im.test(value) && prices >= 2) {
+    return "seller_price_list";
+  }
+  if (prices >= 3 && (sizes >= 2 || /\b(?:pre[- ]?order|urgent|same\s+day|pilihan|options?)\b/i.test(value))) {
+    return "seller_price_list";
+  }
+  if (/\b(?:cara\s+guna|how\s+to\s+use|panduan\s+penyimpanan|pickup\s+location|waktu\s+operasi|menerima\s+order|save\s+for\s+order)\b/i.test(value) && value.length >= 55) {
+    return "seller_information_template";
+  }
+  return "";
+}
+
+export function filterOrderEvidenceMessages(messages: JsonMap[], snippets: SellerSnippet[] = []): FilteredOrderMessages {
+  const kept: JsonMap[] = [];
+  const excluded: Array<{ id: string; reason: string }> = [];
+  for (const message of messages || []) {
+    const reason = sellerMessageFilterReason(message, snippets);
+    if (reason) {
+      excluded.push({ id: text(message.id || message.message_id), reason });
+      continue;
+    }
+    kept.push(message);
+  }
+  return { messages: kept, excluded };
+}
 
 function copy<T>(value: T): T {
   return typeof structuredClone === "function"
@@ -121,7 +199,7 @@ export function buildLearningPrompt(rules: LearningRule[]) {
 }
 
 function linesFrom(messages: JsonMap[]): ChatLine[] {
-  return (messages || []).flatMap((message, index) => {
+  return filterOrderEvidenceMessages(messages).messages.flatMap((message, index) => {
     const value = text(message.text_content || message.caption || message.text);
     const mediaUrl = text(message.media_url || message.mediaUrl);
     if (!value && !mediaUrl) return [];
