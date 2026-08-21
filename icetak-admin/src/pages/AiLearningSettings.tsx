@@ -1,10 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import './AiLearningSettings.css';
 
 type JsonValue = unknown;
 type RuleStatus = 'active' | 'candidate' | 'rejected';
-type Tab = 'rules' | 'history' | 'corrections' | 'runs';
+type Tab = 'rules' | 'history' | 'corrections' | 'applications' | 'runs';
+
+type RuleExample = {
+  field_path?: string;
+  ai_value?: JsonValue;
+  human_value?: JsonValue;
+  draft_id?: string;
+  transaction_id?: string | null;
+};
+
+type AppliedChange = {
+  field: string;
+  before: JsonValue;
+  after: JsonValue;
+  reason: string;
+  message_id?: string;
+};
 
 type Settings = {
   auto_update_enabled: boolean;
@@ -33,6 +49,13 @@ type Rule = {
   auto_update_locked_by: string | null;
   last_auto_updated_at: string | null;
   rule_version: number;
+  examples: RuleExample[];
+  instruction: string;
+  applied_count: number;
+  changed_draft_count: number;
+  last_applied_at: string | null;
+  application_method: string | null;
+  last_changes: AppliedChange[];
 };
 
 type RuleChange = {
@@ -89,12 +112,28 @@ type Correction = {
   qrpay_ai_learning_rules: { title: string; status: RuleStatus; auto_update_locked: boolean } | null;
 };
 
+type RuleApplication = {
+  draft_id: string;
+  request_key: string | null;
+  customer_name: string | null;
+  source_type: string;
+  created_at: string;
+  rule_id: string;
+  strategy_key: string;
+  title: string;
+  application_method: string;
+  prompt_injected: boolean;
+  changes: AppliedChange[];
+  change_count: number;
+};
+
 type Dashboard = {
   settings: Settings;
   rules: Rule[];
   runs: Run[];
   history: RuleHistory[];
   corrections: Correction[];
+  applications: RuleApplication[];
   summary: {
     total_rules: number;
     active_rules: number;
@@ -102,6 +141,9 @@ type Dashboard = {
     rejected_rules: number;
     locked_rules: number;
     latest_correction_at: string | null;
+    learned_drafts: number;
+    prompted_drafts: number;
+    rule_engine_drafts: number;
   };
 };
 
@@ -157,6 +199,17 @@ function formatValue(value: JsonValue) {
   return String(value);
 }
 
+function flowLabel(value: string) {
+  if (value === 'pickup_trigger') return 'Pickup';
+  if (value === 'chat_trigger') return 'Prepaid';
+  if (value === 'qrpay_payment') return 'QRPay';
+  return value || 'Draft';
+}
+
+function methodLabel(value?: string | null) {
+  return value === 'prompt_and_rule_engine' ? 'Prompt AI + rule engine' : 'Rule engine';
+}
+
 async function call(body: Record<string, unknown>): Promise<ApiResponse> {
   const { data, error } = await supabase.functions.invoke('admin-ai-learning', { body });
   if (error) {
@@ -199,6 +252,7 @@ export default function AiLearningSettings() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [threshold, setThreshold] = useState('3');
+  const [expandedRuleId, setExpandedRuleId] = useState('');
 
   const load = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -293,7 +347,7 @@ export default function AiLearningSettings() {
     {notice && <div className="ai-learning-alert success">{notice}</div>}
 
     <div className="ai-learning-metrics">
-      <div className="ai-learning-metric"><span>Rule aktif</span><strong>{summary.active_rules}</strong><small>Digunakan oleh AI draft</small></div>
+      <div className="ai-learning-metric"><span>Rule aktif</span><strong>{summary.active_rules}</strong><small>{summary.learned_drafts || 0} draft sudah guna rule sebenar</small></div>
       <div className="ai-learning-metric"><span>Candidate</span><strong>{summary.candidate_rules}</strong><small>Menunggu threshold / review</small></div>
       <div className="ai-learning-metric"><span>Rule locked</span><strong>{summary.locked_rules}</strong><small>Tidak boleh di-auto update</small></div>
       <div className="ai-learning-metric"><span>Last feedback</span><strong className="is-date">{formatDate(summary.latest_correction_at)}</strong><small>Pembetulan admin terkini</small></div>
@@ -314,16 +368,17 @@ export default function AiLearningSettings() {
       ['rules', `Rules (${dashboard.rules.length})`],
       ['history', `History (${dashboard.history.length})`],
       ['corrections', `Correction Log (${dashboard.corrections.length})`],
+      ['applications', `Penggunaan AI (${dashboard.applications.length})`],
       ['runs', `Weekly Runs (${dashboard.runs.length})`],
     ] as [Tab, string][]).map(([key, label]) => <button key={key} className={`filter-tab ${tab === key ? 'active' : ''}`} onClick={() => setTab(key)}>{label}</button>)}</div>
 
     {tab === 'rules' && <section className="panel ai-learning-table-panel">
-      <div className="panel-header"><div><div className="panel-title">Learning Rules</div><div className="panel-subtitle">Lock menghalang update mingguan dan perubahan rule daripada correction baru.</div></div><select className="ai-learning-filter" value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)}><option value="all">Semua status</option><option value="active">Aktif</option><option value="candidate">Candidate</option><option value="rejected">Rejected</option><option value="locked">Locked</option></select></div>
-      <div className="ai-learning-table-wrap"><table className="ai-learning-table"><thead><tr><th>Rule / lesson</th><th>Status</th><th>Feedback</th><th>Last update</th><th>Action</th></tr></thead><tbody>{rules.map((rule) => <tr key={rule.id}>
-        <td><strong>{rule.title}</strong><span className="ai-learning-code">{rule.strategy_key}</span><span className="ai-learning-lesson">{rule.lesson}</span></td>
+      <div className="panel-header"><div><div className="panel-title">Learning Rules</div><div className="panel-subtitle">Klik detail untuk lihat arahan AI, contoh pembetulan admin dan bukti rule digunakan pada draft.</div></div><select className="ai-learning-filter" value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)}><option value="all">Semua status</option><option value="active">Aktif</option><option value="candidate">Candidate</option><option value="rejected">Rejected</option><option value="locked">Locked</option></select></div>
+      <div className="ai-learning-table-wrap"><table className="ai-learning-table"><thead><tr><th>Rule / arahan AI</th><th>Status</th><th>Feedback / digunakan</th><th>Last update</th><th>Action</th></tr></thead><tbody>{rules.map((rule) => <Fragment key={rule.id}><tr>
+        <td><strong>{rule.title}</strong><span className="ai-learning-code">{rule.strategy_key}</span><span className="ai-learning-lesson">{rule.lesson}</span><button className="ai-learning-detail-link" onClick={() => setExpandedRuleId(expandedRuleId === rule.id ? '' : rule.id)}>{expandedRuleId === rule.id ? 'Tutup detail' : 'Lihat detail rule & contoh'}</button></td>
         <td><span className={`ai-learning-badge ${rule.status}`}>{STATUS_LABEL[rule.status]}</span>{rule.auto_update_locked && <span className="ai-learning-badge locked">Locked</span>}<span className="ai-learning-meta">v{rule.rule_version}</span></td>
-        <td><strong>{rule.occurrence_count}×</strong><span className="ai-learning-meta">{rule.field_group}</span></td>
-        <td><span>{formatDate(rule.last_seen_at)}</span><span className="ai-learning-meta">Auto: {formatDate(rule.last_auto_updated_at)}</span>{rule.auto_update_locked_by && <span className="ai-learning-meta">Lock: {rule.auto_update_locked_by}</span>}</td>
+        <td><strong>{rule.occurrence_count}× correction</strong><span className="ai-learning-meta">{rule.applied_count || 0} draft guna · {rule.changed_draft_count || 0} draft dibetulkan</span><span className="ai-learning-meta">{rule.field_group}</span></td>
+        <td><span>{formatDate(rule.last_seen_at)}</span><span className="ai-learning-meta">Auto: {formatDate(rule.last_auto_updated_at)}</span><span className="ai-learning-meta">Diguna: {formatDate(rule.last_applied_at)}</span>{rule.auto_update_locked_by && <span className="ai-learning-meta">Lock: {rule.auto_update_locked_by}</span>}</td>
         <td><div className="ai-learning-action-list">{canManage && <>
           {rule.status === 'active'
             ? <button className="ai-learning-action" disabled={Boolean(busyKey)} onClick={() => ruleAction(rule, 'deactivate')}>Deactivate</button>
@@ -332,7 +387,14 @@ export default function AiLearningSettings() {
           <button className="ai-learning-action warning" disabled={Boolean(busyKey) || !rollbackableRuleIds.has(rule.id)} onClick={() => ruleAction(rule, 'rollback')}>Rollback</button>
           {rule.status === 'candidate' && <button className="ai-learning-action danger" disabled={Boolean(busyKey)} onClick={() => ruleAction(rule, 'reject')}>Reject</button>}
         </>}</div></td>
-      </tr>)}{rules.length === 0 && <tr><td colSpan={5} className="ai-learning-empty">Tiada rule untuk filter ini.</td></tr>}</tbody></table></div>
+      </tr>{expandedRuleId === rule.id && <tr className="ai-learning-detail-row"><td colSpan={5}><div className="ai-learning-rule-detail">
+        <div className="ai-learning-detail-grid">
+          <section className="ai-learning-detail-card"><h3>Arahan sebenar kepada AI</h3><pre>{rule.instruction || `[${rule.strategy_key}] ${rule.lesson}`}</pre><p>Rule aktif dimasukkan ke prompt jika model AI tersedia, dan tetap dikuatkuasakan terus oleh rule engine untuk prepaid, pickup serta QRPay.</p></section>
+          <section className="ai-learning-detail-card"><h3>Status penggunaan</h3><p><strong>{rule.applied_count || 0}</strong> draft menggunakan rule ini.</p><p><strong>{rule.changed_draft_count || 0}</strong> draft mempunyai nilai yang dibetulkan terus.</p><p>Kaedah terkini: <strong>{rule.application_method ? methodLabel(rule.application_method) : 'Belum digunakan selepas update'}</strong></p><p>Digunakan terakhir: <strong>{formatDate(rule.last_applied_at)}</strong></p></section>
+        </div>
+        <section className="ai-learning-detail-card ai-learning-example-card"><h3>Contoh correction admin yang membentuk rule ({rule.examples?.length || 0})</h3>{rule.examples?.length ? <table className="ai-learning-example-table"><thead><tr><th>Field</th><th>AI asal</th><th>Admin betulkan</th></tr></thead><tbody>{[...rule.examples].reverse().slice(0, 10).map((example, index) => <tr key={`${rule.id}-${index}`}><td><span className="ai-learning-code">{example.field_path || '—'}</span></td><td><span className="ai-learning-value before">{formatValue(example.ai_value)}</span></td><td><span className="ai-learning-value after">{formatValue(example.human_value)}</span></td></tr>)}</tbody></table> : <p>Belum ada contoh correction.</p>}</section>
+        {rule.last_changes?.length > 0 && <section className="ai-learning-detail-card ai-learning-example-card"><h3>Perubahan sebenar pada draft terakhir</h3><table className="ai-learning-example-table"><thead><tr><th>Field</th><th>Sebelum</th><th>Selepas</th><th>Sebab</th></tr></thead><tbody>{rule.last_changes.map((change, index) => <tr key={`${rule.id}-change-${index}`}><td><span className="ai-learning-code">{change.field}</span></td><td><span className="ai-learning-value before">{formatValue(change.before)}</span></td><td><span className="ai-learning-value after">{formatValue(change.after)}</span></td><td>{change.reason}</td></tr>)}</tbody></table></section>}
+      </div></td></tr>}</Fragment>)}{rules.length === 0 && <tr><td colSpan={5} className="ai-learning-empty">Tiada rule untuk filter ini.</td></tr>}</tbody></table></div>
     </section>}
 
     {tab === 'history' && <section className="panel ai-learning-table-panel"><div className="panel-header"><div><div className="panel-title">Version & rollback history</div><div className="panel-subtitle">Setiap perubahan rule menyimpan snapshot sebelum dan selepas update.</div></div></div><div className="ai-learning-table-wrap"><table className="ai-learning-table"><thead><tr><th>Masa</th><th>Rule</th><th>Perubahan</th><th>Actor</th><th>Rollback</th></tr></thead><tbody>{dashboard.history.map((entry) => {
@@ -342,6 +404,8 @@ export default function AiLearningSettings() {
     })}{dashboard.history.length === 0 && <tr><td colSpan={5} className="ai-learning-empty">Belum ada history.</td></tr>}</tbody></table></div></section>}
 
     {tab === 'corrections' && <section className="panel ai-learning-table-panel"><div className="panel-header"><div><div className="panel-title">Admin correction log</div><div className="panel-subtitle">Nilai asal AI dibandingkan dengan nilai yang admin sahkan.</div></div></div><div className="ai-learning-table-wrap"><table className="ai-learning-table"><thead><tr><th>Masa / customer</th><th>Field</th><th>AI draft</th><th>Admin betulkan</th><th>Rule</th></tr></thead><tbody>{dashboard.corrections.map((correction) => <tr key={correction.id}><td><strong>{correction.qrpay_order_drafts?.customer_name || 'Customer'}</strong><span className="ai-learning-meta">{formatDate(correction.created_at)}</span>{correction.qrpay_order_drafts?.order_no && <span className="ai-learning-code">{correction.qrpay_order_drafts.order_no}</span>}</td><td><span className="ai-learning-code">{correction.field_path}</span><span className="ai-learning-meta">{correction.correction_type}</span></td><td><span className="ai-learning-value before">{formatValue(correction.ai_value)}</span></td><td><span className="ai-learning-value after">{formatValue(correction.human_value)}</span></td><td><strong>{correction.qrpay_ai_learning_rules?.title || correction.strategy_key}</strong>{correction.qrpay_ai_learning_rules && <span className={`ai-learning-badge ${correction.qrpay_ai_learning_rules.status}`}>{STATUS_LABEL[correction.qrpay_ai_learning_rules.status]}</span>}{correction.qrpay_ai_learning_rules?.auto_update_locked && <span className="ai-learning-badge locked">Locked</span>}</td></tr>)}{dashboard.corrections.length === 0 && <tr><td colSpan={5} className="ai-learning-empty">Belum ada correction.</td></tr>}</tbody></table></div></section>}
+
+    {tab === 'applications' && <section className="panel ai-learning-table-panel"><div className="panel-header"><div><div className="panel-title">Bukti penggunaan rule pada draft sebenar</div><div className="panel-subtitle">{summary.learned_drafts || 0} draft diproses · {summary.rule_engine_drafts || 0} rule engine · {summary.prompted_drafts || 0} prompt AI.</div></div></div><div className="ai-learning-table-wrap"><table className="ai-learning-table"><thead><tr><th>Masa / customer</th><th>Flow</th><th>Rule / kaedah</th><th>Perubahan sebenar</th><th>Draft</th></tr></thead><tbody>{dashboard.applications.map((application, index) => <tr key={`${application.draft_id}-${application.rule_id}-${index}`}><td><strong>{application.customer_name || 'Customer'}</strong><span className="ai-learning-meta">{formatDate(application.created_at)}</span></td><td><span className="ai-learning-badge active">{flowLabel(application.source_type)}</span></td><td><strong>{application.title || application.strategy_key}</strong><span className="ai-learning-code">{application.strategy_key}</span><span className="ai-learning-meta">{methodLabel(application.application_method)}</span></td><td>{application.changes.length ? application.changes.slice(0, 3).map((change, changeIndex) => <span key={`${application.draft_id}-${change.field}-${changeIndex}`} className="ai-learning-applied-change"><span className="ai-learning-code">{change.field}</span><span><span className="ai-learning-value before">{formatValue(change.before)}</span> → <span className="ai-learning-value after">{formatValue(change.after)}</span></span></span>) : <span className="ai-learning-meta">Rule diperiksa; tiada pembetulan diperlukan</span>}</td><td><span className="ai-learning-code">{application.request_key || application.draft_id}</span></td></tr>)}{dashboard.applications.length === 0 && <tr><td colSpan={5} className="ai-learning-empty">Belum ada draft baru selepas rule engine diaktifkan.</td></tr>}</tbody></table></div></section>}
 
     {tab === 'runs' && <section className="panel ai-learning-table-panel"><div className="panel-header"><div><div className="panel-title">Weekly update runs</div><div className="panel-subtitle">Log auto update, manual run dan status WhatsApp admin.</div></div></div><div className="ai-learning-table-wrap"><table className="ai-learning-table"><thead><tr><th>Masa</th><th>Trigger</th><th>Draft / correction</th><th>Rule update</th><th>WhatsApp admin</th></tr></thead><tbody>{dashboard.runs.map((run) => <tr key={run.id}><td><strong>{formatDate(run.started_at)}</strong><span className="ai-learning-meta">{run.status}</span></td><td><span className={`ai-learning-badge ${run.trigger_source === 'scheduled' ? 'active' : 'candidate'}`}>{run.trigger_source === 'scheduled' ? 'Auto mingguan' : 'Manual'}</span><span className="ai-learning-meta">{run.actor}</span></td><td><strong>{run.drafts_reviewed} draft</strong><span className="ai-learning-meta">{run.corrections_reviewed} corrections</span></td><td><strong>{run.activated_rules} aktif · {run.updated_rules} update</strong><span className="ai-learning-meta">{run.skipped_locked_rules} locked dilangkau</span></td><td><span className={`ai-learning-badge ${run.notification_status === 'sent' ? 'active' : run.notification_status === 'failed' ? 'rejected' : 'candidate'}`}>{run.notification_status}</span>{run.notification_error && <span className="ai-learning-meta ai-learning-error-text">{run.notification_error}</span>}{run.notification_status === 'failed' && canManage && <button className="ai-learning-action" disabled={Boolean(busyKey)} onClick={() => void mutate(`retry-${run.id}`, { action: 'retry_notification', run_id: run.id }, 'Notifikasi WhatsApp dihantar semula.')}>Retry WhatsApp</button>}</td></tr>)}{dashboard.runs.length === 0 && <tr><td colSpan={5} className="ai-learning-empty">Belum ada weekly run.</td></tr>}</tbody></table></div></section>}
   </div>;

@@ -102,10 +102,10 @@ function unwrap<T>(result: { data: T | null; error: { message: string } | null }
 }
 
 async function overview() {
-  const [settings, rules, runs, history, corrections] = await Promise.all([
+  const [settings, rules, runs, history, corrections, recentDrafts] = await Promise.all([
     db.from("qrpay_ai_learning_settings").select("*").eq("singleton", true).single(),
     db.from("qrpay_ai_learning_rules")
-      .select("id,signature,strategy_key,field_group,title,lesson,status,occurrence_count,first_seen_at,last_seen_at,activated_at,activated_by,updated_at,auto_update_locked,auto_update_locked_at,auto_update_locked_by,last_auto_updated_at,rule_version")
+      .select("id,signature,strategy_key,field_group,title,lesson,status,occurrence_count,examples,metadata,first_seen_at,last_seen_at,activated_at,activated_by,updated_at,auto_update_locked,auto_update_locked_at,auto_update_locked_by,last_auto_updated_at,rule_version")
       .order("occurrence_count", { ascending: false })
       .order("last_seen_at", { ascending: false }),
     db.from("qrpay_ai_learning_runs")
@@ -120,13 +120,63 @@ async function overview() {
       .select("id,draft_id,field_path,correction_type,ai_value,human_value,strategy_key,learning_rule_id,created_at,qrpay_order_drafts(customer_name,request_key,order_no),qrpay_ai_learning_rules(title,status,auto_update_locked)")
       .order("created_at", { ascending: false })
       .limit(40),
+    db.from("qrpay_order_drafts")
+      .select("id,source_type,request_key,customer_name,created_at,learning:evidence->learning")
+      .order("created_at", { ascending: false })
+      .limit(80),
   ]);
 
   const settingsData = unwrap(settings, "Settings");
-  const ruleRows = unwrap(rules, "Rules") || [];
+  const rawRuleRows = unwrap(rules, "Rules") || [];
   const runRows = unwrap(runs, "Runs") || [];
   const historyRows = unwrap(history, "History") || [];
   const correctionRows = unwrap(corrections, "Corrections") || [];
+  const draftRows = unwrap(recentDrafts, "Recent drafts") || [];
+  const applications: JsonObject[] = [];
+  let learnedDrafts = 0;
+  let promptedDrafts = 0;
+
+  for (const draft of draftRows) {
+    const learning = draft.learning as JsonObject | null;
+    if (!learning || !Array.isArray(learning.rules)) continue;
+    learnedDrafts++;
+    if (learning.prompt_injected) promptedDrafts++;
+    for (const value of learning.rules) {
+      const rule = value as JsonObject;
+      const changes = Array.isArray(rule.changes) ? rule.changes : [];
+      applications.push({
+        draft_id: draft.id,
+        request_key: draft.request_key,
+        customer_name: draft.customer_name,
+        source_type: draft.source_type,
+        created_at: draft.created_at,
+        rule_id: rule.id,
+        strategy_key: rule.strategy_key,
+        title: rule.title,
+        application_method: rule.application_method || learning.mode || "rule_engine",
+        prompt_injected: Boolean(learning.prompt_injected),
+        changes,
+        change_count: changes.length,
+      });
+    }
+  }
+
+  const ruleRows = rawRuleRows.map((rule) => {
+    const matching = applications.filter((application) =>
+      application.rule_id === rule.id || application.strategy_key === rule.strategy_key
+    );
+    const latest = matching[0];
+    return {
+      ...rule,
+      examples: Array.isArray(rule.examples) ? rule.examples : [],
+      applied_count: matching.length,
+      changed_draft_count: matching.filter((application) => Number(application.change_count || 0) > 0).length,
+      last_applied_at: latest?.created_at || null,
+      application_method: latest?.application_method || null,
+      last_changes: Array.isArray(latest?.changes) ? latest.changes : [],
+      instruction: `[${text(rule.strategy_key)}] ${text(rule.lesson) || text(rule.title)}`,
+    };
+  });
 
   return {
     settings: settingsData,
@@ -134,6 +184,7 @@ async function overview() {
     runs: runRows,
     history: historyRows,
     corrections: correctionRows,
+    applications: applications.slice(0, 160),
     summary: {
       total_rules: ruleRows.length,
       active_rules: ruleRows.filter((rule) => rule.status === "active").length,
@@ -141,6 +192,9 @@ async function overview() {
       rejected_rules: ruleRows.filter((rule) => rule.status === "rejected").length,
       locked_rules: ruleRows.filter((rule) => rule.auto_update_locked).length,
       latest_correction_at: correctionRows[0]?.created_at || null,
+      learned_drafts: learnedDrafts,
+      prompted_drafts: promptedDrafts,
+      rule_engine_drafts: learnedDrafts - promptedDrafts,
     },
   };
 }

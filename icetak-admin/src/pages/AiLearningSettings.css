@@ -222,6 +222,97 @@
   line-height: 1.45;
 }
 
+.ai-learning-detail-link {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  color: #2563eb;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ai-learning-detail-link:hover {
+  text-decoration: underline;
+}
+
+.ai-learning-detail-row > td {
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.ai-learning-rule-detail {
+  display: grid;
+  gap: 12px;
+}
+
+.ai-learning-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ai-learning-detail-card {
+  padding: 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.ai-learning-detail-card h3 {
+  margin: 0 0 10px;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.ai-learning-detail-card p {
+  margin: 7px 0 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ai-learning-detail-card pre {
+  margin: 0;
+  padding: 12px;
+  overflow-wrap: anywhere;
+  border-radius: 9px;
+  color: #1e3a8a;
+  background: #eff6ff;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap;
+}
+
+.ai-learning-example-card {
+  overflow-x: auto;
+}
+
+.ai-learning-example-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+}
+
+.ai-learning-example-table th,
+.ai-learning-example-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #edf2f7;
+  text-align: left;
+  font-size: 11px;
+}
+
+.ai-learning-example-table th {
+  color: #475569;
+  background: #f8fafc;
+}
+
+.ai-learning-applied-change {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
 .ai-learning-badge {
   display: inline-flex !important;
   align-items: center;
@@ -325,6 +416,10 @@
   }
 
   .ai-learning-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-learning-detail-grid {
     grid-template-columns: 1fr;
   }
 
