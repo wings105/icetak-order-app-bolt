@@ -16,13 +16,7 @@ const navItems: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: IconDashboard },
   { key: 'orders', label: 'Orders', icon: IconOrders },
   { key: 'customers', label: 'Customers CRM', icon: IconStaff },
-  {
-    key: 'create-orders', label: 'Create Order', icon: IconOrders,
-    children: [
-      { key: 'quick-order', label: 'Quick Order' },
-      { key: 'manual-order', label: 'Manual Order' },
-    ],
-  },
+  { key: 'create-order', label: 'Create Order', icon: IconOrders },
   { key: 'payments', label: 'Payments', icon: IconPayments },
   { key: 'finance', label: 'Finance', icon: IconFinance },
   { key: 'qrpay-summary', label: 'QRPay Daily', icon: IconPayments },

@@ -6,8 +6,7 @@ import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
 import Customers from './pages/Customers';
-import QuickOrder, { type LinkedQrPayment } from './pages/QuickOrder';
-import ManualOrder from './pages/ManualOrder';
+import type { LinkedQrPayment } from './pages/CreateOrder';
 import Payments from './pages/Payments';
 import Finance from './pages/Finance';
 import QrPayDailySummary, { type QrPayCreatePayload } from './pages/QrPayDailySummary';
@@ -22,13 +21,13 @@ import StaffRoles from './pages/StaffRoles';
 import Settings from './pages/Settings';
 
 const AiLearningSettings = lazy(() => import('./pages/AiLearningSettings'));
+const CreateOrder = lazy(() => import('./pages/CreateOrder'));
 
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Order Control Tower', subtitle: 'Business Overview' },
   orders: { title: 'Orders', subtitle: 'Full order lifecycle' },
   customers: { title: 'Customer CRM', subtitle: 'Customer 360° & relationship management' },
-  'quick-order': { title: 'Quick Order', subtitle: 'Counter & auto-priced orders' },
-  'manual-order': { title: 'Manual Order', subtitle: 'Custom item & price' },
+  'create-order': { title: 'Create Order', subtitle: 'Prepaid, cash counter, QRPay & custom pricing' },
   payments: { title: 'Payments Center', subtitle: 'Transactions' },
   finance: { title: 'Finance', subtitle: 'Bank, wallet & accounting' },
   'qrpay-summary': { title: 'QRPay Daily', subtitle: 'Daily payment control' },
@@ -63,13 +62,14 @@ export default function App({ adminData }: Props) {
     customerName:initialParams.get('qrpay_name')||'',
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
-  const [page, setPage] = useState(linkedOrder ? 'orders' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : linkedView === 'draft-orders' ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : linkedView==='quick-order'&&initialPayment?'quick-order':'dashboard');
+  const [page, setPage] = useState(linkedOrder ? 'orders' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : linkedView === 'draft-orders' ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [linkedPayment,setLinkedPayment]=useState<LinkedQrPayment|null>(initialPayment);
   const permissions = adminData?.admin?.permissions || [];
   const canViewCustomers = permissions.includes('view_customers') || permissions.includes('manage_customers') || permissions.includes('manage_admins');
 
   const navigate = (key: string) => {
+    if (key === 'quick-order' || key === 'manual-order') key = 'create-order';
     setLinkedPayment(null);
     const url = new URL(window.location.href);
     if (key !== 'orders') url.searchParams.delete('order');
@@ -78,6 +78,7 @@ export default function App({ adminData }: Props) {
     else if (key === 'qrpay-summary') url.searchParams.set('view','qrpay-summary');
     else if (key === 'draft-orders') url.searchParams.set('view','draft-orders');
     else if (key === 'ai-learning') url.searchParams.set('view','ai-learning');
+    else if (key === 'create-order') url.searchParams.set('view','create-order');
     else { url.searchParams.delete('view'); url.searchParams.delete('date'); }
     ['qrpay_tx','qrpay_amount','qrpay_phone','qrpay_name','qrpay_paid_at'].forEach((param)=>url.searchParams.delete(param));
     window.history.replaceState({}, '', url);
@@ -86,13 +87,13 @@ export default function App({ adminData }: Props) {
   const createOrderFromQrPay=(payment:QrPayCreatePayload)=>{
     setLinkedPayment(payment);
     const url=new URL(window.location.href);
-    url.searchParams.set('admin','v2');url.searchParams.set('view','quick-order');
+    url.searchParams.set('admin','v2');url.searchParams.set('view','create-order');
     url.searchParams.set('qrpay_tx',payment.transactionId);url.searchParams.set('qrpay_amount',String(payment.amount));
     url.searchParams.set('qrpay_phone',payment.phone);url.searchParams.set('qrpay_name',payment.customerName);
     url.searchParams.set('qrpay_paid_at',payment.paidAt);
     url.searchParams.delete('date');url.searchParams.delete('order');url.searchParams.delete('customer');
     window.history.replaceState({},'',url);
-    setPage('quick-order');setMobileOpen(false);
+    setPage('create-order');setMobileOpen(false);
   };
   const openOrder = (orderNo: string) => {
     const url = new URL(window.location.href);
@@ -116,15 +117,14 @@ export default function App({ adminData }: Props) {
   const info = pageMap[page] || pageMap.dashboard;
   const renderPage = () => {
     switch (page) {
-      case 'dashboard': return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
+      case 'dashboard': return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'orders': return <Orders permissions={permissions} initialOrder={linkedOrder} />;
-      case 'customers': return canViewCustomers ? <Customers permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
-      case 'quick-order': return <QuickOrder permissions={permissions} onOpenOrder={openOrder} linkedPayment={linkedPayment} />;
-      case 'manual-order': return <ManualOrder permissions={permissions} onOpenOrder={openOrder} />;
+      case 'customers': return canViewCustomers ? <Customers permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      case 'create-order': return <Suspense fallback={<div style={{padding:24}}>Loading Create Order...</div>}><CreateOrder key={linkedPayment?.transactionId||'new-order'} permissions={permissions} onOpenOrder={openOrder} onOpenDrafts={()=>navigate('draft-orders')} linkedPayment={linkedPayment} /></Suspense>;
       case 'payments': return <Payments onOpenOrder={openOrder} />;
-      case 'finance': return permissions.includes('view_finance') ? <Finance canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
-      case 'draft-orders': return permissions.includes('view_finance') ? <DraftOrders canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
-      case 'qrpay-summary': return permissions.includes('view_finance') ? <QrPayDailySummary canManage={permissions.includes('manage_finance')} onCreateOrder={permissions.includes('create_order')&&permissions.includes('verify_payments')?createOrderFromQrPay:undefined} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
+      case 'finance': return permissions.includes('view_finance') ? <Finance canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      case 'draft-orders': return permissions.includes('view_finance') ? <DraftOrders canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} onCreateOrder={()=>navigate('create-order')} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      case 'qrpay-summary': return permissions.includes('view_finance') ? <QrPayDailySummary canManage={permissions.includes('manage_finance')} onCreateOrder={permissions.includes('create_order')&&permissions.includes('verify_payments')?createOrderFromQrPay:undefined} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'shipping': return <Shipping />;
       case 'clickup-queue': return <ClickUpQueue permissions={permissions} onOpenOrder={openOrder} />;
       case 'whatsapp-control': return <WhatsAppControl />;
@@ -135,8 +135,8 @@ export default function App({ adminData }: Props) {
       case 'settings': return <Settings permissions={permissions} onOpenAiLearning={() => navigate('ai-learning')} />;
       case 'ai-learning': return permissions.includes('view_finance') || permissions.includes('manage_admins')
         ? <Suspense fallback={<div style={{ padding: 24 }}>Loading AI Learning...</div>}><AiLearningSettings /></Suspense>
-        : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
-      default: return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
+        : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      default: return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
     }
   };
 

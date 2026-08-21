@@ -115,7 +115,7 @@ export default function Dashboard({ onQuickOrder, onOpenOrder }: Props) {
   return <div className="fade-in">
     <div className="page-header">
       <div><div className="page-label">Dashboard</div><h1 className="page-title">Business Overview</h1><p className="page-subtitle">Live dari Supabase Order System · sumber yang sama dengan Orders Work Queue.</p></div>
-      <button className="btn btn-primary btn-lg" onClick={onQuickOrder}><IconPlus size={16} /> Quick Order</button>
+      <button className="btn btn-primary btn-lg" onClick={onQuickOrder}><IconPlus size={16} /> Create Order</button>
     </div>
 
     <div className="stat-row">

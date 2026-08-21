@@ -28,7 +28,7 @@ async function draftControl<T>(body:Record<string,unknown>){
   if(error)throw new Error(error.message);
   return data as ApiResponse<T>;
 }
-export default function DraftOrders({canManage=false,onOpenOrder}:{canManage?:boolean;onOpenOrder?:(orderNo:string)=>void}){
+export default function DraftOrders({canManage=false,onOpenOrder,onCreateOrder}:{canManage?:boolean;onOpenOrder?:(orderNo:string)=>void;onCreateOrder?:()=>void}){
   const [data,setData]=useState<DraftData>({counts:{all:0,linked:0,unlinked:0},drafts:[]});
   const [query,setQuery]=useState('');const [status,setStatus]=useState('');
   const [loading,setLoading]=useState(true);const [busy,setBusy]=useState<string|null>(null);
@@ -64,7 +64,7 @@ export default function DraftOrders({canManage=false,onOpenOrder}:{canManage?:bo
     setBusy(d.id);setError('');try{const r=await draftControl<Draft>({action:'set_flow',review_token:d.review_token,delivery:f.delivery,payment_mode:f.payment_mode});if(!r.success)throw new Error(r.error||'Update draft flow failed');await load()}catch(e){setError(e instanceof Error?e.message:'Update draft flow failed')}finally{setBusy(null)}};
   const flow=(d:Draft)=>flows[d.id]||{delivery:d.delivery&&d.delivery!=='unknown'?d.delivery:'pickup',payment_mode:d.payment_mode||'prepaid'};
   return <div className="draft-orders-page">
-    <div className="draft-orders-head"><div><h1>Draft Orders</h1><p>Draft boleh datang daripada trigger atau dibuat manual. Semak flow, edit dan approve sebelum production.</p></div><div className="draft-head-actions">{canManage&&<button className="btn btn-primary" onClick={()=>{setCreateForm(defaultManual);setCreateOpen(true)}}>+ Create Manual Draft</button>}<button className="btn btn-outline" onClick={()=>void load()} disabled={loading}><IconRefresh size={16}/> Refresh</button></div></div>
+    <div className="draft-orders-head"><div><h1>Draft Orders</h1><p>Draft boleh datang daripada trigger atau dibuat melalui Create Order. Semak flow, edit dan approve sebelum production.</p></div><div className="draft-head-actions">{canManage&&<button className="btn btn-primary" onClick={()=>onCreateOrder?onCreateOrder():(setCreateForm(defaultManual),setCreateOpen(true))}>+ Create Order</button>}<button className="btn btn-outline" onClick={()=>void load()} disabled={loading}><IconRefresh size={16}/> Refresh</button></div></div>
     <div className="draft-stats"><div><span>Active Draft</span><b>{data.counts.all}</b></div><div><span>QRPay Linked</span><b>{data.counts.linked}</b></div><div><span>Belum Linked</span><b>{data.counts.unlinked}</b></div></div>
     <div className="draft-tools"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cari nama, phone, @username, user ID atau transaction…"/><select value={status} onChange={e=>setStatus(e.target.value)}><option value="">Semua status</option><option value="pending_admin">Pending Admin</option><option value="awaiting_payment">Awaiting Payment</option><option value="customer_review">Customer Review</option></select></div>
     {error&&<div className="draft-error">{error}</div>}
