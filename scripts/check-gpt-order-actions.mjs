@@ -220,6 +220,12 @@ assert.equal(schema.openapi, '3.1.0');
 assert.equal(schema.components.securitySchemes.IcetakGptToken.name, 'x-icetak-gpt-token');
 assert.equal(Object.keys(schema.paths).length, 5);
 assert.equal(schema.paths['/functions/v1/gpt-order-actions/orders'].post['x-openai-isConsequential'], true);
+for (const route of ['/functions/v1/gpt-order-actions/preview', '/functions/v1/gpt-order-actions/orders']) {
+  const reference = schema.paths[route].post.requestBody.content['application/json'].schema.$ref;
+  const component = schema.components.schemas[reference.split('/').at(-1)];
+  assert.equal(component.type, 'object', `${route} requestBody must directly resolve to an object for GPT Actions`);
+  assert.equal(component.allOf, undefined, `${route} requestBody cannot depend on root-level allOf composition`);
+}
 assert.equal(JSON.stringify(schema).includes(TEST_TOKEN), false, 'API tokens never appear in public schema');
 
 console.log(`PASS GPT Actions: token security, ${catalog.body.products.length} products, identity lookup, preview, prepaid, pickup, paid, QRPay, custom items and OpenAPI schema`);

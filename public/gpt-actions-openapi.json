@@ -126,23 +126,24 @@
         }
       },
       "OrderCreateRequest": {
-        "allOf": [
-          { "$ref": "#/components/schemas/OrderPreviewRequest" },
-          {
-            "type": "object",
-            "required": ["operation", "request_id", "confirmed", "date_need"],
-            "properties": {
-              "operation": { "type": "string", "enum": ["save_draft", "send_customer", "confirm_pickup", "confirm_paid", "confirm_qrpay"] },
-              "request_id": { "type": "string", "format": "uuid", "description": "Reuse the exact UUID returned by previewIcetakOrder" },
-              "confirmed": { "type": "boolean", "description": "Set true only after the admin explicitly confirmed this exact order" },
-              "date_need": { "type": "string", "format": "date" },
-              "payment_method": { "type": "string", "enum": ["bank_transfer", "card", "other", "qr_pay_manual"] },
-              "payment_reference": { "type": "string" },
-              "transaction_id": { "type": "string", "description": "Exact QRPay transaction ID for confirm_qrpay" },
-              "confirm_mismatch": { "type": "boolean" }
-            }
-          }
-        ]
+        "type": "object",
+        "required": ["customer", "items", "delivery", "payment_flow", "date_need", "operation", "request_id", "confirmed"],
+        "properties": {
+          "customer": { "$ref": "#/components/schemas/Customer" },
+          "items": { "type": "array", "minItems": 1, "maxItems": 30, "items": { "$ref": "#/components/schemas/OrderItem" } },
+          "delivery": { "type": "string", "enum": ["pickup", "spx", "jnt", "ninja"] },
+          "payment_flow": { "type": "string", "enum": ["prepaid", "cash_counter", "paid", "qrpay"] },
+          "date_need": { "type": "string", "format": "date" },
+          "delivery_fee": { "type": "number", "minimum": 0 },
+          "price_adjustments": { "$ref": "#/components/schemas/PriceAdjustments" },
+          "operation": { "type": "string", "enum": ["save_draft", "send_customer", "confirm_pickup", "confirm_paid", "confirm_qrpay"] },
+          "request_id": { "type": "string", "format": "uuid", "description": "Reuse the exact UUID returned by previewIcetakOrder" },
+          "confirmed": { "type": "boolean", "description": "Set true only after the admin explicitly confirmed this exact order" },
+          "payment_method": { "type": "string", "enum": ["bank_transfer", "card", "other", "qr_pay_manual"] },
+          "payment_reference": { "type": "string" },
+          "transaction_id": { "type": "string", "description": "Exact QRPay transaction ID for confirm_qrpay" },
+          "confirm_mismatch": { "type": "boolean" }
+        }
       }
     }
   }
