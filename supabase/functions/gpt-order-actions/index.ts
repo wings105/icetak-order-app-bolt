@@ -476,15 +476,35 @@ async function preview(body: JsonObject) {
   });
 }
 
+async function automaticRequestId(payload: JsonObject, flow: string) {
+  // Keep retries for the same normalized order idempotent without requiring GPT
+  // to preserve a preview UUID across separate conversational turns.
+  const tenMinuteWindow = Math.floor(Date.now() / 600_000);
+  const digest = await sha256(JSON.stringify({ version: 1, window: tenMinuteWindow, flow, payload }));
+  const compact = `${digest.slice(0, 12)}4${digest.slice(13, 16)}a${digest.slice(17, 32)}`;
+  return `${compact.slice(0, 8)}-${compact.slice(8, 12)}-${compact.slice(12, 16)}-${compact.slice(16, 20)}-${compact.slice(20, 32)}`;
+}
+
 async function createOrder(body: JsonObject) {
-  if (body.confirmed !== true) throw new ActionError("Explicit user confirmation is required before creating a draft or order", 409);
-  const requestId = str(body.request_id, 40);
-  if (!/^[a-f0-9-]{36}$/i.test(requestId)) throw new ActionError("Use the request_id returned by previewOrder");
-  const operation = str(body.operation, 40);
+  if (body.confirmed === false) throw new ActionError("Order creation was explicitly declined", 409);
+  const prepared = await prepare(body, true);
+  const defaultOperation = prepared.flow === "cash_counter"
+    ? "confirm_pickup"
+    : prepared.flow === "paid"
+    ? "confirm_paid"
+    : prepared.flow === "qrpay"
+    ? "confirm_qrpay"
+    : "save_draft";
+  const operation = str(body.operation, 40) || defaultOperation;
   if (!["save_draft", "send_customer", "confirm_pickup", "confirm_paid", "confirm_qrpay"].includes(operation)) {
     throw new ActionError("Invalid order operation");
   }
-  const prepared = await prepare(body, true);
+  if (isObject(prepared.payload.evidence)) prepared.payload.evidence.user_confirmed = true;
+  const suppliedRequestId = str(body.request_id, 40);
+  if (suppliedRequestId && !/^[a-f0-9-]{36}$/i.test(suppliedRequestId)) {
+    throw new ActionError("Request ID must be a UUID when supplied");
+  }
+  const requestId = suppliedRequestId || await automaticRequestId(prepared.payload, prepared.flow);
   if (operation === "confirm_pickup" && prepared.flow !== "cash_counter") throw new ActionError("Pickup confirmation requires cash_counter payment flow");
   if (operation === "confirm_paid" && prepared.flow !== "paid") throw new ActionError("Paid confirmation requires paid payment flow");
   if (operation === "confirm_qrpay" && prepared.flow !== "qrpay") throw new ActionError("QRPay confirmation requires qrpay payment flow");
@@ -544,7 +564,21 @@ async function createOrder(body: JsonObject) {
     p_actor: ACTOR,
   });
 
-  const common = { success: true, request_id: requestId, draft_id: draft.id, draft_total: Number(draft.draft_total || 0), payment_flow: prepared.flow, review_link: reviewLink };
+  const common = {
+    success: true,
+    request_id: requestId,
+    draft_id: draft.id,
+    draft_total: Number(draft.draft_total || 0),
+    payment_flow: prepared.flow,
+    review_link: reviewLink,
+    preview: {
+      customer: { name: prepared.customerName, phone: prepared.phone || null, bsuid: prepared.bsuid || null },
+      items: prepared.payload.items,
+      delivery: prepared.payload.delivery,
+      date_need: prepared.dateNeed,
+      totals: prepared.totals,
+    },
+  };
   if (operation === "save_draft") return json({ ...common, state: "draft_created" });
   if (common.draft_total <= 0) throw new ActionError("Order total must be more than RM0");
 

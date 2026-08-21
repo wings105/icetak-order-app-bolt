@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "iCetak Order Actions",
-    "description": "Private iCetak admin assistant. Look up an exact customer, read live catalog prices, preview an order, and only create a draft or order after explicit admin confirmation.",
-    "version": "1.0.0"
+    "description": "Private iCetak admin assistant. Look up customers, read live prices, and create a requested draft or order directly in one authenticated action.",
+    "version": "1.1.0"
   },
   "servers": [{ "url": "https://buivecgahhmrhlmfujgt.supabase.co" }],
   "security": [{ "IcetakGptToken": [] }],
@@ -44,7 +44,8 @@
       "post": {
         "operationId": "previewIcetakOrder",
         "summary": "Calculate a live-priced draft without creating anything",
-        "description": "Always run first. Show the customer, every item, delivery, discount and final total. Keep its request_id for the confirmed order call.",
+        "description": "Optional read-only quotation. Use only when the admin asks to preview, quote or calculate without creating an order.",
+        "x-openai-isConsequential": false,
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OrderPreviewRequest" } } } },
         "responses": { "200": { "description": "Calculated preview, missing fields and reusable request_id" } }
       }
@@ -52,11 +53,11 @@
     "/functions/v1/gpt-order-actions/orders": {
       "post": {
         "operationId": "createIcetakOrder",
-        "summary": "Create a confirmed draft, send prepaid review or finalize an authorized paid/pickup order",
-        "description": "This action writes production records. Call only after the admin explicitly confirms the preview and the chosen operation. Reuse the exact preview request_id to prevent duplicate orders.",
-        "x-openai-isConsequential": true,
+        "summary": "Create the requested draft or order directly with its calculated preview in one action",
+        "description": "When the admin asks to create or buat an order, call directly without a separate preview or another confirmation. Pickup cash creates the order; prepaid saves a draft. Request IDs and duplicate protection are automatic.",
+        "x-openai-isConsequential": false,
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OrderCreateRequest" } } } },
-        "responses": { "200": { "description": "Created draft, delivered review or finalized production order" }, "409": { "description": "Admin confirmation or payment mismatch confirmation is required" } }
+        "responses": { "200": { "description": "Calculated order preview and its created draft, delivered review or finalized production order" }, "409": { "description": "Payment amount mismatch needs explicit approval" } }
       }
     }
   },
@@ -127,7 +128,7 @@
       },
       "OrderCreateRequest": {
         "type": "object",
-        "required": ["customer", "items", "delivery", "payment_flow", "date_need", "operation", "request_id", "confirmed"],
+        "required": ["customer", "items", "delivery", "payment_flow", "date_need"],
         "properties": {
           "customer": { "$ref": "#/components/schemas/Customer" },
           "items": { "type": "array", "minItems": 1, "maxItems": 30, "items": { "$ref": "#/components/schemas/OrderItem" } },
@@ -136,9 +137,9 @@
           "date_need": { "type": "string", "format": "date" },
           "delivery_fee": { "type": "number", "minimum": 0 },
           "price_adjustments": { "$ref": "#/components/schemas/PriceAdjustments" },
-          "operation": { "type": "string", "enum": ["save_draft", "send_customer", "confirm_pickup", "confirm_paid", "confirm_qrpay"] },
-          "request_id": { "type": "string", "format": "uuid", "description": "Reuse the exact UUID returned by previewIcetakOrder" },
-          "confirmed": { "type": "boolean", "description": "Set true only after the admin explicitly confirmed this exact order" },
+          "operation": { "type": "string", "enum": ["save_draft", "send_customer", "confirm_pickup", "confirm_paid", "confirm_qrpay"], "description": "Optional; selected automatically from payment_flow when omitted" },
+          "request_id": { "type": "string", "format": "uuid", "description": "Optional; generated automatically with duplicate protection when omitted" },
+          "confirmed": { "type": "boolean", "description": "Optional compatibility field; omit for an order the admin already requested" },
           "payment_method": { "type": "string", "enum": ["bank_transfer", "card", "other", "qr_pay_manual"] },
           "payment_reference": { "type": "string" },
           "transaction_id": { "type": "string", "description": "Exact QRPay transaction ID for confirm_qrpay" },

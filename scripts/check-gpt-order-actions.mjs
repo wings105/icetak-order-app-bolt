@@ -178,17 +178,37 @@ assert.equal(firstPreview.body.totals.total, 28.9, 'seller deal, add-on, discoun
 assert.equal(draftsById.size, 0, 'preview has no side effects');
 
 const unconfirmed = await call('orders', { ...order(), operation: 'save_draft', request_id: firstPreview.body.request_id, confirmed: false });
-assert.equal(unconfirmed.status, 409, 'admin confirmation is mandatory');
-assert.equal(draftsById.size, 0, 'unconfirmed requests cannot create a draft');
+assert.equal(unconfirmed.status, 409, 'an explicitly declined order remains blocked');
+assert.equal(draftsById.size, 0, 'explicitly declined requests cannot create a draft');
+
+const directPickupBody = {
+  ...order('cash_counter'),
+  customer: { name: 'Direct One-Step Customer', phone: '0129554732' },
+};
+const directPickup = await call('orders', directPickupBody);
+assert.equal(directPickup.status, 200, 'a complete order can run in one authenticated action');
+assert.equal(directPickup.body.state, 'order_created');
+assert.match(directPickup.body.order_no, /^IC-PICKUP-/);
+assert.match(directPickup.body.request_id, /^[a-f0-9-]{36}$/i, 'server generates an idempotency UUID');
+assert.equal(directPickup.body.preview.customer.name, 'Direct One-Step Customer');
+const directPickupRetry = await call('orders', directPickupBody);
+assert.equal(directPickupRetry.body.duplicate, true, 'automatic request fingerprint prevents duplicate retry orders');
+assert.equal(directPickupRetry.body.request_id, directPickup.body.request_id);
+
+const directDraft = await call('orders', {
+  ...order(),
+  customer: { name: 'Direct Prepaid Customer', phone: '0129554732' },
+});
+assert.equal(directDraft.body.state, 'draft_created', 'prepaid defaults to safe draft-first creation');
 
 const saved = await call('orders', { ...order(), operation: 'save_draft', request_id: firstPreview.body.request_id, confirmed: true });
 assert.equal(saved.body.state, 'draft_created');
-assert.equal(draftsById.size, 1);
+assert.equal(draftsById.size, 3);
 assert.equal(draftsById.get(saved.body.draft_id).order_id, undefined);
 
 const sent = await call('orders', { ...order(), operation: 'send_customer', request_id: firstPreview.body.request_id, confirmed: true });
 assert.equal(sent.body.state, 'review_sent');
-assert.equal(draftsById.size, 1, 'same UUID prevents duplicate drafts');
+assert.equal(draftsById.size, 3, 'same UUID prevents duplicate drafts');
 
 const pickupBody = { ...order('cash_counter'), customer: { name: 'Hidden Phone Customer', bsuid: 'MY.2403797133469318' } };
 const pickupRequest = randomUUID();
@@ -219,7 +239,11 @@ const schema = JSON.parse(readFileSync('public/gpt-actions-openapi.json', 'utf8'
 assert.equal(schema.openapi, '3.1.0');
 assert.equal(schema.components.securitySchemes.IcetakGptToken.name, 'x-icetak-gpt-token');
 assert.equal(Object.keys(schema.paths).length, 5);
-assert.equal(schema.paths['/functions/v1/gpt-order-actions/orders'].post['x-openai-isConsequential'], true);
+assert.equal(schema.paths['/functions/v1/gpt-order-actions/orders'].post['x-openai-isConsequential'], false, 'GPT offers Always allow for the private owner action');
+assert.equal(schema.paths['/functions/v1/gpt-order-actions/preview'].post['x-openai-isConsequential'], false);
+assert.equal(schema.components.schemas.OrderCreateRequest.required.includes('request_id'), false);
+assert.equal(schema.components.schemas.OrderCreateRequest.required.includes('confirmed'), false);
+assert.equal(schema.components.schemas.OrderCreateRequest.required.includes('operation'), false);
 for (const route of ['/functions/v1/gpt-order-actions/preview', '/functions/v1/gpt-order-actions/orders']) {
   const reference = schema.paths[route].post.requestBody.content['application/json'].schema.$ref;
   const component = schema.components.schemas[reference.split('/').at(-1)];
