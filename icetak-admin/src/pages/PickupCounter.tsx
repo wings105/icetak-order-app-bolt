@@ -124,6 +124,9 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
   const [notice,setNotice]=useState('');
   const [error,setError]=useState('');
   const [preview,setPreview]=useState<{src:string;title:string}|null>(null);
+  const [cashConfirm,setCashConfirm]=useState(false);
+  const [voidConfirm,setVoidConfirm]=useState(false);
+  const [voidReason,setVoidReason]=useState('Staff tersalah rekod payment');
 
   const loadQueue=useCallback(async()=>{
     setLoading(true);setError('');
@@ -209,6 +212,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
           ? `QRPay ${money(data.amount)} sedia ada disambung semula. Tunggu transaksi dipadankan.`
           : `QRPay ${money(data.amount)} sudah disediakan. Tunggu transaksi dipadankan.`);
       if(method==='cash'){
+        setCashConfirm(false);
         setPaySelected(new Set());
         setHandoverSelected(new Set(readyIds));
         await loadOverview(overview.customer.id,true);
@@ -217,6 +221,22 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
     }catch(err:any){setError(err?.message==='payment_amount_in_use'
       ? 'Jumlah QR yang sama sedang digunakan checkout lain. Tunggu sesi itu tamat atau guna cash.'
       :err?.message||'Checkout gagal');}
+    finally{setBusy('');}
+  };
+
+  const voidPayment=async()=>{
+    if(!checkout?.paid||!checkout.checkoutId)return;
+    setBusy('void');setError('');setNotice('');
+    try{
+      await rpc<{ok:boolean}>('icetak_admin_void_pickup_payment',{
+        p_checkout_id:checkout.checkoutId,
+        p_reason:voidReason,
+      });
+      setVoidConfirm(false);setCheckout(null);setCheckoutReadyIds([]);
+      setPaySelected(new Set());setHandoverSelected(new Set());
+      setNotice('Payment bundle sudah di-void. Semua order kembali belum bayar dan boleh diproses semula.');
+      await loadOverview(overview!.customer.id,true);void loadQueue();
+    }catch(err:any){setError(err?.message||'Void payment gagal');}
     finally{setBusy('');}
   };
 
@@ -396,7 +416,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
           {selectedOrders.map((order)=><div className="pickup-summary-line" key={order.id}><span>{order.orderNo}{!order.ready?' · PROCESSING':''}</span><b>{money(order.balance)}</b></div>)}
           {hasProcessing?<div className="pickup-warning">Ada order belum siap dipilih. Ia akan menjadi PAID, tetapi kekal PROCESSING dan tidak boleh handover.</div>:null}
           <button className="btn btn-primary pickup-main-action" disabled={!canPay||!paySelected.size||busy!==''} onClick={()=>void createCheckout('qrpay')}>{busy==='qrpay'?'Menyediakan…':'Generate 1 QRPay'}</button>
-          <button className="btn btn-outline pickup-main-action" disabled={!canPay||!paySelected.size||busy!==''} onClick={()=>void createCheckout('cash')}>{busy==='cash'?'Merekod…':'Confirm Full Cash Payment'}</button>
+          <button className="btn pickup-pay-full pickup-main-action" disabled={!canPay||!paySelected.size||busy!==''} onClick={()=>setCashConfirm(true)}>Pay Full Cash</button>
           <div className="pickup-divider"/>
           <span className="pickup-summary-label">SECURE HANDOVER</span>
           <p>{handoverSelected.size} ready + paid order dipilih.</p>
@@ -410,6 +430,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
           <h2>{checkout.checkoutNo}</h2><button type="button" className="pickup-copy-amount" onClick={()=>void copyAmount(checkout.amount)}><strong>{money(checkout.amount)}</strong><small>Copy Amount</small></button>
           <p>{checkout.paid?`Transaction: ${checkout.transactionId||'matched'}`:'Minta customer scan QR dan bayar jumlah tepat. Sistem refresh setiap 4 saat.'}</p>
           {!checkout.paid?<div className="pickup-qr-actions"><button type="button" onClick={()=>void copyAmount(checkout.amount)}>Copy Amount</button><a href={QR_URL} target="_blank" rel="noopener" download="icetak-duitnow-qr.png">Save QR</a></div>:null}
+          {checkout.paid?<button type="button" className="pickup-void-button" disabled={busy!==''} onClick={()=>setVoidConfirm(true)}>Void / Undo Payment</button>:null}
         </div>
         {!checkout.paid?<img src={QR_URL} alt="QRPay iCetak"/>:<div className="pickup-paid-check">✓</div>}
       </section>:null}
@@ -418,6 +439,24 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
     {preview?<div className="pickup-lightbox" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget)setPreview(null);}}>
       <button type="button" className="pickup-lightbox-close" onClick={()=>setPreview(null)} aria-label="Close image">×</button>
       <img src={preview.src} alt={preview.title}/>
+    </div>:null}
+    {cashConfirm?<div className="pickup-modal-backdrop" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget&&busy!=='cash')setCashConfirm(false)}}>
+      <section className="pickup-modal" role="dialog" aria-modal="true" aria-labelledby="pickup-cash-confirm-title">
+        <div className="pickup-modal-kicker">FINAL PAYMENT CONFIRMATION</div>
+        <h2 id="pickup-cash-confirm-title">Terima bayaran penuh?</h2>
+        <p>Ini akan merekod <b>{money(payTotal)}</b> sebagai payment diterima untuk <b>{paySelected.size} order</b>. Semua order yang dipilih akan jadi PAID.</p>
+        {selectedOrders.length?<div className="pickup-modal-list">{selectedOrders.map((order)=><div key={order.id}><span>{order.orderNo}</span><b>{money(order.balance)}</b></div>)}</div>:null}
+        <div className="pickup-modal-actions"><button type="button" className="btn btn-outline" disabled={busy==='cash'} onClick={()=>setCashConfirm(false)}>Batal</button><button type="button" className="btn pickup-pay-full" disabled={busy==='cash'} onClick={()=>void createCheckout('cash')}>{busy==='cash'?'Merekod…':'Ya, Payment Received'}</button></div>
+      </section>
+    </div>:null}
+    {voidConfirm&&checkout?.paid?<div className="pickup-modal-backdrop" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget&&busy!=='void')setVoidConfirm(false)}}>
+      <section className="pickup-modal" role="dialog" aria-modal="true" aria-labelledby="pickup-void-title">
+        <div className="pickup-modal-kicker danger">PAYMENT VOID / UNDO</div>
+        <h2 id="pickup-void-title">Void payment ini?</h2>
+        <p>Order akan kembali ke status belum bayar. Handover yang sudah dibuat tidak boleh di-void.</p>
+        <label className="pickup-modal-field">Sebab void<textarea value={voidReason} maxLength={500} onChange={(event)=>setVoidReason(event.target.value)} /></label>
+        <div className="pickup-modal-actions"><button type="button" className="btn btn-outline" disabled={busy==='void'} onClick={()=>setVoidConfirm(false)}>Batal</button><button type="button" className="btn pickup-void-button" disabled={busy==='void'||!voidReason.trim()} onClick={()=>void voidPayment()}>{busy==='void'?'Memproses…':'Ya, Void Payment'}</button></div>
+      </section>
     </div>:null}
   </div>;
 }
