@@ -29,7 +29,7 @@ async function rpc<T>(name:string,args:Record<string,unknown>){
 function orderHtml(order:Order){
   const checked=selected.has(order.id)?' checked':'';
   const preview=(item:Item)=>item.previewUrl
-    ?`<img src="${escapeHtml(item.previewUrl)}" alt="" loading="lazy">`
+    ?`<button type="button" class="cp-preview-trigger" data-preview-src="${escapeHtml(item.previewUrl)}" data-preview-title="${escapeHtml(item.title)}"><img src="${escapeHtml(item.previewUrl)}" alt="" loading="lazy"></button>`
     :'<div class="cp-item-placeholder">ITEM</div>';
   return `<article class="cp-order ${order.ready?'ready':'processing'} ${order.paid?'paid':''}">
     <div class="cp-order-head">
@@ -57,7 +57,7 @@ function render(){
   app.innerHTML=`<main class="cp-shell">
     <header class="cp-header"><div class="cp-logo">DecoCake.my</div><span>Pickup & Payment</span></header>
     <section class="cp-hero"><span>WELCOME</span><h1>Hi, ${escapeHtml(overview.customer.name)}</h1><p>Pilih order yang hendak dibayar. Order ready dipilih secara automatik; order processing boleh dibayar awal tetapi belum boleh diambil.</p></section>
-    ${checkout?`<section class="cp-payment ${checkout.paid?'paid':''}"><div><span>${checkout.paid?'PAYMENT SUCCESSFUL':'SCAN & PAY EXACT AMOUNT'}</span><h2>${escapeHtml(checkout.checkoutNo)}</h2><strong>${money(checkout.amount)}</strong><p>${checkout.paid?`Semua order yang dipilih telah PAID. Transaction: ${escapeHtml(checkout.transactionId||'matched')}`:'Halaman ini semak bayaran secara automatik setiap 4 saat.'}</p></div>${waiting?`<img src="${QR_URL}" alt="QRPay DecoCake.my">`:'<div class="cp-paid-check">✓</div>'}</section>`:''}
+    ${checkout?`<section class="cp-payment ${checkout.paid?'paid':''}"><div><span>${checkout.paid?'PAYMENT SUCCESSFUL':'SCAN & PAY EXACT AMOUNT'}</span><h2>${escapeHtml(checkout.checkoutNo)}</h2><button type="button" class="cp-amount-copy" data-copy-amount><strong>${money(checkout.amount)}</strong><small>Tap to copy</small></button><p>${checkout.paid?`Semua order yang dipilih telah PAID. Transaction: ${escapeHtml(checkout.transactionId||'matched')}`:'Halaman ini semak bayaran secara automatik setiap 4 saat.'}</p></div>${waiting?`<div class="cp-payment-visual"><img src="${QR_URL}" alt="QRPay DecoCake.my"><div class="cp-qr-actions"><a href="${QR_URL}" target="_blank" rel="noopener" download="icetak-duitnow-qr.png">Save QR</a><button type="button" data-copy-amount>Copy Amount</button></div></div>`:'<div class="cp-paid-check">✓</div>'}</section>`:''}
     <section class="cp-section"><div class="cp-section-title"><div><h2>Siap untuk pickup</h2><p>Barang ini sudah selesai diproses.</p></div><b>${ready.length}</b></div>
       ${ready.length?ready.map(orderHtml).join(''):'<div class="cp-empty">Belum ada order yang siap.</div>'}
     </section>
@@ -77,7 +77,39 @@ function render(){
       checkout=null;if(pollTimer)window.clearInterval(pollTimer);render();
     });
   });
+  app.querySelectorAll<HTMLButtonElement>('[data-preview-src]').forEach((button)=>{
+    button.addEventListener('click',()=>openPreview(button.dataset.previewSrc||'',button.dataset.previewTitle||''));
+  });
+  app.querySelectorAll<HTMLButtonElement>('[data-copy-amount]').forEach((button)=>{
+    button.addEventListener('click',()=>void copyAmount(checkout?.amount||0));
+  });
   document.getElementById('cp-pay')?.addEventListener('click',()=>void createCheckout());
+}
+
+function openPreview(src:string,title:string){
+  if(!src)return;
+  const wrap=document.createElement('div');
+  wrap.className='cp-lightbox';
+  wrap.innerHTML=`<button type="button" class="cp-lightbox-close" aria-label="Close image">×</button><img src="${escapeHtml(src)}" alt="${escapeHtml(title)}">`;
+  const close=()=>{wrap.remove();window.removeEventListener('keydown',onKey);};
+  const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape')close();};
+  wrap.addEventListener('mousedown',(event)=>{if(event.target===wrap)close();});
+  wrap.querySelector('button')?.addEventListener('click',close);
+  window.addEventListener('keydown',onKey);
+  document.body.append(wrap);
+}
+
+async function copyAmount(amount:number){
+  if(!amount)return;
+  try{
+    await navigator.clipboard.writeText(Number(amount).toFixed(2));
+    document.querySelector('.cp-copy-toast')?.remove();
+    const toast=document.createElement('div');
+    toast.className='cp-copy-toast';
+    toast.textContent='Amount copied';
+    document.body.append(toast);
+    window.setTimeout(()=>toast.remove(),1800);
+  }catch{/* clipboard permissions vary by browser */}
 }
 
 async function load(){
@@ -113,6 +145,10 @@ function startPolling(){
         window.clearInterval(pollTimer);
         overview=await rpc<Overview>('icetak_customer_pickup_overview',{p_token:token});
         selected.clear();render();
+      }else if(checkout.status==='expired'||checkout.status==='cancelled'||(checkout.expiresAt&&new Date(checkout.expiresAt).getTime()<=Date.now())){
+        window.clearInterval(pollTimer);
+        checkout=null;
+        render();
       }
     }catch{/* transient polling errors do not replace the payment screen */}
   },4000);
@@ -120,5 +156,6 @@ function startPolling(){
 
 render();
 void load().catch((error)=>{
-  if(app)app.innerHTML=`<main class="cp-shell"><div class="cp-error"><h2>Link tidak dapat dibuka</h2><p>${escapeHtml(error?.message||'Link pickup tidak sah atau telah tamat.')}</p></div></main>`;
+  const message=error?.message==='invalid_or_expired_pickup_link'?'Link pickup tidak sah atau telah tamat.':error?.message||'Link pickup tidak sah atau telah tamat.';
+  if(app)app.innerHTML=`<main class="cp-shell"><div class="cp-error"><h2>Link tidak dapat dibuka</h2><p>${escapeHtml(message)}</p></div></main>`;
 });

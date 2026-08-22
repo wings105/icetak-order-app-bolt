@@ -11,7 +11,7 @@ const env = (import.meta as any).env || {};
 const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL || '';
 const PRODUCTION_CUSTOMER_APP_URL = 'https://icetak.bolt.host';
 const MANAGED_GATEWAY = 'https://officialapi.wasapflow.com/bridge/v1';
-const FIELDS = ['customer_name','phone','order_id','order_token','order_total','date_need','order_link','payment_link','review_link','items_summary','payment_status','delivery_method','tracking_number','courier','tracking_link','pickup_location','otp','otp_code','magic_link','expiry_minutes','support_phone'];
+const FIELDS = ['customer_name','phone','order_id','order_token','order_total','date_need','order_link','payment_link','review_link','items_summary','pickup_order_count','payment_status','delivery_method','tracking_number','courier','tracking_link','pickup_location','otp','otp_code','magic_link','expiry_minutes','support_phone'];
 
 const asArray = (value: any): string[] => Array.isArray(value) ? value.map(String) : typeof value === 'string' ? value.split(',').map((x) => x.trim()).filter(Boolean) : [];
 const badge = (s: unknown) => { const v = String(s || '').toLowerCase(); if (['sent','delivered','success'].includes(v)) return 'badge-success'; if (['pending','processing','queued','retry'].includes(v)) return 'badge-warning'; if (['failed','error'].includes(v)) return 'badge-error'; return 'badge-neutral'; };
