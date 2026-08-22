@@ -36,6 +36,10 @@
         await import('./src/legacy-customer-token-compat.ts');
         // Register the canonical WhatsApp OTP interceptor before legacy UI handlers.
         await import('./src/customer-whatsapp-login.ts');
+        if (new URLSearchParams(location.search).has('pickup')) {
+          await import('./src/customer-pickup-checkout.ts');
+          return;
+        }
         await import('./src/main.ts');
         await import('./src/product-catalog.ts');
         await import('./src/catalog-route-context-fix.ts');

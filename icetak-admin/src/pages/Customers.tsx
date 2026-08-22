@@ -27,7 +27,7 @@ type CustomerDetail = {
   marketplaceAccounts: Array<{id:string;provider:string;region:string;username:string;lastSeenAt:string|null}>;
   audit: Audit[]; duplicates: Array<{id:string;name:string;phone:string;email:string;status:string}>;
 };
-type Props = { permissions?: string[]; initialCustomer?: string; onOpenOrder: (orderNo:string)=>void };
+type Props = { permissions?: string[]; initialCustomer?: string; onOpenOrder: (orderNo:string)=>void; onOpenPickup?:(customerId:string)=>void };
 type ProfileDraft = { name:string; phone:string; email:string; stage:string; priority:string; owner:string; doNotContact:boolean };
 type AddressDraft = { id?:string; label:string; recipientName:string; phone:string; addressLine1:string; addressLine2:string; city:string; postcode:string; state:string; country:string; isDefault:boolean };
 type TaskDraft = { id?:string; title:string; detail:string; dueAt:string; priority:string; status:string; assignedTo:string };
@@ -51,7 +51,7 @@ function Modal({ title, children, onClose, wide=false }: {title:string;children:
   </div>;
 }
 
-export default function Customers({ permissions = [], initialCustomer = '', onOpenOrder }: Props) {
+export default function Customers({ permissions = [], initialCustomer = '', onOpenOrder, onOpenPickup }: Props) {
   const canManage = permissions.includes('manage_customers') || permissions.includes('manage_admins');
   const canExport = permissions.includes('export_data');
   const [rows,setRows]=useState<CustomerRow[]>([]);
@@ -149,7 +149,7 @@ export default function Customers({ permissions = [], initialCustomer = '', onOp
       </section>
 
       {selected&&<section className="panel crm-detail-panel">{detailLoading&&!detail?<div className="loading"><span className="spinner"/></div>:detail?<>
-        <div className="crm-detail-hero"><button className="crm-mobile-close" onClick={closeDetail}><IconX size={18}/></button><div className="crm-avatar large">{detail.profile.name.slice(0,1).toUpperCase()}</div><div className="crm-hero-main"><div className="crm-hero-title"><h2>{detail.profile.name}</h2><span className={`crm-stage ${detail.profile.stage}`}>{stageLabel(detail.profile.stage)}</span>{detail.profile.doNotContact&&<span className="crm-dnc">Do Not Contact</span>}</div><div className="crm-hero-sub">{detail.profile.phone?`+${digits(detail.profile.phone)}`:'No phone'}{detail.profile.email?` · ${detail.profile.email}`:''}</div><div className="crm-hero-meta">{priorityLabel(detail.profile.priority)} priority{detail.profile.owner?` · Owner: ${detail.profile.owner}`:''} · Last seen {shortDate(detail.profile.lastSeenAt)}</div></div><div className="crm-hero-actions">{detail.profile.phone&&!detail.profile.doNotContact&&<a className="btn btn-outline" href={`tel:${digits(detail.profile.phone)}`}><IconPhone size={15}/> Call</a>}{canManage&&detail.profile.status==='active'&&<button className="btn btn-primary" onClick={openProfileEditor}><IconEdit size={15}/> Edit</button>}</div></div>
+        <div className="crm-detail-hero"><button className="crm-mobile-close" onClick={closeDetail}><IconX size={18}/></button><div className="crm-avatar large">{detail.profile.name.slice(0,1).toUpperCase()}</div><div className="crm-hero-main"><div className="crm-hero-title"><h2>{detail.profile.name}</h2><span className={`crm-stage ${detail.profile.stage}`}>{stageLabel(detail.profile.stage)}</span>{detail.profile.doNotContact&&<span className="crm-dnc">Do Not Contact</span>}</div><div className="crm-hero-sub">{detail.profile.phone?`+${digits(detail.profile.phone)}`:'No phone'}{detail.profile.email?` · ${detail.profile.email}`:''}</div><div className="crm-hero-meta">{priorityLabel(detail.profile.priority)} priority{detail.profile.owner?` · Owner: ${detail.profile.owner}`:''} · Last seen {shortDate(detail.profile.lastSeenAt)}</div></div><div className="crm-hero-actions">{onOpenPickup&&<button className="btn btn-outline" onClick={()=>onOpenPickup(detail.profile.id)}>Pickup Counter</button>}{detail.profile.phone&&!detail.profile.doNotContact&&<a className="btn btn-outline" href={`tel:${digits(detail.profile.phone)}`}><IconPhone size={15}/> Call</a>}{canManage&&detail.profile.status==='active'&&<button className="btn btn-primary" onClick={openProfileEditor}><IconEdit size={15}/> Edit</button>}</div></div>
         <div className="crm-detail-kpis"><div><span>Lifetime</span><strong>{money(detail.stats.lifetimeSpend)}</strong></div><div><span>Orders</span><strong>{detail.stats.orderCount}</strong></div><div><span>Shopee / Market</span><strong>{detail.stats.marketplaceOrders}</strong></div><div><span>Addresses</span><strong>{detail.stats.addressCount}</strong></div><div><span>Follow-ups</span><strong>{detail.stats.openTasks}</strong></div></div>
         <div className="crm-tabs">{['overview','orders','addresses','activity','tasks','identity'].map(value=><button key={value} className={activeTab===value?'active':''} onClick={()=>setActiveTab(value)}>{value[0].toUpperCase()+value.slice(1)}</button>)}</div>
 

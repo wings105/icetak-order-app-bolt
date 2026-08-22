@@ -22,10 +22,12 @@ import Settings from './pages/Settings';
 
 const AiLearningSettings = lazy(() => import('./pages/AiLearningSettings'));
 const CreateOrder = lazy(() => import('./pages/CreateOrder'));
+const PickupCounter = lazy(() => import('./pages/PickupCounter'));
 
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Order Control Tower', subtitle: 'Business Overview' },
   orders: { title: 'Orders', subtitle: 'Full order lifecycle' },
+  'pickup-counter': { title: 'Pickup Counter', subtitle: 'Multi-order payment & secure handover' },
   customers: { title: 'Customer CRM', subtitle: 'Customer 360° & relationship management' },
   'create-order': { title: 'Create Order', subtitle: 'Prepaid, cash counter, QRPay & custom pricing' },
   payments: { title: 'Payments Center', subtitle: 'Transactions' },
@@ -62,19 +64,21 @@ export default function App({ adminData }: Props) {
     customerName:initialParams.get('qrpay_name')||'',
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
-  const [page, setPage] = useState(linkedOrder ? 'orders' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : linkedView === 'draft-orders' ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':'dashboard');
+  const [page, setPage] = useState(linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : linkedView === 'draft-orders' ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [linkedPayment,setLinkedPayment]=useState<LinkedQrPayment|null>(initialPayment);
   const permissions = adminData?.admin?.permissions || [];
   const canViewCustomers = permissions.includes('view_customers') || permissions.includes('manage_customers') || permissions.includes('manage_admins');
+  const canViewPickup = canViewCustomers || permissions.includes('verify_payments') || permissions.includes('approve_production');
 
   const navigate = (key: string) => {
     if (key === 'quick-order' || key === 'manual-order') key = 'create-order';
     setLinkedPayment(null);
     const url = new URL(window.location.href);
     if (key !== 'orders') url.searchParams.delete('order');
-    if (key !== 'customers') url.searchParams.delete('customer');
+    if (key !== 'customers' && key !== 'pickup-counter') url.searchParams.delete('customer');
     if (key === 'customers') url.searchParams.set('view','customers');
+    else if (key === 'pickup-counter') url.searchParams.set('view','pickup-counter');
     else if (key === 'qrpay-summary') url.searchParams.set('view','qrpay-summary');
     else if (key === 'draft-orders') url.searchParams.set('view','draft-orders');
     else if (key === 'ai-learning') url.searchParams.set('view','ai-learning');
@@ -106,6 +110,16 @@ export default function App({ adminData }: Props) {
     window.history.replaceState({},'',url);
     setPage('orders');
   };
+  const openPickup = (customerId?: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('admin','v2');
+    url.searchParams.set('view','pickup-counter');
+    if (customerId) url.searchParams.set('customer',customerId);
+    else url.searchParams.delete('customer');
+    url.searchParams.delete('order'); url.searchParams.delete('date');
+    window.history.replaceState({},'',url);
+    setPage('pickup-counter'); setMobileOpen(false);
+  };
   const logout = async () => {
     await supabase.auth.signOut();
     sessionStorage.removeItem('admin_access_token');
@@ -119,7 +133,8 @@ export default function App({ adminData }: Props) {
     switch (page) {
       case 'dashboard': return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'orders': return <Orders permissions={permissions} initialOrder={linkedOrder} />;
-      case 'customers': return canViewCustomers ? <Customers permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      case 'customers': return canViewCustomers ? <Customers permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder} onOpenPickup={openPickup} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      case 'pickup-counter': return canViewPickup ? <Suspense fallback={<div style={{padding:24}}>Loading Pickup Counter...</div>}><PickupCounter permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder}/></Suspense> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'create-order': return <Suspense fallback={<div style={{padding:24}}>Loading Create Order...</div>}><CreateOrder key={linkedPayment?.transactionId||'new-order'} permissions={permissions} onOpenOrder={openOrder} onOpenDrafts={()=>navigate('draft-orders')} linkedPayment={linkedPayment} /></Suspense>;
       case 'payments': return <Payments onOpenOrder={openOrder} />;
       case 'finance': return permissions.includes('view_finance') ? <Finance canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
@@ -140,5 +155,5 @@ export default function App({ adminData }: Props) {
     }
   };
 
-  return <div className="app-layout"><Sidebar active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} canViewFinance={permissions.includes('view_finance')} canViewCustomers={canViewCustomers} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} /><div className="content-area">{renderPage()}</div></div></div>;
+  return <div className="app-layout"><Sidebar active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} canViewFinance={permissions.includes('view_finance')} canViewCustomers={canViewCustomers} canViewPickup={canViewPickup} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} /><div className="content-area">{renderPage()}</div></div></div>;
 }

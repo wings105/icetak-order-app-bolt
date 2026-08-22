@@ -15,6 +15,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: IconDashboard },
   { key: 'orders', label: 'Orders', icon: IconOrders },
+  { key: 'pickup-counter', label: 'Pickup Counter', icon: IconPayments },
   { key: 'customers', label: 'Customers CRM', icon: IconStaff },
   { key: 'create-order', label: 'Create Order', icon: IconOrders },
   { key: 'payments', label: 'Payments', icon: IconPayments },
@@ -54,14 +55,16 @@ type Props = {
   onLogout?: () => void;
   canViewFinance?: boolean;
   canViewCustomers?: boolean;
+  canViewPickup?: boolean;
 };
 
 type ShippingAttention = { attention?: number; critical?: number; oldest_hours?: number };
 
-export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false, canViewCustomers = false }: Props) {
+export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false, canViewCustomers = false, canViewPickup = false }: Props) {
   const visibleNavItems = navItems.filter((item) => {
     if (['finance','qrpay-summary','draft-orders'].includes(item.key) && !canViewFinance) return false;
     if (item.key === 'customers' && !canViewCustomers) return false;
+    if (item.key === 'pickup-counter' && !canViewPickup) return false;
     return true;
   }).map((item) => item.key === 'settings' && !canViewFinance
     ? { ...item, children: item.children?.filter((child) => child.key !== 'ai-learning') }
