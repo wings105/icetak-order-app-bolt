@@ -31,7 +31,7 @@ type ReadyQueue = {ok:boolean;rows:SearchRow[];orderCount:number;totalAmount:num
 type Checkout = {
   ok:boolean; paid:boolean; checkoutId:string; checkoutNo:string;
   amount:number; paymentSessionId?:string; expiresAt?:string; transactionId?:string;
-  reused?:boolean;status?:string;
+  reused?:boolean;status?:string;paidAt?:string;paymentMethod?:string;
 };
 type Props = {
   permissions?:string[];
@@ -137,6 +137,13 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
     finally{setLoading(false);}
   },[]);
 
+  const loadLatestPaidCheckout=useCallback(async(id:string)=>{
+    try{
+      const data=await rpc<{checkout:Checkout|null}>('icetak_admin_pickup_latest_paid_checkout',{p_customer_master_id:id});
+      setCheckout((current)=>current&&!current.paid?current:(data.checkout||null));
+    }catch{/* overview remains usable if the optional paid lookup is unavailable */}
+  },[]);
+
   const loadOverview=useCallback(async(id:string,keepSelection=false)=>{
     if(!id)return;
     setLoading(true);setError('');
@@ -147,9 +154,10 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
         setPaySelected(new Set(data.orders.filter((order)=>order.group==='ready_unpaid').map((order)=>order.id)));
         setHandoverSelected(new Set());
       }
+      void loadLatestPaidCheckout(id);
     }catch(err:any){setError(err?.message||'Gagal load pickup customer');}
     finally{setLoading(false);}
-  },[]);
+  },[loadLatestPaidCheckout]);
 
   useEffect(()=>{
     if(initialCustomer)void loadOverview(initialCustomer);
@@ -417,6 +425,10 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
           {hasProcessing?<div className="pickup-warning">Ada order belum siap dipilih. Ia akan menjadi PAID, tetapi kekal PROCESSING dan tidak boleh handover.</div>:null}
           <button className="btn btn-primary pickup-main-action" disabled={!canPay||!paySelected.size||busy!==''} onClick={()=>void createCheckout('qrpay')}>{busy==='qrpay'?'Menyediakan…':'Generate 1 QRPay'}</button>
           <button className="btn pickup-pay-full pickup-main-action" disabled={!canPay||!paySelected.size||busy!==''} onClick={()=>setCashConfirm(true)}>Pay Full Cash</button>
+          {checkout?.paid?<div className="pickup-paid-summary">
+            <div><span className="pickup-summary-label">PAYMENT RECEIVED</span><strong>{money(checkout.amount)}</strong><small>{checkout.checkoutNo}</small></div>
+            <button type="button" className="pickup-void-button" disabled={busy!==''} onClick={()=>setVoidConfirm(true)}>Void / Undo Payment</button>
+          </div>:null}
           <div className="pickup-divider"/>
           <span className="pickup-summary-label">SECURE HANDOVER</span>
           <p>{handoverSelected.size} ready + paid order dipilih.</p>
