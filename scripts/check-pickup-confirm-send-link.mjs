@@ -151,11 +151,11 @@ function makeDraft(number, { bsuidOnly = false, prepaid = false } = {}) {
   return draft;
 }
 
-async function action(draft, name) {
+async function action(draft, name, extra = {}) {
   const result = await handler(new Request('https://example.supabase.co/functions/v1/qrpay-draft-review', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ token: draft.review_token, action: name, payload: draft.working_draft }),
+    body: JSON.stringify({ token: draft.review_token, action: name, payload: draft.working_draft, ...extra }),
   }));
   return { status: result.status, body: await result.json() };
 }
@@ -177,6 +177,13 @@ assert.equal(orders.get(enhanced.order_id).whatsapp_opt_in, true);
 assert.ok(enhanced.customer_link_sent_at, 'pickup draft records customer link delivery');
 assert.equal(enhanced.customer_status, 'confirmed', 'sending the link does not regress confirmed status');
 assert.equal(events.filter((event) => event.event_type === 'pickup_order_link_sent').length, 1);
+
+const optedOut = makeDraft(5);
+const optedOutResult = await action(optedOut, 'confirm_send_customer', { whatsapp_opt_in: false });
+assert.equal(optedOutResult.status, 200);
+assert.equal(optedOutResult.body.customer.sent, false, 'unticked WhatsApp keeps confirmation silent');
+assert.equal(optedOutResult.body.customer.skipped, true);
+assert.equal(orders.get(optedOut.order_id).whatsapp_opt_in, false);
 
 const duplicate = await action(enhanced, 'confirm_send_customer');
 assert.equal(duplicate.body.duplicate, true);
@@ -202,13 +209,18 @@ const html = readFileSync(new URL('../public/qrpay-draft.html', import.meta.url)
 assert.match(html, /Confirm Pickup Order<\/button><button data-main id="confirmSend"/);
 assert.match(html, /Confirm Pickup & Send Link/);
 assert.match(html, /api\('confirm_send_customer'/);
+assert.match(html, /reviewWhatsappOptIn/);
+assert.match(html, /WhatsApp notification ON/);
+assert.match(edgeSource, /whatsapp_opt_in/);
 
 const portal = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
 assert.match(portal, /params\.get\('page'\)==='payment'/);
 assert.match(portal, /await loadPayment\(orderToken\)/);
 
 const control = readFileSync(new URL('../icetak-admin/src/pages/WhatsAppControl.tsx', import.meta.url), 'utf8');
-assert.match(control, /'items_summary','payment_status','delivery_method'/);
+assert.match(control, /items_summary/);
+assert.match(control, /payment_status/);
+assert.match(control, /delivery_method/);
 
 const rule = readFileSync(new URL('../supabase/functions/qrpay-draft-review/pickup-notification-rule.sql', import.meta.url), 'utf8');
 assert.match(rule, /pickup_order_confirmed/);
