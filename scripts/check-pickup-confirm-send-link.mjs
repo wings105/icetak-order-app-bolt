@@ -211,7 +211,9 @@ assert.match(html, /Confirm Pickup & Send Link/);
 assert.match(html, /api\('confirm_send_customer'/);
 assert.match(html, /reviewWhatsappOptIn/);
 assert.match(html, /WhatsApp notification ON/);
+assert.match(html, /action==='approve'/);
 assert.match(edgeSource, /whatsapp_opt_in/);
+assert.match(edgeSource, /notify_whatsapp:b\.whatsapp_opt_in!==false/);
 
 const portal = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
 assert.match(portal, /params\.get\('page'\)==='payment'/);
