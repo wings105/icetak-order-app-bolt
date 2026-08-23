@@ -40,6 +40,51 @@ type Props = {
 };
 
 const money=(value:number)=>`RM ${Number(value||0).toFixed(2)}`;
+const BSUID_PATTERN=/^[A-Z]{2}\.(?:ENT\.)?[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/i;
+const phoneOf=(value:string|undefined)=>{
+  const digits=String(value||'').replace(/\D/g,'');
+  const normalized=digits.startsWith('60')?digits:digits.startsWith('0')?`6${digits}`:digits.startsWith('1')?`60${digits}`:digits;
+  return /^601\d{8,9}$/.test(normalized)?normalized:'';
+};
+const bsuidOf=(value:string|undefined)=>{
+  const candidate=String(value||'').trim();
+  return BSUID_PATTERN.test(candidate)?candidate:'';
+};
+const customerName=(value:string|undefined)=>{
+  const candidate=String(value||'').trim();
+  if(!candidate
+    || /(?:https?:\/\/)?(?:www\.)?(?:wa\.me|wasap\.my)\//i.test(candidate)
+    || Boolean(phoneOf(candidate))
+    || Boolean(bsuidOf(candidate))) return 'Customer';
+  return candidate;
+};
+const whatsappRecipient=(customer:Overview['customer'])=>{
+  const phone=phoneOf(customer.phone);
+  if(phone)return {type:'phone' as const,phone,bsuid:bsuidOf(customer.bsuid)};
+  const bsuid=bsuidOf(customer.bsuid);
+  return bsuid?{type:'bsuid' as const,bsuid,phone:''}:null;
+};
+async function functionErrorMessage(error:unknown){
+  const fallback=error instanceof Error?error.message:'Penghantaran WhatsApp gagal.';
+  const context=error&&typeof error==='object'&&'context' in error
+    ?(error as {context?:unknown}).context:null;
+  if(!context||typeof context!=='object')return fallback;
+  const response=context as {json?:()=>Promise<unknown>;text?:()=>Promise<string>};
+  try{
+    if(typeof response.json==='function'){
+      const details=await response.json() as {error?:unknown;message?:unknown};
+      const message=String(details?.error||details?.message||'').trim();
+      if(message)return message;
+    }
+  }catch{/* fall back to the provider error below */}
+  try{
+    if(typeof response.text==='function'){
+      const message=(await response.text()).trim();
+      if(message)return message;
+    }
+  }catch{/* context is optional for network-level function errors */}
+  return fallback;
+}
 const GROUPS: Array<{key:PickupOrder['group'];label:string;hint:string}> = [
   {key:'ready_unpaid',label:'Ready · Belum Bayar',hint:'Dipilih automatik untuk pickup hari ini'},
   {key:'ready_paid',label:'Ready · Sudah Bayar',hint:'Boleh terus dipilih untuk handover'},
@@ -92,7 +137,7 @@ function QueueCard({row,onOpen}:{row:SearchRow;onOpen:(id:string)=>void}){
   const previewOrders=(row.readyOrders||[]).slice(0,4);
   return <button type="button" className="pickup-queue-card" onClick={()=>onOpen(row.id)}>
     <div className="pickup-queue-card-top">
-      <div className="pickup-queue-identity"><strong>{row.name}</strong><span>{row.phone||row.bsuid||'No phone'}</span></div>
+      <div className="pickup-queue-identity"><strong>{customerName(row.name)}</strong><span>{row.phone||row.bsuid||'No phone'}</span></div>
       <span className="pickup-queue-count">{row.readyUnpaid} READY</span>
     </div>
     <div className="pickup-queue-orders">
@@ -299,7 +344,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
       ...order.items.map((item)=>`   ${item.qty}× ${item.title}${item.size?` (${item.size})`:''}`),
     ]);
     const message=[
-      `Hi ${overview.customer.name},`,'',
+      `Hi ${customerName(overview.customer.name)},`,'',
       ready.length?`${ready.length} order anda sudah siap untuk pickup:`:'Semak status order pickup anda:',
       ...lines,'',ready.length?`Jumlah perlu dibayar: *${money(total)}*`:'',
       'Pilih item dan buat bayaran QRPay melalui link ini:',link,
@@ -320,19 +365,21 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
 
   const sendWhatsApp=async()=>{
     if(!overview)return;
-    if(!overview.customer.phone&&!overview.customer.bsuid){setError('Customer ini tiada nombor WhatsApp atau BSUID.');return;}
+    const recipient=whatsappRecipient(overview.customer);
+    if(!recipient){setError('Customer ini tiada nombor WhatsApp Malaysia atau WhatsApp ID yang sah.');return;}
     setBusy('whatsapp');setError('');setNotice('');
     try{
       const {link,message,ready,total,lines}=await prepareMessage();
       const payload={
-        phone:overview.customer.phone||undefined,
-        bsuid:overview.customer.bsuid||undefined,
+        ...(recipient.type==='phone'
+          ?{phone:recipient.phone,bsuid:recipient.bsuid||undefined}
+          :{bsuid:recipient.bsuid}),
         event_type:'pickup_payment_summary',
         source:'pickup_counter',
         text:message,
         vars:{
-          customer_name:overview.customer.name,
-          phone:overview.customer.phone||'',
+          customer_name:customerName(overview.customer.name),
+          phone:recipient.phone,
           order_id:ready.map((order)=>order.orderNo).join(', ')||'Pickup orders',
           order_total:money(total),
           payment_link:link,
@@ -344,8 +391,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
       };
       const {data,error:sendError}=await supabase.functions.invoke('whatsapp-send',{body:payload});
       if(sendError){
-        const details=await (sendError as {context?:Response}).context?.json().catch(()=>null);
-        throw new Error(details?.error||sendError.message||'Penghantaran WhatsApp gagal.');
+        throw new Error(await functionErrorMessage(sendError));
       }
       if(data?.ok===false)throw new Error(data.error||'Penghantaran WhatsApp gagal.');
       setNotice(`WhatsApp berjaya dihantar${data?.mode?` melalui ${data.mode==='text'?'free-form':'approved template'}`:''}.`);
@@ -393,7 +439,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
 
     {overview?<>
       <section className="pickup-customer">
-        <div><button type="button" className="pickup-back" onClick={resetToQueue}>← Ready Queue</button><span>Customer</span><h2>{overview.customer.name}</h2><p>{overview.customer.phone?'+'.concat(overview.customer.phone.replace(/^\+/,'')):overview.customer.bsuid||'No phone linked'}</p></div>
+        <div><button type="button" className="pickup-back" onClick={resetToQueue}>← Ready Queue</button><span>Customer</span><h2>{customerName(overview.customer.name)}</h2><p>{overview.customer.phone?'+'.concat(overview.customer.phone.replace(/^\+/,'')):overview.customer.bsuid||'No phone linked'}</p></div>
         <div className="pickup-customer-actions">
           <button className="btn btn-outline" disabled={busy!==''} onClick={()=>void createLink(false)}>Copy Link</button>
           <button className="btn btn-outline" disabled={busy!==''} onClick={()=>void createLink(true)}>Copy Text</button>
