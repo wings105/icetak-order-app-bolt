@@ -5,7 +5,7 @@ const K = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const C = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'POST,OPTIONS',
-  'access-control-allow-headers': 'content-type,authorization,apikey',
+  'access-control-allow-headers': 'authorization,x-client-info,apikey,content-type,x-retry-count',
 };
 const CUSTOMER_LIFECYCLE_EVENTS = new Set([
   'order_created',
