@@ -123,6 +123,7 @@ type RecipientForm = {
 type AddressFetchResult = {
   ok?: boolean;
   found?: boolean;
+  source?: string;
   error?: string;
   customer?: { name?: string; phone?: string };
   address?: { address_line1?: string; postcode?: string; city?: string; state?: string };
@@ -630,18 +631,18 @@ function OrderDrawer({ detail, loading, permissions, busyId, onClose, onReload, 
       setRecipientFetchStatus({ message: 'Isi nombor telefon penerima dahulu.', error: true });
       return;
     }
-    setRecipientFetching(true); setRecipientFetchStatus({ message: 'Sedang mencari alamat dalam ClickUp…', error: false }); setLocalError(null);
+    setRecipientFetching(true); setRecipientFetchStatus({ message: 'Mencari Customer CRM, kemudian ClickUp…', error: false }); setLocalError(null);
     const { data, error } = await supabase.functions.invoke('draft-address-fetch', {
       body: { mode: 'order', order_db_id: order.dbId, phone: recipient.phone.trim() },
     });
     setRecipientFetching(false);
     const result = (data || {}) as AddressFetchResult;
     if (error || result.ok === false) {
-      setRecipientFetchStatus({ message: result.error || error?.message || 'Gagal ambil alamat ClickUp.', error: true });
+      setRecipientFetchStatus({ message: result.error || error?.message || 'Gagal mencari alamat customer.', error: true });
       return;
     }
     if (result.found !== true) {
-      setRecipientFetchStatus({ message: 'Alamat tidak dijumpai dalam ClickUp.', error: true });
+      setRecipientFetchStatus({ message: 'Alamat tidak dijumpai dalam Customer CRM atau ClickUp.', error: true });
       return;
     }
     const customer = result.customer || {};
@@ -654,7 +655,7 @@ function OrderDrawer({ detail, loading, permissions, busyId, onClose, onReload, 
       city: String(address.city || ''),
       state: String(address.state || ''),
     }));
-    setRecipientFetchStatus({ message: 'Alamat ClickUp dimasukkan. Tekan Save Customer & Address untuk simpan ke order ini.', error: false });
+    setRecipientFetchStatus({ message: result.source === 'customer_crm' ? 'Alamat Customer CRM dimasukkan. Tekan Save Customer & Address untuk simpan ke order ini.' : 'Alamat ClickUp dimasukkan. Tekan Save Customer & Address untuk simpan ke order ini.', error: false });
   };
   const saveRecipient = async () => {
     if (!order || !recipientComplete || recipientLocked || recipientFetching) return;
