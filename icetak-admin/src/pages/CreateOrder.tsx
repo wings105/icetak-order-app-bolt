@@ -158,16 +158,16 @@ export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDraft
   };
 
   const fetchClickupAddress = async () => {
-    if (!customer.phone.trim()) return setAddressStatus({ text: 'Masukkan nombor WhatsApp untuk cari alamat ClickUp.', error: true });
+    if (!customer.phone.trim()) return setAddressStatus({ text: 'Masukkan nombor WhatsApp untuk cari alamat customer.', error: true });
     setBusy('address');
-    setAddressStatus({ text: 'Sedang mencari alamat ClickUp…', error: false });
+    setAddressStatus({ text: 'Mencari Customer CRM, kemudian ClickUp…', error: false });
     const { data, error: invokeError } = await supabase.functions.invoke('draft-address-fetch', {
       body: { mode: 'manual', phone: customer.phone.trim() },
     });
     setBusy(null);
-    const response = data as { ok?: boolean; found?: boolean; error?: string; customer?: { name?: string; phone?: string }; address?: { address_line1?: string; city?: string; postcode?: string; state?: string } } | null;
+    const response = data as { ok?: boolean; found?: boolean; source?: string; error?: string; customer?: { name?: string; phone?: string }; address?: { address_line1?: string; city?: string; postcode?: string; state?: string } } | null;
     if (invokeError || response?.ok === false) return setAddressStatus({ text: response?.error || invokeError?.message || 'Gagal mencari alamat.', error: true });
-    if (!response?.found) return setAddressStatus({ text: 'Alamat customer tidak dijumpai dalam ClickUp.', error: true });
+    if (!response?.found) return setAddressStatus({ text: 'Alamat tidak dijumpai dalam Customer CRM atau ClickUp.', error: true });
     setCustomer((previous) => ({
       ...previous,
       name: response.customer?.name || previous.name,
@@ -177,7 +177,7 @@ export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDraft
       postcode: response.address?.postcode || previous.postcode,
       state: response.address?.state || previous.state,
     }));
-    setAddressStatus({ text: 'Alamat ClickUp dimasukkan. Semak sebelum confirm.', error: false });
+    setAddressStatus({ text: response.source === 'customer_crm' ? 'Alamat Customer CRM dimasukkan. Semak sebelum confirm.' : 'Alamat ClickUp dimasukkan. Semak sebelum confirm.', error: false });
   };
 
   const parsePastedAddress = () => {
@@ -317,7 +317,7 @@ export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDraft
         <div className="composer-payment-section"><div className="composer-label">Payment flow</div>{linkedPayment ? <div className="composer-payment-option selected"><b>QRPay sudah diterima</b><span>{linkedPayment.transactionId} · {money(linkedAmount)}</span></div> : choices.map((choice) => <button key={choice.key} type="button" className={`composer-payment-option ${payment === choice.key ? 'selected' : ''}`} disabled={choice.key === 'already_paid' && !canVerifyPayment} onClick={() => choosePayment(choice.key)}><b>{choice.title}</b><span>{choice.key === 'already_paid' && !canVerifyPayment ? 'Permission verify_payments diperlukan.' : choice.description}</span></button>)}</div>
         {payment === 'already_paid' ? <div className="composer-paid-fields"><Field label="Payment method"><select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="bank_transfer">Bank Transfer / DuitNow</option><option value="qr_pay_manual">QR Pay (Manual)</option><option value="card">Card</option><option value="other">Cash / Other</option></select></Field><Field label="Payment reference / note"><input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="Resit, DuitNow reference, cash..." /></Field></div> : null}
 
-        <div className="composer-address-head"><div className="composer-label">Alamat customer</div><div><button type="button" className="btn btn-outline" onClick={() => void fetchClickupAddress()} disabled={busy !== null}>{busy === 'address' ? 'Mencari…' : 'Ambil Alamat ClickUp'}</button><button type="button" className="btn btn-outline" onClick={() => setAddressPasteOpen(true)} disabled={busy !== null}>Paste Address</button></div></div>
+        <div className="composer-address-head"><div className="composer-label">Alamat customer</div><div><button type="button" className="btn btn-outline" onClick={() => void fetchClickupAddress()} disabled={busy !== null}>{busy === 'address' ? 'Mencari…' : 'Cari Alamat Customer'}</button><button type="button" className="btn btn-outline" onClick={() => setAddressPasteOpen(true)} disabled={busy !== null}>Paste Address</button></div></div>
         {addressStatus ? <div className={`composer-helper ${addressStatus.error ? 'error' : 'success'}`}>{addressStatus.text}</div> : null}
         <Field label="Address line 1"><textarea rows={3} value={customer.addressLine1} onChange={(event) => setCustomerField('addressLine1', event.target.value)} placeholder={delivery === 'pickup' ? 'Optional untuk pickup' : 'Boleh lengkapkan sebelum shipping'} /></Field>
         <Field label="Address line 2"><input value={customer.addressLine2} onChange={(event) => setCustomerField('addressLine2', event.target.value)} /></Field>
