@@ -25,6 +25,10 @@ type OrderProgress = {
   available_actions:('approve_production'|'ready_pickup'|'pickup_collected')[];
   task_status_source:'clickup_webhook'; shipment_status_source:'parceldaily';
 };
+type BundleOrder = {
+  id:string; orderNo:string; publicToken?:string|null; amount:number|string;
+  status?:string|null; ready:boolean; collected:boolean;
+};
 type Row = {
   source:'matched'|'unmatched'; transaction_id:string; amount:number|string; paid_at:string; sender_name:string|null;
   provider:string; workflow_status:'matched_order'|'needs_review'|'processing'|'pending'|'missed'|'ignored';
@@ -36,6 +40,9 @@ type Row = {
   identity_confirmed:boolean; identity_confirmed_at:string|null; identity_confirmed_by:string|null;
   identity_original_name:string|null; identity_original_phone:string|null;
   order_progress:OrderProgress|null;
+  bundle_checkout_id?:string|null; bundle_checkout_no?:string|null;
+  bundle_order_count?:number; bundle_ready_count?:number; bundle_collected_count?:number;
+  bundle_orders?:BundleOrder[];
 };
 type Delivery = { slot:string; status:string; attempts:number; scheduled_at:string; sent_at:string|null; recipient_phone:string|null; last_error:string|null };
 type Summary = {
@@ -123,6 +130,7 @@ async function invokeFinance<T>(body:Record<string,unknown>):Promise<T>{
 const loadRange=(from:string|null,to:string)=>invokeFinance<Summary>({action:'qrpay_range',from,to});
 const statusInfo=(row:Row)=>{
   if(row.draft_id)return {label:`Draft linked · ${row.draft_payment_status==='paid'?'Paid':row.draft_status||'Pending'}`,cls:'badge-success'};
+  if(Number(row.bundle_order_count||0)>0)return {label:`Bulk matched · ${row.bundle_order_count} orders`,cls:'badge-success'};
   if(row.workflow_status==='matched_order')return {label:row.provider==='qrpay_ai'?'Order auto-created':'Matched to order',cls:'badge-success'};
   if(row.workflow_status==='needs_review')return {label:'Needs review',cls:'badge-warning'};
   if(row.workflow_status==='missed')return {label:'Missed / failed',cls:'badge-error'};
@@ -153,6 +161,11 @@ const progressFilterOptions:[ProgressFilter,string][]=[
   ['active','Other Active'],['unlinked','No Order'],
 ];
 const progressCategory=(row:Row):Exclude<ProgressFilter,'all'>=>{
+  if(Number(row.bundle_order_count||0)>0){
+    if(Number(row.bundle_collected_count||0)===Number(row.bundle_order_count))return 'completed';
+    if(Number(row.bundle_ready_count||0)===Number(row.bundle_order_count))return 'ready';
+    return 'active';
+  }
   const progress=row.order_progress;
   if(!progress)return 'unlinked';
   const label=progress.overall_label.toLowerCase();
@@ -383,7 +396,7 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
     const query=search.trim().toLowerCase();
     const rows=(summary?.rows||[]).filter((row)=>filterMatches(row,statusFilter)&&progressMatches(row,progressFilter)).filter((row)=>{
       if(!query)return true;
-      return [row.transaction_id,row.order_no,row.phone,row.sender_name,row.identity_original_name,row.identity_original_phone,row.provider,row.review_remark,
+      return [row.transaction_id,row.order_no,row.bundle_checkout_no,...(row.bundle_orders||[]).map((order)=>order.orderNo),row.phone,row.sender_name,row.identity_original_name,row.identity_original_phone,row.provider,row.review_remark,
         row.order_progress?.overall_label,row.order_progress?.shipment_status,
         ...(row.order_progress?.components||[]).flatMap((component)=>[component.label,component.customer_label,component.clickup_status]),
         row.review_category?categoryLabels[row.review_category]||row.review_category:'']
@@ -452,10 +465,14 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
                   <td><div className="cell-name">{row.sender_name||'Customer belum dikenal pasti'}</div>{row.phone?<a className="qrpay-phone" href={row.whatsapp_link||undefined}>{row.phone}</a>:<div className="cell-sub">Phone belum jumpa</div>}<div className="qrpay-identity-meta">{row.identity_confirmed&&<span className="qrpay-confirmed-badge" title={`${row.identity_confirmed_by||'admin'} · ${dateTime(row.identity_confirmed_at)}`}>Admin confirmed</span>}{canManage&&<button type="button" className="qrpay-edit-contact" onClick={()=>openIdentity(row)}>{row.identity_confirmed?'Edit confirmed contact':'Edit customer'}</button>}</div></td>
                   <td className="cell-amount">{money(row.amount)}</td>
                   <td><span className={`badge ${status.cls}`}>{status.label}</span>{row.job_status&&<div className="cell-sub">AI: {row.job_status.replaceAll('_',' ')}</div>}{row.review_category&&<div className="cell-sub">{categoryLabels[row.review_category]||row.review_category}</div>}</td>
-                  <td><OrderProgressCell progress={progress} draftId={row.draft_id}/></td>
+                  <td>{Number(row.bundle_order_count||0)>0
+                    ?<BundleProgressCell row={row}/>
+                    :<OrderProgressCell progress={progress} draftId={row.draft_id}/>}</td>
                   <td className="qrpay-remark-cell">{row.review_remark?<><span>{row.review_remark}</span><small>{row.review_updated_by||'admin'} · {dateTime(row.review_updated_at)}</small></>:<span className="cell-sub">—</span>}</td>
                   <td><div className="qrpay-proceed-actions">
-                    {row.order_no
+                    {Number(row.bundle_order_count||0)>0
+                      ?<div className="qrpay-bundle-actions"><b>{row.bundle_checkout_no}</b>{(row.bundle_orders||[]).map((order)=><button key={order.id} className="finance-order-link" onClick={()=>onOpenOrder?.(order.orderNo)}>{order.orderNo}</button>)}</div>
+                      :row.order_no
                       ?<><button className="finance-order-link" onClick={()=>onOpenOrder?.(row.order_no!)}>{row.order_no}</button>{canManage&&<button className="btn btn-outline btn-sm" onClick={()=>openMatch(row)}>Manage Match</button>}{canManage&&progress&&!progress.production_approved&&Boolean(progress.approval_blockers?.length)&&<button className="btn btn-outline btn-sm" onClick={()=>onOpenOrder?.(row.order_no!)}>Fix Order</button>}{canManage&&progress?.available_actions.map((action)=><button key={action} className="btn btn-primary btn-sm" disabled={orderActionKey!==null} onClick={()=>void runOrderAction(row,action)}>{orderActionKey===`${row.transaction_id}:${action}`?'Updating…':actionLabels[action]}</button>)}</>
                       :row.draft_id
                         ?<button className="btn btn-outline btn-sm" disabled>Draft Linked · {row.draft_payment_status==='paid'?'Paid':'Pending'}</button>
@@ -464,7 +481,7 @@ export default function QrPayDailySummary({onOpenOrder,canManage=false,onCreateO
                         :canManage
                           ?<><button className="btn btn-primary btn-sm" onClick={()=>openMatch(row)}>Match Order</button>{onCreateOrder&&<button className="btn btn-outline btn-sm" onClick={()=>onCreateOrder({transactionId:row.transaction_id,amount:Number(row.amount),phone:row.phone||'',customerName:row.sender_name||'',paidAt:row.paid_at})}>Create Order</button>}</>
                           :row.whatsapp_link?<a className="btn btn-outline btn-sm" href={row.whatsapp_link}>Call</a>:<span className="cell-sub">Semak payment</span>}
-                    {canManage&&row.workflow_status!=='ignored'&&<button className="btn btn-outline btn-sm" onClick={()=>openReview(row)}>{row.review_remark?'Edit Remark':'Remark / Ignore'}</button>}
+                    {canManage&&!row.bundle_order_count&&row.workflow_status!=='ignored'&&<button className="btn btn-outline btn-sm" onClick={()=>openReview(row)}>{row.review_remark?'Edit Remark':'Remark / Ignore'}</button>}
                     {!row.order_no&&row.workflow_status!=='ignored'&&canManage&&row.whatsapp_link&&<a className="btn btn-outline btn-sm" href={row.whatsapp_link}>Call</a>}
                   </div></td>
                 </tr>;
@@ -523,5 +540,16 @@ function OrderProgressCell({progress,draftId}:{progress:OrderProgress|null;draft
     {!!progress.approval_blockers?.length&&<div style={{marginTop:6,padding:'6px 8px',borderRadius:8,background:'#fff7ed',color:'#b45309',fontSize:12,fontWeight:700}}>Fix order before approval: {progress.approval_blockers.join(' · ')}</div>}
     {progress.tracking_number&&<div className="qrpay-tracking-line"><span>{progress.courier||'Courier'} · {progress.tracking_number}</span>{progress.tracking_link&&<a href={progress.tracking_link} target="_blank" rel="noreferrer">Track parcel</a>}</div>}
     <small className="qrpay-progress-source">{progress.shipment_status_group?'Courier status: ParcelDaily':'Task status: ClickUp webhook'}</small>
+  </div>;
+}
+
+function BundleProgressCell({row}:{row:Row}){
+  const count=Number(row.bundle_order_count||0);
+  const ready=Number(row.bundle_ready_count||0);
+  const collected=Number(row.bundle_collected_count||0);
+  return <div className="qrpay-bundle-progress">
+    <span className="badge badge-success">Pickup bundle linked</span>
+    <b>{row.bundle_checkout_no} · {count} orders</b>
+    <small>{collected}/{count} collected · {ready}/{count} ready</small>
   </div>;
 }

@@ -150,3 +150,7 @@
   .qrpay-period-inputs label,.qrpay-period-inputs input{width:100%}
   .qrpay-period-result{margin-left:0;text-align:left}
 }
+.qrpay-bundle-progress,.qrpay-bundle-actions{display:grid;gap:5px;align-items:start}
+.qrpay-bundle-progress>b,.qrpay-bundle-actions>b{font-size:12px}
+.qrpay-bundle-progress small{color:#667085;font-size:11px}
+.qrpay-bundle-actions .finance-order-link{text-align:left}
