@@ -5,7 +5,7 @@ const QR_URL='https://t3747262.p.clickup-attachments.com/t3747262/836016e0-e613-
 type Item={id:string;title:string;qty:number;price:number;size?:string;style?:string;wording?:string;previewUrl?:string};
 type Order={id:string;orderNo:string;total:number;balance:number;paid:boolean;ready:boolean;collected:boolean;group:string;status:string;dateNeed?:string;items:Item[]};
 type Overview={customer:{name:string;phone?:string};orders:Order[]};
-type Checkout={checkoutId:string;checkoutNo:string;amount:number;status?:string;paid:boolean;transactionId?:string;expiresAt?:string};
+type Checkout={checkoutId:string;checkoutNo:string;amount:number;status?:string;paid:boolean;transactionId?:string;expiresAt?:string;receiptSubmitted?:boolean;receiptName?:string;receiptMime?:string;receiptSubmittedAt?:string;receiptUrl?:string};
 
 const params=new URLSearchParams(location.search);
 const rawPickup=params.get('pickup')||'';
@@ -15,6 +15,8 @@ const selected=new Set<string>();
 let overview:Overview|null=null;
 let checkout:Checkout|null=null;
 let pollTimer=0;
+let uploadingReceipt=false;
+let receiptError='';
 
 const money=(value:number)=>`RM ${Number(value||0).toFixed(2)}`;
 const escapeHtml=(value:unknown)=>String(value??'').replace(/[&<>"']/g,(char)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]||char));
@@ -57,7 +59,8 @@ function render(){
   app.innerHTML=`<main class="cp-shell">
     <header class="cp-header"><div class="cp-logo">DecoCake.my</div><span>Pickup & Payment</span></header>
     <section class="cp-hero"><span>WELCOME</span><h1>Hi, ${escapeHtml(overview.customer.name)}</h1><p>Pilih order yang hendak dibayar. Order ready dipilih secara automatik; order processing boleh dibayar awal tetapi belum boleh diambil.</p></section>
-    ${checkout?`<section class="cp-payment ${checkout.paid?'paid':''}"><div><span>${checkout.paid?'PAYMENT SUCCESSFUL':'SCAN & PAY EXACT AMOUNT'}</span><h2>${escapeHtml(checkout.checkoutNo)}</h2><button type="button" class="cp-amount-copy" data-copy-amount><strong>${money(checkout.amount)}</strong><small>Tap to copy</small></button><p>${checkout.paid?`Semua order yang dipilih telah PAID. Transaction: ${escapeHtml(checkout.transactionId||'matched')}`:'Halaman ini semak bayaran secara automatik setiap 4 saat.'}</p></div>${waiting?`<div class="cp-payment-visual"><img src="${QR_URL}" alt="QRPay DecoCake.my"><div class="cp-qr-actions"><a href="${QR_URL}" target="_blank" rel="noopener" download="icetak-duitnow-qr.png">Save QR</a><button type="button" data-copy-amount>Copy Amount</button></div></div>`:'<div class="cp-paid-check">✓</div>'}</section>`:''}
+    ${checkout?`<section class="cp-payment ${checkout.paid?'paid':''}"><div><span>${checkout.paid?'PAYMENT SUCCESSFUL':checkout.receiptSubmitted?'PROOF SUBMITTED · ADMIN REVIEW':'SCAN & PAY EXACT AMOUNT'}</span><h2>${escapeHtml(checkout.checkoutNo)}</h2><button type="button" class="cp-amount-copy" data-copy-amount><strong>${money(checkout.amount)}</strong><small>Tap to copy</small></button><p>${checkout.paid?`Semua order yang dipilih telah PAID. Transaction: ${escapeHtml(checkout.transactionId||'matched')}`:checkout.receiptSubmitted?'Bukti bayaran sudah diterima dan sedang menunggu semakan admin. Sistem masih menyemak QRPay secara automatik.':'Halaman ini semak bayaran secara automatik setiap 4 saat.'}</p></div>${waiting?`<div class="cp-payment-visual"><img src="${QR_URL}" alt="QRPay DecoCake.my"><div class="cp-qr-actions"><a href="${QR_URL}" target="_blank" rel="noopener" download="icetak-duitnow-qr.png">Save QR</a><button type="button" data-copy-amount>Copy Amount</button></div></div>`:'<div class="cp-paid-check">✓</div>'}</section>`:''}
+    ${waiting?`<section class="cp-receipt ${checkout?.receiptSubmitted?'submitted':''}"><div><span>${checkout?.receiptSubmitted?'MENUNGGU SEMAKAN ADMIN':'QRPAY LAMBAT DISAHKAN?'}</span><h2>${checkout?.receiptSubmitted?'Bukti bayaran sudah dihantar':'Upload bukti pembayaran'}</h2><p>${checkout?.receiptSubmitted?`Resit: ${escapeHtml(checkout.receiptName||'receipt')}. Semua order kekal belum bayar sehingga transaksi dipadankan atau admin mengesahkan bayaran.`:'Jika sudah bayar tetapi status belum berubah, upload screenshot atau resit untuk semakan admin.'}</p>${receiptError?`<div class="cp-receipt-error">${escapeHtml(receiptError)}</div>`:''}</div><div class="cp-receipt-actions">${checkout?.receiptSubmitted&&checkout.receiptUrl?`<a href="${escapeHtml(checkout.receiptUrl)}" target="_blank" rel="noopener">Lihat Resit</a>`:''}<button type="button" id="cp-receipt-select" ${uploadingReceipt?'disabled':''}>${uploadingReceipt?'Uploading…':checkout?.receiptSubmitted?'Tukar Bukti':'Pilih Bukti Bayaran'}</button><small>JPG, PNG atau PDF · Maksimum 5MB</small></div><input id="cp-receipt-file" type="file" accept="image/jpeg,image/png,application/pdf" hidden></section>`:''}
     <section class="cp-section"><div class="cp-section-title"><div><h2>Siap untuk pickup</h2><p>Barang ini sudah selesai diproses.</p></div><b>${ready.length}</b></div>
       ${ready.length?ready.map(orderHtml).join(''):'<div class="cp-empty">Belum ada order yang siap.</div>'}
     </section>
@@ -84,6 +87,11 @@ function render(){
     button.addEventListener('click',()=>void copyAmount(checkout?.amount||0));
   });
   document.getElementById('cp-pay')?.addEventListener('click',()=>void createCheckout());
+  document.getElementById('cp-receipt-select')?.addEventListener('click',()=>document.getElementById('cp-receipt-file')?.click());
+  document.getElementById('cp-receipt-file')?.addEventListener('change',(event)=>{
+    const file=(event.currentTarget as HTMLInputElement).files?.[0];
+    if(file)void uploadReceipt(file);
+  });
 }
 
 function openPreview(src:string,title:string){
@@ -125,6 +133,7 @@ async function createCheckout(){
   if(button){button.disabled=true;button.textContent='Menyediakan QRPay…';}
   try{
     checkout=await rpc<Checkout>('icetak_customer_create_pickup_checkout',{p_token:token,p_order_ids:Array.from(selected)});
+    receiptError='';
     render();startPolling();
   }catch(error:any){
     alert(error?.message==='payment_amount_in_use'
@@ -134,13 +143,48 @@ async function createCheckout(){
   }
 }
 
+async function uploadReceipt(file:File){
+  if(!checkout||checkout.paid||uploadingReceipt)return;
+  if(!['image/jpeg','image/png','application/pdf'].includes(file.type)){
+    receiptError='Hanya fail JPG, PNG atau PDF dibenarkan.';render();return;
+  }
+  if(file.size<=0||file.size>5*1024*1024){
+    receiptError='Saiz fail mesti kurang daripada 5MB.';render();return;
+  }
+  uploadingReceipt=true;receiptError='';render();
+  try{
+    const encoded=await new Promise<string>((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result||''));
+      reader.onerror=()=>reject(new Error('Tidak dapat membaca fail resit.'));
+      reader.readAsDataURL(file);
+    });
+    const {data,error}=await supabase.functions.invoke('pickup-receipt',{
+      body:{action:'upload',token,checkout_id:checkout.checkoutId,data:encoded,mime_type:file.type,file_name:file.name},
+    });
+    if(error){
+      let message=error.message;
+      const context=(error as {context?:{json?:()=>Promise<{error?:string}>}}).context;
+      if(context&&typeof context.json==='function'){
+        try{message=(await context.json())?.error||message;}catch{/* use the SDK error */}
+      }
+      throw new Error(message);
+    }
+    if(!data?.ok)throw new Error(data?.error||'Upload bukti bayaran gagal.');
+    checkout={...checkout,...data};
+  }catch(error:any){receiptError=error?.message||'Upload bukti bayaran gagal.';}
+  finally{uploadingReceipt=false;render();}
+}
+
 function startPolling(){
   if(!checkout||checkout.paid)return;
   if(pollTimer)window.clearInterval(pollTimer);
   pollTimer=window.setInterval(async()=>{
     if(!checkout)return;
     try{
-      checkout=await rpc<Checkout>('icetak_pickup_checkout_status',{p_token:token,p_checkout_id:checkout.checkoutId});
+      const previous=checkout;
+      const status=await rpc<Checkout>('icetak_pickup_checkout_status',{p_token:token,p_checkout_id:checkout.checkoutId});
+      checkout={...previous,...status};
       if(checkout.paid){
         window.clearInterval(pollTimer);
         overview=await rpc<Overview>('icetak_customer_pickup_overview',{p_token:token});
@@ -148,6 +192,8 @@ function startPolling(){
       }else if(checkout.status==='expired'||checkout.status==='cancelled'||(checkout.expiresAt&&new Date(checkout.expiresAt).getTime()<=Date.now())){
         window.clearInterval(pollTimer);
         checkout=null;
+        render();
+      }else if(previous.receiptSubmitted!==checkout.receiptSubmitted||previous.receiptName!==checkout.receiptName){
         render();
       }
     }catch{/* transient polling errors do not replace the payment screen */}

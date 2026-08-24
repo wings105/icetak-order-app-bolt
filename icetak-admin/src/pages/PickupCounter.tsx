@@ -32,6 +32,8 @@ type Checkout = {
   ok:boolean; paid:boolean; checkoutId:string; checkoutNo:string;
   amount:number; paymentSessionId?:string; expiresAt?:string; transactionId?:string;
   reused?:boolean;status?:string;paidAt?:string;paymentMethod?:string;
+  receiptSubmitted?:boolean;receiptName?:string;receiptMime?:string;
+  receiptSubmittedAt?:string;orderIds?:string[];
 };
 type Props = {
   permissions?:string[];
@@ -172,6 +174,8 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
   const [cashConfirm,setCashConfirm]=useState(false);
   const [voidConfirm,setVoidConfirm]=useState(false);
   const [voidReason,setVoidReason]=useState('Staff tersalah rekod payment');
+  const [receiptReview,setReceiptReview]=useState<{url:string;fileName:string;mimeType:string}|null>(null);
+  const [receiptReference,setReceiptReference]=useState('');
 
   const loadQueue=useCallback(async()=>{
     setLoading(true);setError('');
@@ -185,7 +189,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
   const loadLatestPaidCheckout=useCallback(async(id:string)=>{
     try{
       const data=await rpc<{checkout:Checkout|null}>('icetak_admin_pickup_latest_paid_checkout',{p_customer_master_id:id});
-      setCheckout((current)=>current&&!current.paid?current:(data.checkout||null));
+      setCheckout((current)=>data.checkout||(current&&!current.paid?current:null));
     }catch{/* overview remains usable if the optional paid lookup is unavailable */}
   },[]);
 
@@ -290,6 +294,43 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
       setNotice('Payment bundle sudah di-void. Semua order kembali belum bayar dan boleh diproses semula.');
       await loadOverview(overview!.customer.id,true);void loadQueue();
     }catch(err:any){setError(err?.message||'Void payment gagal');}
+    finally{setBusy('');}
+  };
+
+  const openReceiptReview=async()=>{
+    if(!checkout?.checkoutId||!canPay)return;
+    setBusy('receipt-view');setError('');
+    try{
+      const {data,error:reviewError}=await supabase.functions.invoke('pickup-receipt',{
+        body:{action:'admin_view',checkout_id:checkout.checkoutId},
+      });
+      if(reviewError)throw new Error(await functionErrorMessage(reviewError));
+      if(!data?.ok||!data.url)throw new Error(data?.error||'Tidak dapat membuka resit.');
+      setReceiptReference('');
+      setReceiptReview({url:data.url,fileName:data.fileName||'receipt',mimeType:data.mimeType||''});
+    }catch(err:any){setError(err?.message||'Tidak dapat membuka resit.');}
+    finally{setBusy('');}
+  };
+
+  const confirmReceipt=async()=>{
+    if(!checkout?.checkoutId||!overview||!canPay||receiptReference.trim().length<4)return;
+    setBusy('receipt-confirm');setError('');
+    const readyIds=overview.orders
+      .filter((order)=>order.ready&&(checkout.orderIds||[]).includes(order.id))
+      .map((order)=>order.id);
+    try{
+      const result=await rpc<Checkout>('icetak_admin_confirm_pickup_receipt',{
+        p_checkout_id:checkout.checkoutId,
+        p_transaction_reference:receiptReference.trim(),
+        p_note:'Payment verified against uploaded customer receipt and bank transaction',
+      });
+      setCheckout(result);setCheckoutReadyIds(readyIds);setPaySelected(new Set());
+      setHandoverSelected(new Set(readyIds));setReceiptReview(null);setReceiptReference('');
+      setNotice(`Bukti disahkan: ${money(result.amount)} diterima dan semua order dalam ${result.checkoutNo} sudah PAID.`);
+      await loadOverview(overview.customer.id,true);void loadQueue();
+    }catch(err:any){setError(err?.message==='transaction_already_used'
+      ?'Reference transaksi ini sudah digunakan untuk bayaran lain.'
+      :err?.message||'Pengesahan bukti bayaran gagal.');}
     finally{setBusy('');}
   };
 
@@ -471,6 +512,12 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
           {hasProcessing?<div className="pickup-warning">Ada order belum siap dipilih. Ia akan menjadi PAID, tetapi kekal PROCESSING dan tidak boleh handover.</div>:null}
           <button className="btn btn-primary pickup-main-action" disabled={!canPay||!paySelected.size||busy!==''} onClick={()=>void createCheckout('qrpay')}>{busy==='qrpay'?'Menyediakan…':'Generate 1 QRPay'}</button>
           <button className="btn pickup-pay-full pickup-main-action" disabled={!canPay||!paySelected.size||busy!==''} onClick={()=>setCashConfirm(true)}>Pay Full Cash</button>
+          {checkout?.receiptSubmitted&&!checkout.paid?<div className="pickup-receipt-review">
+            <span className="pickup-summary-label">PROOF SUBMITTED · ADMIN REVIEW</span>
+            <strong>{money(checkout.amount)}</strong>
+            <small>{checkout.receiptName||'Bukti bayaran customer'}</small>
+            <button type="button" className="btn pickup-pay-full pickup-main-action" disabled={!canPay||busy!==''} onClick={()=>void openReceiptReview()}>{busy==='receipt-view'?'Membuka…':'Semak Bukti & Confirm'}</button>
+          </div>:null}
           {checkout?.paid?<div className="pickup-paid-summary">
             <div><span className="pickup-summary-label">PAYMENT RECEIVED</span><strong>{money(checkout.amount)}</strong><small>{checkout.checkoutNo}</small></div>
             <button type="button" className="pickup-void-button" disabled={busy!==''} onClick={()=>setVoidConfirm(true)}>Void / Undo Payment</button>
@@ -484,9 +531,9 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
 
       {checkout&&checkout.checkoutId?<section className={`pickup-checkout ${checkout.paid?'paid':''}`}>
         <div>
-          <span>{checkout.paid?'PAYMENT MATCHED':'WAITING FOR QRPAY'}</span>
+          <span>{checkout.paid?'PAYMENT MATCHED':checkout.receiptSubmitted?'PROOF SUBMITTED · ADMIN REVIEW':'WAITING FOR QRPAY'}</span>
           <h2>{checkout.checkoutNo}</h2><button type="button" className="pickup-copy-amount" onClick={()=>void copyAmount(checkout.amount)}><strong>{money(checkout.amount)}</strong><small>Copy Amount</small></button>
-          <p>{checkout.paid?`Transaction: ${checkout.transactionId||'matched'}`:'Minta customer scan QR dan bayar jumlah tepat. Sistem refresh setiap 4 saat.'}</p>
+          <p>{checkout.paid?`Transaction: ${checkout.transactionId||'matched'}`:checkout.receiptSubmitted?'Customer sudah upload bukti bayaran. Semak transaksi bank dan sahkan untuk semua order dalam checkout ini.':'Minta customer scan QR dan bayar jumlah tepat. Sistem refresh setiap 4 saat.'}</p>
           {!checkout.paid?<div className="pickup-qr-actions"><button type="button" onClick={()=>void copyAmount(checkout.amount)}>Copy Amount</button><a href={QR_URL} target="_blank" rel="noopener" download="icetak-duitnow-qr.png">Save QR</a></div>:null}
           {checkout.paid?<button type="button" className="pickup-void-button" disabled={busy!==''} onClick={()=>setVoidConfirm(true)}>Void / Undo Payment</button>:null}
         </div>
@@ -505,6 +552,17 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
         <p>Ini akan merekod <b>{money(payTotal)}</b> sebagai payment diterima untuk <b>{paySelected.size} order</b>. Semua order yang dipilih akan jadi PAID.</p>
         {selectedOrders.length?<div className="pickup-modal-list">{selectedOrders.map((order)=><div key={order.id}><span>{order.orderNo}</span><b>{money(order.balance)}</b></div>)}</div>:null}
         <div className="pickup-modal-actions"><button type="button" className="btn btn-outline" disabled={busy==='cash'} onClick={()=>setCashConfirm(false)}>Batal</button><button type="button" className="btn pickup-pay-full" disabled={busy==='cash'} onClick={()=>void createCheckout('cash')}>{busy==='cash'?'Merekod…':'Ya, Payment Received'}</button></div>
+      </section>
+    </div>:null}
+    {receiptReview&&checkout?<div className="pickup-modal-backdrop" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget&&busy!=='receipt-confirm')setReceiptReview(null)}}>
+      <section className="pickup-modal pickup-receipt-modal" role="dialog" aria-modal="true" aria-labelledby="pickup-receipt-review-title">
+        <div className="pickup-modal-kicker">UPLOADED PAYMENT PROOF</div>
+        <h2 id="pickup-receipt-review-title">Semak bukti {money(checkout.amount)}</h2>
+        <p>{checkout.checkoutNo} · {checkout.orderIds?.length||paySelected.size} order. Pastikan wang benar-benar diterima sebelum mengesahkan.</p>
+        {receiptReview.mimeType==='application/pdf'?<iframe className="pickup-receipt-preview" src={receiptReview.url} title="Payment receipt PDF"/>:<img className="pickup-receipt-preview" src={receiptReview.url} alt={receiptReview.fileName}/>}
+        <a className="pickup-receipt-open" href={receiptReview.url} target="_blank" rel="noopener noreferrer">Buka resit penuh ↗</a>
+        <label className="pickup-modal-field">Reference transaksi bank / DuitNow<input value={receiptReference} maxLength={120} placeholder="Contoh: QR1419425" onChange={(event)=>setReceiptReference(event.target.value)}/></label>
+        <div className="pickup-modal-actions"><button type="button" className="btn btn-outline" disabled={busy==='receipt-confirm'} onClick={()=>setReceiptReview(null)}>Batal</button><button type="button" className="btn pickup-pay-full" disabled={busy==='receipt-confirm'||receiptReference.trim().length<4} onClick={()=>void confirmReceipt()}>{busy==='receipt-confirm'?'Mengesahkan…':'Confirm Payment Received'}</button></div>
       </section>
     </div>:null}
     {voidConfirm&&checkout?.paid?<div className="pickup-modal-backdrop" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget&&busy!=='void')setVoidConfirm(false)}}>
