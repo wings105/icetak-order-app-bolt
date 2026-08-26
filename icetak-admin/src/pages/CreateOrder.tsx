@@ -68,6 +68,29 @@ type Props = {
 };
 
 const money = (value: number) => `RM ${Number(value || 0).toFixed(2)}`;
+
+async function edgeFunctionErrorMessage(error: unknown, fallback: string) {
+  const context = error && typeof error === 'object' && 'context' in error
+    ? (error as { context?: Response }).context
+    : null;
+  if (context && typeof context.clone === 'function') {
+    try {
+      const body = await context.clone().json() as { error?: unknown; message?: unknown };
+      const detail = String(body?.error || body?.message || '').trim();
+      if (detail) return detail;
+    } catch {
+      try {
+        const detail = (await context.clone().text()).trim();
+        if (detail) return detail;
+      } catch {
+        // Fall through to the client error below.
+      }
+    }
+  }
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return fallback;
+}
+
 const choices: Array<{ key: PaymentChoice; title: string; description: string }> = [
   { key: 'prepaid', title: 'Prepaid / Belum bayar', description: 'Hantar semakan dan payment kepada customer.' },
   { key: 'cash_counter', title: 'Pickup · Cash Counter', description: 'Customer bayar semasa ambil order.' },
@@ -141,7 +164,7 @@ export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDraft
     setCustomerMatches(matches);
   };
 
-  const useCustomer = (match: CustomerMatch) => {
+  const selectCustomerMatch = (match: CustomerMatch) => {
     const address = [...(match.addresses || [])].sort((left, right) => Number(Boolean(right.is_default)) - Number(Boolean(left.is_default)))[0];
     setCustomer((previous) => ({
       ...previous,
@@ -247,8 +270,11 @@ export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDraft
         notify_whatsapp: notifyWhatsapp,
       },
     });
-    setBusy(null);
     const response = (data || {}) as ComposerResult;
+    const invokeMessage = invokeError
+      ? await edgeFunctionErrorMessage(invokeError, 'Gagal memproses order.')
+      : '';
+    setBusy(null);
     if (response.requires_confirmation || response.requires_mismatch_confirmation) {
       if (window.confirm('Maklumat customer atau payment tidak sepadan sepenuhnya. Teruskan link QRPay ini?')) {
         await submit(action, true);
@@ -256,7 +282,7 @@ export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDraft
       return;
     }
     if (invokeError || response.success === false) {
-      return setError(response.error || invokeError?.message || 'Gagal memproses order.');
+      return setError(response.error || invokeMessage || 'Gagal memproses order.');
     }
     setResult({ ...response, action });
   };
@@ -308,7 +334,7 @@ export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDraft
       <section className="panel composer-panel composer-customer-panel"><div className="panel-header"><div><div className="panel-title">1. Customer & payment</div><div className="panel-subtitle">WhatsApp, walk-in, pickup dan QRPay dalam satu tempat.</div></div></div><div className="composer-section-body">
         <Field label="Nama customer *"><input value={customer.name} onChange={(event) => setCustomerField('name', event.target.value)} placeholder="Nama customer" /></Field>
         <Field label="No. WhatsApp / penerima"><div className="composer-inline-input"><input value={customer.phone} onChange={(event) => setCustomerField('phone', event.target.value)} placeholder="6012..." /><button className="btn btn-outline" onClick={() => void lookupCustomer()} disabled={busy !== null}>{busy === 'lookup' ? 'Cari…' : 'Cari CRM'}</button></div></Field>
-        {customerMatches.length ? <div className="composer-match-list">{customerMatches.map((match) => <button type="button" key={match.id} onClick={() => useCustomer(match)}><b>{match.name}</b><span>{match.phone}</span></button>)}</div> : null}
+        {customerMatches.length ? <div className="composer-match-list">{customerMatches.map((match) => <button type="button" key={match.id} onClick={() => selectCustomerMatch(match)}><b>{match.name}</b><span>{match.phone}</span></button>)}</div> : null}
         <div className="composer-two-fields"><Field label="WhatsApp User ID / BSUID"><input value={customer.bsuid} onChange={(event) => setCustomerField('bsuid', event.target.value)} placeholder="MY.123456..." /></Field><Field label="Username"><input value={customer.username} onChange={(event) => setCustomerField('username', event.target.value)} placeholder="@username" /></Field></div>
         {normalizedPhone ? <div className="composer-contact-links"><a href={`tel:${normalizedPhone}`}>☎ {normalizedPhone}</a><a href={`https://wa.me/${normalizedPhone}`} target="_blank" rel="noreferrer">WhatsApp</a>{customer.username ? <span>@{customer.username.replace(/^@+/, '')}</span> : null}</div> : validUserId ? <div className="composer-contact-links"><span>WhatsApp API: {customer.bsuid.trim()}</span>{customer.username ? <span>@{customer.username.replace(/^@+/, '')}</span> : null}</div> : null}
         <div className="composer-two-fields"><Field label="Date Need *"><input type="date" value={dateNeed} onChange={(event) => setDateNeed(event.target.value)} /></Field><Field label="Order source"><select value={source} onChange={(event) => setSource(event.target.value)}>{['WhatsApp', 'Walk-in', 'Phone', 'POS', 'Shopee', 'QRPay', 'Manual'].map((option) => <option key={option}>{option}</option>)}</select></Field></div>

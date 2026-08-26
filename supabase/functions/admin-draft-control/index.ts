@@ -258,8 +258,24 @@ Deno.serve(async (req) => {
 
       let result: JsonObject;
       if (operation === "confirm_pickup") {
-        const confirmed = await reviewAction("confirm", token, payload);
-        result = (confirmed?.result || {}) as JsonObject;
+        try {
+          const confirmed = await reviewAction("confirm", token, payload);
+          result = (confirmed?.result || {}) as JsonObject;
+        } catch (confirmError) {
+          // Confirmation creates the order transactionally before optional follow-up work.
+          // Recover that durable success so a harmless downstream failure cannot invite a
+          // second submit with a new request ID and create a duplicate real order.
+          const recoveredRows = await rest(`qrpay_order_drafts?id=eq.${encodeURIComponent(String(draft.id))}&select=status,order_id,order_no&limit=1`);
+          const recovered = recoveredRows?.[0] || {};
+          if (recovered.status !== "confirmed" || !recovered.order_id || !recovered.order_no) throw confirmError;
+          result = {
+            success: true,
+            recovered_after_confirm: true,
+            order_db_id: recovered.order_id,
+            order_id: recovered.order_no,
+            order_no: recovered.order_no,
+          };
+        }
       } else if (operation === "confirm_paid") {
         const method = String(body.payment_method || "").trim();
         const reference = String(body.payment_reference || "").trim();
