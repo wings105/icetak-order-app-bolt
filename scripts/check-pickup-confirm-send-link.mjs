@@ -214,6 +214,7 @@ assert.match(html, /WhatsApp notification ON/);
 assert.match(html, /action==='approve'/);
 assert.match(edgeSource, /whatsapp_opt_in/);
 assert.match(edgeSource, /notify_whatsapp:b\.whatsapp_opt_in!==false/);
+assert.match(edgeSource, /c\.error\)throw c\.error;d=await load\(token\);if\(!d\.order_id\)/, 'cash-counter confirm reloads the draft before using its order ID');
 
 const portal = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
 assert.match(portal, /params\.get\('page'\)==='payment'/);

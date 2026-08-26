@@ -17,6 +17,7 @@ const draftsById = new Map();
 const queues = [];
 const customers = [];
 let nextId = 1;
+let failNextPickupAfterFinish = false;
 
 const identifier = () => {
   const count = String(nextId++).padStart(12, '0');
@@ -108,7 +109,14 @@ const fetchMock = async (input, options = {}) => {
       draft.status = 'ready_customer';
       return json({ ok: true, customer: { sent: true, link: 'https://shop.decocake.my/order-review.html?token=test' } });
     }
-    if (body.action === 'confirm') return json({ ok: true, result: { success: true, payment_required: false, order: finish(draft, 'PICKUP') } });
+    if (body.action === 'confirm') {
+      const result = { success: true, payment_required: false, order: finish(draft, 'PICKUP') };
+      if (failNextPickupAfterFinish) {
+        failNextPickupAfterFinish = false;
+        return json({ ok: false, error: 'simulated post-confirm failure' }, 500);
+      }
+      return json({ ok: true, result });
+    }
   }
   if (path === '/rest/v1/rpc/icetak_admin_confirm_paid_draft') {
     const draft = findByToken(body.p_review_token);
@@ -195,6 +203,13 @@ assert.equal(pickup.body.success, true);
 assert.match(pickup.body.order_no, /^IC-PICKUP-/);
 assert.equal(customers.length, 1, 'BSUID-only customer is synced to customer master');
 
+failNextPickupAfterFinish = true;
+const recoveredPickup = await call('confirm_pickup', randomUUID(), makePayload('cash_counter'));
+assert.equal(recoveredPickup.status, 200);
+assert.equal(recoveredPickup.body.success, true, 'durable pickup order is recovered after a downstream Edge failure');
+assert.equal(recoveredPickup.body.recovered_after_confirm, true);
+assert.match(recoveredPickup.body.order_no, /^IC-PICKUP-/);
+
 const paid = await call('confirm_paid', randomUUID(), makePayload(), { payment_method: 'bank_transfer', payment_reference: 'TX123', notify_whatsapp: true });
 assert.equal(paid.body.success, true);
 assert.match(paid.body.order_no, /^IC-PAID-/);
@@ -213,4 +228,5 @@ const forbidden = await call('confirm_paid', randomUUID(), makePayload(), { paym
 assert.equal(forbidden.status, 403, 'paid confirmation requires verify_payments');
 
 console.log('PASS: prepaid stays draft-only, Save → Send is idempotent, and pickup/paid/QRPay create one real order.');
+console.log('PASS: a post-confirm Edge failure returns the already-created pickup order instead of inviting a duplicate retry.');
 console.log('PASS: custom names/deal pricing survive, BSUID-only customers sync, notification opt-in works, and auth/permissions are enforced.');
