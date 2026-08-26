@@ -88,6 +88,20 @@ async function trackingAutoPreflight(body: Record<string, any>) {
   if (!config?.auto_send_enabled) return { ok: false, error: 'tracking_auto_disabled' };
   if (!config?.provider_ready) return { ok: false, error: 'tracking_provider_not_ready' };
 
+  const shipments = await rest(`shipments?id=eq.${encodeURIComponent(shipmentId)}&select=id,order_id,cancelled_at&limit=1`).catch(() => []);
+  const shipment = shipments?.[0];
+  if (!shipment) return { ok: false, error: 'tracking_shipment_missing' };
+  if (shipment.cancelled_at) return { ok: false, error: 'tracking_cancelled' };
+  if (!shipment.order_id) return { ok: false, error: 'tracking_order_missing' };
+
+  const orders = await rest(
+    `orders?id=eq.${encodeURIComponent(shipment.order_id)}&select=id,whatsapp_opt_in,status,admin_status,fulfillment_stage&limit=1`,
+  ).catch(() => []);
+  const order = orders?.[0];
+  if (!order) return { ok: false, error: 'tracking_order_missing' };
+  if (order.whatsapp_opt_in !== true) return { ok: false, error: 'tracking_order_opted_out' };
+  if (cancelledOrder(order)) return { ok: false, error: 'tracking_order_cancelled' };
+
   const states = await rest(`shipment_tracking_state?shipment_id=eq.${encodeURIComponent(shipmentId)}&select=send_status,manual_cancelled_at&limit=1`).catch(() => []);
   const state = states?.[0];
   if (!state) return { ok: false, error: 'tracking_state_missing' };
@@ -106,9 +120,10 @@ async function pickupAutoPreflight(body: Record<string, any>) {
   const config = settings?.[0];
   if (!config?.auto_send_enabled) return { ok: false, error: 'pickup_auto_disabled' };
   if (!config?.provider_ready) return { ok: false, error: 'pickup_provider_not_ready' };
-  const orders = await rest(`orders?id=eq.${encodeURIComponent(orderId)}&select=id,delivery_method,delivery,pickup_ready_at,pickup_collected_at,status,admin_status,fulfillment_stage&limit=1`).catch(() => []);
+  const orders = await rest(`orders?id=eq.${encodeURIComponent(orderId)}&select=id,whatsapp_opt_in,delivery_method,delivery,pickup_ready_at,pickup_collected_at,status,admin_status,fulfillment_stage&limit=1`).catch(() => []);
   const order = orders?.[0];
   if (!order) return { ok: false, error: 'pickup_order_missing' };
+  if (order.whatsapp_opt_in !== true) return { ok: false, error: 'pickup_order_opted_out' };
   if (!String(order.delivery_method || order.delivery || '').toLowerCase().includes('pickup')) return { ok: false, error: 'pickup_not_pickup' };
   if (!order.pickup_ready_at) return { ok: false, error: 'pickup_order_not_ready' };
   if (order.pickup_collected_at) return { ok: false, error: 'pickup_collected' };

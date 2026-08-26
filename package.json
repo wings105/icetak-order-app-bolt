@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "check:admin-v2": "node scripts/check-admin-v2-source.mjs",
+    "check:whatsapp-optout": "node scripts/check-whatsapp-order-optout-guards.mjs",
     "build": "npm run check:admin-v2 && vite build",
     "preview": "vite preview"
   },

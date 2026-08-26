@@ -62,6 +62,8 @@ jobs:
             fi
           done
           exit $failed
+      - name: Check per-order opt-out coverage
+        run: node scripts/check-whatsapp-order-optout-guards.mjs
       - name: Guard against accidental activation
         shell: python
         run: |
