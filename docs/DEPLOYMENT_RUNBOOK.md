@@ -6,9 +6,10 @@ Use this runbook before deploying or making backend changes. Exact commands may 
 
 1. Confirm the request and affected subsystem.
 2. Read `AGENTS.md` and the relevant subsystem docs.
-3. Fetch the latest `production` head.
-4. Inspect recent production commits touching the same area.
-5. If backend behavior is involved, inspect live Supabase state for the correct project.
+3. Read `docs/VERIFICATION_PROTOCOL.md` so the work status is reported correctly.
+4. Fetch the latest `production` head.
+5. Inspect recent production commits touching the same area.
+6. If backend behavior is involved, inspect live Supabase state for the correct project.
 
 Never start a production fix from `main` merely because it is the default branch.
 
@@ -28,6 +29,8 @@ For cross-project behavior, document both sides of the contract and preserve ide
 - Do not bypass payment, WhatsApp, ClickUp or session safety gates.
 - Avoid unrelated refactors in emergency fixes.
 
+At this point the work status is normally **ATTEMPTED**. Do not call it done merely because the patch exists.
+
 ## 4. Database changes
 
 Before applying a migration:
@@ -46,6 +49,8 @@ After applying:
 - run the relevant smoke/regression flow
 - confirm no unintended historical rows were modified
 
+Migration success alone is not outcome verification.
+
 ## 5. Edge Function changes
 
 Before deploy:
@@ -61,6 +66,8 @@ After deploy:
 - run a non-destructive smoke test where possible
 - inspect resulting database/audit state, not only HTTP status
 
+A deploy success or HTTP 200 alone is not enough to claim the requested behavior is fixed.
+
 ## 6. Frontend/Admin changes
 
 For customer app changes:
@@ -75,6 +82,8 @@ For Admin V2 changes:
 - avoid duplicating order actions already owned by another admin page
 
 Run relevant build/type/lint/check scripts present in `package.json`, `icetak-admin/package.json`, `scripts/` and CI workflows.
+
+For visual/UI requests, open the actual rendered affected surface and observe the requested result. A source/CSS/TSX change plus a successful build is still only ATTEMPTED until the rendered result is checked.
 
 ## 7. Payments / QRPay checklist
 
@@ -137,25 +146,58 @@ Verify separately:
 
 Do not infer all of these from a single status.
 
-## 12. Release documentation
+## 12. Verification gate and status promotion
 
-For a meaningful production-facing change:
+Use this order:
 
-- add/update `CHANGELOG.md`
+1. **ATTEMPTED** — patch/config/code exists.
+2. Run implementation-level checks such as build/lint/type/regression tests.
+3. Verify the actual requested outcome on the affected surface.
+4. Promote to **VERIFIED** only when observable evidence exists.
+5. Merge/deploy to the production source/runtime when appropriate.
+6. Smoke-check the affected production surface.
+7. Promote to **PRODUCTION** only after that check succeeds.
+
+If the user checks the real system and says the change is absent/broken, immediately move the work back to ATTEMPTED/FAILED and investigate before applying another arbitrary patch.
+
+Use `docs/VERIFICATION_PROTOCOL.md` for evidence standards and troubleshooting order.
+
+## 13. Release documentation
+
+For a meaningful change that reached VERIFIED or PRODUCTION:
+
+- add/update `CHANGELOG.md` with `[VERIFIED]` or `[PRODUCTION]`
 - update `docs/PRODUCTION_STATE.md` if live topology/behavior changed
 - update `docs/ARCHITECTURE.md` if ownership/data flow changed
 - add/update `docs/DECISIONS.md` if a long-lived architecture decision changed
 - update the relevant subsystem document
 
-## 13. Handoff to another AI/tool
+Do not add a failed/unverified attempt to `CHANGELOG.md` as a completed feature. The commit/PR history is the correct place for unfinished attempts.
+
+## 14. Handoff to another AI/tool
 
 Before handing off unfinished work, leave enough repository state that another tool can continue without chat history:
 
+- explicit status: ATTEMPTED / VERIFIED / PRODUCTION
 - branch/commit containing current work
-- concise commit/PR description
+- concise requested outcome and files changed
 - tests already run and results
+- outcome verification performed and evidence, or `NOT VERIFIED`
 - remaining known issue(s)
 - any live deployment already performed
 - documentation for any new contract/decision
 
-The next agent should be able to begin with: `Read AGENTS.md, inspect latest production, then continue this branch/PR.`
+For unfinished work, a recommended handoff block is:
+
+```text
+Status: ATTEMPTED
+Requested outcome: ...
+Changed: ...
+Checks passed: ...
+Outcome verification: NOT DONE / FAILED
+Observed issue: ...
+Next check: ...
+Deployment state: ...
+```
+
+The next agent should be able to begin with: `Read AGENTS.md and docs/VERIFICATION_PROTOCOL.md, inspect latest production, then continue this branch/PR.`
