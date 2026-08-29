@@ -1,8 +1,32 @@
 # Changelog
 
-This file records meaningful production-facing or architecture-level changes. It is not intended to mirror every commit.
+This file is reliable shared memory for meaningful production-facing or architecture-level changes. It is not intended to mirror every commit or every coding attempt.
 
-## 2026-08-29 — AI portability / project memory
+## Status policy
+
+Only record a change here when it has reached one of these evidence levels:
+
+- `[VERIFIED]` — the requested outcome has been tested and observed, but final production confirmation is not yet established.
+- `[PRODUCTION]` — the change is in the production source/runtime and the requested outcome has been smoke-checked successfully on production.
+
+Do **not** record speculative fixes, code-only attempts, failed verification, or changes the user reports as still not working as completed items. Those belong in commits/PR handoff notes until they are proven.
+
+If a previously recorded success is later disproved, correct its status/entry rather than preserving a false success record.
+
+See `docs/VERIFICATION_PROTOCOL.md`.
+
+## 2026-08-30 — [PRODUCTION] Evidence-based completion and AI handoff policy
+
+- Added the mandatory `ATTEMPTED -> VERIFIED -> PRODUCTION` work-status model for all coding agents.
+- Agents may no longer claim `done`, `fixed`, `working` or `live` from a code edit/build/merge alone.
+- Added outcome-specific verification rules for UI, backend, database, payments, WhatsApp, ClickUp and deployment work.
+- Added explicit handling for cases where the user checks the real system and reports that a claimed change is absent or broken: the work returns to ATTEMPTED/FAILED until re-verified.
+- Added a troubleshooting order for source/deploy/cache/route/runtime mismatches before repeating arbitrary patches.
+- Changelog entries are now reserved for meaningful VERIFIED or PRODUCTION outcomes; failed attempts remain in Git/PR handoff history.
+- Added a non-blocking PR documentation reminder so missing verification/changelog review is surfaced as a warning rather than preventing work.
+- No application logic, database schema, Edge Function behavior or live business workflow is changed by this policy release.
+
+## 2026-08-29 — [PRODUCTION] AI portability / project memory
 
 - Added repository-level `AGENTS.md` as the mandatory entry point for coding agents.
 - Added ecosystem architecture documentation covering customer app, Admin V2, Order System, Unified Inbox, ClickUp, WhatsApp, QRPay, payments and shipping.
