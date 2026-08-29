@@ -1,0 +1,42 @@
+name: Documentation Handoff Reminder
+
+on:
+  pull_request:
+    branches:
+      - production
+
+permissions:
+  contents: read
+
+jobs:
+  documentation-reminder:
+    name: Verification / changelog reminder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Review production-facing change documentation
+        shell: bash
+        run: |
+          set -u
+
+          git fetch origin "${{ github.base_ref }}" --depth=1 >/dev/null 2>&1 || true
+          changed="$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" 2>/dev/null || git diff --name-only HEAD^..HEAD)"
+
+          echo "Changed files:"
+          printf '%s\n' "$changed"
+
+          if printf '%s\n' "$changed" | grep -Eq '^(src/|public/|icetak-admin/|backend/|supabase/functions/|supabase/migrations/)'; then
+            if ! printf '%s\n' "$changed" | grep -qx 'CHANGELOG.md'; then
+              echo "::warning title=Verification / changelog review::Production-facing files changed without CHANGELOG.md. This check is NON-BLOCKING. If the requested outcome is still ATTEMPTED or failed verification, leave CHANGELOG unchanged and state that clearly in the PR/handoff. If the outcome reached VERIFIED or PRODUCTION, update CHANGELOG.md with the appropriate status and evidence-oriented wording."
+            else
+              echo "CHANGELOG.md changed; verify that entries describe only VERIFIED or PRODUCTION outcomes, not optimistic code attempts."
+            fi
+          else
+            echo "No production-facing source paths detected; no changelog reminder needed."
+          fi
+
+          echo "This job intentionally never blocks a PR for documentation status."
