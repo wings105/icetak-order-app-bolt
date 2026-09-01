@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
  type Props = { permissions?: string[]; onOpenAiLearning?: () => void };
@@ -7,6 +7,24 @@ export default function Settings({ permissions = [], onOpenAiLearning }: Props) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canExport = permissions.includes('export_data');
+  const canManageMonitor = permissions.includes('manage_admins');
+  const [monitor, setMonitor] = useState<{enabled:boolean;delay_minutes:number;open_alerts:number;updated_at?:string}|null>(null);
+  const [monitorBusy, setMonitorBusy] = useState(false);
+
+  const loadMonitor = async () => {
+    if (!canManageMonitor) return;
+    const { data, error: rpcError } = await supabase.rpc('icetak_admin_payment_order_attention_settings');
+    if (rpcError) return setError(rpcError.message);
+    setMonitor(data as {enabled:boolean;delay_minutes:number;open_alerts:number;updated_at?:string});
+  };
+  useEffect(() => { void loadMonitor(); }, [canManageMonitor]);
+  const setMonitorEnabled = async (enabled:boolean) => {
+    setMonitorBusy(true); setError(null);
+    const { data, error: rpcError } = await supabase.rpc('icetak_admin_set_payment_order_attention_enabled',{p_enabled:enabled});
+    setMonitorBusy(false);
+    if (rpcError) return setError(rpcError.message);
+    setMonitor(data as {enabled:boolean;delay_minutes:number;open_alerts:number;updated_at?:string});
+  };
 
   const download = (name:string, content:string, type:string) => {
     const url=URL.createObjectURL(new Blob([content],{type}));
@@ -36,6 +54,7 @@ export default function Settings({ permissions = [], onOpenAiLearning }: Props) 
       <div className="panel"><div className="panel-header"><div><div className="panel-title">Data Export</div><div className="panel-subtitle">Replacement for V1 admin export.</div></div></div><div style={{padding:20}}>{canExport?<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button className="btn btn-primary" disabled={busy} onClick={()=>void exportData('json')}>Download JSON Backup</button><button className="btn btn-outline" disabled={busy} onClick={()=>void exportData('csv')}>Download Orders CSV</button></div>:<div className="cell-sub">Permission export_data diperlukan.</div>}</div></div>
       <div className="panel"><div className="panel-header"><div><div className="panel-title">System ownership</div><div className="panel-subtitle">Admin frontend selepas migration</div></div></div><div style={{padding:20}}><div className="kv-list"><div className="kv-row"><span className="k">Admin UI</span><span className="v">React Admin V2</span></div><div className="kv-row"><span className="k">Database / actions</span><span className="v">Supabase RPC + Edge Functions</span></div><div className="kv-row"><span className="k">Legacy V1</span><span className="v">Retiring after parity QA</span></div></div></div></div>
       <div className="panel"><div className="panel-header"><div><div className="panel-title">WhatsApp & integrations</div><div className="panel-subtitle">Configuration moved to dedicated pages.</div></div></div><div style={{padding:20}}><p>WhatsApp rules, credentials and queue are managed in <b>WhatsApp → Control Center</b>. Provider values remain in Supabase/Integrations.</p></div></div>
+      {canManageMonitor&&<div className="panel"><div className="panel-header"><div><div className="panel-title">Matched Payment Monitor</div><div className="panel-subtitle">Pantau QRPay customer checkout yang sudah matched tetapi belum ada real order.</div></div></div><div style={{padding:20,display:'grid',gap:12}}>{monitor?<><div className="kv-list"><div className="kv-row"><span className="k">Monitor</span><span className="v">{monitor.enabled?'ON':'OFF'}</span></div><div className="kv-row"><span className="k">Semakan bermula</span><span className="v">{monitor.delay_minutes} minit selepas payment</span></div><div className="kv-row"><span className="k">Belum ditutup</span><span className="v">{monitor.open_alerts}</span></div></div><div className="cell-sub">Alert kekal sampai order berjaya dicipta/linked atau admin pilih Ignore. OFF hentikan alert baharu dan penghantaran WhatsApp.</div><button className={`btn ${monitor.enabled?'btn-outline':'btn-primary'}`} disabled={monitorBusy} onClick={()=>void setMonitorEnabled(!monitor.enabled)}>{monitorBusy?'Saving…':`Monitor: ${monitor.enabled?'ON — Turn OFF':'OFF — Turn ON'}`}</button></>:<div className="cell-sub">Loading monitor setting…</div>}</div></div>}
       {(permissions.includes('view_finance') || permissions.includes('manage_admins')) && <div className="panel"><div className="panel-header"><div><div className="panel-title">AI Draft Learning</div><div className="panel-subtitle">Weekly rule update, correction history, lock and rollback.</div></div></div><div style={{padding:20}}><button className="btn btn-primary" onClick={onOpenAiLearning}>Open AI Learning Control Center</button></div></div>}
       <div className="panel"><div className="panel-header"><div className="panel-title">Session</div></div><div style={{padding:20}}><button className="btn btn-outline" onClick={()=>void signOut()}>Log Out Admin</button></div></div>
     </div>
