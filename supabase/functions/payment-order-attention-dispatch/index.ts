@@ -26,7 +26,13 @@ Deno.serve(async (req)=>{
   const ids=Array.isArray(b.alert_ids)?b.alert_ids.map(t).filter(Boolean).slice(0,10):[];
   if(!ids.length)return out({ok:true,processed:0});
   try{
-    await db.rpc('icetak_scan_payment_order_attention');
+    const {data:scan,error:scanError}=await db.rpc('icetak_scan_payment_order_attention');
+    if(scanError)throw scanError;
+    if(scan?.enabled===false){
+      const now=new Date().toISOString();
+      await db.from('payment_order_attention_alerts').update({status:'disabled',locked_at:null,last_error:'Matched payment order monitor switched OFF',updated_at:now}).in('id',ids).eq('status','sending');
+      return out({ok:true,processed:0,reason:'monitor_disabled'});
+    }
     const {data:alerts,error:ae}=await db.from('payment_order_attention_alerts').select('*').in('id',ids).eq('status','sending').order('detected_at',{ascending:true});
     if(ae)throw ae;
     if(!alerts?.length)return out({ok:true,processed:0,reason:'alerts_resolved_before_send'});
