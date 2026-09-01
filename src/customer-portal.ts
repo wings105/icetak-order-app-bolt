@@ -154,7 +154,7 @@ function orderQuestionUrl(order: Order) {
   const items = order.items
     .map((item, index) => `${index + 1}. ${item.qty}x ${item.title}${item.size ? ` (${item.size})` : ''}`)
     .join('\n');
-  const message = `Hi iCetak, saya nak tanya tentang order ini.\n\nOrder ID: ${order.id}\nDate Need: ${order.dateNeed}\nStatus: ${order.status}\nPayment: ${order.payment}\nDelivery: ${order.delivery}\n\nItem:\n${items}\n\nPertanyaan saya:`;
+  const message = `Hi iCetak, saya nak tanya tentang order ini.\n\nOrder ID: ${order.id}\nDate: ${order.dateNeed}\nStatus: ${order.status}\nPayment: ${order.payment}\nDelivery: ${order.delivery}\n\nItem:\n${items}\n\nPertanyaan saya:`;
   return `https://wa.me/${WA}?text=${encodeURIComponent(message)}`;
 }
 
@@ -251,7 +251,7 @@ function renderHistory(main: HTMLElement, orders: Order[]) {
             <div class="cp-preview-images">${previewItems.map((item) => `<img src="${imageFor(item.k)}" alt="${escapeHtml(item.title)}">`).join('')}</div>
             <div class="cp-preview-copy">
               <b>${escapeHtml(order.items[0]?.title || 'Order')}${order.items.length > 1 ? ` +${order.items.length - 1} item` : ''}</b>
-              <span>${itemTotal} item • Date Need ${escapeHtml(order.dateNeed)}</span>
+              <span>${itemTotal} item • Date ${escapeHtml(order.dateNeed)}</span>
               <small>${order.delivery === 'Pickup' ? '📍' : '🚚'} ${escapeHtml(order.deliverySummary || order.delivery)}</small>
               <strong>${money(order.total)}</strong>
             </div>
@@ -366,7 +366,7 @@ function renderOrder(main: HTMLElement, order: Order) {
       <div>
         <small>Order ID</small>
         <div class="cp-order-id"><h2>${escapeHtml(order.id)}</h2><button data-cp-copy-order>⧉</button></div>
-        <p>Date Need ${escapeHtml(order.dateNeed)}</p>
+        <p>Date ${escapeHtml(order.dateNeed)}</p>
         <div class="cp-recipient"><b>${escapeHtml(order.deliveryName || 'Customer')}</b><span>${escapeHtml(order.deliveryPhone || '')}</span><small>${order.delivery === 'Pickup' ? '📍' : '🚚'} ${escapeHtml(order.deliverySummary || order.delivery)}</small></div>
       </div>
       <span class="cp-status ${statusTone(order.status)}">${escapeHtml(order.status)}</span>
