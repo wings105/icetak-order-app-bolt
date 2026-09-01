@@ -336,7 +336,7 @@ async function beginLoggedCheckout() {
   const address = selectedAddress();
   if (shipping !== 'pickup' && !address) { toast('Tambah atau sahkan delivery address dahulu', true); await openAddressSelector(); return; }
   const date = document.querySelector<HTMLInputElement>('#date')?.value || sessionStorage.getItem('need_date') || '';
-  if (!date) { toast('Pilih Date Need dahulu', true); document.querySelector<HTMLInputElement>('#date')?.focus(); return; }
+  if (!date) { toast('Pilih Date dahulu', true); document.querySelector<HTMLInputElement>('#date')?.focus(); return; }
   const payment = shipping === 'pickup' ? document.querySelector<HTMLButtonElement>('.pay-option.active[data-p]')?.dataset.p || 'QR Pay' : 'QR Pay';
   const subtotal = cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
   const total = subtotal + (SHIPPING[shipping] || 0);
@@ -344,7 +344,7 @@ async function beginLoggedCheckout() {
   const wrap = modal(`<button data-ca-close class="ca-x">×</button><h2>Review Order</h2><section class="ca-order-review">
     <div><span>Customer</span><b>${esc(current.customer.displayName)}</b></div>
     <div><span>WhatsApp</span><b>${esc(current.customer.phone)}</b></div>
-    <div><span>Date Need</span><b>${esc(date)}</b></div>
+    <div><span>Date</span><b>${esc(date)}</b></div>
     <div><span>${shipping === 'pickup' ? 'Pickup' : 'Delivery'}</span><b>${shipping === 'pickup' ? 'Bandar Baru Pasir Puteh' : esc(address!.summary)}</b></div>
     ${itemHtml}<div class="total"><span>Total</span><b>${money(total)}</b></div></section>
     <label class="ca-check ca-notify"><input type="checkbox" data-ca-notify checked><span>Terima notifikasi WhatsApp untuk status order</span></label>
