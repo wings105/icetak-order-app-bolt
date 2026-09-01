@@ -41,7 +41,7 @@ export default function Settings({ permissions = [], onOpenAiLearning }: Props) 
     if(format==='json') download(`icetak-backup-${stamp}.json`,JSON.stringify(data,null,2),'application/json');
     else {
       const rows=(payload.orders||[]).map((o)=>[o.order_id||o.order_no,o.created_at,o.date_need,o.total,o.payment||o.payment_status,o.delivery||o.delivery_method,o.status,o.admin_status].map((v)=>`"${String(v??'').replaceAll('"','""')}"`).join(','));
-      download(`icetak-orders-${stamp}.csv`,['Order ID,Created,Date Need,Total,Payment,Delivery,Status,Admin Status',...rows].join('\n'),'text/csv');
+      download(`icetak-orders-${stamp}.csv`,['Order ID,Created,Date,Total,Payment,Delivery,Status,Admin Status',...rows].join('\n'),'text/csv');
     }
   };
 
