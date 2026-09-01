@@ -180,7 +180,7 @@ function QuickArrange({ onOpenOrder }: { onOpenOrder?: (orderNo: string) => void
     const normalized = normalizeMalaysiaPhone(phone);
     if (!name.trim()) return setError('Nama customer diperlukan.');
     if (!normalized) return setError('Nombor WhatsApp Malaysia tidak sah.');
-    if (!dateNeed) return setError('Date Need diperlukan.');
+    if (!dateNeed) return setError('Date diperlukan.');
     if (!payment) return setError('Pilih payment status.');
     if (!items.length) return setError('Tambah sekurang-kurangnya satu produk.');
     if (delivery !== 'pickup' && !address.trim()) return setError('Alamat penghantaran diperlukan.');
@@ -253,7 +253,7 @@ function QuickArrange({ onOpenOrder }: { onOpenOrder?: (orderNo: string) => void
           <div style={{ padding: 18, display: 'grid', gap: 12 }}>
             <Field label="Nama customer *"><input value={name} onChange={(e) => setName(e.target.value)} /></Field>
             <Field label="No. WhatsApp *"><input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0123456789" /></Field>
-            <Field label="Date Need *"><input type="date" min={today()} value={dateNeed} onChange={(e) => setDateNeed(e.target.value)} /></Field>
+            <Field label="Date *"><input type="date" min={today()} value={dateNeed} onChange={(e) => setDateNeed(e.target.value)} /></Field>
             <Field label="Order source"><select value={source} onChange={(e) => setSource(e.target.value)}>{['Walk-in', 'WhatsApp', 'Phone', 'POS'].map((v) => <option key={v}>{v}</option>)}</select></Field>
             <Field label="Delivery"><select value={delivery} onChange={(e) => setDelivery(e.target.value as DeliveryKind)}>{(Object.keys(DELIVERY) as DeliveryKind[]).map((key) => <option key={key} value={key}>{DELIVERY[key].label}{DELIVERY[key].fee ? ` (+${money(DELIVERY[key].fee)})` : ''}</option>)}</select></Field>
             {delivery !== 'pickup' && <Field label="Alamat penghantaran *"><textarea rows={3} value={address} onChange={(e) => setAddress(e.target.value)} /></Field>}
@@ -404,7 +404,7 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
     const normalized = normalizeMalaysiaPhone(phone);
     if (!normalized) return setError('Nombor WhatsApp Malaysia tidak sah.');
     if (!name.trim()) return setError('Nama customer diperlukan.');
-    if (!dateNeed) return setError('Date Need diperlukan.');
+    if (!dateNeed) return setError('Date diperlukan.');
     if (!transactionId.trim()) return setError('Transaction/reference ID QR diperlukan.');
     if (!items.length || items.some((i) => !i.title.trim() || i.qty < 1 || i.price < 0)) return setError('Semak item, qty dan harga.');
     if (!linkedAmountMatches) return setError(`Jumlah item + delivery mesti sama dengan QRPay ${money(linkedAmount)}.`);
@@ -445,7 +445,7 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
             {addressFetchStatus&&<div className={`finance-alert ${addressFetchStatus.error?'':'qrpay-match-success'}`} style={{marginBottom:0}}><b>{addressFetchStatus.error?'Carian alamat':'Alamat dijumpai'}</b><span>{addressFetchStatus.message}</span></div>}
             {matches.length > 0 && <div style={{ display: 'grid', gap: 6 }}>{matches.map((c) => <button key={c.id} className="btn btn-outline" onClick={() => applyCustomer(c)}>{c.name} · {c.phone}</button>)}</div>}
             <Field label="Nama *"><input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-            <Field label="Date Need *"><input type="date" min={today()} value={dateNeed} onChange={(e) => setDateNeed(e.target.value)} /></Field>
+            <Field label="Date *"><input type="date" min={today()} value={dateNeed} onChange={(e) => setDateNeed(e.target.value)} /></Field>
             <Field label="Delivery"><select value={delivery} onChange={(e) => setDelivery(e.target.value as DeliveryKind)}>{(Object.keys(DELIVERY) as DeliveryKind[]).map((key) => <option key={key} value={key}>{DELIVERY[key].label}</option>)}</select></Field>
             <Field label="Delivery fee"><input type="number" min={0} step="0.1" value={deliveryFee} onChange={(e) => setDeliveryFee(Number(e.target.value || 0))} /></Field>
             {delivery !== 'pickup' && <><Field label="Address line 1"><input value={address.address_line1} onChange={(e) => setAddress({ ...address, address_line1: e.target.value })} /></Field><Field label="Address line 2"><input value={address.address_line2} onChange={(e) => setAddress({ ...address, address_line2: e.target.value })} /></Field><Field label="City"><input value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} /></Field><Field label="Postcode"><input value={address.postcode} onChange={(e) => setAddress({ ...address, postcode: e.target.value })} /></Field><Field label="State"><input value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} /></Field>{!addressComplete&&<div className="finance-alert"><b>Alamat belum lengkap</b><span>Order masih boleh disimpan. Lengkapkan alamat sebelum proses shipping.</span></div>}</>}
