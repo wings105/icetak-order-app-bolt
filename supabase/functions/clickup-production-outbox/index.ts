@@ -15,6 +15,13 @@ const baseHeaders = {
 };
 
 const text = (value: unknown) => value == null ? '' : String(value).trim();
+// Keep production task sizes compact. Product catalog labels stay unchanged
+// elsewhere; only the ClickUp/AP payload uses A5, A6, or A7.
+const clickupSize = (value: unknown) => {
+  const raw = text(value);
+  const match = raw.match(/^(A[5-7])\s+(?:Mini|Standard|Large)$/i);
+  return match ? match[1].toUpperCase() : raw;
+};
 const trimSlash = (value: string) => value.replace(/\/+$/, '');
 const BSUID_RE = /^[A-Z]{2}\.\d+$/i;
 const digits = (value: unknown) => {
@@ -325,7 +332,7 @@ function description(
     text(item.catalog_clickup_task_id)
       ? `Source design task: ${text(item.catalog_clickup_task_id)}`
       : '',
-    text(item.size) ? `Size: ${text(item.size)}` : '',
+    clickupSize(item.size) ? `Size: ${clickupSize(item.size)}` : '',
     text(item.style) ? `Style: ${text(item.style)}` : '',
     text(item.wording || item.custom_text)
       ? `Wording: ${text(item.wording || item.custom_text)}`
@@ -461,7 +468,7 @@ async function prepareEvent(candidate: any, settingsValue: any) {
       task_external_key: `icetak-component:${component.id}`,
       component_type: component.component_type,
       quantity: item.qty || 1,
-      size: item.size || '',
+      size: clickupSize(item.size),
       style: item.style || '',
       wording: word,
       wording_mode: item.wording_mode || '',
