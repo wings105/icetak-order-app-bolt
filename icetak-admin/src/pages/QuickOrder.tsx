@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
-  ADMIN_PRODUCTS, DELIVERY, adminBurnawayPrice, adminProductPrice, adminProductStyles, makeBurnawayLayers,
+  ADMIN_PRODUCTS, BURN_AWAY_EDIBLE_SIZES, BURN_AWAY_SHAPES, BURN_AWAY_WAFER_SIZES, DELIVERY, adminBurnawayPrice, adminProductPrice, adminProductStyles, makeBurnawayLayers, setBurnawayShape,
   normalizeMalaysiaPhone, type AdminProductKind, type BurnawayLayers, type DeliveryKind, type ProductReview,
 } from '../lib/orderProducts';
 import { parseMalaysiaAddress, type ParsedMalaysiaAddress } from '../lib/addressParser';
@@ -200,12 +200,12 @@ function QuickArrange({ onOpenOrder }: { onOpenOrder?: (orderNo: string) => void
         process: item.process,
         review: item.review,
         size: item.kind === 'burnaway' && item.layers ? `Edible ${item.layers.edible.size} • Wafer ${item.layers.wafer.size}` : item.size,
-        style: item.kind === 'burnaway' && item.layers ? `Edible ${item.layers.edible.shape} • Wafer ${item.layers.wafer.shape}` : item.style,
+        style: item.kind === 'burnaway' && item.layers ? item.layers.edible.shape : item.style,
         customText: item.wording.trim(),
         price: itemPrice(item),
         qty: item.qty,
         product_snapshot: item.referenceUrl.trim() ? { image_url: item.referenceUrl.trim(), quick_arrange_kind: item.kind } : { quick_arrange_kind: item.kind },
-        customization: item.kind === 'burnaway' && item.layers ? { layers: item.layers } : (item.referenceUrl.trim() ? { reference_url: item.referenceUrl.trim() } : {}),
+        customization: item.kind === 'burnaway' && item.layers ? { shape: item.layers.edible.shape, layers: item.layers } : (item.referenceUrl.trim() ? { reference_url: item.referenceUrl.trim() } : {}),
       })),
       date_need: dateNeed,
       delivery,
@@ -291,6 +291,7 @@ function QuickItemCard({ item, index, onChange, onRemove }: { item: ItemDraft; i
   const styles = adminProductStyles(item.kind, item.size);
   const price = item.kind === 'burnaway' && item.layers ? adminBurnawayPrice(item.layers) : adminProductPrice(item.kind, item.process, item.size, item.style, item.review);
   const updateLayer = (layer: keyof BurnawayLayers, patch: Partial<BurnawayLayers['edible']>) => onChange(item.id, { layers: { ...(item.layers || makeBurnawayLayers()), [layer]: { ...(item.layers || makeBurnawayLayers())[layer], ...patch } } });
+  const updateShape = (shape: string) => onChange(item.id, { layers: setBurnawayShape(item.layers || makeBurnawayLayers(), shape) });
   return (
     <div className="panel" style={{ marginBottom: 12 }}>
       <div className="panel-header"><div><div className="panel-title">{index + 1}. {product.label}</div><div className="panel-subtitle">{money(price)} / unit</div></div><button className="btn btn-outline" onClick={onRemove}>Remove</button></div>
@@ -298,10 +299,9 @@ function QuickItemCard({ item, index, onChange, onRemove }: { item: ItemDraft; i
         <Field label="Process"><select value={item.process} onChange={(e) => onChange(item.id, { process: e.target.value })}>{product.process.map((v) => <option key={v}>{v}</option>)}</select></Field>
         <Field label="Review"><select value={item.review} onChange={(e) => onChange(item.id, { review: e.target.value as ProductReview })}><option>No Review</option><option>Need Review</option></select></Field>
         {item.kind === 'burnaway' && item.layers ? <>
-          <Field label="Edible size"><select value={item.layers.edible.size} onChange={(e) => updateLayer('edible', { size: e.target.value })}>{ADMIN_PRODUCTS.edible.sizes.filter(v=>v!=='Cupcake').map((v) => <option key={v}>{v}</option>)}</select></Field>
-          <Field label="Edible shape"><select value={item.layers.edible.shape} onChange={(e) => updateLayer('edible', { shape: e.target.value })}>{adminProductStyles('edible', item.layers.edible.size).map((v) => <option key={v}>{v}</option>)}</select></Field>
-          <Field label="Wafer size"><select value={item.layers.wafer.size} onChange={(e) => updateLayer('wafer', { size: e.target.value })}>{ADMIN_PRODUCTS.wafer.sizes.map((v) => <option key={v}>{v}</option>)}</select></Field>
-          <Field label="Wafer shape"><select value={item.layers.wafer.shape} onChange={(e) => updateLayer('wafer', { shape: e.target.value })}>{ADMIN_PRODUCTS.wafer.styles.map((v) => <option key={v}>{v}</option>)}</select></Field>
+          <Field label="Shape (Edible + Wafer)"><select value={item.layers.edible.shape} onChange={(e) => updateShape(e.target.value)}>{BURN_AWAY_SHAPES.map((v) => <option key={v}>{v}</option>)}</select></Field>
+          <Field label="Edible size"><select value={item.layers.edible.size} onChange={(e) => updateLayer('edible', { size: e.target.value })}>{BURN_AWAY_EDIBLE_SIZES.map((v) => <option key={v}>{v}</option>)}</select></Field>
+          <Field label="Wafer size"><select value={item.layers.wafer.size} onChange={(e) => updateLayer('wafer', { size: e.target.value })}>{BURN_AWAY_WAFER_SIZES.map((v) => <option key={v}>{v}</option>)}</select></Field>
           <Field label="Edible wording"><input value={item.layers.edible.wording} onChange={(e) => updateLayer('edible', { wording: e.target.value })} /></Field>
           <Field label="Wafer wording"><input value={item.layers.wafer.wording} onChange={(e) => updateLayer('wafer', { wording: e.target.value })} /></Field>
           <Field label="Edible reference URL"><input type="url" value={item.layers.edible.referenceUrl} onChange={(e) => updateLayer('edible', { referenceUrl: e.target.value })} /></Field>
@@ -432,10 +432,10 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
       items: items.map((i) => ({
         k:i.kind,title:i.title.trim(),process:i.process,review:i.review,
         size:i.kind==='burnaway'&&i.layers?`Edible ${i.layers.edible.size} • Wafer ${i.layers.wafer.size}`:i.size,
-        style:i.kind==='burnaway'&&i.layers?`Edible ${i.layers.edible.shape} • Wafer ${i.layers.wafer.shape}`:i.style,
+        style:i.kind==='burnaway'&&i.layers?i.layers.edible.shape:i.style,
         customText:i.customText,price:i.price,qty:i.qty,
         product_snapshot:i.referenceUrl.trim()?{image_url:i.referenceUrl.trim(),quick_arrange_kind:i.kind}:{quick_arrange_kind:i.kind},
-        customization:i.kind==='burnaway'&&i.layers?{layers:i.layers}:(i.referenceUrl.trim()?{reference_url:i.referenceUrl.trim()}:{})
+        customization:i.kind==='burnaway'&&i.layers?{shape:i.layers.edible.shape,layers:i.layers}:(i.referenceUrl.trim()?{reference_url:i.referenceUrl.trim()}:{})
       })),
       date_need: dateNeed,
       delivery,
@@ -499,8 +499,9 @@ function PaidItemRow({ item, index, onChange, onRemove }: { item: PaidItem; inde
   const styles=adminProductStyles(item.kind,item.size);
   const standardPrice=(patch:Partial<PaidItem>)=>{const next={...item,...patch};return next.kind==='burnaway'&&next.layers?adminBurnawayPrice(next.layers):adminProductPrice(next.kind,next.process,next.size,next.style,next.review);};
   const updateLayer=(layer:keyof BurnawayLayers,patch:Partial<BurnawayLayers['edible']>)=>{const current=item.layers||makeBurnawayLayers(),layers={...current,[layer]:{...current[layer],...patch}};onChange({layers,price:adminBurnawayPrice(layers)});};
+  const updateShape=(shape:string)=>{const layers=setBurnawayShape(item.layers||makeBurnawayLayers(),shape);onChange({layers,style:shape,price:adminBurnawayPrice(layers)});};
   const normalFields=<><Field label="Size"><select value={item.size} onChange={(e)=>{const size=e.target.value,nextStyles=adminProductStyles(item.kind,size),style=nextStyles.includes(item.style)?item.style:nextStyles[0];onChange({size,style,price:standardPrice({size,style})});}}>{product.sizes.map(value=><option key={value}>{value}</option>)}</select></Field><Field label="Style / Colour"><select value={item.style} onChange={(e)=>{const style=e.target.value;onChange({style,price:standardPrice({style})});}}>{styles.map(value=><option key={value}>{value}</option>)}</select></Field></>;
-  const burnawayFields=item.layers?<><Field label="Edible size"><select value={item.layers.edible.size} onChange={e=>updateLayer('edible',{size:e.target.value})}>{ADMIN_PRODUCTS.edible.sizes.filter(v=>v!=='Cupcake').map(v=><option key={v}>{v}</option>)}</select></Field><Field label="Edible shape"><select value={item.layers.edible.shape} onChange={e=>updateLayer('edible',{shape:e.target.value})}>{adminProductStyles('edible',item.layers.edible.size).map(v=><option key={v}>{v}</option>)}</select></Field><Field label="Wafer size"><select value={item.layers.wafer.size} onChange={e=>updateLayer('wafer',{size:e.target.value})}>{ADMIN_PRODUCTS.wafer.sizes.map(v=><option key={v}>{v}</option>)}</select></Field><Field label="Wafer shape"><select value={item.layers.wafer.shape} onChange={e=>updateLayer('wafer',{shape:e.target.value})}>{ADMIN_PRODUCTS.wafer.styles.map(v=><option key={v}>{v}</option>)}</select></Field><Field label="Edible wording"><input value={item.layers.edible.wording} onChange={e=>updateLayer('edible',{wording:e.target.value})}/></Field><Field label="Wafer wording"><input value={item.layers.wafer.wording} onChange={e=>updateLayer('wafer',{wording:e.target.value})}/></Field><Field label="Edible reference URL"><input type="url" value={item.layers.edible.referenceUrl} onChange={e=>updateLayer('edible',{referenceUrl:e.target.value})}/></Field><Field label="Wafer reference URL"><input type="url" value={item.layers.wafer.referenceUrl} onChange={e=>updateLayer('wafer',{referenceUrl:e.target.value})}/></Field></>:null;
+  const burnawayFields=item.layers?<><Field label="Shape (Edible + Wafer)"><select value={item.layers.edible.shape} onChange={e=>updateShape(e.target.value)}>{BURN_AWAY_SHAPES.map(v=><option key={v}>{v}</option>)}</select></Field><Field label="Edible size"><select value={item.layers.edible.size} onChange={e=>updateLayer('edible',{size:e.target.value})}>{BURN_AWAY_EDIBLE_SIZES.map(v=><option key={v}>{v}</option>)}</select></Field><Field label="Wafer size"><select value={item.layers.wafer.size} onChange={e=>updateLayer('wafer',{size:e.target.value})}>{BURN_AWAY_WAFER_SIZES.map(v=><option key={v}>{v}</option>)}</select></Field><Field label="Edible wording"><input value={item.layers.edible.wording} onChange={e=>updateLayer('edible',{wording:e.target.value})}/></Field><Field label="Wafer wording"><input value={item.layers.wafer.wording} onChange={e=>updateLayer('wafer',{wording:e.target.value})}/></Field><Field label="Edible reference URL"><input type="url" value={item.layers.edible.referenceUrl} onChange={e=>updateLayer('edible',{referenceUrl:e.target.value})}/></Field><Field label="Wafer reference URL"><input type="url" value={item.layers.wafer.referenceUrl} onChange={e=>updateLayer('wafer',{referenceUrl:e.target.value})}/></Field></>:null;
   return <div style={{border:'1px solid var(--border-light)',borderRadius:12,padding:12}}><div style={{display:'flex',justifyContent:'space-between',gap:8,marginBottom:10}}><b>Item {index+1}</b><button className="btn btn-outline" disabled={index===0} onClick={onRemove}>Remove</button></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(145px,1fr))',gap:8}}><Field label="Product"><select value={item.kind} onChange={e=>{const next=makePaidItem(e.target.value as AdminProductKind);onChange({...next,id:item.id});}}>{(Object.keys(ADMIN_PRODUCTS) as AdminProductKind[]).map(k=><option key={k} value={k}>{ADMIN_PRODUCTS[k].shortLabel}</option>)}</select></Field><Field label="Process"><select value={item.process} onChange={e=>{const process=e.target.value;onChange({process,price:standardPrice({process})});}}>{product.process.map(value=><option key={value}>{value}</option>)}</select></Field><Field label="Review"><select value={item.review} onChange={e=>{const review=e.target.value as ProductReview;onChange({review,price:standardPrice({review})});}}><option>No Review</option><option>Need Review</option></select></Field>{item.kind==='burnaway'?burnawayFields:normalFields}<Field label="Qty"><input type="number" min={1} value={item.qty} onChange={e=>onChange({qty:Math.max(1,Number(e.target.value||1))})}/></Field><Field label="Unit price"><input type="number" min={0} step="0.01" value={item.price} onChange={e=>onChange({price:Math.max(0,Number(e.target.value||0))})}/></Field>{item.kind!=='burnaway'&&<><Field label="Wording / detail"><input value={item.customText} onChange={e=>onChange({customText:e.target.value})}/></Field><Field label="Reference URL"><input type="url" value={item.referenceUrl} onChange={e=>onChange({referenceUrl:e.target.value})} placeholder="https://..."/></Field></>}</div></div>;
 }
 

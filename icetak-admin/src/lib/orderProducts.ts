@@ -4,6 +4,10 @@ export type DeliveryKind = 'pickup' | 'spx' | 'jnt' | 'ninja';
 export type BurnawayLayer = { size: string; shape: string; wording: string; referenceUrl: string };
 export type BurnawayLayers = { edible: BurnawayLayer; wafer: BurnawayLayer };
 
+export const BURN_AWAY_EDIBLE_SIZES = ['3 inch', '3.5 inch', '4 inch', '4.5 inch', '5 inch', '5.5 inch', '6 inch', '6.5 inch', '7 inch', '7.5 inch'];
+export const BURN_AWAY_WAFER_SIZES = [...BURN_AWAY_EDIBLE_SIZES, '8 inch'];
+export const BURN_AWAY_SHAPES = ['Round / Bulat', 'Square / Petak', 'Love Shape / Hati'];
+
 export type AdminProductConfig = {
   label: string;
   shortLabel: string;
@@ -30,8 +34,8 @@ export const ADMIN_PRODUCTS: Record<AdminProductKind, AdminProductConfig> = {
     label: 'Burn Away Combo', shortLabel: 'Burn Away', tag: '2 Layer',
     image: 'https://cf.shopee.com.my/file/my-11134207-7r98u-lrmqbo2qxw531d.jpg',
     process: ['Pre-order', 'Urgent'],
-    sizes: ['3 inch', '3.5 inch', '4 inch', '4.5 inch', '5 inch', '5.5 inch', '6 inch', '6.5 inch', '7 inch', '7.5 inch', 'A6', 'A5', 'A4'],
-    styles: ['Round / Bulat', 'Square / Petak', 'Love Shape / Hati'],
+    sizes: BURN_AWAY_EDIBLE_SIZES,
+    styles: BURN_AWAY_SHAPES,
     defaultSize: '5 inch', defaultStyle: 'Round / Bulat', defaultReview: 'No Review',
   },
   wafer: {
@@ -95,6 +99,14 @@ export function waferBase(size: string) {
 export function makeBurnawayLayers(): BurnawayLayers {
   const layer = { size: '5 inch', shape: 'Round / Bulat', wording: '', referenceUrl: '' };
   return { edible: { ...layer }, wafer: { ...layer } };
+}
+
+export function setBurnawayShape(layers: BurnawayLayers, shape: string): BurnawayLayers {
+  const safeShape = BURN_AWAY_SHAPES.includes(shape) ? shape : BURN_AWAY_SHAPES[0];
+  return {
+    edible: { ...layers.edible, shape: safeShape },
+    wafer: { ...layers.wafer, shape: safeShape },
+  };
 }
 
 export function adminBurnawayPrice(layers: BurnawayLayers) {

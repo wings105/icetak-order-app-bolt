@@ -2,10 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   ADMIN_PRODUCTS,
+  BURN_AWAY_EDIBLE_SIZES,
+  BURN_AWAY_SHAPES,
+  BURN_AWAY_WAFER_SIZES,
   adminBurnawayPrice,
   adminProductPrice,
   adminProductStyles,
   makeBurnawayLayers,
+  setBurnawayShape,
   type BurnawayLayers,
   type AdminProductKind,
   type ProductReview,
@@ -99,10 +103,14 @@ function normalizeItem(item: StructuralOrderItem): DraftItem {
   const style = item.style && styles.includes(item.style) ? item.style : (item.style || styles[0] || config.defaultStyle);
   const edibleMeta=item.components?.find(c=>/edible/i.test(c.label||''))?.metadata;
   const waferMeta=item.components?.find(c=>/wafer/i.test(c.label||''))?.metadata;
-  const layers=kind==='burnaway'?(item.customization?.layers||{
+  const rawLayers=kind==='burnaway'?(item.customization?.layers||{
     edible:{...makeBurnawayLayers().edible,...(edibleMeta||{}),shape:edibleMeta?.shape||style,referenceUrl:edibleMeta?.reference_url||''},
     wafer:{...makeBurnawayLayers().wafer,...(waferMeta||{}),shape:waferMeta?.shape||style,referenceUrl:waferMeta?.reference_url||''},
   }):undefined;
+  const layers=rawLayers?setBurnawayShape({
+    edible:{...rawLayers.edible,size:BURN_AWAY_EDIBLE_SIZES.includes(rawLayers.edible.size)?rawLayers.edible.size:'5 inch'},
+    wafer:{...rawLayers.wafer,size:BURN_AWAY_WAFER_SIZES.includes(rawLayers.wafer.size)?rawLayers.wafer.size:'5 inch'},
+  },String(item.customization?.shape||rawLayers.edible.shape||rawLayers.wafer.shape||style)):undefined;
   return {
     ...item,
     clientId: item.id || crypto.randomUUID(),
@@ -267,7 +275,7 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
         review_required: d.reviewRequired,
         custom_text: d.customText,
         design_preview_url: d.previewUrl,
-        customization:d.layers?{...(d.customization||{}),layers:d.layers}:d.customization,
+        customization:d.layers?{...(d.customization||{}),shape:d.layers.edible.shape,layers:d.layers}:d.customization,
       })),
     } });
     setSaving(false);
@@ -298,6 +306,10 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
         const current=draft.layers||makeBurnawayLayers(),layers={...current,[layer]:{...current[layer],...patch}};
         update(draft.clientId,{layers,price:adminBurnawayPrice(layers)});
       };
+      const updateShape=(shape:string)=>{
+        const layers=setBurnawayShape(draft.layers||makeBurnawayLayers(),shape);
+        update(draft.clientId,{layers,style:shape,price:adminBurnawayPrice(layers)});
+      };
       return <section className="struct-item-card" key={draft.clientId}>
         <div className="struct-item-title">
           <div className="struct-item-heading">
@@ -310,10 +322,9 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
           <label><span>Product</span><select disabled={!canEdit || structuralLocked} value={draft.productId || ''} onChange={(e) => chooseProduct(draft, e.target.value)}>{legacy && <option value="">Current: {draft.title || cfg.label}</option>}{!legacy && <option value="" disabled>Select product…</option>}{products.map((p) => <option key={p.id} value={p.id}>{p.isCatalogDesign ? 'Catalog · ' : ''}{p.label}</option>)}</select></label>
           <label><span>Process</span><select disabled={!canEdit || structuralLocked} value={draft.process} onChange={(e) => patchVariation(draft, { process: e.target.value })}>{cfg.process.map((p) => <option key={p}>{p}</option>)}</select></label>
           {draft.k==='burnaway'&&draft.layers?<>
-            <label><span>Edible size</span><select disabled={!canEdit||structuralLocked} value={draft.layers.edible.size} onChange={e=>updateLayer('edible',{size:e.target.value})}>{ADMIN_PRODUCTS.edible.sizes.filter(v=>v!=='Cupcake').map(v=><option key={v}>{v}</option>)}</select></label>
-            <label><span>Edible shape</span><select disabled={!canEdit||structuralLocked} value={draft.layers.edible.shape} onChange={e=>updateLayer('edible',{shape:e.target.value})}>{adminProductStyles('edible',draft.layers.edible.size).map(v=><option key={v}>{v}</option>)}</select></label>
-            <label><span>Wafer size</span><select disabled={!canEdit||structuralLocked} value={draft.layers.wafer.size} onChange={e=>updateLayer('wafer',{size:e.target.value})}>{ADMIN_PRODUCTS.wafer.sizes.map(v=><option key={v}>{v}</option>)}</select></label>
-            <label><span>Wafer shape</span><select disabled={!canEdit||structuralLocked} value={draft.layers.wafer.shape} onChange={e=>updateLayer('wafer',{shape:e.target.value})}>{ADMIN_PRODUCTS.wafer.styles.map(v=><option key={v}>{v}</option>)}</select></label>
+            <label><span>Shape (Edible + Wafer)</span><select disabled={!canEdit||structuralLocked} value={draft.layers.edible.shape} onChange={e=>updateShape(e.target.value)}>{BURN_AWAY_SHAPES.map(v=><option key={v}>{v}</option>)}</select></label>
+            <label><span>Edible size</span><select disabled={!canEdit||structuralLocked} value={draft.layers.edible.size} onChange={e=>updateLayer('edible',{size:e.target.value})}>{BURN_AWAY_EDIBLE_SIZES.map(v=><option key={v}>{v}</option>)}</select></label>
+            <label><span>Wafer size</span><select disabled={!canEdit||structuralLocked} value={draft.layers.wafer.size} onChange={e=>updateLayer('wafer',{size:e.target.value})}>{BURN_AWAY_WAFER_SIZES.map(v=><option key={v}>{v}</option>)}</select></label>
           </>:<>
             <label><span>Size</span><select disabled={!canEdit || structuralLocked} value={draft.size} onChange={(e) => { const size = e.target.value; const nextStyles = adminProductStyles(draft.k, size); const style = nextStyles.includes(draft.style) ? draft.style : nextStyles[0]; patchVariation(draft, { size, style }); }}>{cfg.sizes.map((s) => <option key={s}>{s}</option>)}</select></label>
             <label><span>Style</span><select disabled={!canEdit || structuralLocked} value={draft.style} onChange={(e) => patchVariation(draft, { style: e.target.value })}>{styles.map((s) => <option key={s}>{s}</option>)}</select></label>

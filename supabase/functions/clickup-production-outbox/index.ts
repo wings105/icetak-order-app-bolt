@@ -275,7 +275,8 @@ function componentSpec(component: any, item: any) {
   return {
     size: text(metadata.size || layer.size || item.size),
     style: text(
-      metadata.shape || metadata.style || layer.shape || layer.style ||
+      metadata.shape || metadata.style || item?.customization?.shape ||
+        layer.shape || layer.style ||
         item.style,
     ),
     wording: text(
