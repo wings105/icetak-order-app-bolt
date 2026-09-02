@@ -192,6 +192,23 @@ async function windowStatus(phone: string, bsuid = '') {
   }
 }
 
+async function draftFollowupPreflight(body: Record<string, any>, window: Record<string, any>) {
+  const draftId = String(body.draft_id || body?.vars?.draft_id || '').trim();
+  if (!/^[0-9a-f-]{36}$/i.test(draftId)) return { ok: false, error: 'draft_followup_draft_id_required' };
+  const rows = await rest(`qrpay_order_drafts?id=eq.${encodeURIComponent(draftId)}&select=id,status,order_id,payment_status,payment_mode,followup_enabled,customer_link_sent_at,customer_responded_at&limit=1`).catch(() => []);
+  const draft = rows?.[0];
+  if (!draft) return { ok: false, error: 'draft_followup_draft_missing' };
+  if (draft.order_id || ['confirmed','rejected'].includes(String(draft.status || '')) || ['paid','matched','payment_received'].includes(String(draft.payment_status || ''))) return { ok: false, error: 'draft_followup_not_eligible' };
+  if (draft.payment_mode !== 'prepaid' || draft.followup_enabled !== true) return { ok: false, error: 'draft_followup_paused' };
+  const customerMessageAt = Date.parse(String(window.last_customer_message_at || ''));
+  const linkSentAt = Date.parse(String(draft.customer_link_sent_at || ''));
+  if (Number.isFinite(customerMessageAt) && Number.isFinite(linkSentAt) && customerMessageAt > linkSentAt) {
+    await rest(`qrpay_order_drafts?id=eq.${encodeURIComponent(draftId)}`, { method: 'PATCH', body: JSON.stringify({ customer_responded_at: new Date(customerMessageAt).toISOString(), followup_enabled: false, followup_paused_at: new Date().toISOString(), next_followup_at: null, updated_at: new Date().toISOString() }) });
+    return { ok: false, error: 'draft_followup_customer_responded' };
+  }
+  return { ok: true };
+}
+
 async function provider(path: string, payload: unknown) {
   const base = await setting('base_url') || 'https://officialapi.wasapflow.com/bridge/v1';
   const partner = await setting('partner_key');
@@ -261,6 +278,10 @@ Deno.serve(async (req) => {
     if (rule.enabled === false) return json({ ok: false, error: `notification_disabled:${eventType}` }, 409);
 
     const window = await windowStatus(validPhone, bsuid);
+    if (String(eventType).startsWith('draft_followup_')) {
+      const preflight = await draftFollowupPreflight(body, window);
+      if (!preflight.ok) return json({ ok: false, error: preflight.error }, 409);
+    }
     const canSendFreeform = Boolean(window.can_send_freeform);
     const mode = body.mode && body.mode !== 'auto'
       ? body.mode

@@ -117,6 +117,14 @@ Deno.serve(async (req) => {
       p_status: String(body.status || "").trim() || null,
       p_limit: Math.min(Math.max(Number(body.limit) || 100, 1), 300),
     }) });
+    if (action === "draft_followups") return json({ success: true, data: await rpc("finance_admin_draft_followups", {
+      p_filter: String(body.filter || "").trim() || null,
+      p_query: String(body.query || "").trim() || null,
+      p_limit: Math.min(Math.max(Number(body.limit) || 200, 1), 300),
+    }) });
+    if (action === "draft_followup_settings") return json({ success: true, data: await rpc("icetak_admin_draft_followup_settings", {
+      p_payload: null, p_actor: admin.username,
+    }) });
     if (action === "report") {
       const from = String(body.from || ""), to = String(body.to || "");
       if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) return json({ success: false, error: "Valid report dates are required" }, 400);
@@ -143,12 +151,31 @@ Deno.serve(async (req) => {
     }
     if (action === "draft_cancel") {
       const reviewToken = String(body.review_token || "").trim();
-      const reason = String(body.reason || "").trim();
-      if (!/^qrd_[a-f0-9]{32}$/i.test(reviewToken) || !reason) return json({ success: false, error: "Draft and cancellation reason are required" }, 400);
-      if (reason.length > 500) return json({ success: false, error: "Cancellation reason is too long" }, 400);
-      return json({ success: true, data: await rpc("icetak_reject_qrpay_order_draft", {
-        p_review_token: reviewToken, p_actor: admin.username, p_reason: reason,
+      const reasonCode = String(body.reason_code || "").trim();
+      const reasonDetail = String(body.reason_detail || "").trim();
+      if (!/^qrd_[a-f0-9]{32}$/i.test(reviewToken) || !reasonCode) return json({ success: false, error: "Draft and cancellation reason are required" }, 400);
+      if (reasonCode.length > 80 || reasonDetail.length > 500) return json({ success: false, error: "Cancellation reason is too long" }, 400);
+      return json({ success: true, data: await rpc("icetak_admin_cancel_draft", {
+        p_review_token: reviewToken, p_reason_code: reasonCode, p_reason_detail: reasonDetail || null,
+        p_actor: admin.username, p_source: "admin",
       }) });
+    }
+    if (action === "draft_reopen") {
+      const draftId = String(body.draft_id || "").trim();
+      if (!/^[0-9a-f-]{36}$/i.test(draftId)) return json({ success: false, error: "Valid draft is required" }, 400);
+      return json({ success: true, data: await rpc("icetak_admin_reopen_cancelled_draft", { p_draft_id: draftId, p_actor: admin.username }) });
+    }
+    if (action === "draft_followup_action") {
+      const draftId = String(body.draft_id || "").trim();
+      const followupAction = String(body.followup_action || "").trim();
+      if (!/^[0-9a-f-]{36}$/i.test(draftId) || !["pause","resume","send_now","responded"].includes(followupAction)) return json({ success: false, error: "Valid draft follow-up action is required" }, 400);
+      const result = await rpc("icetak_admin_set_draft_followup", { p_draft_id: draftId, p_action: followupAction, p_actor: admin.username });
+      if (followupAction === "send_now") await rpc("icetak_schedule_due_draft_followups", { p_limit: 10, p_force: true });
+      return json({ success: true, data: result });
+    }
+    if (action === "draft_followup_settings_save") {
+      const payload = body.settings && typeof body.settings === "object" && !Array.isArray(body.settings) ? body.settings as JsonObject : {};
+      return json({ success: true, data: await rpc("icetak_admin_draft_followup_settings", { p_payload: payload, p_actor: admin.username }) });
     }
     if (action === "draft_manual_paid") {
       const reviewToken = String(body.review_token || "").trim();

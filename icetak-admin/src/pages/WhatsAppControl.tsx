@@ -11,7 +11,7 @@ const env = (import.meta as any).env || {};
 const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL || '';
 const PRODUCTION_CUSTOMER_APP_URL = 'https://icetak.bolt.host';
 const MANAGED_GATEWAY = 'https://officialapi.wasapflow.com/bridge/v1';
-const FIELDS = ['customer_name','phone','order_id','order_token','order_total','date_need','order_link','payment_link','review_link','items_summary','pickup_order_count','payment_status','delivery_method','tracking_number','courier','tracking_link','pickup_location','otp','otp_code','magic_link','expiry_minutes','support_phone'];
+const FIELDS = ['customer_name','phone','order_id','order_token','order_total','draft_total','followup_number','date_need','order_link','payment_link','review_link','items_summary','pickup_order_count','payment_status','delivery_method','tracking_number','courier','tracking_link','pickup_location','otp','otp_code','magic_link','expiry_minutes','support_phone'];
 
 const asArray = (value: any): string[] => Array.isArray(value) ? value.map(String) : typeof value === 'string' ? value.split(',').map((x) => x.trim()).filter(Boolean) : [];
 const badge = (s: unknown) => { const v = String(s || '').toLowerCase(); if (['sent','delivered','success'].includes(v)) return 'badge-success'; if (['pending','processing','queued','retry'].includes(v)) return 'badge-warning'; if (['failed','error'].includes(v)) return 'badge-error'; return 'badge-neutral'; };
@@ -38,7 +38,7 @@ function ruleHealth(rule: AnyRow, templates: AnyRow[]): RuleHealth {
 }
 
 export default function WhatsAppControl() {
-  const [tab, setTab] = useState<'overview'|'settings'|'rules'|'test'|'queue'>('overview');
+  const [tab, setTab] = useState<'overview'|'settings'|'rules'|'draft-followup'|'test'|'queue'>('overview');
   const [data, setData] = useState<Snapshot>({});
   const [summary, setSummary] = useState<Summary>({});
   const [loading, setLoading] = useState(true);
@@ -124,13 +124,14 @@ export default function WhatsAppControl() {
   return <div className="fade-in">
     <div className="page-header"><div><div className="page-label">WhatsApp</div><h1 className="page-title">Control Center</h1><p className="page-subtitle">Single V2 control for WasapFlow, rules, health, tests and queue</p></div><button className="btn btn-outline" onClick={() => void load()}><IconRefresh size={16}/> Refresh</button></div>
     <div className="stats-grid"><Stat label="WasapFlow" value={connected ? 'Connected' : 'Need Config'} /><Stat label="Approved Templates" value={String(approved.length)} /><Stat label="Pending Queue" value={String(pending)} /><Stat label="Failed" value={String(summary.failed || 0)} /></div>
-    <div className="filter-tabs" style={{ marginBottom: 14 }}>{([['overview','Overview'],['settings','Connection'],['rules','Notification Rules'],['test','Send Test'],['queue','Queue & Logs']] as const).map(([k,l]) => <button key={k} className={`filter-tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>)}</div>
+    <div className="filter-tabs" style={{ marginBottom: 14 }}>{([['overview','Overview'],['settings','Connection'],['rules','Notification Rules'],['draft-followup','Draft Follow-up'],['test','Send Test'],['queue','Queue & Logs']] as const).map(([k,l]) => <button key={k} className={`filter-tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>)}</div>
     {notice && <div style={{ marginBottom: 12, padding: 10, borderRadius: 10, background: '#ecfdf3', color: '#067647', fontWeight: 700 }}>{notice}</div>}
     {error && <div style={{ marginBottom: 12, padding: 10, borderRadius: 10, background: '#fef3f2', color: '#b42318' }}>{error}</div>}
     {loading ? <div className="panel"><div className="loading"><span className="spinner" /></div></div> : <>
       {tab === 'overview' && <Overview data={data} onProcess={() => void processQueue()} onSync={() => void syncTemplates()} busy={busy} />}
       {tab === 'settings' && <SettingsPanel status={data.status || {}} onSaved={async () => { setNotice('WhatsApp settings saved.'); await load(); }} />}
       {tab === 'rules' && <RulesPanel rules={data.rules || []} templates={approved} onSaved={async () => { setNotice('Notification rule saved.'); await load(); }} />}
+      {tab === 'draft-followup' && <><div className="panel" style={{marginBottom:12}}><div className="panel-header"><div><div className="panel-title">Draft Follow-up Messages</div><div className="panel-subtitle">Free-form digunakan dalam 24H. Pilih approved Meta template untuk penghantaran selepas 24H.</div></div></div></div><RulesPanel rules={(data.rules || []).filter(rule=>String(rule.event_type).startsWith('draft_followup_'))} templates={approved} onSaved={async () => { setNotice('Draft follow-up rule saved.'); await load(); }} /></>}
       {tab === 'test' && <TestPanel rules={data.rules || []} edge={edge} onSent={async (message) => { setNotice(message); await load(); }} />}
       {tab === 'queue' && <QueuePanel data={data} onRetry={(id) => void retry(id)} onProcess={() => void processQueue()} busy={busy} />}
     </>}
