@@ -111,6 +111,7 @@ function historyTab(order: any, payment: string, shipment: any, actions: number)
 
 const findOrder = async (token: string) => (await db(`orders?public_token=eq.${encodeURIComponent(token)}&limit=1`))?.[0] || null;
 const latestPayment = async (orderId: string) => latest(await db(`payment_sessions?order_id=eq.${orderId}&order=created_at.desc`).catch(() => []));
+const latestPaymentTransaction = async (orderId: string) => latest(await db(`payment_transactions?order_id=eq.${orderId}&order=paid_at.desc.nullslast,created_at.desc&limit=1`).catch(() => []));
 
 async function shapeOrder(order: any) {
   const [items, components, shipments] = await Promise.all([
@@ -175,6 +176,11 @@ async function shapeOrder(order: any) {
   const deliverySummary = pickup
     ? 'Pickup — Bandar Baru Pasir Puteh'
     : [order.delivery_address, order.delivery_postcode, order.delivery_city, order.delivery_state].filter(Boolean).join(', ') || delivery;
+  const pricing = order.pricing_adjustments && typeof order.pricing_adjustments === 'object'
+    ? order.pricing_adjustments
+    : {};
+  const itemTotal = shapedItems.reduce((sum: number, item: any) => sum + (Number(item.qty || 1) * Number(item.price || 0)), 0);
+  const shippingSubtotal = Number(order.delivery_fee ?? pricing.shipping_fee ?? 0);
   return {
     id: order.order_id || order.order_no || order.id,
     orderToken: order.public_token,
@@ -183,8 +189,14 @@ async function shapeOrder(order: any) {
     dateNeedRaw: order.date_need,
     created: dateText(order.created_at),
     total: Number(order.total || 0),
+    merchandiseSubtotal: Number(pricing.item_subtotal ?? itemTotal),
+    shippingSubtotal,
+    customAddon: Number(pricing.custom_addon || 0),
+    discountAmount: Number(pricing.discount_amount || 0),
+    rounding: Number(pricing.rounding || 0),
     payment,
     paymentStatus: order.payment_status || '',
+    paidAt: millis(order.payment_verified_at),
     delivery,
     deliverySummary,
     deliveryName: order.delivery_name || '',
@@ -355,7 +367,14 @@ Deno.serve(async (request) => {
     match = path.match(/^\/orders\/([^/]+)$/);
     if (request.method === 'GET' && match) {
       const order = await findOrder(decodeURIComponent(match[1]));
-      return order ? output({ order: await shapeOrder(order) }) : fail('Order not found', 404);
+      if (!order) return fail('Order not found', 404);
+      const [shaped, transaction, session] = await Promise.all([
+        shapeOrder(order),
+        latestPaymentTransaction(order.id),
+        latestPayment(order.id),
+      ]);
+      shaped.paidAt = millis(order.payment_verified_at || transaction?.paid_at || session?.matched_at);
+      return output({ order: shaped });
     }
 
     match = path.match(/^\/orders\/([^/]+)\/shipment$/);
