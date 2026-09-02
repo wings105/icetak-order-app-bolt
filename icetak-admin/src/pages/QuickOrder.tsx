@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
-  ADMIN_PRODUCTS, DELIVERY, adminProductPrice, adminProductStyles,
-  normalizeMalaysiaPhone, type AdminProductKind, type DeliveryKind, type ProductReview,
+  ADMIN_PRODUCTS, DELIVERY, adminBurnawayPrice, adminProductPrice, adminProductStyles, makeBurnawayLayers,
+  normalizeMalaysiaPhone, type AdminProductKind, type BurnawayLayers, type DeliveryKind, type ProductReview,
 } from '../lib/orderProducts';
 import { parseMalaysiaAddress, type ParsedMalaysiaAddress } from '../lib/addressParser';
 
@@ -16,6 +16,7 @@ import { parseMalaysiaAddress, type ParsedMalaysiaAddress } from '../lib/address
   review: ProductReview;
   wording: string;
   referenceUrl: string;
+  layers?: BurnawayLayers;
 };
 
 type QuickResult = {
@@ -77,7 +78,7 @@ export type LinkedQrPayment = {
 
 const makeQuickItem = (kind: AdminProductKind): ItemDraft => {
   const p = ADMIN_PRODUCTS[kind];
-  return { id: crypto.randomUUID(), kind, qty: 1, process: p.process[0], size: p.defaultSize, style: p.defaultStyle, review: p.defaultReview, wording: '', referenceUrl: '' };
+  return { id: crypto.randomUUID(), kind, qty: 1, process: p.process[0], size: p.defaultSize, style: p.defaultStyle, review: p.defaultReview, wording: '', referenceUrl: '', layers: kind === 'burnaway' ? makeBurnawayLayers() : undefined };
 };
 
 const makePaidItem = (kind:AdminProductKind='edible'): PaidItem => {
@@ -137,7 +138,8 @@ function QuickArrange({ onOpenOrder }: { onOpenOrder?: (orderNo: string) => void
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(crypto.randomUUID());
 
-  const total = useMemo(() => items.reduce((sum, i) => sum + i.qty * adminProductPrice(i.kind, i.process, i.size, i.style, i.review), 0) + DELIVERY[delivery].fee, [items, delivery]);
+  const itemPrice = (i: ItemDraft) => i.kind === 'burnaway' && i.layers ? adminBurnawayPrice(i.layers) : adminProductPrice(i.kind, i.process, i.size, i.style, i.review);
+  const total = useMemo(() => items.reduce((sum, i) => sum + i.qty * itemPrice(i), 0) + DELIVERY[delivery].fee, [items, delivery]);
 
   const updateItem = (id: string, patch: Partial<ItemDraft>) => setItems((old) => old.map((item) => {
     if (item.id !== id) return item;
@@ -186,13 +188,13 @@ function QuickArrange({ onOpenOrder }: { onOpenOrder?: (orderNo: string) => void
         title: ADMIN_PRODUCTS[item.kind].label,
         process: item.process,
         review: item.review,
-        size: item.size,
-        style: item.kind === 'burnaway' ? `${item.style} • Edible Image + Wafer Paper` : item.style,
+        size: item.kind === 'burnaway' && item.layers ? `Edible ${item.layers.edible.size} • Wafer ${item.layers.wafer.size}` : item.size,
+        style: item.kind === 'burnaway' && item.layers ? `Edible ${item.layers.edible.shape} • Wafer ${item.layers.wafer.shape}` : item.style,
         customText: item.wording.trim(),
-        price: adminProductPrice(item.kind, item.process, item.size, item.style, item.review),
+        price: itemPrice(item),
         qty: item.qty,
         product_snapshot: item.referenceUrl.trim() ? { image_url: item.referenceUrl.trim(), quick_arrange_kind: item.kind } : { quick_arrange_kind: item.kind },
-        customization: item.referenceUrl.trim() ? { reference_url: item.referenceUrl.trim() } : {},
+        customization: item.kind === 'burnaway' && item.layers ? { layers: item.layers } : (item.referenceUrl.trim() ? { reference_url: item.referenceUrl.trim() } : {}),
       })),
       date_need: dateNeed,
       delivery,
@@ -276,15 +278,27 @@ function QuickArrange({ onOpenOrder }: { onOpenOrder?: (orderNo: string) => void
 function QuickItemCard({ item, index, onChange, onRemove }: { item: ItemDraft; index: number; onChange: (id: string, patch: Partial<ItemDraft>) => void; onRemove: () => void }) {
   const product = ADMIN_PRODUCTS[item.kind];
   const styles = adminProductStyles(item.kind, item.size);
-  const price = adminProductPrice(item.kind, item.process, item.size, item.style, item.review);
+  const price = item.kind === 'burnaway' && item.layers ? adminBurnawayPrice(item.layers) : adminProductPrice(item.kind, item.process, item.size, item.style, item.review);
+  const updateLayer = (layer: keyof BurnawayLayers, patch: Partial<BurnawayLayers['edible']>) => onChange(item.id, { layers: { ...(item.layers || makeBurnawayLayers()), [layer]: { ...(item.layers || makeBurnawayLayers())[layer], ...patch } } });
   return (
     <div className="panel" style={{ marginBottom: 12 }}>
       <div className="panel-header"><div><div className="panel-title">{index + 1}. {product.label}</div><div className="panel-subtitle">{money(price)} / unit</div></div><button className="btn btn-outline" onClick={onRemove}>Remove</button></div>
       <div style={{ padding: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
         <Field label="Process"><select value={item.process} onChange={(e) => onChange(item.id, { process: e.target.value })}>{product.process.map((v) => <option key={v}>{v}</option>)}</select></Field>
         <Field label="Review"><select value={item.review} onChange={(e) => onChange(item.id, { review: e.target.value as ProductReview })}><option>No Review</option><option>Need Review</option></select></Field>
-        <Field label="Size"><select value={item.size} onChange={(e) => onChange(item.id, { size: e.target.value })}>{product.sizes.map((v) => <option key={v}>{v}</option>)}</select></Field>
-        <Field label="Style / Colour"><select value={item.style} onChange={(e) => onChange(item.id, { style: e.target.value })}>{styles.map((v) => <option key={v}>{v}</option>)}</select></Field>
+        {item.kind === 'burnaway' && item.layers ? <>
+          <Field label="Edible size"><select value={item.layers.edible.size} onChange={(e) => updateLayer('edible', { size: e.target.value })}>{ADMIN_PRODUCTS.edible.sizes.filter(v=>v!=='Cupcake').map((v) => <option key={v}>{v}</option>)}</select></Field>
+          <Field label="Edible shape"><select value={item.layers.edible.shape} onChange={(e) => updateLayer('edible', { shape: e.target.value })}>{adminProductStyles('edible', item.layers.edible.size).map((v) => <option key={v}>{v}</option>)}</select></Field>
+          <Field label="Wafer size"><select value={item.layers.wafer.size} onChange={(e) => updateLayer('wafer', { size: e.target.value })}>{ADMIN_PRODUCTS.wafer.sizes.map((v) => <option key={v}>{v}</option>)}</select></Field>
+          <Field label="Wafer shape"><select value={item.layers.wafer.shape} onChange={(e) => updateLayer('wafer', { shape: e.target.value })}>{ADMIN_PRODUCTS.wafer.styles.map((v) => <option key={v}>{v}</option>)}</select></Field>
+          <Field label="Edible wording"><input value={item.layers.edible.wording} onChange={(e) => updateLayer('edible', { wording: e.target.value })} /></Field>
+          <Field label="Wafer wording"><input value={item.layers.wafer.wording} onChange={(e) => updateLayer('wafer', { wording: e.target.value })} /></Field>
+          <Field label="Edible reference URL"><input type="url" value={item.layers.edible.referenceUrl} onChange={(e) => updateLayer('edible', { referenceUrl: e.target.value })} /></Field>
+          <Field label="Wafer reference URL"><input type="url" value={item.layers.wafer.referenceUrl} onChange={(e) => updateLayer('wafer', { referenceUrl: e.target.value })} /></Field>
+        </> : <>
+          <Field label="Size"><select value={item.size} onChange={(e) => onChange(item.id, { size: e.target.value })}>{product.sizes.map((v) => <option key={v}>{v}</option>)}</select></Field>
+          <Field label="Style / Colour"><select value={item.style} onChange={(e) => onChange(item.id, { style: e.target.value })}>{styles.map((v) => <option key={v}>{v}</option>)}</select></Field>
+        </>}
         <Field label="Qty"><input type="number" min={1} value={item.qty} onChange={(e) => onChange(item.id, { qty: Math.max(1, Number(e.target.value || 1)) })} /></Field>
         <Field label="Wording / detail"><input value={item.wording} onChange={(e) => onChange(item.id, { wording: e.target.value })} /></Field>
         <Field label="Reference URL"><input type="url" value={item.referenceUrl} onChange={(e) => onChange(item.id, { referenceUrl: e.target.value })} placeholder="https://..." /></Field>

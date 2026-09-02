@@ -73,9 +73,13 @@ function aiMeta(item:any){const c=item.customization&&typeof item.customization=
 function itemProcess(item:any){return text(item?.customization?.admin_process||item?.process)||'Pre-order'}
 function itemReview(component:any,item:any){return Boolean(component?.review_required??item?.review_required)?'Need Review':'No Review'}
 function itemReference(item:any){return text(item?.customization?.reference_url||item?.product_snapshot?.image_url||item?.design_preview_url)}
+function componentSpec(component:any,item:any){
+  const type=text(component?.component_type).toLowerCase(),layer=item?.customization?.layers?.[type]||{},meta=component?.metadata||{};
+  return{size:text(meta.size||layer.size||item.size),style:text(meta.shape||meta.style||layer.shape||layer.style||item.style),wording:text(meta.wording||layer.wording||item.wording||item.custom_text),reference:text(meta.reference_url||layer.referenceUrl||layer.reference_url||itemReference(item))};
+}
 
 function description(base:string,order:any,component:any,item:any,total:number,payment:any){
-  const snap=item.product_snapshot&&typeof item.product_snapshot==='object'?item.product_snapshot:{},a=aiMeta(item),l=links(base,order,text(component.id)),set=Number(component.set_index||0),wa=a.whatsapp_link||text(order.__whatsapp_link)||whatsapp(order.delivery_phone),process=itemProcess(item),review=itemReview(component,item),reference=itemReference(item);
+  const snap=item.product_snapshot&&typeof item.product_snapshot==='object'?item.product_snapshot:{},a=aiMeta(item),l=links(base,order,text(component.id)),set=Number(component.set_index||0),wa=a.whatsapp_link||text(order.__whatsapp_link)||whatsapp(order.delivery_phone),process=itemProcess(item),review=itemReview(component,item),spec=componentSpec(component,item),reference=spec.reference;
   const lines=[
     `Order: ${text(order.order_no||order.order_id)}`,
     `Customer: ${text(order.delivery_name)}`,
@@ -98,9 +102,9 @@ function description(base:string,order:any,component:any,item:any,total:number,p
     text(snap.parent_sku)?`Parent SKU: ${text(snap.parent_sku)}`:'',
     text(item.catalog_slug)?`Catalog slug: ${text(item.catalog_slug)}`:'',
     text(item.catalog_clickup_task_id)?`Source design task: ${text(item.catalog_clickup_task_id)}`:'',
-    text(item.size)?`Size: ${text(item.size)}`:'',
-    text(item.style)?`Style: ${text(item.style)}`:'',
-    text(item.wording||item.custom_text)?`Wording: ${text(item.wording||item.custom_text)}`:'',
+    spec.size?`Size: ${spec.size}`:'',
+    spec.style?`Style: ${spec.style}`:'',
+    spec.wording?`Wording: ${spec.wording}`:'',
     reference?`Reference: ${reference}`:'',
     a.reference_message_ids.length?`Reference Message IDs: ${a.reference_message_ids.join(', ')}`:'',
     `Quantity: ${Number(item.qty||1)}`,
@@ -140,12 +144,12 @@ Deno.serve(async(req:Request)=>{
 
       const total=(all||[]).length,ol=links(s.baseUrl,order),wa=text(wai.link),setField=text(s.manifest?.field_id),mapped:any[]=[];
       for(let pendingIndex=0;pendingIndex<components.length;pendingIndex++){
-        const component=components[pendingIndex],item=component.order_items||{},word=text(item.wording||item.custom_text),orderNo=text(order.order_no||order.order_id),setIndex=Number(component.set_index||((all||[]).findIndex((r:any)=>r.id===component.id)+1)),setLabel=text(component.set_label)||`set${setIndex}`,setOption=text(component.clickup_set_option_id)||text(s.manifest?.options?.[String(setIndex)]),componentLinks=links(s.baseUrl,order,text(component.id)),a=aiMeta(item),customFields=setField&&setOption?[{id:setField,value:[setOption]}]:[],reviewRequired=Boolean(component.review_required??item.review_required),process=itemProcess(item),reference=itemReference(item),initialStatus=await canonicalInitialStatus(component,item);
+        const component=components[pendingIndex],item=component.order_items||{},spec=componentSpec(component,item),word=spec.wording,orderNo=text(order.order_no||order.order_id),setIndex=Number(component.set_index||((all||[]).findIndex((r:any)=>r.id===component.id)+1)),setLabel=text(component.set_label)||`set${setIndex}`,setOption=text(component.clickup_set_option_id)||text(s.manifest?.options?.[String(setIndex)]),componentLinks=links(s.baseUrl,order,text(component.id)),a=aiMeta(item),customFields=setField&&setOption?[{id:setField,value:[setOption]}]:[],reviewRequired=Boolean(component.review_required??item.review_required),process=itemProcess(item),reference=spec.reference,initialStatus=await canonicalInitialStatus(component,item);
         mapped.push({
           id:component.id,order_item_id:component.order_item_id,title:component.label||item.title||`Component ${pendingIndex+1}`,
           task_name:`${orderNo} — ${setLabel}/${total} — ${Number(item.qty||1)}x ${text(item.title||component.label||`Component ${pendingIndex+1}`)}${word?` — ${word}`:''}`,
           task_description:description(s.baseUrl,order,component,item,total,payment),task_external_key:`icetak-component:${component.id}`,
-          component_type:component.component_type,quantity:item.qty||1,size:item.size||'',style:item.style||'',wording:word,wording_mode:item.wording_mode||'',
+          component_type:component.component_type,quantity:item.qty||1,size:spec.size,style:spec.style,wording:word,wording_mode:item.wording_mode||'',
           process,review:reviewRequired?'Need Review':'No Review',reference_url:reference||null,due_date:order.date_need||null,
           catalog_slug:item.catalog_slug||'',catalog_clickup_task_id:item.catalog_clickup_task_id||'',product_id:item.product_id||null,product_snapshot:item.product_snapshot||{},customization:item.customization||{},review_required:reviewRequired,
           ai_pending_confirmation:a.pending,ai_job_type:a.job_type,ai_match_score:a.match_score,conversation_id:a.conversation_id,whatsapp_link:a.whatsapp_link||wa,whatsapplink:a.whatsapp_link||wa,whatsapp_username:wai.username,whatsapp_bsuid:wai.bsuid,

@@ -1,6 +1,8 @@
 export type AdminProductKind = 'edible' | 'burnaway' | 'wafer' | 'printed' | 'mirror' | 'acrylic';
 export type ProductReview = 'No Review' | 'Need Review';
 export type DeliveryKind = 'pickup' | 'spx' | 'jnt' | 'ninja';
+export type BurnawayLayer = { size: string; shape: string; wording: string; referenceUrl: string };
+export type BurnawayLayers = { edible: BurnawayLayer; wafer: BurnawayLayer };
 
 export type AdminProductConfig = {
   label: string;
@@ -28,7 +30,7 @@ export const ADMIN_PRODUCTS: Record<AdminProductKind, AdminProductConfig> = {
     label: 'Burn Away Combo', shortLabel: 'Burn Away', tag: '2 Layer',
     image: 'https://cf.shopee.com.my/file/my-11134207-7r98u-lrmqbo2qxw531d.jpg',
     process: ['Pre-order', 'Urgent'],
-    sizes: ['3 inch', '4 inch', '5 inch', '5.5 inch', '6 inch', '6.5 inch', '7 inch', '7.5 inch', 'Custom A5', 'Custom A4'],
+    sizes: ['3 inch', '3.5 inch', '4 inch', '4.5 inch', '5 inch', '5.5 inch', '6 inch', '6.5 inch', '7 inch', '7.5 inch', 'A6', 'A5', 'A4'],
     styles: ['Round / Bulat', 'Square / Petak', 'Love Shape / Hati'],
     defaultSize: '5 inch', defaultStyle: 'Round / Bulat', defaultReview: 'No Review',
   },
@@ -36,7 +38,7 @@ export const ADMIN_PRODUCTS: Record<AdminProductKind, AdminProductConfig> = {
     label: 'Wafer Paper Only', shortLabel: 'Wafer', tag: 'Wafer Only',
     image: 'https://cf.shopee.com.my/file/my-11134207-7r992-lrwi64nt1t6fff.jpg',
     process: ['Pre-order', 'Urgent'],
-    sizes: ['3 inch', '3.5 inch', '4 inch', '4.5 inch', '5 inch', '5.5 inch', '6 inch', '6.5 inch', '7 inch', '7.5 inch', '8 inch'],
+    sizes: ['3 inch', '3.5 inch', '4 inch', '4.5 inch', '5 inch', '5.5 inch', '6 inch', '6.5 inch', '7 inch', '7.5 inch', '8 inch', 'A6', 'A5', 'A4'],
     styles: ['Round / Bulat', 'Square / Petak', 'Love Shape / Hati'],
     defaultSize: '3 inch', defaultStyle: 'Round / Bulat', defaultReview: 'No Review',
   },
@@ -84,6 +86,21 @@ function edibleBase(size: string, style = '') {
   return inches >= 6 ? 24 : inches >= 4.5 ? 12 : 6;
 }
 
+export function waferBase(size: string) {
+  if (size === 'A4') return 12;
+  if (size === 'A5' || size === 'A6') return 6;
+  return Number.parseFloat(size) <= 6 ? 6 : 12;
+}
+
+export function makeBurnawayLayers(): BurnawayLayers {
+  const layer = { size: '5 inch', shape: 'Round / Bulat', wording: '', referenceUrl: '' };
+  return { edible: { ...layer }, wafer: { ...layer } };
+}
+
+export function adminBurnawayPrice(layers: BurnawayLayers) {
+  return edibleBase(layers.edible.size, layers.edible.shape) + waferBase(layers.wafer.size);
+}
+
 export function adminProductPrice(kind: AdminProductKind, process: string, size: string, style = '', review: ProductReview = 'No Review') {
   if (kind === 'printed') return 10;
   if (kind === 'mirror') return process === 'Urgent' ? 18 : 15;
@@ -92,13 +109,10 @@ export function adminProductPrice(kind: AdminProductKind, process: string, size:
     return size === 'A7 Mini' ? 12 : size === 'A6 Standard' ? 20 : 35;
   }
   if (kind === 'burnaway') {
-    if (size.includes('A4')) return 36;
-    if (size.includes('A5')) return 18;
-    const inches = Number.parseFloat(size);
-    return inches >= 6 ? 30 : inches >= 5 ? 18 : 12;
+    return edibleBase(size.replace('Custom ', ''), style) + waferBase(size.replace('Custom ', ''));
   }
   if (kind === 'wafer') {
-    const base = Number.parseFloat(size) <= 6 ? 6 : 12;
+    const base = waferBase(size);
     return base + (process === 'Urgent' && review === 'Need Review' ? 2 : 0);
   }
   const base = edibleBase(size, style);
