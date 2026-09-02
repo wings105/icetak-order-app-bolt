@@ -268,6 +268,26 @@ function itemReference(item: any) {
   );
 }
 
+function componentSpec(component: any, item: any) {
+  const type = text(component?.component_type).toLowerCase();
+  const layer = item?.customization?.layers?.[type] || {};
+  const metadata = component?.metadata || {};
+  return {
+    size: text(metadata.size || layer.size || item.size),
+    style: text(
+      metadata.shape || metadata.style || layer.shape || layer.style ||
+        item.style,
+    ),
+    wording: text(
+      metadata.wording || layer.wording || item.wording || item.custom_text,
+    ),
+    reference: text(
+      metadata.reference_url || layer.referenceUrl || layer.reference_url ||
+        itemReference(item),
+    ),
+  };
+}
+
 function description(
   base: string,
   order: any,
@@ -287,7 +307,8 @@ function description(
     whatsapp(order.delivery_phone);
   const process = itemProcess(item);
   const review = itemReview(component, item);
-  const reference = itemReference(item);
+  const spec = componentSpec(component, item);
+  const reference = spec.reference;
   const lines = [
     `Order: ${text(order.order_no || order.order_id)}`,
     `Customer: ${text(order.delivery_name)}`,
@@ -332,11 +353,9 @@ function description(
     text(item.catalog_clickup_task_id)
       ? `Source design task: ${text(item.catalog_clickup_task_id)}`
       : '',
-    clickupSize(item.size) ? `Size: ${clickupSize(item.size)}` : '',
-    text(item.style) ? `Style: ${text(item.style)}` : '',
-    text(item.wording || item.custom_text)
-      ? `Wording: ${text(item.wording || item.custom_text)}`
-      : '',
+    spec.size ? `Size: ${clickupSize(spec.size)}` : '',
+    spec.style ? `Style: ${spec.style}` : '',
+    spec.wording ? `Wording: ${spec.wording}` : '',
     reference ? `Reference: ${reference}` : '',
     ai.reference_message_ids.length
       ? `Reference Message IDs: ${ai.reference_message_ids.join(', ')}`
@@ -424,7 +443,8 @@ async function prepareEvent(candidate: any, settingsValue: any) {
   ) {
     const component = components[pendingIndex];
     const item = component.order_items || {};
-    const word = text(item.wording || item.custom_text);
+    const spec = componentSpec(component, item);
+    const word = spec.wording;
     const orderNo = text(order.order_no || order.order_id);
     const setIndex = Number(
       component.set_index ||
@@ -446,7 +466,7 @@ async function prepareEvent(candidate: any, settingsValue: any) {
       component.review_required ?? item.review_required,
     );
     const process = itemProcess(item);
-    const reference = itemReference(item);
+    const reference = spec.reference;
     const initialStatus = await canonicalInitialStatus(component, item);
 
     mapped.push({
@@ -468,8 +488,8 @@ async function prepareEvent(candidate: any, settingsValue: any) {
       task_external_key: `icetak-component:${component.id}`,
       component_type: component.component_type,
       quantity: item.qty || 1,
-      size: clickupSize(item.size),
-      style: item.style || '',
+      size: clickupSize(spec.size),
+      style: spec.style,
       wording: word,
       wording_mode: item.wording_mode || '',
       process,

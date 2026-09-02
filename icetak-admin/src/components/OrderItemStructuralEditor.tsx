@@ -2,8 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   ADMIN_PRODUCTS,
+  adminBurnawayPrice,
   adminProductPrice,
   adminProductStyles,
+  makeBurnawayLayers,
+  type BurnawayLayers,
   type AdminProductKind,
   type ProductReview,
 } from '../lib/orderProducts';
@@ -31,6 +34,7 @@ type ComponentRef = {
   progressPercent?: number;
   clickupTaskId?: string;
   clickupStatus?: string;
+  metadata?: { size?: string; shape?: string; wording?: string; reference_url?: string };
 };
 
 export type StructuralOrderItem = {
@@ -50,6 +54,7 @@ export type StructuralOrderItem = {
   previewUrl?: string;
   workflow?: string;
   components?: ComponentRef[];
+  customization?: { layers?: BurnawayLayers; [key:string]: unknown };
 };
 
 type DraftItem = StructuralOrderItem & {
@@ -65,6 +70,7 @@ type DraftItem = StructuralOrderItem & {
   customText: string;
   previewUrl: string;
   isNew?: boolean;
+  layers?: BurnawayLayers;
 };
 
 type Props = {
@@ -91,6 +97,12 @@ function normalizeItem(item: StructuralOrderItem): DraftItem {
   const size = item.size || config.defaultSize;
   const styles = adminProductStyles(kind, size);
   const style = item.style && styles.includes(item.style) ? item.style : (item.style || styles[0] || config.defaultStyle);
+  const edibleMeta=item.components?.find(c=>/edible/i.test(c.label||''))?.metadata;
+  const waferMeta=item.components?.find(c=>/wafer/i.test(c.label||''))?.metadata;
+  const layers=kind==='burnaway'?(item.customization?.layers||{
+    edible:{...makeBurnawayLayers().edible,...(edibleMeta||{}),shape:edibleMeta?.shape||style,referenceUrl:edibleMeta?.reference_url||''},
+    wafer:{...makeBurnawayLayers().wafer,...(waferMeta||{}),shape:waferMeta?.shape||style,referenceUrl:waferMeta?.reference_url||''},
+  }):undefined;
   return {
     ...item,
     clientId: item.id || crypto.randomUUID(),
@@ -104,6 +116,7 @@ function normalizeItem(item: StructuralOrderItem): DraftItem {
     reviewRequired: Boolean(item.reviewRequired),
     customText: item.customText || '',
     previewUrl: item.previewUrl || '',
+    layers,
   };
 }
 
@@ -145,7 +158,7 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
   const suggestedPrice = (draft: DraftItem) => {
     const product = products.find((p) => p.id === draft.productId);
     if (product?.isCatalogDesign && Number(product.basePrice || 0) > 0) return Number(product.basePrice);
-    return adminProductPrice(draft.k, draft.process, draft.size, draft.style, reviewLabel(draft.reviewRequired));
+    return draft.k==='burnaway'&&draft.layers?adminBurnawayPrice(draft.layers):adminProductPrice(draft.k, draft.process, draft.size, draft.style, reviewLabel(draft.reviewRequired));
   };
 
   const patchVariation = (draft: DraftItem, patch: Partial<DraftItem>) => {
@@ -162,8 +175,9 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
     const size = cfg.defaultSize;
     const style = adminProductStyles(kind, size)[0] || cfg.defaultStyle;
     const reviewRequired = cfg.defaultReview === 'Need Review';
-    const next = { ...draft, productId: product.id, k: kind, title: product.label, process, size, style, reviewRequired } as DraftItem;
-    const patch: Partial<DraftItem> = { productId: product.id, k: kind, title: product.label, process, size, style, reviewRequired };
+    const layers=kind==='burnaway'?makeBurnawayLayers():undefined;
+    const next = { ...draft, productId: product.id, k: kind, title: product.label, process, size, style, reviewRequired, layers } as DraftItem;
+    const patch: Partial<DraftItem> = { productId: product.id, k: kind, title: product.label, process, size, style, reviewRequired, layers };
     if (draft.isNew) patch.price = suggestedPrice(next);
     update(draft.clientId, patch);
   };
@@ -182,7 +196,7 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
     const draft = {
       id: '', clientId: `new:${crypto.randomUUID()}`, isNew: true, productId: product?.id || '', k: kind,
       title: product?.label || cfg.label, process, qty: 1, price: 0, size, style, reviewRequired,
-      customText: '', previewUrl: '', components: [], workflow: 'Order Received',
+      customText: '', previewUrl: '', components: [], workflow: 'Order Received', layers:kind==='burnaway'?makeBurnawayLayers():undefined,
     } as DraftItem;
     draft.price = product?.isCatalogDesign && Number(product.basePrice || 0) > 0
       ? Number(product.basePrice)
@@ -253,6 +267,7 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
         review_required: d.reviewRequired,
         custom_text: d.customText,
         design_preview_url: d.previewUrl,
+        customization:d.layers?{...(d.customization||{}),layers:d.layers}:d.customization,
       })),
     } });
     setSaving(false);
@@ -279,6 +294,10 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
       const legacy = !draft.productId;
       const suggested = suggestedPrice(draft);
       const suggestedDiffers = Math.abs(Number(draft.price || 0) - Number(suggested || 0)) > 0.009;
+      const updateLayer=(layer:keyof BurnawayLayers,patch:Partial<BurnawayLayers['edible']>)=>{
+        const current=draft.layers||makeBurnawayLayers(),layers={...current,[layer]:{...current[layer],...patch}};
+        update(draft.clientId,{layers,price:adminBurnawayPrice(layers)});
+      };
       return <section className="struct-item-card" key={draft.clientId}>
         <div className="struct-item-title">
           <div className="struct-item-heading">
@@ -290,12 +309,19 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
         <div className="struct-grid">
           <label><span>Product</span><select disabled={!canEdit || structuralLocked} value={draft.productId || ''} onChange={(e) => chooseProduct(draft, e.target.value)}>{legacy && <option value="">Current: {draft.title || cfg.label}</option>}{!legacy && <option value="" disabled>Select product…</option>}{products.map((p) => <option key={p.id} value={p.id}>{p.isCatalogDesign ? 'Catalog · ' : ''}{p.label}</option>)}</select></label>
           <label><span>Process</span><select disabled={!canEdit || structuralLocked} value={draft.process} onChange={(e) => patchVariation(draft, { process: e.target.value })}>{cfg.process.map((p) => <option key={p}>{p}</option>)}</select></label>
-          <label><span>Size</span><select disabled={!canEdit || structuralLocked} value={draft.size} onChange={(e) => { const size = e.target.value; const nextStyles = adminProductStyles(draft.k, size); const style = nextStyles.includes(draft.style) ? draft.style : nextStyles[0]; patchVariation(draft, { size, style }); }}>{cfg.sizes.map((s) => <option key={s}>{s}</option>)}</select></label>
-          <label><span>Style</span><select disabled={!canEdit || structuralLocked} value={draft.style} onChange={(e) => patchVariation(draft, { style: e.target.value })}>{styles.map((s) => <option key={s}>{s}</option>)}</select></label>
+          {draft.k==='burnaway'&&draft.layers?<>
+            <label><span>Edible size</span><select disabled={!canEdit||structuralLocked} value={draft.layers.edible.size} onChange={e=>updateLayer('edible',{size:e.target.value})}>{ADMIN_PRODUCTS.edible.sizes.filter(v=>v!=='Cupcake').map(v=><option key={v}>{v}</option>)}</select></label>
+            <label><span>Edible shape</span><select disabled={!canEdit||structuralLocked} value={draft.layers.edible.shape} onChange={e=>updateLayer('edible',{shape:e.target.value})}>{adminProductStyles('edible',draft.layers.edible.size).map(v=><option key={v}>{v}</option>)}</select></label>
+            <label><span>Wafer size</span><select disabled={!canEdit||structuralLocked} value={draft.layers.wafer.size} onChange={e=>updateLayer('wafer',{size:e.target.value})}>{ADMIN_PRODUCTS.wafer.sizes.map(v=><option key={v}>{v}</option>)}</select></label>
+            <label><span>Wafer shape</span><select disabled={!canEdit||structuralLocked} value={draft.layers.wafer.shape} onChange={e=>updateLayer('wafer',{shape:e.target.value})}>{ADMIN_PRODUCTS.wafer.styles.map(v=><option key={v}>{v}</option>)}</select></label>
+          </>:<>
+            <label><span>Size</span><select disabled={!canEdit || structuralLocked} value={draft.size} onChange={(e) => { const size = e.target.value; const nextStyles = adminProductStyles(draft.k, size); const style = nextStyles.includes(draft.style) ? draft.style : nextStyles[0]; patchVariation(draft, { size, style }); }}>{cfg.sizes.map((s) => <option key={s}>{s}</option>)}</select></label>
+            <label><span>Style</span><select disabled={!canEdit || structuralLocked} value={draft.style} onChange={(e) => patchVariation(draft, { style: e.target.value })}>{styles.map((s) => <option key={s}>{s}</option>)}</select></label>
+          </>}
           <label><span>Review</span><select disabled={!canEdit || structuralLocked} value={draft.reviewRequired ? 'Need Review' : 'No Review'} onChange={(e) => patchVariation(draft, { reviewRequired: e.target.value === 'Need Review' })}><option>No Review</option><option>Need Review</option></select></label>
           <label><span>Qty</span><input type="number" min="1" disabled={!canEdit || structuralLocked} value={draft.qty} onChange={(e) => update(draft.clientId, { qty: Math.max(1, Number(e.target.value || 1)) })} /></label>
           <label><span>Unit Price</span><div className="struct-price"><input type="number" min="0" step="0.01" disabled={!canEdit || structuralLocked} value={draft.price} onChange={(e) => update(draft.clientId, { price: Math.max(0, Number(e.target.value || 0)) })} /><button type="button" disabled={!canEdit || structuralLocked || !suggestedDiffers} onClick={() => applySuggestedPrice(draft)}>{suggestedDiffers ? `Apply ${money(suggested)}` : 'Auto ✓'}</button></div>{!draft.isNew && suggestedDiffers && <small className="struct-suggested">Current price preserved · suggested {money(suggested)}</small>}</label>
-          <label className="wide"><span>Custom Text / Wording</span><input disabled={!canEdit || structuralLocked} value={draft.customText} onChange={(e) => update(draft.clientId, { customText: e.target.value })} /></label>
+          {draft.k==='burnaway'&&draft.layers?<><label className="wide"><span>Edible wording</span><input disabled={!canEdit||structuralLocked} value={draft.layers.edible.wording} onChange={e=>updateLayer('edible',{wording:e.target.value})}/></label><label className="wide"><span>Wafer wording</span><input disabled={!canEdit||structuralLocked} value={draft.layers.wafer.wording} onChange={e=>updateLayer('wafer',{wording:e.target.value})}/></label></>:<label className="wide"><span>Custom Text / Wording</span><input disabled={!canEdit || structuralLocked} value={draft.customText} onChange={(e) => update(draft.clientId, { customText: e.target.value })} /></label>}
           {draft.reviewRequired && <label className="wide"><span>Design Preview URL</span><input disabled={!canEdit || structuralLocked} value={draft.previewUrl} onChange={(e) => update(draft.clientId, { previewUrl: e.target.value })} /></label>}
         </div>
 
