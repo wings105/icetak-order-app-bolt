@@ -51,8 +51,14 @@ type Order = {
   dateNeedRaw?: string;
   created: string;
   total: number;
+  merchandiseSubtotal?: number;
+  shippingSubtotal?: number;
+  customAddon?: number;
+  discountAmount?: number;
+  rounding?: number;
   payment: string;
   paymentStatus?: string;
+  paidAt?: number;
   delivery: string;
   deliverySummary?: string;
   deliveryName?: string;
@@ -104,6 +110,21 @@ let observerBusy = false;
 function money(value: number) {
   const amount = Number(value || 0);
   return `RM${Number.isInteger(amount) ? amount : amount.toFixed(2)}`;
+}
+
+function paidDateTime(value?: number) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-MY', {
+    timeZone: 'Asia/Kuala_Lumpur',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date).replace(/\b(am|pm)\b/i, (period) => period.toUpperCase());
 }
 
 function escapeHtml(value: unknown) {
@@ -360,6 +381,8 @@ function renderOrder(main: HTMLElement, order: Order) {
   const progresses = components.map((component) => componentIndex(component, order.delivery) / Math.max(1, componentSteps(component, order.delivery).length - 1));
   const overall = Math.round((progresses.reduce((sum, progress) => sum + progress, 0) / Math.max(1, progresses.length)) * 100);
   const waitingReview = components.filter((component) => component.reviewRequired && component.workflow === 'Waiting Review').length;
+  const merchandiseSubtotal = Number(order.merchandiseSubtotal ?? Math.max(0, order.total - Number(order.shippingSubtotal || 0)));
+  const paidAt = paidDateTime(order.paidAt);
   main.dataset.fullPortal = '1';
   main.classList.add('cp-page');
   main.innerHTML = `<section class="cp-section cp-summary">
@@ -394,8 +417,16 @@ function renderOrder(main: HTMLElement, order: Order) {
       </article>`).join('')}
     </section>
     <section class="cp-section cp-payment ${order.payment === 'Paid' ? 'paid' : ''}">
-      <b>Payment: ${escapeHtml(order.payment)}${order.payment === 'Paid' ? ' ✅' : ''}</b>
+      <div class="cp-payment-heading"><b>Payment: ${escapeHtml(order.payment)}${order.payment === 'Paid' ? ' ✅' : ''}</b>${order.payment === 'Paid' && paidAt ? `<span>Paid ${escapeHtml(paidAt)}</span>` : ''}</div>
       <p>${order.payment === 'Paid' ? 'Bayaran telah diterima.' : order.payment === 'Cash at Counter' ? 'Bayar semasa pickup di kaunter.' : order.paymentStatus === 'pending_review' ? 'Bukti bayaran sedang disemak oleh admin.' : 'Selesaikan bayaran untuk mula proses order.'}</p>
+      ${order.payment === 'Paid' ? `<div class="cp-payment-details">
+        <div><span>Merchandise Subtotal</span><b>${money(merchandiseSubtotal)}</b></div>
+        ${Number(order.customAddon || 0) ? `<div><span>Custom Add-on</span><b>+${money(Number(order.customAddon))}</b></div>` : ''}
+        ${Number(order.discountAmount || 0) ? `<div><span>Discount</span><b>-${money(Number(order.discountAmount))}</b></div>` : ''}
+        <div><span>Shipping Subtotal</span><b>${money(Number(order.shippingSubtotal || 0))}</b></div>
+        ${Number(order.rounding || 0) ? `<div><span>Rounding</span><b>${Number(order.rounding) > 0 ? '+' : '-'}${money(Math.abs(Number(order.rounding)))}</b></div>` : ''}
+        <div class="cp-payment-total"><strong>Total Payment</strong><b>${money(order.total)}</b></div>
+      </div>` : ''}
       ${order.payment === 'Unpaid' ? `<button data-cp-pay-now>${order.paymentStatus === 'pending_review' ? 'View Payment Status' : 'Pay Now'}</button>` : ''}
     </section>
     ${renderShipment(order)}
