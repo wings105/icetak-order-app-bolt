@@ -55,6 +55,7 @@ type LookupCustomer = { id: string; name: string; phone: string; addresses?: Loo
 type PaidItem = {
   id:string; kind:AdminProductKind; title:string; qty:number; price:number; process:string;
   size:string; style:string; review:ProductReview; customText:string; referenceUrl:string;
+  layers?:BurnawayLayers;
 };
 
 type PaidResult = {
@@ -84,7 +85,8 @@ const makeQuickItem = (kind: AdminProductKind): ItemDraft => {
 const makePaidItem = (kind:AdminProductKind='edible'): PaidItem => {
   const product=ADMIN_PRODUCTS[kind];
   const process=product.process[0],size=product.defaultSize,style=product.defaultStyle,review=product.defaultReview;
-  return {id:crypto.randomUUID(),kind,title:product.label,qty:1,price:adminProductPrice(kind,process,size,style,review),process,size,style,review,customText:'',referenceUrl:''};
+  const layers=kind==='burnaway'?makeBurnawayLayers():undefined;
+  return {id:crypto.randomUUID(),kind,title:product.label,qty:1,price:layers?adminBurnawayPrice(layers):adminProductPrice(kind,process,size,style,review),process,size,style,review,customText:'',referenceUrl:'',layers};
 };
 
 const money = (n: number) => `RM ${Number(n || 0).toFixed(2)}`;
@@ -381,10 +383,12 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
       client_request_id: requestId.current,
       customer: { name: name.trim(), phone: normalized, ...address },
       items: items.map((i) => ({
-        k:i.kind,title:i.title.trim(),process:i.process,review:i.review,size:i.size,style:i.style,
+        k:i.kind,title:i.title.trim(),process:i.process,review:i.review,
+        size:i.kind==='burnaway'&&i.layers?`Edible ${i.layers.edible.size} • Wafer ${i.layers.wafer.size}`:i.size,
+        style:i.kind==='burnaway'&&i.layers?`Edible ${i.layers.edible.shape} • Wafer ${i.layers.wafer.shape}`:i.style,
         customText:i.customText,price:i.price,qty:i.qty,
         product_snapshot:i.referenceUrl.trim()?{image_url:i.referenceUrl.trim(),quick_arrange_kind:i.kind}:{quick_arrange_kind:i.kind},
-        customization:i.referenceUrl.trim()?{reference_url:i.referenceUrl.trim()}:{}
+        customization:i.kind==='burnaway'&&i.layers?{layers:i.layers}:(i.referenceUrl.trim()?{reference_url:i.referenceUrl.trim()}:{})
       })),
       date_need: dateNeed,
       delivery,
@@ -445,11 +449,11 @@ function PaidQrOrder({ onOpenOrder, linkedPayment }: { onOpenOrder?: (orderNo: s
 function PaidItemRow({ item, index, onChange, onRemove }: { item: PaidItem; index: number; onChange: (patch: Partial<PaidItem>) => void; onRemove: () => void }) {
   const product=ADMIN_PRODUCTS[item.kind];
   const styles=adminProductStyles(item.kind,item.size);
-  const standardPrice=(patch:Partial<PaidItem>)=>{
-    const next={...item,...patch};
-    return adminProductPrice(next.kind,next.process,next.size,next.style,next.review);
-  };
-  return <div style={{ border: '1px solid var(--border-light)', borderRadius: 12, padding: 12 }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}><b>Item {index + 1}</b><button className="btn btn-outline" disabled={index === 0} onClick={onRemove}>Remove</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(145px,1fr))', gap: 8 }}><Field label="Product"><select value={item.kind} onChange={(e) => {const next=makePaidItem(e.target.value as AdminProductKind);onChange({...next,id:item.id});}}>{(Object.keys(ADMIN_PRODUCTS) as AdminProductKind[]).map((k) => <option key={k} value={k}>{ADMIN_PRODUCTS[k].shortLabel}</option>)}</select></Field><Field label="Process"><select value={item.process} onChange={(e)=>{const process=e.target.value;onChange({process,price:standardPrice({process})});}}>{product.process.map((value)=><option key={value}>{value}</option>)}</select></Field><Field label="Review"><select value={item.review} onChange={(e)=>{const review=e.target.value as ProductReview;onChange({review,price:standardPrice({review})});}}><option>No Review</option><option>Need Review</option></select></Field><Field label="Size"><select value={item.size} onChange={(e)=>{const size=e.target.value;const nextStyles=adminProductStyles(item.kind,size);const style=nextStyles.includes(item.style)?item.style:nextStyles[0];onChange({size,style,price:standardPrice({size,style})});}}>{product.sizes.map((value)=><option key={value}>{value}</option>)}</select></Field><Field label="Style / Colour"><select value={item.style} onChange={(e)=>{const style=e.target.value;onChange({style,price:standardPrice({style})});}}>{styles.map((value)=><option key={value}>{value}</option>)}</select></Field><Field label="Qty"><input type="number" min={1} value={item.qty} onChange={(e) => onChange({ qty: Math.max(1, Number(e.target.value || 1)) })} /></Field><Field label="Unit price"><input type="number" min={0} step="0.01" value={item.price} onChange={(e) => onChange({ price: Math.max(0, Number(e.target.value || 0)) })} /></Field><Field label="Wording / detail"><input value={item.customText} onChange={(e) => onChange({ customText: e.target.value })} /></Field><Field label="Reference URL"><input type="url" value={item.referenceUrl} onChange={(e)=>onChange({referenceUrl:e.target.value})} placeholder="https://..."/></Field></div></div>;
+  const standardPrice=(patch:Partial<PaidItem>)=>{const next={...item,...patch};return next.kind==='burnaway'&&next.layers?adminBurnawayPrice(next.layers):adminProductPrice(next.kind,next.process,next.size,next.style,next.review);};
+  const updateLayer=(layer:keyof BurnawayLayers,patch:Partial<BurnawayLayers['edible']>)=>{const current=item.layers||makeBurnawayLayers(),layers={...current,[layer]:{...current[layer],...patch}};onChange({layers,price:adminBurnawayPrice(layers)});};
+  const normalFields=<><Field label="Size"><select value={item.size} onChange={(e)=>{const size=e.target.value,nextStyles=adminProductStyles(item.kind,size),style=nextStyles.includes(item.style)?item.style:nextStyles[0];onChange({size,style,price:standardPrice({size,style})});}}>{product.sizes.map(value=><option key={value}>{value}</option>)}</select></Field><Field label="Style / Colour"><select value={item.style} onChange={(e)=>{const style=e.target.value;onChange({style,price:standardPrice({style})});}}>{styles.map(value=><option key={value}>{value}</option>)}</select></Field></>;
+  const burnawayFields=item.layers?<><Field label="Edible size"><select value={item.layers.edible.size} onChange={e=>updateLayer('edible',{size:e.target.value})}>{ADMIN_PRODUCTS.edible.sizes.filter(v=>v!=='Cupcake').map(v=><option key={v}>{v}</option>)}</select></Field><Field label="Edible shape"><select value={item.layers.edible.shape} onChange={e=>updateLayer('edible',{shape:e.target.value})}>{adminProductStyles('edible',item.layers.edible.size).map(v=><option key={v}>{v}</option>)}</select></Field><Field label="Wafer size"><select value={item.layers.wafer.size} onChange={e=>updateLayer('wafer',{size:e.target.value})}>{ADMIN_PRODUCTS.wafer.sizes.map(v=><option key={v}>{v}</option>)}</select></Field><Field label="Wafer shape"><select value={item.layers.wafer.shape} onChange={e=>updateLayer('wafer',{shape:e.target.value})}>{ADMIN_PRODUCTS.wafer.styles.map(v=><option key={v}>{v}</option>)}</select></Field><Field label="Edible wording"><input value={item.layers.edible.wording} onChange={e=>updateLayer('edible',{wording:e.target.value})}/></Field><Field label="Wafer wording"><input value={item.layers.wafer.wording} onChange={e=>updateLayer('wafer',{wording:e.target.value})}/></Field><Field label="Edible reference URL"><input type="url" value={item.layers.edible.referenceUrl} onChange={e=>updateLayer('edible',{referenceUrl:e.target.value})}/></Field><Field label="Wafer reference URL"><input type="url" value={item.layers.wafer.referenceUrl} onChange={e=>updateLayer('wafer',{referenceUrl:e.target.value})}/></Field></>:null;
+  return <div style={{border:'1px solid var(--border-light)',borderRadius:12,padding:12}}><div style={{display:'flex',justifyContent:'space-between',gap:8,marginBottom:10}}><b>Item {index+1}</b><button className="btn btn-outline" disabled={index===0} onClick={onRemove}>Remove</button></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(145px,1fr))',gap:8}}><Field label="Product"><select value={item.kind} onChange={e=>{const next=makePaidItem(e.target.value as AdminProductKind);onChange({...next,id:item.id});}}>{(Object.keys(ADMIN_PRODUCTS) as AdminProductKind[]).map(k=><option key={k} value={k}>{ADMIN_PRODUCTS[k].shortLabel}</option>)}</select></Field><Field label="Process"><select value={item.process} onChange={e=>{const process=e.target.value;onChange({process,price:standardPrice({process})});}}>{product.process.map(value=><option key={value}>{value}</option>)}</select></Field><Field label="Review"><select value={item.review} onChange={e=>{const review=e.target.value as ProductReview;onChange({review,price:standardPrice({review})});}}><option>No Review</option><option>Need Review</option></select></Field>{item.kind==='burnaway'?burnawayFields:normalFields}<Field label="Qty"><input type="number" min={1} value={item.qty} onChange={e=>onChange({qty:Math.max(1,Number(e.target.value||1))})}/></Field><Field label="Unit price"><input type="number" min={0} step="0.01" value={item.price} onChange={e=>onChange({price:Math.max(0,Number(e.target.value||0))})}/></Field>{item.kind!=='burnaway'&&<><Field label="Wording / detail"><input value={item.customText} onChange={e=>onChange({customText:e.target.value})}/></Field><Field label="Reference URL"><input type="url" value={item.referenceUrl} onChange={e=>onChange({referenceUrl:e.target.value})} placeholder="https://..."/></Field></>}</div></div>;
 }
 
 function AddressPasteModal({value,parsed,onChange,onParse,onClose}:{value:string;parsed:ParsedMalaysiaAddress|null;onChange:(value:string)=>void;onParse:()=>void;onClose:()=>void}){
