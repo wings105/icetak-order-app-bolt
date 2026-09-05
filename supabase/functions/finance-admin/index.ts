@@ -183,6 +183,13 @@ Deno.serve(async (req) => {
         p_draft_id: draftId, p_remark: remark, p_message: message, p_actor: admin.username,
       }) });
     }
+    if (action === "draft_followup_manual_undo") {
+      const draftId = String(body.draft_id || "").trim();
+      if (!/^[0-9a-f-]{36}$/i.test(draftId)) return json({ success: false, error: "Valid draft is required" }, 400);
+      return json({ success: true, data: await rpc("icetak_admin_undo_manual_draft_followup", {
+        p_draft_id: draftId, p_actor: admin.username,
+      }) });
+    }
     if (action === "draft_followup_settings_save") {
       const payload = body.settings && typeof body.settings === "object" && !Array.isArray(body.settings) ? body.settings as JsonObject : {};
       return json({ success: true, data: await rpc("icetak_admin_draft_followup_settings", { p_payload: payload, p_actor: admin.username }) });
