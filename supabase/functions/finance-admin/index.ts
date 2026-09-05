@@ -173,6 +173,16 @@ Deno.serve(async (req) => {
       if (followupAction === "send_now") await rpc("icetak_schedule_due_draft_followups", { p_limit: 10, p_force: true });
       return json({ success: true, data: result });
     }
+    if (action === "draft_followup_manual_sent") {
+      const draftId = String(body.draft_id || "").trim();
+      const remark = String(body.remark || "").trim();
+      const message = String(body.message || "").trim();
+      if (!/^[0-9a-f-]{36}$/i.test(draftId) || !remark) return json({ success: false, error: "Valid draft and remark are required" }, 400);
+      if (remark.length > 500 || message.length > 2000) return json({ success: false, error: "Manual follow-up content is too long" }, 400);
+      return json({ success: true, data: await rpc("icetak_admin_record_manual_draft_followup", {
+        p_draft_id: draftId, p_remark: remark, p_message: message, p_actor: admin.username,
+      }) });
+    }
     if (action === "draft_followup_settings_save") {
       const payload = body.settings && typeof body.settings === "object" && !Array.isArray(body.settings) ? body.settings as JsonObject : {};
       return json({ success: true, data: await rpc("icetak_admin_draft_followup_settings", { p_payload: payload, p_actor: admin.username }) });
