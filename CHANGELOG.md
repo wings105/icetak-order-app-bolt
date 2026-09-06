@@ -15,6 +15,14 @@ If a previously recorded success is later disproved, correct its status/entry ra
 
 See `docs/VERIFICATION_PROTOCOL.md`.
 
+
+## 2026-09-06 — [PRODUCTION] QRPay unmatched payments fail closed without AI drafts
+
+- Disabled the `unmatched_payment_queue_qrpay_ai` trigger in Order System production.
+- Preserved `zz_auto_reconcile_unmatched_payment`: a unique exact-amount eligible draft/order may still auto-link.
+- Payments with no unique exact match now remain unmatched for manual review instead of creating a speculative AI draft from nearby WhatsApp messages.
+- Production rollback smoke test confirmed an unmatched payment created no AI job and no draft, while the canonical auto-reconcile trigger remained active.
+
 ## 2026-08-30 — [PRODUCTION] Evidence-based completion and AI handoff policy
 
 - Added the mandatory `ATTEMPTED -> VERIFIED -> PRODUCTION` work-status model for all coding agents.
