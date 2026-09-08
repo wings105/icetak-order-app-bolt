@@ -36,6 +36,28 @@ const enabledValue = (value: unknown) => ['true', '1', 'yes', 'enabled', 'on'].i
 const cancelledOrder = (order: Record<string, unknown>) => `${order.status || ''} ${order.admin_status || ''} ${order.fulfillment_stage || ''}`.toLowerCase().includes('cancel');
 const paidOrder = (order: Record<string, unknown>) => [order.payment_status, order.payment]
   .some((value) => PAID_STATES.has(String(value ?? '').trim().toLowerCase()));
+const PICKUP_READY_PAID_TEXT = `Hi {customer_name},
+
+order {order_id} sudah siap untuk pickup.
+Bayaran telah diterima.
+
+Order anda boleh diambil di Pickup Box di luar kedai.
+
+Lokasi:
+swiy.co/decocakePP
+
+Terima kasih.`;
+const PICKUP_READY_UNPAID_TEXT = `Hi {customer_name},
+
+order {order_id} sudah siap untuk pickup.
+Bayaran masih belum diterima.
+
+Sila buat bayaran pada link:
+{payment_link}
+
+Selepas bayaran diterima, order boleh diambil di Pickup Box di luar kedai.
+
+Terima kasih.`;
 
 async function fetchTimed(url: string, init: RequestInit = {}, timeoutMs = 15000) {
   const controller = new AbortController();
@@ -120,7 +142,7 @@ async function pickupAutoPreflight(body: Record<string, any>) {
   const config = settings?.[0];
   if (!config?.auto_send_enabled) return { ok: false, error: 'pickup_auto_disabled' };
   if (!config?.provider_ready) return { ok: false, error: 'pickup_provider_not_ready' };
-  const orders = await rest(`orders?id=eq.${encodeURIComponent(orderId)}&select=id,whatsapp_opt_in,delivery_method,delivery,pickup_ready_at,pickup_collected_at,status,admin_status,fulfillment_stage&limit=1`).catch(() => []);
+  const orders = await rest(`orders?id=eq.${encodeURIComponent(orderId)}&select=id,whatsapp_opt_in,payment_status,payment,delivery_method,delivery,pickup_ready_at,pickup_collected_at,status,admin_status,fulfillment_stage&limit=1`).catch(() => []);
   const order = orders?.[0];
   if (!order) return { ok: false, error: 'pickup_order_missing' };
   if (order.whatsapp_opt_in !== true) return { ok: false, error: 'pickup_order_opted_out' };
@@ -129,11 +151,11 @@ async function pickupAutoPreflight(body: Record<string, any>) {
   if (order.pickup_collected_at) return { ok: false, error: 'pickup_collected' };
   if (cancelledOrder(order)) return { ok: false, error: 'pickup_cancelled' };
   if (config.auto_send_activated_at && new Date(order.pickup_ready_at).getTime() < new Date(config.auto_send_activated_at).getTime()) return { ok: false, error: 'pickup_historical_ready' };
-  return { ok: true };
+  return { ok: true, order };
 }
 
 async function orderLifecyclePreflight(body: Record<string, any>, eventType: string) {
-  if (!CUSTOMER_LIFECYCLE_EVENTS.has(eventType)) return { ok: true };
+  if (!CUSTOMER_LIFECYCLE_EVENTS.has(eventType)) return { ok: true, order: null };
 
   const master = await setting('enabled');
   if (!enabledValue(master)) return { ok: false, error: 'order_auto_disabled' };
@@ -167,7 +189,7 @@ async function orderLifecyclePreflight(body: Record<string, any>, eventType: str
     if (order.pickup_collected_at) return { ok: false, error: 'order_ready_pickup_collected' };
   }
 
-  return { ok: true };
+  return { ok: true, order };
 }
 
 async function windowStatus(phone: string, bsuid = '') {
@@ -260,6 +282,7 @@ Deno.serve(async (req) => {
     if (vars.otp && !vars.otp_code) vars.otp_code = vars.otp;
     if (!vars.expiry_minutes) vars.expiry_minutes = '10';
 
+    let lifecycleOrder: Record<string, unknown> | null = null;
     if (eventType === 'shipment_auto_tracking') {
       const preflight = await trackingAutoPreflight(body);
       if (preflight.duplicate) return json({ ok: true, duplicate: true, mode: 'auto', decision_reason: 'tracking_already_sent' });
@@ -268,10 +291,12 @@ Deno.serve(async (req) => {
     if (eventType === 'order_ready_pickup_auto') {
       const preflight = await pickupAutoPreflight(body);
       if (!preflight.ok) return json({ ok: false, error: preflight.error }, 409);
+      lifecycleOrder = preflight.order || null;
     }
     if (CUSTOMER_LIFECYCLE_EVENTS.has(eventType)) {
       const preflight = await orderLifecyclePreflight(body, eventType);
       if (!preflight.ok) return json({ ok: false, error: preflight.error }, 409);
+      lifecycleOrder = preflight.order || null;
     }
 
     const rule = (await rest(`whatsapp_notification_rules?event_type=eq.${encodeURIComponent(eventType)}&limit=1`).catch(() => []))?.[0] || {};
@@ -294,7 +319,12 @@ Deno.serve(async (req) => {
 
     if (mode === 'text') {
       if (rule.freeform_enabled === false) return json({ ok: false, error: 'freeform_disabled' }, 409);
-      const text = body.text || render(rule.freeform_text || '', vars);
+      const pickupReadyText = eventType === 'order_ready_pickup_auto' && lifecycleOrder
+        ? (paidOrder(lifecycleOrder)
+          ? rule.freeform_text_paid || PICKUP_READY_PAID_TEXT
+          : rule.freeform_text_unpaid || PICKUP_READY_UNPAID_TEXT)
+        : null;
+      const text = body.text || render(pickupReadyText || rule.freeform_text || '', vars);
       if (!text.trim()) return json({ ok: false, error: 'freeform_message_empty' }, 400);
       payload = { ...recipient, text, preview_url: false };
       endpoint = '/messages/send';
