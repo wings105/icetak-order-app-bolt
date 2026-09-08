@@ -108,6 +108,7 @@ export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDraft
   const [items, setItems] = useState<ComposerItem[]>([]);
   const [adjustments, setAdjustments] = useState<ComposerAdjustments>({ ...EMPTY_ADJUSTMENTS });
   const [delivery, setDelivery] = useState<DeliveryKind>('pickup');
+  const [freeShipping, setFreeShipping] = useState(false);
   const [payment, setPayment] = useState<PaymentChoice>(linkedPayment ? 'linked_qrpay' : 'prepaid');
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
   const [paymentReference, setPaymentReference] = useState('');
@@ -124,7 +125,7 @@ export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDraft
   const [error, setError] = useState('');
   const requestId = useRef(crypto.randomUUID());
 
-  const totals = useMemo(() => calculateComposerTotals(items, delivery, adjustments), [items, delivery, adjustments]);
+  const totals = useMemo(() => calculateComposerTotals(items, delivery, adjustments, freeShipping), [items, delivery, adjustments, freeShipping]);
   const linkedAmount = Number(linkedPayment?.amount || 0);
   const linkedMatches = !linkedPayment || Math.abs(totals.total - linkedAmount) < 0.01;
   const normalizedPhone = normalizeMalaysiaPhone(customer.phone);
@@ -255,6 +256,7 @@ export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDraft
       source,
       note,
       notifyWhatsapp,
+      freeShipping,
     });
     const { data, error: invokeError } = await supabase.functions.invoke('admin-draft-control', {
       body: {
@@ -292,6 +294,7 @@ export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDraft
     setItems([]);
     setAdjustments({ ...EMPTY_ADJUSTMENTS });
     setDelivery('pickup');
+    setFreeShipping(false);
     setPayment('prepaid');
     setPaymentMethod('bank_transfer');
     setPaymentReference('');
@@ -338,7 +341,8 @@ export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDraft
         <div className="composer-two-fields"><Field label="WhatsApp User ID / BSUID"><input value={customer.bsuid} onChange={(event) => setCustomerField('bsuid', event.target.value)} placeholder="MY.123456..." /></Field><Field label="Username"><input value={customer.username} onChange={(event) => setCustomerField('username', event.target.value)} placeholder="@username" /></Field></div>
         {normalizedPhone ? <div className="composer-contact-links"><a href={`tel:${normalizedPhone}`}>☎ {normalizedPhone}</a><a href={`https://wa.me/${normalizedPhone}`} target="_blank" rel="noreferrer">WhatsApp</a>{customer.username ? <span>@{customer.username.replace(/^@+/, '')}</span> : null}</div> : validUserId ? <div className="composer-contact-links"><span>WhatsApp API: {customer.bsuid.trim()}</span>{customer.username ? <span>@{customer.username.replace(/^@+/, '')}</span> : null}</div> : null}
         <div className="composer-two-fields"><Field label="Date *"><input type="date" value={dateNeed} onChange={(event) => setDateNeed(event.target.value)} /></Field><Field label="Order source"><select value={source} onChange={(event) => setSource(event.target.value)}>{['WhatsApp', 'Walk-in', 'Phone', 'POS', 'Shopee', 'QRPay', 'Manual'].map((option) => <option key={option}>{option}</option>)}</select></Field></div>
-        <Field label="Delivery"><select value={delivery} onChange={(event) => { const next = event.target.value as DeliveryKind; setDelivery(next); if (next !== 'pickup' && payment === 'cash_counter') setPayment('prepaid'); }}>{(Object.keys(DELIVERY) as DeliveryKind[]).map((key) => <option key={key} value={key}>{DELIVERY[key].label}{DELIVERY[key].fee ? ` (+${money(DELIVERY[key].fee)})` : ''}</option>)}</select></Field>
+        <Field label="Delivery"><select value={delivery} onChange={(event) => { const next = event.target.value as DeliveryKind; setDelivery(next); if (next === 'pickup') setFreeShipping(false); if (next !== 'pickup' && payment === 'cash_counter') setPayment('prepaid'); }}>{(Object.keys(DELIVERY) as DeliveryKind[]).map((key) => <option key={key} value={key}>{DELIVERY[key].label}{DELIVERY[key].fee ? ` (+${money(DELIVERY[key].fee)})` : ''}</option>)}</select></Field>
+        <label className={`composer-free-shipping ${freeShipping ? 'selected' : ''}`}><input type="checkbox" checked={freeShipping} disabled={delivery === 'pickup'} onChange={(event) => setFreeShipping(event.target.checked)} /><span><b>Free Shipping untuk customer</b><small>{delivery === 'pickup' ? 'Pilih courier dahulu.' : 'Courier kekal dipilih; caj shipping jadi RM0.00 dan dipaparkan sebagai FREE SHIPPING.'}</small></span></label>
 
         <div className="composer-payment-section"><div className="composer-label">Payment flow</div>{linkedPayment ? <div className="composer-payment-option selected"><b>QRPay sudah diterima</b><span>{linkedPayment.transactionId} · {money(linkedAmount)}</span></div> : choices.map((choice) => <button key={choice.key} type="button" className={`composer-payment-option ${payment === choice.key ? 'selected' : ''}`} disabled={choice.key === 'already_paid' && !canVerifyPayment} onClick={() => choosePayment(choice.key)}><b>{choice.title}</b><span>{choice.key === 'already_paid' && !canVerifyPayment ? 'Permission verify_payments diperlukan.' : choice.description}</span></button>)}</div>
         {payment === 'already_paid' ? <div className="composer-paid-fields"><Field label="Payment method"><select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="bank_transfer">Bank Transfer / DuitNow</option><option value="qr_pay_manual">QR Pay (Manual)</option><option value="card">Card</option><option value="other">Cash / Other</option></select></Field><Field label="Payment reference / note"><input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="Resit, DuitNow reference, cash..." /></Field></div> : null}
@@ -360,7 +364,7 @@ export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDraft
 
       <section className="panel composer-panel composer-adjustments"><div className="panel-header"><div><div className="panel-title">3. Price adjustments</div><div className="panel-subtitle">Add-on, discount dan rounding direkod berasingan daripada harga katalog.</div></div></div><div className="composer-adjustment-grid"><Field label="Custom Add-on +RM"><input type="number" min="0" step="0.01" value={adjustments.customAddon} onChange={(event) => setAdjustments((previous) => ({ ...previous, customAddon: event.target.value }))} placeholder="0.00" /></Field><Field label="Add-on reason"><input value={adjustments.customAddonReason} onChange={(event) => setAdjustments((previous) => ({ ...previous, customAddonReason: event.target.value }))} placeholder="Contoh: extra custom design" /></Field><Field label="Discount type"><select value={adjustments.discountType} onChange={(event) => setAdjustments((previous) => ({ ...previous, discountType: event.target.value as 'amount' | 'percent' }))}><option value="amount">RM</option><option value="percent">%</option></select></Field><Field label="Discount value"><input type="number" min="0" step="0.01" value={adjustments.discountValue} onChange={(event) => setAdjustments((previous) => ({ ...previous, discountValue: event.target.value }))} placeholder="0.00" /></Field><Field label="Discount reason"><input value={adjustments.discountReason} onChange={(event) => setAdjustments((previous) => ({ ...previous, discountReason: event.target.value }))} placeholder="Optional" /></Field><Field label="Rounding +/-RM"><input type="number" step="0.01" value={adjustments.rounding} onChange={(event) => setAdjustments((previous) => ({ ...previous, rounding: event.target.value }))} placeholder="Contoh: -0.50" /></Field><Field label="Rounding reason"><input value={adjustments.roundingReason} onChange={(event) => setAdjustments((previous) => ({ ...previous, roundingReason: event.target.value }))} placeholder="Optional" /></Field></div></section>
 
-      <section className="panel composer-summary"><div><span>Order Total</span><strong>{money(totals.total)}</strong><small>Catalog items: {money(totals.catalogSubtotal)}</small></div><div className="composer-metrics"><Metric label="Items" value={totals.itemSubtotal} /><Metric label="Add-on" value={totals.addon} /><Metric label="Discount" value={-totals.discountAmount} /><Metric label="Shipping" value={totals.shipping} /><Metric label="Rounding" value={totals.rounding} />{totals.sellerDealSavings > 0 ? <Metric label="Seller deal" value={-totals.sellerDealSavings} /> : null}</div></section>
+      <section className="panel composer-summary"><div><span>Order Total</span><strong>{money(totals.total)}</strong><small>Catalog items: {money(totals.catalogSubtotal)}</small>{freeShipping ? <b className="composer-free-shipping-badge">FREE SHIPPING</b> : null}</div><div className="composer-metrics"><Metric label="Items" value={totals.itemSubtotal} /><Metric label="Add-on" value={totals.addon} /><Metric label="Discount" value={-totals.discountAmount} /><Metric label={freeShipping ? 'Shipping · FREE' : 'Shipping'} value={totals.shipping} /><Metric label="Rounding" value={totals.rounding} />{totals.sellerDealSavings > 0 ? <Metric label="Seller deal" value={-totals.sellerDealSavings} /> : null}</div></section>
       {linkedPayment && !linkedMatches ? <div className="composer-banner composer-banner-warning">Jumlah order {money(totals.total)} belum sama dengan payment QRPay {money(linkedAmount)}.</div> : null}
       </div>
     </div>
