@@ -120,7 +120,7 @@ export function composerEffectivePrice(item: ComposerItem) {
     : rounded(Math.max(0, amount(item.sellerDealPrice)));
 }
 
-export function calculateComposerTotals(items: ComposerItem[], delivery: DeliveryKind, adjustments: ComposerAdjustments): ComposerTotals {
+export function calculateComposerTotals(items: ComposerItem[], delivery: DeliveryKind, adjustments: ComposerAdjustments, freeShipping = false): ComposerTotals {
   const catalogSubtotal = rounded(items.reduce((total, item) => total + composerCatalogPrice(item) * Math.max(1, item.qty), 0));
   const itemSubtotal = rounded(items.reduce((total, item) => total + composerEffectivePrice(item) * Math.max(1, item.qty), 0));
   const addon = rounded(Math.max(0, amount(adjustments.customAddon)));
@@ -128,7 +128,7 @@ export function calculateComposerTotals(items: ComposerItem[], delivery: Deliver
   const discountAmount = adjustments.discountType === 'percent'
     ? rounded((itemSubtotal + addon) * Math.min(discountValue, 100) / 100)
     : rounded(Math.min(discountValue, itemSubtotal + addon));
-  const shipping = rounded(DELIVERY[delivery]?.fee || 0);
+  const shipping = rounded(freeShipping && delivery !== 'pickup' ? 0 : (DELIVERY[delivery]?.fee || 0));
   const rounding = rounded(amount(adjustments.rounding));
   const total = rounded(Math.max(0, itemSubtotal + addon - discountAmount + shipping + rounding));
   return {
@@ -153,8 +153,10 @@ export function createComposerPayload(input: {
   source: string;
   note: string;
   notifyWhatsapp: boolean;
+  freeShipping?: boolean;
 }) {
   const { customer, items, adjustments, delivery, paymentMode } = input;
+  const freeShipping = input.freeShipping === true && delivery !== 'pickup';
   const phone = normalizeMalaysiaPhone(customer.phone);
   const bsuid = customer.bsuid.trim();
   const username = customer.username.trim().replace(/^@+/, '');
@@ -217,7 +219,8 @@ export function createComposerPayload(input: {
     items: mappedItems,
     date_need: input.dateNeed || null,
     delivery,
-    delivery_fee: DELIVERY[delivery]?.fee || 0,
+    free_shipping: freeShipping,
+    delivery_fee: freeShipping ? 0 : (DELIVERY[delivery]?.fee || 0),
     payment_mode: paymentMode,
     source_type: 'admin_manual',
     order_source: input.source,
