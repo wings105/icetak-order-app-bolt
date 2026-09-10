@@ -22,6 +22,16 @@ const deliveryOptions = [
 
 const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers });
 const text = (value: unknown) => String(value ?? '').trim();
+const errorMessage = (value: any, fallback = 'Request gagal') => {
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  if (value && typeof value === 'object') {
+    for (const key of ['message', 'error_description', 'details', 'hint', 'error']) {
+      const nested = errorMessage(value[key], '');
+      if (nested) return nested;
+    }
+  }
+  return fallback;
+};
 const digits = (value: unknown) => text(value).replace(/\D/g, '');
 const meaningful = (value: unknown, min = 2) => text(value).replace(/[^\p{L}\p{N}]/gu, '').length >= min;
 const normalizePhone = (value: unknown) => {
@@ -224,8 +234,9 @@ Deno.serve(async (request) => {
         p_actor: 'customer-link',
       });
       if (confirmation.error) throw confirmation.error;
-      let payment = null;
-      if (confirmation.data?.payment_required) {
+      let payment = confirmation.data?.payment || null;
+      // Backward-compatible fallback while a database migration is rolling out.
+      if (confirmation.data?.payment_required && !payment) {
         const paymentQuery = await db.rpc('icetak_prepare_draft_payment', { p_customer_token: token, p_force_new: false });
         if (paymentQuery.error) throw paymentQuery.error;
         payment = paymentQuery.data;
@@ -322,7 +333,7 @@ Deno.serve(async (request) => {
     return out({ ok: false, error: 'Unsupported action' }, 400);
   } catch (error) {
     console.error('order-draft-customer', error);
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     const status = message.includes('quote_changed') ? 409 : 500;
     return out({ ok: false, error: message }, status);
   }
