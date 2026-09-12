@@ -208,6 +208,7 @@ export default function Orders({ permissions = [], initialOrder = '' }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState<'confirm_cash_paid' | 'pickup_collected' | null>(null);
   const [detailRef, setDetailRef] = useState(initialOrder || '');
   const [detail, setDetail] = useState<OrderDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -361,6 +362,44 @@ export default function Orders({ permissions = [], initialOrder = '' }: Props) {
     setSelectedIds([]); await load();
   };
 
+  const bulkOrderAction = async (name: 'confirm_cash_paid' | 'pickup_collected') => {
+    if (!selectedIds.length || bulkBusy) return;
+    const selected = rows.filter((row) => selectedIds.includes(row.dbId));
+    const eligible = selected.filter((order) => {
+      const pickup = norm(order.delivery).includes('pickup');
+      if (order.isCancelled || order.isCompleted || !pickup) return false;
+      if (name === 'confirm_cash_paid') return Boolean(order.isUnpaid && order.isCash);
+      return Boolean(!order.isUnpaid && order.pickupReadyAt && !order.pickupCollectedAt);
+    });
+    const skipped = selected.filter((order) => !eligible.some((candidate) => candidate.dbId === order.dbId));
+    if (!eligible.length) {
+      setError(name === 'confirm_cash_paid'
+        ? 'Tiada order terpilih yang layak: mesti Pickup, Cash Due dan belum dibayar.'
+        : 'Tiada order terpilih yang layak: mesti Pickup, sudah dibayar dan Ready for Pickup.');
+      return;
+    }
+    const label = name === 'confirm_cash_paid' ? 'Confirm Cash Paid' : 'Customer Collected';
+    const total = name === 'confirm_cash_paid' ? ` · Jumlah ${money(eligible.reduce((sum, order) => sum + Number(order.total || 0), 0))}` : '';
+    const skipText = skipped.length ? `\n${skipped.length} order tidak layak akan dilangkau.` : '';
+    if (!window.confirm(`${label} untuk ${eligible.length} order?${total}${skipText}\n\nSetiap order akan direkod dalam audit.`)) return;
+
+    setBulkBusy(name); setError(null);
+    const results = await Promise.all(eligible.map(async (order) => {
+      const { error: rpcError } = await supabase.rpc('icetak_admin_order_action', {
+        p_payload: { order_db_id: order.dbId, order_id: order.id, action: name },
+      });
+      return { order, error: rpcError };
+    }));
+    setBulkBusy(null);
+    const failed = results.filter((result) => result.error);
+    const succeeded = results.filter((result) => !result.error);
+    setSelectedIds([...skipped, ...failed.map((result) => result.order)].map((order) => order.dbId));
+    if (succeeded.length) setNotice(`${succeeded.length} order: ${label} berjaya${skipped.length ? ` · ${skipped.length} dilangkau` : ''}.`);
+    if (failed.length) setError(`${failed.length} order gagal: ${failed.map((result) => `${result.order.id} (${result.error?.message || 'Unknown error'})`).join(', ')}`);
+    await load();
+    if (detailRef) await loadDetail(detailRef);
+  };
+
   const exportSelected = () => {
     const selected = rows.filter((r) => selectedIds.includes(r.dbId));
     if (!selected.length) return;
@@ -393,6 +432,9 @@ export default function Orders({ permissions = [], initialOrder = '' }: Props) {
   };
 
   const allPageSelected = rows.length > 0 && rows.every((r) => selectedIds.includes(r.dbId));
+  const selectedRows = rows.filter((row) => selectedIds.includes(row.dbId));
+  const bulkCashCount = selectedRows.filter((order) => !order.isCancelled && !order.isCompleted && norm(order.delivery).includes('pickup') && order.isUnpaid && order.isCash).length;
+  const bulkCollectedCount = selectedRows.filter((order) => !order.isCancelled && !order.isCompleted && norm(order.delivery).includes('pickup') && !order.isUnpaid && order.pickupReadyAt && !order.pickupCollectedAt).length;
   const toggleAll = () => setSelectedIds(allPageSelected ? [] : rows.map((r) => r.dbId));
   const toggleOne = (id: string) => setSelectedIds((old) => old.includes(id) ? old.filter((x) => x !== id) : [...old, id]);
   const visible = (key: ColumnKey) => visibleColumns.includes(key);
@@ -431,7 +473,7 @@ export default function Orders({ permissions = [], initialOrder = '' }: Props) {
       {showColumns && <div className="erp-column-panel"><b>Visible columns</b><div>{ALL_COLUMNS.map((c) => <label key={c.key}><input type="checkbox" checked={visible(c.key)} onChange={() => setVisibleColumns((old) => old.includes(c.key) ? old.filter((x) => x !== c.key) : [...old, c.key])} /> {c.label}</label>)}</div><button className="btn btn-ghost btn-sm" onClick={() => setVisibleColumns(DEFAULT_COLUMNS)}>Reset</button></div>}
       {filters.customerToken && <div className="erp-filter-token">Customer history filter active <button onClick={() => updateFilter('customerToken', '')}>× Clear</button></div>}
 
-      {selectedIds.length > 0 && <div className="erp-bulkbar"><b>{selectedIds.length} selected</b><button className="btn btn-outline btn-sm" onClick={exportSelected}>Export CSV</button><button className="btn btn-outline btn-sm" onClick={() => void bulkWhatsapp(true)}>WhatsApp ON</button><button className="btn btn-outline btn-sm" onClick={() => void bulkWhatsapp(false)}>WhatsApp OFF</button><button className="btn btn-ghost btn-sm" onClick={() => setSelectedIds([])}>Clear</button><span>Risky actions such as Cancel are intentionally not available in bulk.</span></div>}
+      {selectedIds.length > 0 && <div className="erp-bulkbar"><b>{selectedIds.length} selected</b><button className="btn btn-outline btn-sm" disabled={Boolean(bulkBusy)} onClick={exportSelected}>Export CSV</button><button className="btn btn-outline btn-sm" disabled={Boolean(bulkBusy)} onClick={() => void bulkWhatsapp(true)}>WhatsApp ON</button><button className="btn btn-outline btn-sm" disabled={Boolean(bulkBusy)} onClick={() => void bulkWhatsapp(false)}>WhatsApp OFF</button>{can('verify_payments') && <button className="btn btn-primary btn-sm" disabled={Boolean(bulkBusy) || bulkCashCount === 0} onClick={() => void bulkOrderAction('confirm_cash_paid')}>{bulkBusy === 'confirm_cash_paid' ? 'Confirming…' : `Confirm Cash Paid (${bulkCashCount})`}</button>}{can('approve_production') && <button className="btn btn-primary btn-sm" disabled={Boolean(bulkBusy) || bulkCollectedCount === 0} onClick={() => void bulkOrderAction('pickup_collected')}>{bulkBusy === 'pickup_collected' ? 'Updating…' : `Customer Collected (${bulkCollectedCount})`}</button>}<button className="btn btn-ghost btn-sm" disabled={Boolean(bulkBusy)} onClick={() => setSelectedIds([])}>Clear</button><span>Bulk actions only process eligible pickup orders; Cancel remains unavailable.</span></div>}
 
       <div className="table-wrap erp-table-wrap">
         {loading ? <div className="loading"><span className="spinner" /> Loading work queue...</div> : rows.length === 0 ? <div className="empty"><div className="empty-title">No orders found</div><p>Try another view or clear filters.</p></div> : <table className="erp-order-table">
