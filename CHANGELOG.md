@@ -1,5 +1,6 @@
 # Changelog
 
+- [PRODUCTION] Compact punctuated Malaysian addresses (for example `No.85,Taman Irama`) are accepted across customer checkout and database guards while genuinely short addresses remain blocked; paid drafts now show a recoverable error instead of an endless spinner when order creation fails. Verified with live trigger tests, Edge Function v12, and the deployed payment page.
 - [PRODUCTION] Customer checkout Confirm is atomic and retry-safe across courier/free-shipping flows; fixed PostgreSQL 42702 ambiguity, prevents duplicate payment sessions, recovers post-confirm network failures, and renders structured errors instead of `[object Object]`. Verified against the live RPC with rollback-isolated SPX/free-shipping and retry tests.
 This file is reliable shared memory for meaningful production-facing or architecture-level changes. It is not intended to mirror every commit or every coding attempt.
 
