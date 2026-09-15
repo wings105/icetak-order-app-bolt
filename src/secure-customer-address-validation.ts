@@ -26,11 +26,14 @@ const STATE_ALIASES = new Map<string, string>([
 function clean(value: unknown) {
   return String(value ?? '').replace(/\s+/g, ' ').trim();
 }
+function cleanAddress(value: unknown) {
+  return clean(value).replace(/\s*([,;/])\s*/g, '$1 ');
+}
 function alphaCount(value: unknown) {
   return (clean(value).match(/[A-Za-zÀ-ž]/g) || []).length;
 }
 function wordCount(value: unknown) {
-  return clean(value).split(/\s+/).filter((word) => /[A-Za-z0-9]/.test(word)).length;
+  return clean(value).split(/[^\p{L}\p{N}]+/u).filter(Boolean).length;
 }
 function normalizePhone(value: unknown) {
   const digits = String(value ?? '').replace(/\D/g, '');
@@ -100,7 +103,7 @@ document.addEventListener('submit', (event) => {
   const normalized: SecureAddressValidation = {
     recipientName: clean(fields.get('recipientName')),
     phone: normalizePhone(fields.get('phone')),
-    addressLine1: clean(fields.get('addressLine1')),
+    addressLine1: cleanAddress(fields.get('addressLine1')),
     addressLine2: clean(fields.get('addressLine2')),
     city: clean(fields.get('city')),
     postcode: String(fields.get('postcode') ?? '').replace(/\D/g, '').slice(0, 5),

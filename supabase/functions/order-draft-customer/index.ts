@@ -33,6 +33,7 @@ const errorMessage = (value: any, fallback = 'Request gagal') => {
   return fallback;
 };
 const digits = (value: unknown) => text(value).replace(/\D/g, '');
+const cleanAddress = (value: unknown) => text(value).replace(/\s*([,;/])\s*/g, '$1 ');
 const meaningful = (value: unknown, min = 2) => text(value).replace(/[^\p{L}\p{N}]/gu, '').length >= min;
 const normalizePhone = (value: unknown) => {
   let valueDigits = digits(value);
@@ -64,8 +65,8 @@ function allowedCustomer(value: any) {
   const customer: Record<string, string | null> = {
     name: text(value?.name) || null,
     phone: text(value?.phone) || null,
-    address_line1: text(value?.address_line1) || null,
-    address_line2: text(value?.address_line2) || null,
+    address_line1: cleanAddress(value?.address_line1) || null,
+    address_line2: cleanAddress(value?.address_line2) || null,
     postcode: digits(value?.postcode) || null,
     city: text(value?.city) || null,
     state: text(value?.state) || null,
@@ -169,7 +170,7 @@ function decodeBase64(value: string) {
 
 async function load(token: string) {
   const draftQuery = await db.from('qrpay_order_drafts')
-    .select('id,review_token,customer_review_token,request_key,source_type,status,customer_status,customer_name,customer_phone,working_draft,draft_total,item_subtotal,shipping_fee,payment_required,payment_status,payment_mode,payment_session_id,admin_approved_at,customer_confirmed_at,order_id,order_no,version,created_at,updated_at')
+    .select('id,review_token,customer_review_token,request_key,source_type,status,customer_status,customer_name,customer_phone,working_draft,draft_total,item_subtotal,shipping_fee,payment_required,payment_status,payment_mode,payment_session_id,admin_approved_at,customer_confirmed_at,order_id,order_no,last_error,version,created_at,updated_at')
     .eq('customer_review_token', token)
     .maybeSingle();
   if (draftQuery.error) throw draftQuery.error;

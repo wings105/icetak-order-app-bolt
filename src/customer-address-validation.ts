@@ -41,12 +41,16 @@ function cleanText(value: unknown) {
   return String(value ?? '').replace(/\s+/g, ' ').trim();
 }
 
+function cleanAddressText(value: unknown) {
+  return cleanText(value).replace(/\s*([,;/])\s*/g, '$1 ');
+}
+
 function alphaCount(value: unknown) {
   return (cleanText(value).match(/[A-Za-zÀ-ž]/g) || []).length;
 }
 
 function wordCount(value: unknown) {
-  return cleanText(value).split(/\s+/).filter((word) => /[A-Za-z0-9]/.test(word)).length;
+  return cleanText(value).split(/[^\p{L}\p{N}]+/u).filter(Boolean).length;
 }
 
 function normalizeMalaysiaPhone(value: unknown) {
@@ -68,7 +72,7 @@ function canonicalState(value: unknown) {
 function validateCustomer(raw: CustomerRecord, pickup: boolean): ValidationResult {
   const normalized: CustomerRecord = {
     name: cleanText(raw.name),
-    address_line1: pickup ? '' : cleanText(raw.address_line1),
+    address_line1: pickup ? '' : cleanAddressText(raw.address_line1),
     city: pickup ? '' : cleanText(raw.city),
     postcode: pickup ? '' : String(raw.postcode ?? '').replace(/\D/g, '').slice(0, 5),
     state: pickup ? '' : canonicalState(raw.state),
