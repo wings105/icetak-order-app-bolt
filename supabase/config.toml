@@ -68,6 +68,10 @@ verify_jwt = false
 [functions.webhook-forward-settings]
 verify_jwt = true
 
+# Cross-project receiver for detected inbound WhatsApp Order IDs. Authenticated in code.
+[functions.whatsapp-order-id-forward]
+verify_jwt = false
+
 # Private ChatGPT action protected by x-icetak-gpt-token SHA-256 verification in code.
 [functions.gpt-order-actions]
 verify_jwt = false
