@@ -9,6 +9,7 @@ const CORS = {
 };
 
 type JsonObject = Record<string, unknown>;
+type ForwardKind = "raw" | "order_id_phone";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -50,6 +51,35 @@ async function privateSetting(key: string) {
   return String(rows?.[0]?.setting_value || "").trim();
 }
 
+async function savePrivateSetting(key: string, value: string) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/private_runtime_settings?on_conflict=setting_key`, {
+    method: "POST",
+    headers: {
+      apikey: SERVICE_ROLE_KEY,
+      authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+      "content-type": "application/json",
+      prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify({ setting_key: key, setting_value: value, updated_at: new Date().toISOString() }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data?.message || data?.error || `REST ${response.status}`);
+  }
+}
+
+function parseKind(value: unknown): ForwardKind | null {
+  const kind = String(value || "raw").trim().toLowerCase();
+  return kind === "raw" || kind === "order_id_phone" ? kind : null;
+}
+
+function validateWebhookUrl(url: string) {
+  if (!url) return null;
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return "Webhook URL tidak sah"; }
+  return parsed.protocol === "https:" ? null : "Webhook URL mesti bermula dengan https://";
+}
+
 async function unifiedRequest(action: string, url: string | null = null) {
   const [bridgeTarget, bridgeToken] = await Promise.all([
     setting("unified_inbox_24h_url"),
@@ -84,16 +114,23 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.json().catch(() => ({})) as JsonObject;
     const action = String(body.action || "get").trim().toLowerCase();
-    if (action === "get") return json(await unifiedRequest("get"));
+    const kind = parseKind(body.kind);
+    if (!kind) return json({ ok: false, error: "Webhook setting kind tidak sah" }, 400);
+
+    if (action === "get") {
+      if (kind === "raw") return json({ ...(await unifiedRequest("get")), kind });
+      const url = await privateSetting("whatsapp_order_id_phone_webhook_url");
+      return json({ ok: true, kind, url });
+    }
     if (action !== "save") return json({ ok: false, error: "Valid action required" }, 400);
 
     const url = String(body.url || "").trim();
-    if (url) {
-      let parsed: URL;
-      try { parsed = new URL(url); } catch { return json({ ok: false, error: "Webhook URL tidak sah" }, 400); }
-      if (parsed.protocol !== "https:") return json({ ok: false, error: "Webhook URL mesti bermula dengan https://" }, 400);
-    }
-    return json(await unifiedRequest("save", url));
+    const urlError = validateWebhookUrl(url);
+    if (urlError) return json({ ok: false, error: urlError }, 400);
+
+    if (kind === "raw") return json({ ...(await unifiedRequest("save", url)), kind });
+    await savePrivateSetting("whatsapp_order_id_phone_webhook_url", url);
+    return json({ ok: true, kind, url });
   } catch (error) {
     return json({ ok: false, error: error instanceof Error ? error.message : String(error) }, 500);
   }
