@@ -13,11 +13,14 @@ export default function Settings({ permissions = [], onOpenAiLearning }: Props) 
   const [forwardUrl, setForwardUrl] = useState('');
   const [forwardBusy, setForwardBusy] = useState(false);
   const [forwardLoaded, setForwardLoaded] = useState(false);
+  const [orderIdForwardUrl, setOrderIdForwardUrl] = useState('');
+  const [orderIdForwardBusy, setOrderIdForwardBusy] = useState(false);
+  const [orderIdForwardLoaded, setOrderIdForwardLoaded] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const callForwardSettings = async (action: 'get'|'save', url?: string) => {
+  const callForwardSettings = async (action: 'get'|'save', url?: string, kind: 'raw'|'order_id_phone' = 'raw') => {
     const { data, error: functionError } = await supabase.functions.invoke('webhook-forward-settings', {
-      body: { action, url },
+      body: { action, url, kind },
     });
     if (functionError) throw functionError;
     if (!data?.ok) throw new Error(data?.error || 'Webhook setting gagal diproses.');
@@ -35,10 +38,25 @@ export default function Settings({ permissions = [], onOpenAiLearning }: Props) 
     if (!canManageMonitor) return;
     let active = true;
     setForwardBusy(true);
-    void callForwardSettings('get')
-      .then((data) => { if (active) setForwardUrl(data.url || ''); })
+    setOrderIdForwardBusy(true);
+    void Promise.all([
+      callForwardSettings('get'),
+      callForwardSettings('get', undefined, 'order_id_phone'),
+    ])
+      .then(([rawData, orderIdData]) => {
+        if (!active) return;
+        setForwardUrl(rawData.url || '');
+        setOrderIdForwardUrl(orderIdData.url || '');
+      })
       .catch((loadError) => { if (active) setError(loadError instanceof Error ? loadError.message : 'Webhook setting gagal dimuatkan.'); })
-      .finally(() => { if (active) { setForwardBusy(false); setForwardLoaded(true); } });
+      .finally(() => {
+        if (active) {
+          setForwardBusy(false);
+          setForwardLoaded(true);
+          setOrderIdForwardBusy(false);
+          setOrderIdForwardLoaded(true);
+        }
+      });
     return () => { active = false; };
   }, [canManageMonitor]);
 
@@ -51,6 +69,16 @@ export default function Settings({ permissions = [], onOpenAiLearning }: Props) 
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Webhook setting gagal disimpan.');
     } finally { setForwardBusy(false); }
+  };
+  const saveOrderIdForwardUrl = async () => {
+    setOrderIdForwardBusy(true); setError(null); setNotice(null);
+    try {
+      const data = await callForwardSettings('save', orderIdForwardUrl, 'order_id_phone');
+      setOrderIdForwardUrl(data.url || '');
+      setNotice(data.url ? 'WhatsApp Order ID + phone webhook URL disimpan.' : 'WhatsApp Order ID + phone forwarding dimatikan.');
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Order ID webhook setting gagal disimpan.');
+    } finally { setOrderIdForwardBusy(false); }
   };
   const setMonitorEnabled = async (enabled:boolean) => {
     setMonitorBusy(true); setError(null);
@@ -90,6 +118,7 @@ export default function Settings({ permissions = [], onOpenAiLearning }: Props) 
       <div className="panel"><div className="panel-header"><div><div className="panel-title">System ownership</div><div className="panel-subtitle">Admin frontend selepas migration</div></div></div><div style={{padding:20}}><div className="kv-list"><div className="kv-row"><span className="k">Admin UI</span><span className="v">React Admin V2</span></div><div className="kv-row"><span className="k">Database / actions</span><span className="v">Supabase RPC + Edge Functions</span></div><div className="kv-row"><span className="k">Legacy V1</span><span className="v">Retiring after parity QA</span></div></div></div></div>
       <div className="panel"><div className="panel-header"><div><div className="panel-title">WhatsApp & integrations</div><div className="panel-subtitle">Configuration moved to dedicated pages.</div></div></div><div style={{padding:20}}><p>WhatsApp rules, credentials and queue are managed in <b>WhatsApp → Control Center</b>. Provider values remain in Supabase/Integrations.</p></div></div>
       {canManageMonitor&&<div className="panel"><div className="panel-header"><div><div className="panel-title">WasapFlow Raw Webhook Forward</div><div className="panel-subtitle">Forward salinan payload mentah ke automation luar tanpa mengganggu proses order.</div></div></div><div style={{padding:20,display:'grid',gap:10}}><label className="form-field"><span>External webhook URL</span><input type="url" placeholder="https://automation.example.com/webhook/..." value={forwardUrl} disabled={forwardBusy} onChange={(event)=>setForwardUrl(event.target.value)} /></label><div className="cell-sub">POST JSON tanpa custom header. Kosongkan URL dan Save untuk matikan forwarding.</div><button className="btn btn-primary" disabled={forwardBusy||!forwardLoaded} onClick={()=>void saveForwardUrl()}>{forwardBusy?'Saving…':'Save Webhook URL'}</button></div></div>}
+      {canManageMonitor&&<div className="panel"><div className="panel-header"><div><div className="panel-title">WhatsApp Order ID + Phone Webhook</div><div className="panel-subtitle">Hantar hanya chat customer WhatsApp yang mengandungi Order ID 6 digit + 8 aksara.</div></div></div><div style={{padding:20,display:'grid',gap:10}}><label className="form-field"><span>Make.com webhook URL</span><input type="url" placeholder="https://hook.make.com/..." value={orderIdForwardUrl} disabled={orderIdForwardBusy} onChange={(event)=>setOrderIdForwardUrl(event.target.value)} /></label><div className="cell-sub">Satu POST JSON bagi setiap Order ID. Payload mengandungi order_id, phone, message_id, masa dan idempotency_key. Tiada custom header dihantar.</div><button className="btn btn-primary" disabled={orderIdForwardBusy||!orderIdForwardLoaded} onClick={()=>void saveOrderIdForwardUrl()}>{orderIdForwardBusy?'Saving…':'Save Order ID Webhook'}</button></div></div>}
       {canManageMonitor&&<div className="panel"><div className="panel-header"><div><div className="panel-title">Matched Payment Monitor</div><div className="panel-subtitle">Pantau QRPay customer checkout yang sudah matched tetapi belum ada real order.</div></div></div><div style={{padding:20,display:'grid',gap:12}}>{monitor?<><div className="kv-list"><div className="kv-row"><span className="k">Monitor</span><span className="v">{monitor.enabled?'ON':'OFF'}</span></div><div className="kv-row"><span className="k">Semakan bermula</span><span className="v">{monitor.delay_minutes} minit selepas payment</span></div><div className="kv-row"><span className="k">Belum ditutup</span><span className="v">{monitor.open_alerts}</span></div></div><div className="cell-sub">Alert kekal sampai order berjaya dicipta/linked atau admin pilih Ignore. OFF hentikan alert baharu dan penghantaran WhatsApp.</div><button className={`btn ${monitor.enabled?'btn-outline':'btn-primary'}`} disabled={monitorBusy} onClick={()=>void setMonitorEnabled(!monitor.enabled)}>{monitorBusy?'Saving…':`Monitor: ${monitor.enabled?'ON — Turn OFF':'OFF — Turn ON'}`}</button></>:<div className="cell-sub">Loading monitor setting…</div>}</div></div>}
       {(permissions.includes('view_finance') || permissions.includes('manage_admins')) && <div className="panel"><div className="panel-header"><div><div className="panel-title">AI Draft Learning</div><div className="panel-subtitle">Weekly rule update, correction history, lock and rollback.</div></div></div><div style={{padding:20}}><button className="btn btn-primary" onClick={onOpenAiLearning}>Open AI Learning Control Center</button></div></div>}
       <div className="panel"><div className="panel-header"><div className="panel-title">Session</div></div><div style={{padding:20}}><button className="btn btn-outline" onClick={()=>void signOut()}>Log Out Admin</button></div></div>
