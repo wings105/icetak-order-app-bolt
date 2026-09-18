@@ -54,6 +54,8 @@ async function ingest(input: Row, source: "make" | "clickup_csv") {
     const rows = await db("marketplace_orders", `?provider=eq.shopee&order_sn=eq.${query(orderSn)}&select=id,order_sn,buyer_customer_id,buyer_user_id,buyer_username&limit=1`);
     order = rows[0];
     if (!order && source === "make") return { status: "unmatched_order", order_sn: orderSn };
+    if (order?.buyer_username && username && String(order.buyer_username).toLowerCase() !== username.toLowerCase())
+      return { status: "identity_conflict", reason: "order_username_mismatch", order_sn: orderSn };
   }
   let candidates: Row[] = [];
   if (order?.buyer_customer_id) candidates = await db("marketplace_customers", `?id=eq.${query(String(order.buyer_customer_id))}&select=id,customer_master_id,provider_user_id,username&limit=1`);
@@ -74,11 +76,11 @@ async function ingest(input: Row, source: "make" | "clickup_csv") {
     if (matching.length === 1 && matching[0].phone === phone) staged = matching[0];
   }
   if (!staged && resolvedUsername) {
-    const matching = await db("crm_clickup_import_rows", `?shopee_username=ilike.${query(resolvedUsername)}&phone=eq.${query(phone)}&select=clickup_id,customer_master_id,phone,shopee_user_id,shopee_username&limit=2`);
+    const matching = await db("crm_clickup_import_rows", `?shopee_username=eq.${query(resolvedUsername.toLowerCase())}&phone=eq.${query(phone)}&select=clickup_id,customer_master_id,phone,shopee_user_id,shopee_username&limit=2`);
     if (matching.length === 1) staged = matching[0];
   }
   if (!staged && resolvedUsername && !mc) {
-    const previous = await db("crm_clickup_import_rows", `?shopee_username=ilike.${query(resolvedUsername)}&select=clickup_id,phone&limit=2`);
+    const previous = await db("crm_clickup_import_rows", `?shopee_username=eq.${query(resolvedUsername.toLowerCase())}&select=clickup_id,phone&limit=2`);
     if (previous.length) return { status: "manual_review", reason: "username_exists_with_another_phone_or_multiple_records", username: resolvedUsername };
   }
   let masterId = String(mc?.customer_master_id ?? staged?.customer_master_id ?? "");
@@ -111,7 +113,7 @@ async function ingest(input: Row, source: "make" | "clickup_csv") {
   }
   if (mc && !mc.customer_master_id) await db("marketplace_customers", `?id=eq.${query(String(mc.id))}`, "PATCH", { customer_master_id: masterId });
   if (!mc && resolvedUserId && resolvedUsername) {
-    const created = await db("marketplace_customers", `?on_conflict=provider,region,provider_user_id`, "POST", {
+    const created = await db("marketplace_customers", "", "POST", {
       provider: "shopee", region: "MY", provider_user_id: resolvedUserId,
       username: resolvedUsername, username_normalized: resolvedUsername.toLowerCase(), customer_master_id: masterId,
     });
@@ -121,7 +123,7 @@ async function ingest(input: Row, source: "make" | "clickup_csv") {
     buyer_customer_id: mc.id, buyer_user_id: resolvedUserId || null, buyer_match_method: "clickup_order_sn", buyer_match_confidence: 1, buyer_matched_at: new Date().toISOString(),
   });
   if (sourceId) {
-    const data = { clickup_id: sourceId, customer_master_id: masterId, order_sn: orderSn || null, shopee_user_id: resolvedUserId || null, shopee_username: resolvedUsername || null, phone, raw_record: input, updated_at: new Date().toISOString() };
+    const data = { clickup_id: sourceId, customer_master_id: masterId, order_sn: orderSn || null, shopee_user_id: resolvedUserId || null, shopee_username: resolvedUsername.toLowerCase() || null, phone, raw_record: input, updated_at: new Date().toISOString() };
     await db("crm_clickup_import_rows", `?on_conflict=clickup_id`, "POST", data);
     const address = field(input, "address", "full_address", "address_line1");
     if (address) {
