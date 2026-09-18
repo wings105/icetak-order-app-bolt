@@ -158,3 +158,9 @@ Use this hierarchy when facts conflict:
 6. Older historical docs/chat context
 
 When a lower layer is stale, update the documentation after confirming the newer state.
+
+
+
+### AI Action Dashboard (2026-09-19)
+
+Admin v2 calls Order `admin-ai-dashboard`, which validates staff permissions and combines canonical CRM/orders/session with bounded Inbox `ai-dashboard-bridge` reads. Review state/audit live in Order System; provider send claims live in Inbox. The bridge reuses the existing private server token. See `AI_ACTION_DASHBOARD.md` for deployment targets, limits and verification status.

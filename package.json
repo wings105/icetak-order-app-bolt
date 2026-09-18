@@ -9,7 +9,8 @@
     "check:whatsapp-optout": "node scripts/check-whatsapp-order-optout-guards.mjs",
     "check:order-id-forward": "node scripts/check-whatsapp-order-id-forward.mjs",
     "build": "npm run check:admin-v2 && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:ai-dashboard": "node --experimental-strip-types scripts/check-ai-dashboard.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.51.0",

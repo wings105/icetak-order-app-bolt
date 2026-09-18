@@ -20,11 +20,13 @@ import Integrations from './pages/Integrations';
 import StaffRoles from './pages/StaffRoles';
 import Settings from './pages/Settings';
 
+const AiDashboard = lazy(() => import('./pages/AiDashboard'));
 const AiLearningSettings = lazy(() => import('./pages/AiLearningSettings'));
 const CreateOrder = lazy(() => import('./pages/CreateOrder'));
 const PickupCounter = lazy(() => import('./pages/PickupCounter'));
 
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
+  'ai-dashboard': { title: 'AI Action Dashboard', subtitle: 'WhatsApp & Shopee · Semakan admin' },
   dashboard: { title: 'Order Control Tower', subtitle: 'Business Overview' },
   orders: { title: 'Orders', subtitle: 'Full order lifecycle' },
   'pickup-counter': { title: 'Pickup Counter', subtitle: 'Multi-order payment & secure handover' },
@@ -65,11 +67,12 @@ export default function App({ adminData }: Props) {
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
   const initialDraftTab=linkedView==='draft-followups'||initialParams.get('draft_tab')==='followup'?'followup':'all';
-  const [page, setPage] = useState(linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':'dashboard');
+  const [page, setPage] = useState(linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [linkedPayment,setLinkedPayment]=useState<LinkedQrPayment|null>(initialPayment);
   const permissions = adminData?.admin?.permissions || [];
   const canViewCustomers = permissions.includes('view_customers') || permissions.includes('manage_customers') || permissions.includes('manage_admins');
+  const canViewAi = adminData?.admin?.role === 'owner' || canViewCustomers;
   const canViewPickup = canViewCustomers || permissions.includes('verify_payments') || permissions.includes('approve_production');
 
   const navigate = (key: string) => {
@@ -78,7 +81,8 @@ export default function App({ adminData }: Props) {
     const url = new URL(window.location.href);
     if (key !== 'orders') url.searchParams.delete('order');
     if (key !== 'customers' && key !== 'pickup-counter') url.searchParams.delete('customer');
-    if (key === 'customers') url.searchParams.set('view','customers');
+    if (key === 'ai-dashboard') url.searchParams.set('view','ai-dashboard');
+    else if (key === 'customers') url.searchParams.set('view','customers');
     else if (key === 'pickup-counter') url.searchParams.set('view','pickup-counter');
     else if (key === 'qrpay-summary') url.searchParams.set('view','qrpay-summary');
     else if (key === 'draft-orders') url.searchParams.set('view','draft-orders');
@@ -132,6 +136,7 @@ export default function App({ adminData }: Props) {
   const info = pageMap[page] || pageMap.dashboard;
   const renderPage = () => {
     switch (page) {
+      case 'ai-dashboard': return canViewAi ? <Suspense fallback={<div style={{padding:24}}>Memuatkan AI Dashboard...</div>}><AiDashboard onOpenOrder={openOrder} onOpenDrafts={()=>navigate('draft-orders')} canViewDrafts={permissions.includes('view_finance')} /></Suspense> : <div style={{padding:24}}>Akses CRM diperlukan.</div>;
       case 'dashboard': return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'orders': return <Orders permissions={permissions} initialOrder={linkedOrder} />;
       case 'customers': return canViewCustomers ? <Customers permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder} onOpenPickup={openPickup} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
@@ -156,5 +161,6 @@ export default function App({ adminData }: Props) {
     }
   };
 
-  return <div className="app-layout"><Sidebar active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} canViewFinance={permissions.includes('view_finance')} canViewCustomers={canViewCustomers} canViewPickup={canViewPickup} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} /><div className="content-area">{renderPage()}</div></div></div>;
+  return <div className="app-layout"><Sidebar active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} canViewFinance={permissions.includes('view_finance')} canViewCustomers={canViewCustomers} canViewAi={canViewAi} canViewPickup={canViewPickup} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} /><div className="content-area">{renderPage()}</div></div></div>;
 }
+
