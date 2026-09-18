@@ -36,7 +36,7 @@ function normalizePhone(raw: string) {
   const digits = raw.replace(/\D/g, "");
   const local = digits.startsWith("60") ? `0${digits.slice(2)}` : digits;
   if (!/^01\d{8,9}$/.test(local)) throw new Error("invalid_malaysian_phone");
-  return `+60${local.slice(1)}`;
+  return `60${local.slice(1)}`;
 }
 function query(value: string) { return encodeURIComponent(value); }
 
@@ -76,6 +76,10 @@ async function ingest(input: Row, source: "make" | "clickup_csv") {
   if (!staged && resolvedUsername) {
     const matching = await db("crm_clickup_import_rows", `?shopee_username=ilike.${query(resolvedUsername)}&phone=eq.${query(phone)}&select=clickup_id,customer_master_id,phone,shopee_user_id,shopee_username&limit=2`);
     if (matching.length === 1) staged = matching[0];
+  }
+  if (!staged && resolvedUsername && !mc) {
+    const previous = await db("crm_clickup_import_rows", `?shopee_username=ilike.${query(resolvedUsername)}&select=clickup_id,phone&limit=2`);
+    if (previous.length) return { status: "manual_review", reason: "username_exists_with_another_phone_or_multiple_records", username: resolvedUsername };
   }
   let masterId = String(mc?.customer_master_id ?? staged?.customer_master_id ?? "");
   if (mc?.customer_master_id && staged?.customer_master_id && mc.customer_master_id !== staged.customer_master_id)
