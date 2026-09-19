@@ -108,3 +108,27 @@ These changes were applied directly to Supabase runtime before this log was crea
 This GitHub commit is documentation only and does NOT sync the deployed Supabase Edge Function source or database migration into this repository.
 
 A future source-sync task should separately commit the matching Supabase function/migration files if GitHub is to become the complete source of truth for these runtime changes.
+
+
+## Activepieces custom token auth update
+
+Runtime update applied directly in Unified Inbox Supabase on 2026-09-19:
+
+- `shopee-session-context` now uses custom API-token authentication.
+- Supabase platform JWT verification is disabled for this function (`verify_jwt=false`).
+- Caller must send header `x-api-token`.
+- Token is validated by SHA-256 hash against `public.integration_api_tokens`.
+- Plain token is not stored in the database and is not committed to GitHub.
+- Active token name: `activepieces-shopee-session-context`
+- scopes:
+  - `shopee-session-context:read`
+  - `shopee-session-context:assess`
+
+Activepieces request headers:
+
+```text
+x-api-token: <secret token>
+Content-Type: application/json
+```
+
+No Supabase service-role key should be stored in Activepieces for this endpoint.
