@@ -9,7 +9,7 @@ type Row={
   customerMasterId?:string;customerName?:string;phone?:string;buyerPaid?:number;currency?:string;
   paymentMethod?:string;tracking?:string;shipmentStatus?:string;itemCount?:number;items?:Item[];
 };
-type Payload={ok?:boolean;total?:number;rows?:Row[];summary?:{all?:number;readyToShip?:number;shipped?:number;completed?:number;cancelled?:number}};
+type Payload={ok?:boolean;total?:number;rows?:Row[];summary?:{all?:number;toShip?:number;toProcess?:number;processed?:number;readyToShip?:number;shipped?:number;completed?:number;cancelled?:number}};
 type Props={initialSearch?:string;onOpenCustomer?:(id:string)=>void};
 
 const fmtDate=(v?:string)=>v?new Date(v).toLocaleString('en-MY',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'-';
@@ -42,11 +42,12 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer}:Prop
   const summary=payload.summary||{};
   const tabs=useMemo(()=>[
     ['all','All',summary.all||0],
-    ['READY_TO_SHIP','To Ship',summary.readyToShip||0],
+    ['TO_SHIP','To Ship',summary.toShip||0],
     ['SHIPPED','Shipped',summary.shipped||0],
     ['COMPLETED','Completed',summary.completed||0],
     ['CANCELLED','Cancelled',summary.cancelled||0],
   ] as const,[summary]);
+  const inToShip=status==='TO_SHIP'||status==='READY_TO_SHIP'||status==='PROCESSED';
 
   return <div className="mp-page">
     <div className="mp-head">
@@ -55,10 +56,16 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer}:Prop
     </div>
 
     <div className="mp-summary">
-      {tabs.map(([key,label,count])=><button key={key} className={status===key?'active':''} onClick={()=>setStatus(key)}>
+      {tabs.map(([key,label,count])=><button key={key} className={(key==='TO_SHIP'?inToShip:status===key)?'active':''} onClick={()=>setStatus(key)}>
         <span>{label}</span><b>{count}</b>
       </button>)}
     </div>
+    {inToShip&&<div className="mp-substatus">
+      <span>Order Status</span>
+      <button className={status==='TO_SHIP'?'active':''} onClick={()=>setStatus('TO_SHIP')}>All <b>{summary.toShip||0}</b></button>
+      <button className={status==='READY_TO_SHIP'?'active':''} onClick={()=>setStatus('READY_TO_SHIP')}>To Process <b>{summary.toProcess||0}</b></button>
+      <button className={status==='PROCESSED'?'active':''} onClick={()=>setStatus('PROCESSED')}>Processed <b>{summary.processed||0}</b></button>
+    </div>}
 
     <div className="mp-toolbar">
       <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search order SN, buyer username, customer, phone, SKU, item, tracking, courier..." />
