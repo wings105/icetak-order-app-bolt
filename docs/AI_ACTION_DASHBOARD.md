@@ -45,7 +45,7 @@ Release status before frontend smoke: backend read contract VERIFIED; frontend i
 
 ## Conversation workspace upgrade (2026-09-19)
 
-Status: ATTEMPTED pending rendered verification. Build and Admin TypeScript checks passed.
+Status: PRODUCTION — verified on the authenticated live Admin surface at 1363×936. Build and Admin TypeScript checks passed. Browser checks proved Shopee/WhatsApp conversation loading, search (1/16 matching messages), sender filter (8/20 outbound), loaded Shopee image preview, quoted note draft, unsaved-switch cancel/discard, order/payment context and order-ID clipboard equality. No customer message or review mutation was submitted. Mobile breakpoints are implemented but not device-tested. Browser extension metadata errors were unrelated to application code.
 
 Opening Semak now offers Conversation, Order & CRM and Semakan AI tabs, with a customer rail and independent chat/review scrolling. The reader sorts the existing bounded 100-message detail chronologically, groups by Malaysia calendar date, displays session boundaries, supports text search/direction/media filters, safe HTTPS links, attachment previews, message copying and quoted admin notes. Mobile uses tabs to keep reading usable. No backend or database contract changes.
 

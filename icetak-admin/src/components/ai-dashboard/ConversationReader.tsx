@@ -16,7 +16,7 @@ function Text({text,query}:{text:string;query:string}){
 }
 function Attachment({message}:{message:Message}){
  const [failed,setFailed]=useState(false);const href=url(message.media_url);
- if(!href)return message.message_type&&message.message_type!=='text'?<p className="ai-media-unavailable">[{message.message_type}] Lampiran belum tersedia.</p>:null;
+ if(!href)return ['image','audio','voice','video','document','file','sticker'].includes(message.message_type||'')?<p className="ai-media-unavailable">[{message.message_type}] Lampiran belum tersedia.</p>:null;
  return <div className="ai-chat-attachment">{!failed&&(message.message_type==='image'?<a href={href} target="_blank" rel="noopener noreferrer" aria-label="Buka gambar saiz penuh"><img src={href} alt={message.caption||'Lampiran pelanggan'} loading="lazy" onError={()=>setFailed(true)}/></a>:message.message_type==='audio'||message.message_type==='voice'?<audio controls preload="none" src={href} onError={()=>setFailed(true)}/>:message.message_type==='video'?<video controls preload="metadata" src={href} onError={()=>setFailed(true)}/>:null)}{failed&&<p className="ai-media-unavailable">Pratonton tidak dapat dimuatkan. Cuba buka lampiran asal.</p>}<a href={href} target="_blank" rel="noopener noreferrer">Buka lampiran ↗</a></div>;
 }
 export default function ConversationReader({messages,boundary,onQuote,canQuote}:Props){
