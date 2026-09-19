@@ -83,11 +83,12 @@ export default function App({ adminData }: Props) {
     setLinkedPayment(null);
     if (key === 'marketplace-orders') setMarketplaceSearch('');
     const url = new URL(window.location.href);
+    if (key !== 'marketplace-orders') url.searchParams.delete('marketplace_q');
     if (key !== 'orders') url.searchParams.delete('order');
     if (key !== 'customers' && key !== 'pickup-counter') url.searchParams.delete('customer');
     if (key === 'ai-dashboard') url.searchParams.set('view','ai-dashboard');
     else if (key === 'customers') url.searchParams.set('view','customers');
-    else if (key === 'marketplace-orders') url.searchParams.set('view','marketplace-orders');
+    else if (key === 'marketplace-orders') { url.searchParams.set('view','marketplace-orders'); url.searchParams.delete('marketplace_q'); }
     else if (key === 'pickup-counter') url.searchParams.set('view','pickup-counter');
     else if (key === 'qrpay-summary') url.searchParams.set('view','qrpay-summary');
     else if (key === 'draft-orders') url.searchParams.set('view','draft-orders');
@@ -116,6 +117,7 @@ export default function App({ adminData }: Props) {
     url.searchParams.delete('view');
     url.searchParams.delete('date');
     url.searchParams.delete('customer');
+    url.searchParams.delete('marketplace_q');
     ['qrpay_tx','qrpay_amount','qrpay_phone','qrpay_name','qrpay_paid_at'].forEach((param)=>url.searchParams.delete(param));
     window.history.replaceState({},'',url);
     setPage('orders');
