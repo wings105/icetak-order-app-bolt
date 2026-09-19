@@ -42,3 +42,13 @@ Release status before frontend smoke: backend read contract VERIFIED; frontend i
 ## Deferred scope
 
 30k ClickUp CRM import is explicitly deferred by the owner. Fully generative response drafting, image understanding, learned SOP promotion, autonomous replies and Shopee API activation are not enabled by this release. Admin corrections are retained for later learning review and never automatically promoted into policy.
+
+## Conversation workspace upgrade (2026-09-19)
+
+Status: ATTEMPTED pending rendered verification. Build and Admin TypeScript checks passed.
+
+Opening Semak now offers Conversation, Order & CRM and Semakan AI tabs, with a customer rail and independent chat/review scrolling. The reader sorts the existing bounded 100-message detail chronologically, groups by Malaysia calendar date, displays session boundaries, supports text search/direction/media filters, safe HTTPS links, attachment previews, message copying and quoted admin notes. Mobile uses tabs to keep reading usable. No backend or database contract changes.
+
+Switching customer with unsaved edits requires explicit discard; refresh is disabled during editing. Failed detail loads disable mutation controls and clear previous-customer draft state. Opening, reading, copying or quoting never records a customer reply or resolves an issue. Existing guarded send/review APIs are retained. Generic seller/automation messages are labelled without asserting human authorship or successful resolution.
+
+Limitations: only messages already ingested and the latest 100 are displayed; no complete historical synchronization or automatic external reply detection is claimed. Suggestions remain editable SOP templates, not a newly configured generative model. No real customer message was sent in upgrade tests.
