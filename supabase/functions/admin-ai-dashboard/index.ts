@@ -86,15 +86,23 @@ Deno.serve(async req=>{
   const canManage=owner||admin.permissions.includes('manage_customers');
   if(!canRead)return json({ok:false,error:'Akses CRM diperlukan.'},403);
   const b=await req.json();const action=String(b.action||'list');
-  if(!['list','detail','review','send'].includes(action))return json({ok:false,error:'Invalid action'},400);
-  if(action!=='list'&&!isUuid(b.conversation_id))return json({ok:false,error:'Invalid conversation ID'},400);
-  if(['review','send'].includes(action)&&!canManage)return json({ok:false,error:'Manage Customers permission required'},403);
+  if(!['list','detail','review','send','training','training_list'].includes(action))return json({ok:false,error:'Invalid action'},400);
+  if(!['list','training_list'].includes(action)&&!isUuid(b.conversation_id))return json({ok:false,error:'Invalid conversation ID'},400);
+  if(['review','send','training'].includes(action)&&!canManage)return json({ok:false,error:'Manage Customers permission required'},403);
+  if(action==='training_list'){
+   const channel=['whatsapp','shopee'].includes(b.channel)?b.channel:'whatsapp';
+   const intent=intentLabels[b.intent]?b.intent:'other';
+   const scope=`channel=eq.${channel}&intent=eq.${intent}`;
+   // Cross-customer suggestions expose only explicitly authored reusable SOP, never chat/order facts.
+   const examples=await rest(`ai_dashboard_training?${scope}&state=eq.approved&select=id,lesson,reusable_response,reviewed_by,reviewed_at,version&order=reviewed_at.desc&limit=20`);
+   return json({ok:true,examples});
+  }
   const source=await inbox(action==='list'?{action:'list',channel:['whatsapp','shopee'].includes(b.channel)?b.channel:null,
    search:String(b.search||'').slice(0,100),offset:Math.max(0,Math.min(100000,Number(b.offset)||0)),limit:30}:
    {action:'detail',conversation_id:b.conversation_id,limit:1});
   const contexts=await rpc('icetak_ai_dashboard_context',{p_identities:source.rows.map(identity)});
   const globalSend=await enabled();
-  const capabilities={can_manage:canManage,whatsapp_api:globalSend&&source.capabilities?.whatsapp_api===true,
+  const capabilities={can_manage:canManage,can_train:owner,whatsapp_api:globalSend&&source.capabilities?.whatsapp_api===true,
    shopee_api:false,send_reason:globalSend?'':'Penghantaran WhatsApp dimatikan dalam Control Center.'};
   if(action==='list')return json({ok:true,rows:source.rows.map((c:any)=>({...c,context:contexts[c.id],analysis:analyze(c,contexts[c.id]||{})})),
     has_more:source.rows.length===30,offset:source.offset,capabilities,fetched_at:source.fetched_at});
@@ -104,12 +112,34 @@ Deno.serve(async req=>{
    const recent=c.messages.filter((m:any)=>m.direction==='inbound').slice(-5).map((m:any)=>m.text_content||m.caption||'').join('\n');
    let semantic=null;try{if(recent)semantic=await inbox({action:'semantic',text:recent});}catch{/* deterministic SOP fallback is explicitly labelled */}
    const events=await rest(`ai_dashboard_events?conversation_id=eq.${c.id}&select=id,action,actor,created_at,after_state&order=created_at.desc&limit=10`);
-   return json({ok:true,row:{...c,context:ctx,analysis:analyze(c,ctx,semantic)},events,capabilities,fetched_at:source.fetched_at});
+   const training=await rest(`ai_dashboard_training?conversation_id=eq.${c.id}&select=*&order=created_at.desc&limit=20`);
+   return json({ok:true,row:{...c,context:ctx,analysis:analyze(c,ctx,semantic)},events,training,capabilities,fetched_at:source.fetched_at});
   }
   if(b.inbound_revision!==c.inbound_revision||b.revision!==c.revision)return json({ok:false,error:'CHAT_CHANGED: Ada mesej baharu. Muat semula sebelum tindakan.'},409);
   if((Number(ctx.review?.version)||0)!==Number(b.expected_version))return json({ok:false,error:'REVIEW_CHANGED: Admin lain telah mengemas kini kad ini.'},409);
   if(!isUuid(b.request_id))return json({ok:false,error:'Request ID required'},400);
   const response=String(b.response_text||'').trim();
+  if(action==='training'){
+   const trainingAction=String(b.training_action||'capture');
+   if(!['capture','approve','reject'].includes(trainingAction))return json({ok:false,error:'Invalid training action'},400);
+   if(trainingAction!=='capture'&&!owner)return json({ok:false,error:'Owner diperlukan untuk meluluskan SOP.'},403);
+   let data:any;
+   if(trainingAction==='capture'){
+    if(!['accepted','corrected','rejected'].includes(b.verdict)||String(b.lesson||'').trim().length<3||String(b.lesson||'').length>2000||response.length>4000||String(b.reusable_response||'').length>4000)return json({ok:false,error:'Semak penilaian dan nota latihan.'},400);
+    if(b.verdict!=='rejected'&&!response)return json({ok:false,error:'Balasan yang dinilai diperlukan.'},400);
+    const analysis=analyze(c,ctx);
+    data={conversation_id:c.id,inbound_revision:c.inbound_revision,channel:c.channel,
+     intent:intentLabels[b.intent_override]?b.intent_override:analysis.intent,verdict:b.verdict,
+     evidence:analysis.evidence,original_response:analysis.suggestion,corrected_response:response,
+     lesson:String(b.lesson).trim(),reusable_response:String(b.reusable_response||'').trim(),engine:analysis.engine,confidence:analysis.confidence};
+   }else{
+    if(!isUuid(b.training_id))return json({ok:false,error:'Invalid training ID'},400);
+    const existing=await rest(`ai_dashboard_training?id=eq.${b.training_id}&conversation_id=eq.${c.id}&select=id&limit=1`);
+    if(!existing.length)return json({ok:false,error:'Training example not found'},404);
+    data={id:b.training_id,expected_version:Number(b.training_version)};
+   }
+   return json({ok:true,...await rpc('icetak_ai_dashboard_training',{p_action:trainingAction,p_actor:admin.username,p_request_id:b.request_id,p_data:data})});
+  }
   if(action==='send'){
    if(!capabilities.whatsapp_api)return json({ok:false,error:capabilities.send_reason||'Provider API tidak tersedia'},409);
    if(c.channel!=='whatsapp')return json({ok:false,error:'Shopee: gunakan balasan manual di Seller Chat.'},409);
@@ -132,6 +162,6 @@ Deno.serve(async req=>{
    p_snoozed_until:b.review_action==='snooze'?new Date(Date.now()+24*3600000).toISOString():null});
   return json({ok:true,...result});
  }catch(error){const message=error instanceof Error?error.message:String(error);
-  return json({ok:false,error:message},/CHAT_CHANGED|REVIEW_CHANGED|Request ID conflict/.test(message)?409:500);}
+  return json({ok:false,error:message},/CHAT_CHANGED|REVIEW_CHANGED|TRAINING_CHANGED|Request ID conflict/.test(message)?409:500);}
 });
 

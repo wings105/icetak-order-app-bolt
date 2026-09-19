@@ -14,7 +14,7 @@ export function effectiveStatus(review:RecordData|null,c:RecordData,now=Date.now
  return review.status||'needs_review';
 }
 export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=null,now=Date.now()){
- const all=(c.messages||[]) as RecordData[];
+ const all=[...(c.messages||[])].sort((a,b)=>at(a)-at(b)) as RecordData[];
  const boundary=Date.parse(ctx.session?.boundary_at||'')||0;
  const opened=Date.parse(ctx.session?.opened_at||'')||boundary;
  const draftMessages=all.filter(m=>at(m)>=Math.max(boundary,opened));
@@ -68,6 +68,7 @@ export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=nul
  const textEvidence=evidence.filter(m=>content(m));
  return {intent,intent_label:intentLabels[intent],intents,priority,urgent,
   confidence:ctx.identity_status==='ambiguous'||!textEvidence.length?'rendah':intents.length?'sederhana':'rendah',
+  confidence_reasons:[textEvidence.length?`${textEvidence.length} mesej pelanggan digunakan`:'Tiada bukti teks',ctx.identity_status==='matched'?'Identiti CRM dipadankan':'Identiti CRM perlu semakan',linked?`Order ${linked.reference} disebut dalam chat`:'Order khusus belum dipastikan',intents.length===1?'Satu kategori utama dikenal pasti':intents.length>1?'Beberapa kehendak bercampur':'Kategori belum jelas'],
   confidence_note:'Tahap bukti untuk semakan, bukan kebarangkalian ketepatan atau izin auto-send.',
   summary:textEvidence.length?textEvidence.slice(-2).map(content).join(' · ').slice(0,420):'Mesej media atau konteks belum mencukupi. Buka bukti chat.',
   suggestion,basis,engine:semantic?.model?'gte-small + SOP rules v1':'SOP rules v1',
