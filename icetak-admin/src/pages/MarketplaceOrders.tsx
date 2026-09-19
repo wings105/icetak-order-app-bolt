@@ -9,7 +9,7 @@ type Row={
   customerMasterId?:string;customerName?:string;phone?:string;buyerPaid?:number;currency?:string;
   paymentMethod?:string;tracking?:string;shipmentStatus?:string;itemCount?:number;items?:Item[];
 };
-type Payload={ok?:boolean;total?:number;rows?:Row[];summary?:{all?:number;toShip?:number;toProcess?:number;processed?:number;readyToShip?:number;shipped?:number;completed?:number;cancelled?:number}};
+type Payload={ok?:boolean;total?:number;rows?:Row[];summary?:{all?:number;toShip?:number;toProcess?:number;processed?:number;readyToShip?:number;shipped?:number;completed?:number;cancelled?:number;shipByToday?:number;shipByTomorrow?:number}};
 type Props={initialSearch?:string;onOpenCustomer?:(id:string)=>void};
 
 const fmtDate=(v?:string)=>v?new Date(v).toLocaleString('en-MY',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'-';
@@ -21,6 +21,7 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer}:Prop
   const [search,setSearch]=useState(initialSearch);
   const [status,setStatus]=useState('all');
   const [provider,setProvider]=useState('all');
+  const [shipBy,setShipBy]=useState('all');
   const [payload,setPayload]=useState<Payload>({rows:[],summary:{}});
   const [loading,setLoading]=useState(false);
   const [offset,setOffset]=useState(0);
@@ -29,14 +30,14 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer}:Prop
   const load=async(nextOffset=0)=>{
     setLoading(true);
     const {data,error}=await supabase.rpc('icetak_admin_marketplace_orders',{
-      p_search:search,p_status:status,p_provider:provider,p_limit:limit,p_offset:nextOffset
+      p_search:search,p_status:status,p_provider:provider,p_ship_by:shipBy,p_limit:limit,p_offset:nextOffset
     });
     if(error){ console.error(error); setPayload({rows:[],summary:{}}); }
     else { setPayload((data||{}) as Payload); setOffset(nextOffset); }
     setLoading(false);
   };
 
-  useEffect(()=>{const t=window.setTimeout(()=>void load(0),220);return()=>window.clearTimeout(t)},[search,status,provider]);
+  useEffect(()=>{const t=window.setTimeout(()=>void load(0),220);return()=>window.clearTimeout(t)},[search,status,provider,shipBy]);
   const rows=payload.rows||[];
   const total=Number(payload.total||0);
   const summary=payload.summary||{};
@@ -48,6 +49,7 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer}:Prop
     ['CANCELLED','Cancelled',summary.cancelled||0],
   ] as const,[summary]);
   const inToShip=status==='TO_SHIP'||status==='READY_TO_SHIP'||status==='PROCESSED';
+  const copy=async(value:string)=>{try{await navigator.clipboard.writeText(value)}catch{const el=document.createElement('textarea');el.value=value;document.body.appendChild(el);el.select();document.execCommand('copy');el.remove()}};
 
   return <div className="mp-page">
     <div className="mp-head">
@@ -60,12 +62,20 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer}:Prop
         <span>{label}</span><b>{count}</b>
       </button>)}
     </div>
-    {inToShip&&<div className="mp-substatus">
-      <span>Order Status</span>
-      <button className={status==='TO_SHIP'?'active':''} onClick={()=>setStatus('TO_SHIP')}>All <b>{summary.toShip||0}</b></button>
-      <button className={status==='READY_TO_SHIP'?'active':''} onClick={()=>setStatus('READY_TO_SHIP')}>To Process <b>{summary.toProcess||0}</b></button>
-      <button className={status==='PROCESSED'?'active':''} onClick={()=>setStatus('PROCESSED')}>Processed <b>{summary.processed||0}</b></button>
-    </div>}
+    {inToShip&&<>
+      <div className="mp-substatus">
+        <span>Order Status</span>
+        <button className={status==='TO_SHIP'?'active':''} onClick={()=>setStatus('TO_SHIP')}>All <b>{summary.toShip||0}</b></button>
+        <button className={status==='READY_TO_SHIP'?'active':''} onClick={()=>setStatus('READY_TO_SHIP')}>To Process <b>{summary.toProcess||0}</b></button>
+        <button className={status==='PROCESSED'?'active':''} onClick={()=>setStatus('PROCESSED')}>Processed <b>{summary.processed||0}</b></button>
+      </div>
+      <div className="mp-substatus">
+        <span>Shipping Priority</span>
+        <button className={shipBy==='all'?'active':''} onClick={()=>setShipBy('all')}>All</button>
+        <button className={shipBy==='today'?'active':''} onClick={()=>setShipBy('today')}>Ship By Today <b>{summary.shipByToday||0}</b></button>
+        <button className={shipBy==='tomorrow'?'active':''} onClick={()=>setShipBy('tomorrow')}>Ship By Tomorrow <b>{summary.shipByTomorrow||0}</b></button>
+      </div>
+    </>}
 
     <div className="mp-toolbar">
       <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search order SN, buyer username, customer, phone, SKU, item, tracking, courier..." />
@@ -81,13 +91,13 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer}:Prop
           {loading&&<tr><td colSpan={7} className="mp-empty">Loading marketplace orders...</td></tr>}
           {!loading&&rows.length===0&&<tr><td colSpan={7} className="mp-empty">No marketplace orders found.</td></tr>}
           {!loading&&rows.map(r=><tr key={r.id}>
-            <td><div className="mp-order"><b>{r.orderSn}</b><span className="mp-provider">{r.provider}</span></div></td>
+            <td><div className="mp-order"><div className="mp-copyline"><b>{r.orderSn}</b><button title="Copy order ID" onClick={()=>void copy(r.orderSn)}>⧉</button></div><span className="mp-provider">{r.provider}</span></div></td>
             <td><div>{fmtDate(r.placedAt)}</div><small>Ship by: {fmtDate(r.shipByAt)}</small></td>
             <td>
               <div className="mp-buyer">
                 <b>{r.customerName||r.buyerUsername||'-'}</b>
-                <span>@{r.buyerUsername||'-'}</span>
-                {r.phone&&<small>{r.phone}</small>}
+                <div className="mp-copyline"><span>@{r.buyerUsername||'-'}</span>{r.buyerUsername&&<button title="Copy username" onClick={()=>void copy(r.buyerUsername)}>⧉</button>}</div>
+                {r.phone&&<div className="mp-phone-row"><a href={'whatsapp://send?phone='+r.phone}>{r.phone}</a><a className="mp-wa-btn" href={'https://wa.me/'+r.phone} target="_blank" rel="noreferrer">WhatsApp</a></div>}
                 {r.customerMasterId&&onOpenCustomer&&<button onClick={()=>onOpenCustomer(r.customerMasterId!)}>Open CRM</button>}
               </div>
             </td>
