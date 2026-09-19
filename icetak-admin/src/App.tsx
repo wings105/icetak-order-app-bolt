@@ -71,6 +71,7 @@ export default function App({ adminData }: Props) {
   const initialDraftTab=linkedView==='draft-followups'||initialParams.get('draft_tab')==='followup'?'followup':'all';
   const [page, setPage] = useState(linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [marketplaceSearch,setMarketplaceSearch]=useState(initialParams.get('marketplace_q')?.trim() || '');
   const [linkedPayment,setLinkedPayment]=useState<LinkedQrPayment|null>(initialPayment);
   const permissions = adminData?.admin?.permissions || [];
   const canViewCustomers = permissions.includes('view_customers') || permissions.includes('manage_customers') || permissions.includes('manage_admins');
@@ -80,6 +81,7 @@ export default function App({ adminData }: Props) {
   const navigate = (key: string) => {
     if (key === 'quick-order' || key === 'manual-order') key = 'create-order';
     setLinkedPayment(null);
+    if (key === 'marketplace-orders') setMarketplaceSearch('');
     const url = new URL(window.location.href);
     if (key !== 'orders') url.searchParams.delete('order');
     if (key !== 'customers' && key !== 'pickup-counter') url.searchParams.delete('customer');
@@ -123,6 +125,7 @@ export default function App({ adminData }: Props) {
     url.searchParams.set('admin','v2');
     url.searchParams.set('view','marketplace-orders');
     if (query) url.searchParams.set('marketplace_q',query); else url.searchParams.delete('marketplace_q');
+    setMarketplaceSearch(query);
     url.searchParams.delete('order'); url.searchParams.delete('customer'); url.searchParams.delete('date');
     window.history.replaceState({},'',url);
     setPage('marketplace-orders'); setMobileOpen(false);
@@ -158,7 +161,7 @@ export default function App({ adminData }: Props) {
       case 'ai-dashboard': return canViewAi ? <Suspense fallback={<div style={{padding:24}}>Memuatkan AI Dashboard...</div>}><AiDashboard onOpenOrder={openOrder} onOpenDrafts={()=>navigate('draft-orders')} canViewDrafts={permissions.includes('view_finance')} /></Suspense> : <div style={{padding:24}}>Akses CRM diperlukan.</div>;
       case 'dashboard': return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'orders': return <Orders permissions={permissions} initialOrder={linkedOrder} />;
-      case 'marketplace-orders': return <MarketplaceOrders initialSearch={initialParams.get('marketplace_q')?.trim() || ''} onOpenCustomer={openCustomer} />;
+      case 'marketplace-orders': return <MarketplaceOrders key={marketplaceSearch || 'all'} initialSearch={marketplaceSearch} onOpenCustomer={openCustomer} />;
       case 'customers': return canViewCustomers ? <Customers permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder} onOpenPickup={openPickup} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'pickup-counter': return canViewPickup ? <Suspense fallback={<div style={{padding:24}}>Loading Pickup Counter...</div>}><PickupCounter permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder}/></Suspense> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'create-order': return <Suspense fallback={<div style={{padding:24}}>Loading Create Order...</div>}><CreateOrder key={linkedPayment?.transactionId||'new-order'} permissions={permissions} onOpenOrder={openOrder} onOpenDrafts={()=>navigate('draft-orders')} linkedPayment={linkedPayment} /></Suspense>;
