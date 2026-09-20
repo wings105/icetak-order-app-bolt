@@ -113,3 +113,8 @@ Add a new ADR section when a change alters a system boundary, source of truth, s
 ## 2026-09-19 — AI action review spans WhatsApp and Shopee
 
 Keep chat evidence in Unified Inbox and canonical identity/order/payment/session state in Order System. Admin v2 combines them through an authenticated server bridge. Dashboard review state is separate from provider needs_reply and order lifecycle. Explicit human confirmation is required for sends and resolution; a new inbound revision reopens the card. Initial response drafting uses conservative SOP templates and existing semantic prototypes; no autonomous messaging or bulk CRM import. See `AI_ACTION_DASHBOARD.md`.
+
+
+## 2026-09-20 — Conversation feedback is a separate reviewed dataset
+
+Conversation response corrections belong to Order System `ai_dashboard_training`, separate from QRPay draft extraction rules. Admin feedback does not automatically retrain a model or grant send authority. Generic SOP reuse requires owner approval and an explicit admin application to the current draft. Customer-specific evidence/corrected replies remain attached to the originating conversation; cross-customer suggestions expose the authored generic SOP. Confidence describes evidence sufficiency until an evaluated accuracy metric exists. Order completion, courier delivery and payment remain distinct facts. See `AI_ACTION_DASHBOARD.md` for tested boundaries.

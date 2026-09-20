@@ -52,3 +52,25 @@ Opening Semak now offers Conversation, Order & CRM and Semakan AI tabs, with a c
 Switching customer with unsaved edits requires explicit discard; refresh is disabled during editing. Failed detail loads disable mutation controls and clear previous-customer draft state. Opening, reading, copying or quoting never records a customer reply or resolves an issue. Existing guarded send/review APIs are retained. Generic seller/automation messages are labelled without asserting human authorship or successful resolution.
 
 Limitations: only messages already ingested and the latest 100 are displayed; no complete historical synchronization or automatic external reply detection is claimed. Suggestions remain editable SOP templates, not a newly configured generative model. No real customer message was sent in upgrade tests.
+
+## Inline workspace, order stages and conversation learning (2026-09-20 MYT)
+
+Status: PRODUCTION for the rendered conversation/order/prefill surface. Release code: `3a4fe953004f3af3cdd6e46cacce32a431223148`; Order gateway `admin-ai-dashboard` v3. Cloudflare Workers and repository guard passed.
+
+- Conversation is now the default view inside Admin V2. Card and List remain available. Besarkan expands the workspace; customer rail, conversation timeline and context panel scroll independently.
+- The context panel switches between Order and AI & latihan. Order filters distinguish To Ship, Shipping, Delivered, Completed, Unpaid, Pickup, Processing, Cancelled and Return / issue using explicit known source states. Completed alone is not treated as courier delivery evidence. Active states sort before completed history; the existing context read remains bounded to eight recent orders per source.
+- Order cards retain source/payment state, amount, ship-by, item/SKU and shipment details. Unknown states remain unknown; COD/tunai requires receipt review.
+- Both `whatsapp://send?phone=...&text=...` and `https://wa.me/...?...text=...` use the current edited suggestion. Header phone links also prefill it. Opening a link does not send or mark replied. A mapped phone may also be used from a Shopee customer; Seller Chat remains available.
+- AI confidence is qualitative evidence sufficiency, not measured accuracy. Expand evidence/boundaries to inspect identity, message evidence, exact order reference and missing information. Auto-send remains OFF.
+- Conversation training is isolated from QRPay/draft learning. `ai_dashboard_training` stores server-derived evidence/SOP baseline, corrected response, verdict, lesson, optional generic reusable response, engine/confidence and actor. `ai_dashboard_training_events` keeps capture/approval/rejection audit history.
+- Manage Customers can capture examples. Only owner/manage_admins can approve a generic SOP or deactivate it. Approved examples are retrieved by channel and intent and applied only by an explicit “Gunakan sebagai draf” click. No automatic model retraining, customer-specific fact reuse or autonomous sending is enabled.
+- Training has service-only table/RPC access, request-id conflict/retry handling and optimistic version checks. Existing chat/review revision guards also apply. Unsaved reply/note/training inputs participate in customer-switch/refresh protection.
+- Migration file was created by Supabase CLI 2.117.0: `20260919163125_ai_dashboard_conversation_training.sql`. The management migration application recorded equivalent SQL as version `20260919163225` (`ai_dashboard_conversation_training`). Do not reapply it merely because the execution timestamp differs.
+
+### Verification evidence and limits
+
+Authenticated production browser at 1363×936 proved default inline layout, expand control, real Shopee timeline, To Ship filter (one matching order), Completed filter (one historical order), and visible AI composer/training form. Both WhatsApp hrefs were inspected with an edited multiline draft containing ampersand, plus and emoji; encoding preserved the text. No external WhatsApp links were followed and no customer message was sent. Unsaved-switch warning and cancellation were exercised; training input and capture-button enablement were observed without saving a fake customer correction.
+
+Nine source-status regression cases and the root production build/Admin TypeScript checks passed. An isolated gateway harness proved read-only denial, stale-chat rejection, invalid-input rejection, owner-only approval and server-derived actor. Live SQL in a rolled-back transaction proved capture, exact retry, conflicting request rejection, approval, stale-version rejection, deactivation and three audit events. Both training tables were empty after rollback; anonymous/client direct table and RPC privileges were false. Security advisor findings for these tables are expected INFO “RLS enabled no policy” because access is exclusively through the service gateway.
+
+The browser did not submit a real training capture/approval and native WhatsApp application launch was not tested. Mobile device layout remains unverified. These limits must not be represented as fully tested flows.
