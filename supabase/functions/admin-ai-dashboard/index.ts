@@ -1,3 +1,4 @@
+import { caseOrders, sessionKey } from './case.ts';
 import { analyze, identity, intentLabels } from './analysis.ts';
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
@@ -86,9 +87,9 @@ Deno.serve(async req=>{
   const canManage=owner||admin.permissions.includes('manage_customers');
   if(!canRead)return json({ok:false,error:'Akses CRM diperlukan.'},403);
   const b=await req.json();const action=String(b.action||'list');
-  if(!['list','detail','review','send','training','training_list'].includes(action))return json({ok:false,error:'Invalid action'},400);
+  if(!['list','detail','review','send','training','training_list','case_order'].includes(action))return json({ok:false,error:'Invalid action'},400);
   if(!['list','training_list'].includes(action)&&!isUuid(b.conversation_id))return json({ok:false,error:'Invalid conversation ID'},400);
-  if(['review','send','training'].includes(action)&&!canManage)return json({ok:false,error:'Manage Customers permission required'},403);
+  if(['review','send','training','case_order'].includes(action)&&!canManage)return json({ok:false,error:'Manage Customers permission required'},403);
   if(action==='training_list'){
    const channel=['whatsapp','shopee'].includes(b.channel)?b.channel:'whatsapp';
    const intent=intentLabels[b.intent]?b.intent:'other';
@@ -101,6 +102,11 @@ Deno.serve(async req=>{
    search:String(b.search||'').slice(0,100),offset:Math.max(0,Math.min(100000,Number(b.offset)||0)),limit:30}:
    {action:'detail',conversation_id:b.conversation_id,limit:1});
   const contexts=await rpc('icetak_ai_dashboard_context',{p_identities:source.rows.map(identity)});
+  const conversationIds=source.rows.map((c:any)=>c.id).filter(isUuid);
+  if(conversationIds.length){
+   const bindings=await rest(`ai_dashboard_case_orders?conversation_id=in.(${conversationIds.join(',')})&select=*`);
+   for(const binding of bindings){if(contexts[binding.conversation_id])contexts[binding.conversation_id].case_order=binding;}
+  }
   const globalSend=await enabled();
   const capabilities={can_manage:canManage,can_train:owner,whatsapp_api:globalSend&&source.capabilities?.whatsapp_api===true,
    shopee_api:false,send_reason:globalSend?'':'Penghantaran WhatsApp dimatikan dalam Control Center.'};
@@ -119,6 +125,16 @@ Deno.serve(async req=>{
   if((Number(ctx.review?.version)||0)!==Number(b.expected_version))return json({ok:false,error:'REVIEW_CHANGED: Admin lain telah mengemas kini kad ini.'},409);
   if(!isUuid(b.request_id))return json({ok:false,error:'Request ID required'},400);
   const response=String(b.response_text||'').trim();
+  if(action==='case_order'){
+   if(!Number.isInteger(b.case_version)||b.case_version<0)return json({ok:false,error:'Invalid case version'},400);
+   if(ctx.identity_status==='ambiguous')return json({ok:false,error:'Semak identiti CRM sebelum padankan order.'},409);
+   const selected=b.order_id?caseOrders(ctx).find((o:any)=>o.id===b.order_id&&o.kind===b.order_kind):null;
+   if(b.order_id&&!selected)return json({ok:false,error:'Order tidak berada dalam konteks pelanggan ini.'},400);
+   const result=await rpc('icetak_ai_case_order',{p_actor:admin.username,p_request_id:b.request_id,p_data:{
+    conversation_id:c.id,inbound_revision:c.inbound_revision,session_key:sessionKey(ctx),expected_version:Number(b.case_version),
+    order_kind:selected?.kind||null,order_id:selected?.id||null,order_reference:selected?.reference||null}});
+   return json({ok:true,...result});
+  }
   if(action==='training'){
    const trainingAction=String(b.training_action||'capture');
    if(!['capture','approve','reject'].includes(trainingAction))return json({ok:false,error:'Invalid training action'},400);
@@ -162,6 +178,5 @@ Deno.serve(async req=>{
    p_snoozed_until:b.review_action==='snooze'?new Date(Date.now()+24*3600000).toISOString():null});
   return json({ok:true,...result});
  }catch(error){const message=error instanceof Error?error.message:String(error);
-  return json({ok:false,error:message},/CHAT_CHANGED|REVIEW_CHANGED|TRAINING_CHANGED|Request ID conflict/.test(message)?409:500);}
+  return json({ok:false,error:message},/CHAT_CHANGED|REVIEW_CHANGED|TRAINING_CHANGED|CASE_CHANGED|Request ID conflict/.test(message)?409:500);}
 });
-

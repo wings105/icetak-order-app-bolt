@@ -72,6 +72,8 @@ export default function App({ adminData }: Props) {
   const [page, setPage] = useState(linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [marketplaceSearch,setMarketplaceSearch]=useState(initialParams.get('marketplace_q')?.trim() || '');
+  const [aiCustomer,setAiCustomer]=useState<{name:string;phone:string;channel?:string}|null>(null);
+  const [aiDraftQuery,setAiDraftQuery]=useState('');
   const [linkedPayment,setLinkedPayment]=useState<LinkedQrPayment|null>(initialPayment);
   const permissions = adminData?.admin?.permissions || [];
   const canViewCustomers = permissions.includes('view_customers') || permissions.includes('manage_customers') || permissions.includes('manage_admins');
@@ -79,6 +81,7 @@ export default function App({ adminData }: Props) {
   const canViewPickup = canViewCustomers || permissions.includes('verify_payments') || permissions.includes('approve_production');
 
   const navigate = (key: string) => {
+    setAiCustomer(null);if(key!=='draft-orders')setAiDraftQuery('');
     if (key === 'quick-order' || key === 'manual-order') key = 'create-order';
     setLinkedPayment(null);
     if (key === 'marketplace-orders') setMarketplaceSearch('');
@@ -160,16 +163,16 @@ export default function App({ adminData }: Props) {
   const info = pageMap[page] || pageMap.dashboard;
   const renderPage = () => {
     switch (page) {
-      case 'ai-dashboard': return canViewAi ? <Suspense fallback={<div style={{padding:24}}>Memuatkan AI Dashboard...</div>}><AiDashboard onOpenOrder={openOrder} onOpenDrafts={()=>navigate('draft-orders')} canViewDrafts={permissions.includes('view_finance')} /></Suspense> : <div style={{padding:24}}>Akses CRM diperlukan.</div>;
+      case 'ai-dashboard': return canViewAi ? <Suspense fallback={<div style={{padding:24}}>Memuatkan AI Dashboard...</div>}><AiDashboard onOpenOrder={openOrder} onOpenDrafts={(query='')=>{setAiDraftQuery(query);navigate('draft-orders');}} onCreateDraft={customer=>{navigate('create-order');setLinkedPayment(null);setAiCustomer(customer);}} canCreateDraft={permissions.includes('create_order')||permissions.includes('quick_arrange')} canViewDrafts={permissions.includes('view_finance')} /></Suspense> : <div style={{padding:24}}>Akses CRM diperlukan.</div>;
       case 'dashboard': return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'orders': return <Orders permissions={permissions} initialOrder={linkedOrder} />;
       case 'marketplace-orders': return <MarketplaceOrders key={marketplaceSearch || 'all'} initialSearch={marketplaceSearch} onOpenCustomer={openCustomer} />;
       case 'customers': return canViewCustomers ? <Customers permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder} onOpenPickup={openPickup} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'pickup-counter': return canViewPickup ? <Suspense fallback={<div style={{padding:24}}>Loading Pickup Counter...</div>}><PickupCounter permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder}/></Suspense> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
-      case 'create-order': return <Suspense fallback={<div style={{padding:24}}>Loading Create Order...</div>}><CreateOrder key={linkedPayment?.transactionId||'new-order'} permissions={permissions} onOpenOrder={openOrder} onOpenDrafts={()=>navigate('draft-orders')} linkedPayment={linkedPayment} /></Suspense>;
+      case 'create-order': return <Suspense fallback={<div style={{padding:24}}>Loading Create Order...</div>}><CreateOrder key={linkedPayment?.transactionId||'new-order'} permissions={permissions} onOpenOrder={openOrder} onOpenDrafts={()=>navigate('draft-orders')} linkedPayment={linkedPayment} initialCustomer={aiCustomer} /></Suspense>;
       case 'payments': return <Payments onOpenOrder={openOrder} canManage={permissions.includes('verify_payments')} />;
       case 'finance': return permissions.includes('view_finance') ? <Finance canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
-      case 'draft-orders': return permissions.includes('view_finance') ? <DraftWorkspace initialTab={initialDraftTab} canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} onCreateOrder={()=>navigate('create-order')} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      case 'draft-orders': return permissions.includes('view_finance') ? <DraftWorkspace initialQuery={aiDraftQuery} initialTab={aiDraftQuery?'all':initialDraftTab} canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} onCreateOrder={()=>navigate('create-order')} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'qrpay-summary': return permissions.includes('view_finance') ? <QrPayDailySummary canManage={permissions.includes('manage_finance')} onCreateOrder={permissions.includes('create_order')&&permissions.includes('verify_payments')?createOrderFromQrPay:undefined} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'shipping': return <Shipping />;
       case 'clickup-queue': return <ClickUpQueue permissions={permissions} onOpenOrder={openOrder} />;
@@ -188,4 +191,5 @@ export default function App({ adminData }: Props) {
 
   return <div className="app-layout"><Sidebar active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} canViewFinance={permissions.includes('view_finance')} canViewCustomers={canViewCustomers} canViewAi={canViewAi} canViewPickup={canViewPickup} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} onOpenInternalOrder={openOrder} onOpenMarketplace={openMarketplace} /><div className="content-area">{renderPage()}</div></div></div>;
 }
+
 

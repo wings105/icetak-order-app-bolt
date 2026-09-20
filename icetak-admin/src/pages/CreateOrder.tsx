@@ -65,6 +65,7 @@ type Props = {
   onOpenOrder?: (orderNo: string) => void;
   onOpenDrafts?: () => void;
   linkedPayment?: LinkedQrPayment | null;
+  initialCustomer?: {name:string;phone:string;channel?:string}|null;
 };
 
 const money = (value: number) => `RM ${Number(value || 0).toFixed(2)}`;
@@ -97,13 +98,13 @@ const choices: Array<{ key: PaymentChoice; title: string; description: string }>
   { key: 'already_paid', title: 'Sudah bayar', description: 'Cash, transfer, QR manual atau card.' },
 ];
 
-export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDrafts, linkedPayment }: Props) {
+export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDrafts, linkedPayment, initialCustomer }: Props) {
   const allowed = permissions.includes('create_order') || permissions.includes('quick_arrange');
   const canVerifyPayment = permissions.includes('verify_payments');
   const [customer, setCustomer] = useState<ComposerCustomer>({
     ...EMPTY_CUSTOMER,
-    name: linkedPayment?.customerName || '',
-    phone: linkedPayment?.phone || '',
+    name: linkedPayment?.customerName || initialCustomer?.name || '',
+    phone: linkedPayment?.phone || initialCustomer?.phone || '',
   });
   const [items, setItems] = useState<ComposerItem[]>([]);
   const [adjustments, setAdjustments] = useState<ComposerAdjustments>({ ...EMPTY_ADJUSTMENTS });
@@ -113,7 +114,7 @@ export default function CreateOrder({ permissions = [], onOpenOrder, onOpenDraft
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
   const [paymentReference, setPaymentReference] = useState('');
   const [dateNeed, setDateNeed] = useState('');
-  const [source, setSource] = useState(linkedPayment ? 'QRPay' : 'WhatsApp');
+  const [source, setSource] = useState(linkedPayment ? 'QRPay' : initialCustomer?.channel==='shopee'?'Shopee':'WhatsApp');
   const [note, setNote] = useState('');
   const [notifyWhatsapp, setNotifyWhatsapp] = useState(false);
   const [customerMatches, setCustomerMatches] = useState<CustomerMatch[]>([]);
@@ -389,3 +390,4 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Metric({ label, value }: { label: string; value: number }) {
   return <div><span>{label}</span><b>{value < 0 ? `- ${money(Math.abs(value))}` : money(value)}</b></div>;
 }
+

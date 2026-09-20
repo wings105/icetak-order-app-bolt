@@ -1,5 +1,6 @@
 // Node >=22 with --experimental-strip-types. No database or outbound side effects.
 import assert from 'node:assert/strict';
+import { sessionKey,confirmedOrder,caseSummary } from '../supabase/functions/admin-ai-dashboard/case.ts';
 import { analyze,effectiveStatus,identity } from '../supabase/functions/admin-ai-dashboard/analysis.ts';
 const now=Date.parse('2026-09-19T00:00:00Z');
 const c={id:'fixture',channel:'shopee',inbound_revision:'in-1',legacy_needs_reply:false,last_inbound_at:'2026-09-18T07:05:00Z',messages:[
@@ -21,3 +22,19 @@ assert.equal(analyze({...c,messages:[{id:'s',direction:'inbound',message_type:'t
 assert.equal(identity({id:'x',channel:'whatsapp',identities:[{channel:'whatsapp',phone:'60111111111'},{channel:'whatsapp',phone:'60222222222'}]}).phone,null,'Ambiguous phone must not be selected');
 assert.equal(analyze(c,{...context,identity_status:'ambiguous'},null,now).confidence,'rendah');
 console.log('PASS: design enquiry, generic auto reply, session boundary, reopening, snooze expiry, payment intent, order association and identity ambiguity.');
+
+const orderContext={...paidContext,case_order:{order_id:'order',order_kind:'shopee',inbound_revision:c.inbound_revision,session_key:sessionKey(paidContext)}};
+assert.equal(confirmedOrder(c,orderContext)?.order_sn,'260918ABC123');
+assert.equal(confirmedOrder({...c,inbound_revision:'new'},orderContext),null,'New inbound invalidates confirmation');
+assert.equal(confirmedOrder(c,{...orderContext,session:{...context.session,session_id:'new'}}),null,'New session invalidates confirmation');
+assert.equal(confirmedOrder(c,{...orderContext,identity_status:'ambiguous'}),null);
+assert.equal(confirmedOrder(c,{...orderContext,marketplace_orders:[]}),null,'Membership must still hold');
+const summary=caseSummary(c,{...orderContext,drafts:[{status:'confirmed'},{status:'rejected'},{status:'pending_admin'},{status:'awaiting_payment',order_no:'IC-1'}]},'shipping','Parcel mana?');
+assert.equal(summary.active_draft_count,1);assert.equal(summary.binding_current,true);
+assert.ok(summary.missing.includes('Status courier belum tersedia.'),'Completed is not proof of courier delivery');
+const newer={...c,messages:[...c.messages,{id:'last',direction:'inbound',message_type:'text',text_content:'parcel mana? not urgent',created_at:'2026-09-18T23:00:00Z'}]};
+const newestAnalysis=analyze(newer,context,null,now);
+assert.equal(newestAnalysis.intent,'shipping','Newest parcel request beats older design messages');
+assert.equal(newestAnalysis.urgent,false);assert.equal(newestAnalysis.case.request,'parcel mana? not urgent');
+assert.equal(newestAnalysis.status,'needs_review');
+console.log('PASS: case membership, inbound/session expiry, ambiguity, active draft count, conservative shipping evidence and newest actionable intent.');

@@ -5,7 +5,7 @@ import './DraftWorkspace.css';
 
 type DraftTab='all'|'followup';
 
-export default function DraftWorkspace({canManage=false,onOpenOrder,onCreateOrder,initialTab='all'}:{canManage?:boolean;onOpenOrder?:(orderNo:string)=>void;onCreateOrder?:()=>void;initialTab?:DraftTab}){
+export default function DraftWorkspace({canManage=false,onOpenOrder,onCreateOrder,initialTab='all',initialQuery=''}:{canManage?:boolean;onOpenOrder?:(orderNo:string)=>void;onCreateOrder?:()=>void;initialTab?:DraftTab;initialQuery?:string}){
   const [tab,setTab]=useState<DraftTab>(initialTab);
   const selectTab=(next:DraftTab)=>{
     setTab(next);
@@ -20,6 +20,7 @@ export default function DraftWorkspace({canManage=false,onOpenOrder,onCreateOrde
       <button role="tab" aria-selected={tab==='all'} className={tab==='all'?'active':''} onClick={()=>selectTab('all')}><span>Semua Draft</span><small>Semak, edit dan payment</small></button>
       <button role="tab" aria-selected={tab==='followup'} className={tab==='followup'?'active':''} onClick={()=>selectTab('followup')}><span>Customer Follow-up</span><small>Prepaid · sudah dihantar · belum bayar</small></button>
     </div>
-    <div role="tabpanel">{tab==='all'?<DraftOrders embedded canManage={canManage} onOpenOrder={onOpenOrder} onCreateOrder={onCreateOrder}/>:<DraftFollowUps embedded canManage={canManage}/>}</div>
+    <div role="tabpanel">{tab==='all'?<DraftOrders initialQuery={initialQuery} embedded canManage={canManage} onOpenOrder={onOpenOrder} onCreateOrder={onCreateOrder}/>:<DraftFollowUps embedded canManage={canManage}/>}</div>
   </div>;
 }
+

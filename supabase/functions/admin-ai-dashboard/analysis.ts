@@ -1,3 +1,4 @@
+import { confirmedOrder, caseSummary } from './case.ts';
 export type RecordData=Record<string,any>;
 const content=(m:RecordData)=>String(m.text_content||m.caption||'').trim();
 const at=(m:RecordData)=>Date.parse(m.created_at||'')||0;
@@ -31,7 +32,10 @@ export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=nul
   {intent:'enquiry',pattern:/harga|price|berapa|brpa|brp|tanya|boleh|available|stok|stock/i},
   {intent:'followup',pattern:/update|follow.?up|siap|mcm mana|macam mana/i}
  ];
- const intents=matches.filter(x=>x.pattern.test(text)).map(x=>x.intent);
+ // Prefer the newest meaningful customer request; generic automation never resolves it.
+ const newest=[...evidence].reverse().find(m=>matches.some(x=>x.pattern.test(content(m))));
+ const intentText=newest?content(newest):text;
+ const intents=matches.filter(x=>x.pattern.test(intentText)).map(x=>x.intent);
  let intent=intents[0]||'other';
  const review=ctx.review;const currentReview=review?.inbound_revision===c.inbound_revision;
  if(currentReview&&intentLabels[review.intent_override])intent=review.intent_override;
@@ -41,8 +45,10 @@ export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=nul
  if(intent==='other'&&hint&&Number(ranked[0]?.similarity)>=0.82&&Number(ranked[0]?.similarity)-Number(ranked[1]?.similarity||0)>=0.025){intent=hint;basis='Cadangan semantik gte-small; perlu semakan admin';}
  const orders=[...(ctx.orders||[]).map((o:RecordData)=>({...o,reference:o.order_no,kind:'icetak'})),...(ctx.marketplace_orders||[]).map((o:RecordData)=>({...o,reference:o.order_sn,kind:'shopee'}))];
  const references=orders.filter(o=>o.reference&&text.toUpperCase().includes(String(o.reference).toUpperCase()));
- const linked=references.length===1?references[0]:null;
- const urgent=/urgent|asap|segera|esok|hari ini|harini|today|tomorrow|sempat|smpt/i.test(text);
+ const manual=confirmedOrder(c,ctx);
+ const linked=manual||(ctx.identity_status!=='ambiguous'&&references.length===1?references[0]:null);
+ const urgencyText=intentText.replace(/(?:tak|tidak|x|not|no)\s+(?:urgent|rush|rushing)/gi,'');
+ const urgent=/\burgent\b|\basap\b|segera|esok|hari ini|harini|today|tomorrow|sempat|smpt/i.test(urgencyText);
  const age=Math.max(0,(now-(Date.parse(c.last_inbound_at||'')||now))/3600000);
  const priority=Math.min(100,(intent==='complaint'?80:intent==='shipping'?65:intent==='payment'?60:intent==='design'?50:40)+(urgent?20:0)+Math.min(15,Math.floor(age/12)));
  const warnings:string[]=[];
@@ -66,9 +72,10 @@ export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=nul
   else if(intent==='followup')suggestion='Saya semak perkembangan tempahan dahulu ya. Boleh sahkan nombor order yang dimaksudkan?';
  }
  const textEvidence=evidence.filter(m=>content(m));
- return {intent,intent_label:intentLabels[intent],intents,priority,urgent,
+ const caseInfo=caseSummary(c,ctx,intent,content(newest||textEvidence[textEvidence.length-1]||{}).slice(0,240));
+ return {case:caseInfo,action_label:caseInfo.title,intent,intent_label:intentLabels[intent],intents,priority,urgent,
   confidence:ctx.identity_status==='ambiguous'||!textEvidence.length?'rendah':intents.length?'sederhana':'rendah',
-  confidence_reasons:[textEvidence.length?`${textEvidence.length} mesej pelanggan digunakan`:'Tiada bukti teks',ctx.identity_status==='matched'?'Identiti CRM dipadankan':'Identiti CRM perlu semakan',linked?`Order ${linked.reference} disebut dalam chat`:'Order khusus belum dipastikan',intents.length===1?'Satu kategori utama dikenal pasti':intents.length>1?'Beberapa kehendak bercampur':'Kategori belum jelas'],
+  confidence_reasons:[textEvidence.length?`${textEvidence.length} mesej pelanggan digunakan`:'Tiada bukti teks',ctx.identity_status==='matched'?'Identiti CRM dipadankan':'Identiti CRM perlu semakan',linked?manual?`Order ${linked.reference} disahkan admin`:`Order ${linked.reference} disebut dalam chat`:'Order khusus belum dipastikan',intents.length===1?'Satu kategori utama dikenal pasti':intents.length>1?'Beberapa kehendak bercampur':'Kategori belum jelas'],
   confidence_note:'Tahap bukti untuk semakan, bukan kebarangkalian ketepatan atau izin auto-send.',
   summary:textEvidence.length?textEvidence.slice(-2).map(content).join(' · ').slice(0,420):'Mesej media atau konteks belum mencukupi. Buka bukti chat.',
   suggestion,basis,engine:semantic?.model?'gte-small + SOP rules v1':'SOP rules v1',

@@ -31,9 +31,9 @@ async function draftControl<T>(body:Record<string,unknown>){
   if(error)throw new Error(error.message);
   return data as ApiResponse<T>;
 }
-export default function DraftOrders({canManage=false,onOpenOrder,onCreateOrder,embedded=false}:{canManage?:boolean;onOpenOrder?:(orderNo:string)=>void;onCreateOrder?:()=>void;embedded?:boolean}){
+export default function DraftOrders({canManage=false,onOpenOrder,onCreateOrder,embedded=false,initialQuery=''}:{canManage?:boolean;onOpenOrder?:(orderNo:string)=>void;onCreateOrder?:()=>void;embedded?:boolean;initialQuery?:string}){
   const [data,setData]=useState<DraftData>({counts:{all:0,linked:0,unlinked:0,cancelled:0},drafts:[]});
-  const [query,setQuery]=useState('');const [status,setStatus]=useState('');
+  const [query,setQuery]=useState(initialQuery);const [status,setStatus]=useState('');
   const [loading,setLoading]=useState(true);const [busy,setBusy]=useState<string|null>(null);
   const [error,setError]=useState('');const [links,setLinks]=useState<Record<string,string>>({});
   const [flows,setFlows]=useState<Record<string,FlowDraft>>({});
@@ -88,3 +88,4 @@ export default function DraftOrders({canManage=false,onOpenOrder,onCreateOrder,e
     {cancelTarget&&<div className="draft-modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&busy!==cancelTarget.id)setCancelTarget(null)}}><section className="draft-modal" role="dialog" aria-modal="true" aria-labelledby="cancel-draft-title"><div className="draft-modal-head"><div><h2 id="cancel-draft-title">Cancel Draft</h2><p>{cancelTarget.customer_name||'Customer'} · {money(cancelTarget.draft_total)}</p></div><button className="draft-modal-close" aria-label="Close" disabled={busy===cancelTarget.id} onClick={()=>setCancelTarget(null)}>×</button></div><div className="cancel-reason-list">{(data.reasons||[]).map(reason=><label className={cancelReason===reason.code?'selected':''} key={reason.code}><input type="radio" name="cancel-reason" value={reason.code} checked={cancelReason===reason.code} onChange={()=>{setCancelReason(reason.code);if(!reason.requires_detail)setCancelDetail('')}}/><span>{reason.label}</span></label>)}</div>{(data.reasons||[]).find(x=>x.code===cancelReason)?.requires_detail&&<label>Nyatakan sebab<textarea rows={3} maxLength={500} value={cancelDetail} onChange={e=>setCancelDetail(e.target.value)} placeholder="Sebab pembatalan…"/></label>}<div className="draft-modal-warning"><b>Draft tidak akan dipadam.</b>Ia disimpan dalam senarai Cancelled untuk audit dan laporan.</div><div className="draft-modal-actions"><button className="btn btn-outline" disabled={busy===cancelTarget.id} onClick={()=>setCancelTarget(null)}>Back</button><button className="btn btn-danger" disabled={busy===cancelTarget.id||!cancelReason} onClick={()=>void cancelDraft()}>{busy===cancelTarget.id?'Cancelling…':'Confirm Cancel Draft'}</button></div></section></div>}
   </div>;
 }
+
