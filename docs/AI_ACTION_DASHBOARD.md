@@ -74,3 +74,16 @@ Authenticated production browser at 1363×936 proved default inline layout, expa
 Nine source-status regression cases and the root production build/Admin TypeScript checks passed. An isolated gateway harness proved read-only denial, stale-chat rejection, invalid-input rejection, owner-only approval and server-derived actor. Live SQL in a rolled-back transaction proved capture, exact retry, conflicting request rejection, approval, stale-version rejection, deactivation and three audit events. Both training tables were empty after rollback; anonymous/client direct table and RPC privileges were false. Security advisor findings for these tables are expected INFO “RLS enabled no policy” because access is exclusively through the service gateway.
 
 The browser did not submit a real training capture/approval and native WhatsApp application launch was not tested. Mobile device layout remains unverified. These limits must not be represented as fully tested flows.
+
+
+## Actionable case brief and confirmed order subject (2026-09-20 MYT)
+
+Status: PRODUCTION. Release `1cd60161d61b683e4bd23fdadc025e07b7664d18`; Order gateway `admin-ai-dashboard` v4.
+
+- Classification uses the newest actionable inbound request in the recent evidence window, so an older design/payment topic does not replace a newer parcel/complaint request. Negated urgency such as “not urgent” is not promoted as urgent.
+- The AI panel presents the customer request, only confirmed facts, missing checks and a conservative next action. Provider order/payment/shipping values remain separately labelled; Completed is not treated as courier Delivered and COD is not treated as cash received.
+- A related customer order is reference data until an admin explicitly confirms that it is the subject of the current case. The binding is server-validated against current canonical customer context and is invalidated for AI use when the inbound revision or order session changes, or identity becomes ambiguous.
+- Case bindings and changes have service-only storage, optimistic versioning, request-id idempotency and an audit event. Client roles have no direct table/RPC privileges.
+- Shortcuts reuse existing Admin V2 workflows: open the confirmed canonical/marketplace order, search active Draft Orders by customer identity, or open Create Order with name, phone and channel prefilled. They do not copy chat product/payment claims, create a real order, mutate payment/shipping, or send a customer message.
+
+Verification: production browser rendered current WhatsApp/Shopee action labels and the case brief against real data, including a Shopee complaint with one related Completed order that correctly remained unconfirmed. Build, Admin TypeScript and deterministic analysis tests passed. The isolated gateway harness proved permission, stale-chat, invalid-version, unrelated-order and ambiguous-identity guards plus server-derived actor/reference/session. A rolled-back live SQL test proved exact retry, request-id conflict, stale-version rejection, clear binding and two audit events, leaving zero QA rows. No real customer binding, order, draft, payment or message was mutated during verification; mobile remains unverified.
