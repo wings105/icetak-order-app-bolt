@@ -1,4 +1,4 @@
-# Changelog
+- [PRODUCTION] Admin prepaid/chat draft review notifications now use the idempotent WhatsApp notification queue instead of an unlogged direct WasapFlow call. Provider failures are persisted with bounded retries, a minute scheduler dispatches delayed retries, successful delivery updates `admin_link_sent_at`, and an audit event is recorded. Production smoke recovered all four missed evening drafts exactly once: four queue rows sent, four draft timestamps set and four audit events recorded.\n\n# Changelog
 
 - [PRODUCTION] AI Dashboard now classifies the newest actionable customer request, shows a concise case brief (request, confirmed facts, missing checks and next action), and requires an explicit admin/session-bound order confirmation before order/payment/shipping facts are used. Added guarded shortcuts to the existing Draft Orders, Create Order and canonical order/marketplace views; no draft, payment, order status or customer message is created automatically. Production browser, gateway guards, build/type checks and rolled-back SQL idempotency/security tests passed.
 
