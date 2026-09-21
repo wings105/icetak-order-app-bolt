@@ -11,6 +11,7 @@ const json = (data: unknown, status = 200) => new Response(JSON.stringify(data),
   status,
   headers: { ...CORS, 'content-type': 'application/json' },
 });
+
 async function rest(path: string, init: RequestInit = {}) {
   const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     ...init,
@@ -26,20 +27,52 @@ async function rest(path: string, init: RequestInit = {}) {
   if (!response.ok) throw new Error(data?.message || data?.error || `REST ${response.status}`);
   return data;
 }
+
 async function setting(key: string) {
   const rows = await rest(`whatsapp_settings?key=eq.${encodeURIComponent(key)}&limit=1`).catch(() => []);
   return rows?.[0]?.secret_value || rows?.[0]?.text_value || '';
 }
+
 async function authorized(req: Request) {
   const incoming = req.headers.get('x-internal-key') || '';
   if (incoming && incoming === await setting('dispatch_internal_key')) return true;
   return (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '') === SERVICE_ROLE_KEY;
 }
+
 async function updateJob(id: string, payload: Record<string, unknown>) {
   await rest(`notification_queue?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
 }
+
+async function markAdminDraftNotificationSent(job: Record<string, any>, result: Record<string, any>) {
+  if (job.event_type !== 'admin_draft_review') return;
+  const draftId = String(job.payload?.draft_id || job.payload?.vars?.draft_id || '').trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(draftId)) {
+    throw new Error('admin_draft_review_invalid_draft_id');
+  }
+  const now = new Date().toISOString();
+  const updated = await rest(`qrpay_order_drafts?id=eq.${encodeURIComponent(draftId)}&select=id`, {
+    method: 'PATCH',
+    body: JSON.stringify({ admin_link_sent_at: now, updated_at: now }),
+  });
+  if (!updated?.[0]?.id) throw new Error('admin_draft_review_draft_missing');
+  await rest('qrpay_order_draft_events', {
+    method: 'POST',
+    body: JSON.stringify({
+      draft_id: draftId,
+      event_type: 'admin_notification_sent',
+      actor: 'whatsapp-dispatch',
+      metadata: {
+        queue_id: job.id,
+        provider_message_id: result.message_id || null,
+        mode: result.mode || null,
+        duplicate: result.duplicate === true,
+      },
+    }),
+  });
+}
+
 const isAutomationSafetyStop = (message: string) => /tracking_(auto_disabled|provider_not_ready|cancelled|already_sent|not_sendable|state_missing|shipment_id_required|shipment_missing|order_missing|order_opted_out|order_cancelled)|pickup_(auto_disabled|provider_not_ready|order_id_required|order_missing|order_opted_out|not_pickup|order_not_ready|collected|cancelled|historical_ready)|order_auto_(disabled|opted_out|order_id_required|order_missing|cancelled)|order_cancel_notice_not_applicable|order_payment_already_received|order_ready_pickup_(not_pickup|not_ready|collected)|draft_followup_(draft_id_required|draft_missing|not_eligible|paused|customer_responded)/i.test(message);
-const isPermanentFailure = (message: string) => /notification_disabled:|freeform_disabled|freeform_message_empty|template_disabled|template_name_required|template_not_approved:|phone required|WhatsApp phone or user ID required/i.test(message);
+const isPermanentFailure = (message: string) => /notification_disabled:|freeform_disabled|freeform_message_empty|template_disabled|template_name_required|template_not_approved:|phone required|WhatsApp phone or user ID required|admin_draft_review_(invalid_draft_id|draft_missing)/i.test(message);
 
 Deno.serve(async (req) => {
   try {
@@ -68,6 +101,7 @@ Deno.serve(async (req) => {
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok || result.ok === false) throw new Error(result.error || `whatsapp-send ${response.status}`);
+        await markAdminDraftNotificationSent(job, result);
         await updateJob(job.id, {
           status: 'sent', sent_at: new Date().toISOString(), processed_at: new Date().toISOString(), locked_at: null,
           provider_message_id: result.message_id || null, decision_mode: result.mode || null,
