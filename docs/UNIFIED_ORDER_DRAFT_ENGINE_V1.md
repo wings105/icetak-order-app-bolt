@@ -166,3 +166,8 @@ Customer review frontend: **LIVE**
 Customer payment frontend: **LIVE**  
 Customer web feature flag: **ON**  
 Generative OpenAI classification: **NOT CONFIGURED / OPTIONAL**
+
+## Admin notification reliability
+
+Admin draft review links are enqueued in `notification_queue` with an idempotency key based on draft ID and draft version. `whatsapp-dispatch` records provider failures, retries transient failures up to five times, updates `admin_link_sent_at` only after a successful provider response, and records an `admin_notification_sent` draft event. A minute scheduler processes retries whose `scheduled_at` time has arrived.
+\n
