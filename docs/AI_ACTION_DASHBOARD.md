@@ -87,3 +87,17 @@ Status: PRODUCTION. Release `1cd60161d61b683e4bd23fdadc025e07b7664d18`; Order ga
 - Shortcuts reuse existing Admin V2 workflows: open the confirmed canonical/marketplace order, search active Draft Orders by customer identity, or open Create Order with name, phone and channel prefilled. They do not copy chat product/payment claims, create a real order, mutate payment/shipping, or send a customer message.
 
 Verification: production browser rendered current WhatsApp/Shopee action labels and the case brief against real data, including a Shopee complaint with one related Completed order that correctly remained unconfirmed. Build, Admin TypeScript and deterministic analysis tests passed. The isolated gateway harness proved permission, stale-chat, invalid-version, unrelated-order and ambiguous-identity guards plus server-derived actor/reference/session. A rolled-back live SQL test proved exact retry, request-id conflict, stale-version rejection, clear binding and two audit events, leaving zero QA rows. No real customer binding, order, draft, payment or message was mutated during verification; mobile remains unverified.
+
+## Action-first queue and colour hierarchy (2026-09-23)
+
+Status: ATTEMPTED — source implementation and build/type/regression checks only. Rendered interaction/visual QA remains pending. The owner explicitly authorized applying this patch to the production branch on 2026-09-23; a production-branch commit is not proof of rendered behavior.
+
+- Default action panel with a prominent contextual next step; secondary draft creation, AI evidence and training are collapsed. Narrow screens initially open the action tab.
+- Loaded conversations are grouped into Segera (red), Perlu keputusan (amber), Perlu balas (blue), Menunggu pelanggan / Ditangguhkan (slate), and Selesai (green). Text labels accompany colour. These are UI triage groups from the existing analysis, not a newly deployed AI classifier. Counts remain bounded to loaded conversations.
+- Deadline urgency requires a currently confirmed case order, an unshipped eligible state, and a known ship-by date due today or earlier in Malaysia. An unrelated customer's order deadline does not promote the conversation.
+- Existing review mutations and confirmation guards remain authoritative. After an explicit resolve/manual-replied/snooze response succeeds, the active queue reloads and opens its next eligible conversation. This interaction still needs browser QA.
+- Historical chat before the existing session boundary is collapsed with an explicit reveal button. No history is deleted or reinterpreted as current order evidence.
+
+Checks: root production build; Admin TypeScript; existing `check:ai-dashboard`; `node --experimental-strip-types scripts/check-ai-work-queue.mjs`.
+
+Verification blocker: cloud Browser cannot open local preview (`net::ERR_BLOCKED_BY_CLIENT`); production admin is at the login screen. The owner authorized local Playwright fallback, but the runtime has no Chromium executable and the official browser download returned an invalid/truncated archive. No customer messages, order bindings, payments or live review states were mutated. Before release, verify queue filters, contextual primary action, hidden-history toggle, unsaved-switch protection, resolve-to-next transition, empty queues, desktop/mobile layout and console health using authenticated staging or an authorized local-browser fallback. Do not classify this entry as VERIFIED/PRODUCTION without that evidence.
