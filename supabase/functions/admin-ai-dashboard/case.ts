@@ -19,7 +19,7 @@ export function caseSummary(c:Data,ctx:Data,intent:string,quote:string){
  if(ctx.identity_status==='ambiguous')missing.push('Identiti bertindih; semak CRM dahulu.');
  if(intent==='design')missing.push('Kesesuaian ukuran dan artwork perlu semakan manusia.');
  if(c.channel==='shopee')missing.push('Semak balasan automation luar dalam chat asal.');
- const activeDrafts=(ctx.drafts||[]).filter((d:Data)=>!d.order_no&&!['confirmed','rejected','cancelled','converted','completed'].includes(String(d.status).toLowerCase()));
+ const activeDrafts=(ctx.drafts||[]).filter((d:Data)=>!d.order_id&&!d.order_no&&!['confirmed','rejected','cancelled','converted','completed'].includes(String(d.status).toLowerCase()));
  if(activeDrafts.length)facts.push(`${activeDrafts.length} draft dalam session ini — semak sebelum buat baharu`);
  return {title:labels[intent],request:quote||'Media / teks tidak mencukupi untuk diringkaskan.',facts,missing,next:next[intent],order:order?{id:order.id,kind:order.kind,reference:order.reference}:null,binding_current:!!order,session_key:sessionKey(ctx),active_draft_count:activeDrafts.length};
 }

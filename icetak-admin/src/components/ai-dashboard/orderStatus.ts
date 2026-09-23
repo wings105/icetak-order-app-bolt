@@ -11,10 +11,10 @@ export function orderStage(o:Data):string {
  if(['COMPLETED','CUSTOMER_COLLECTED'].includes(status)||stage==='COLLECTED')return 'completed';
  if(logistics.some(s=>['LOGISTICS_DELIVERY_FAILED','DELIVERY_FAILED'].includes(s)))return 'issue';
  if(logistics.some(s=>['LOGISTICS_DELIVERY_DONE','DELIVERED','DELIVERED,_RECEIVED_BY_CUSTOMER','PARCEL_HAS_BEEN_RECEIVED'].includes(s)))return 'delivered';
- if(['SHIPPED','TO_CONFIRM_RECEIVE'].includes(status)||logistics.some(s=>['LOGISTICS_PICKUP_DONE','IN_TRANSIT','SHIPPED'].includes(s)))return 'shipping';
+ if(['SHIPPED','OUT_FOR_DELIVERY','TO_CONFIRM_RECEIVE'].includes(status)||logistics.some(s=>['LOGISTICS_PICKUP_DONE','IN_TRANSIT','SHIPPED'].includes(s)))return 'shipping';
  if(status==='UNPAID')return 'unpaid';
  if(status==='READY_FOR_PICKUP'||stage==='READY_FOR_PICKUP')return 'pickup';
- if(['READY_TO_SHIP','PROCESSED'].includes(status)||stage==='READY_TO_SHIP')return 'to_ship';
+ if(['READY_TO_SHIP','PROCESSED','AWB_CREATED'].includes(status)||stage==='READY_TO_SHIP')return 'to_ship';
  if(['READY_TO_PROCESS','PROCESSING','IN_PRODUCTION'].includes(status))return 'processing';
  return 'unknown';
 }

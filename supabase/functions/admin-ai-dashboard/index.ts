@@ -1,3 +1,4 @@
+import { enrichContexts } from './enrich.ts';
 import { caseOrders, sessionKey } from './case.ts';
 import { analyze, identity, intentLabels } from './analysis.ts';
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -107,6 +108,7 @@ Deno.serve(async req=>{
    const bindings=await rest(`ai_dashboard_case_orders?conversation_id=in.(${conversationIds.join(',')})&select=*`);
    for(const binding of bindings){if(contexts[binding.conversation_id])contexts[binding.conversation_id].case_order=binding;}
   }
+  if(action==='list'||action==='detail')await enrichContexts(contexts,rest);
   const globalSend=await enabled();
   const capabilities={can_manage:canManage,can_train:owner,whatsapp_api:globalSend&&source.capabilities?.whatsapp_api===true,
    shopee_api:false,send_reason:globalSend?'':'Penghantaran WhatsApp dimatikan dalam Control Center.'};

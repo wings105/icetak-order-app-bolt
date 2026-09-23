@@ -19,6 +19,7 @@ export function workQueue(row:Data, now=Date.now()) {
  const deadline=Date.parse(order?.ship_by_at||'');
  const due=order&&['to_ship','processing'].includes(orderStage(order))&&Number.isFinite(deadline)&&malaysiaDay(deadline)<=malaysiaDay(now);
  if(a.urgent||due)return workQueues[0];
+ if(a.acknowledgement||a.workflow?.decision)return workQueues[1];
  if(ctx.identity_status==='ambiguous'||a.confidence==='rendah'||['payment','complaint','shipping','new_order'].includes(a.intent))return workQueues[1];
  return workQueues[2];
 }

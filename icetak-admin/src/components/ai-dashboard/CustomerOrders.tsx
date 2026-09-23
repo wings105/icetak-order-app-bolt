@@ -13,6 +13,7 @@ export default function CustomerOrders({context,onOpenOrder,compact=false}:{cont
  <small className="ai-muted">{date(o.placed_at||o.created_at)}</small>
  <div className="ai-order-payment"><strong>{o.source==='shopee'?money(o.financials?.[0]?.buyer_paid):money(o.total)}</strong><span>{o.payment_status||'Bayaran belum jelas'}</span></div>
  {((o.financials||[]).some((f:Data)=>/cash|cod/i.test(f.payment_method||''))||/cash|cod/i.test(o.payment_method||''))&&<p className="ai-warning">COD / tunai · semak penerimaan bayaran.</p>}
+ {!!o.production_reviews?.length&&<p>Review artwork: {[...new Set(o.production_reviews.filter((r:Data)=>r.review_required).map((r:Data)=>r.review_status))].join(' · ')||'Tidak diperlukan'}</p>}
  {o.ship_by_at&&<p className="ai-ship-by">Ship by: <b>{date(o.ship_by_at)}</b></p>}
  {o.date_need&&<p>Tarikh perlu: <b>{date(o.date_need)}</b></p>}
  <details open={!compact}><summary>{o.items?.length||0} item · produk & penghantaran</summary>{o.items?.map((i:Data,n:number)=><div key={n} className="ai-order-product"><b>{i.quantity}× {i.title}</b><small>{[i.variation,i.size,i.sku&&`SKU ${i.sku}`,i.wording].filter(Boolean).join(' · ')}</small></div>)}

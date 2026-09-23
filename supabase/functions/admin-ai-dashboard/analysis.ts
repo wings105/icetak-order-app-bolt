@@ -1,3 +1,4 @@
+import { workflow } from './workflow.ts';
 import { confirmedOrder, caseSummary } from './case.ts';
 export type RecordData=Record<string,any>;
 const content=(m:RecordData)=>String(m.text_content||m.caption||'').trim();
@@ -33,7 +34,9 @@ export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=nul
   {intent:'followup',pattern:/update|follow.?up|siap|mcm mana|macam mana/i}
  ];
  // Prefer the newest meaningful customer request; generic automation never resolves it.
- const newest=[...evidence].reverse().find(m=>matches.some(x=>x.pattern.test(content(m))));
+ const lastInbound=evidence[evidence.length-1];
+ const acknowledgement=!!lastInbound&&lastInbound.message_type==='text'&&content(lastInbound).length<100&&/^(?:(?:ok(?:ay|ey)?|baik|terima kasih|tq+|thanks?|thank you|ya|ye)[\s,.!🙏👍😊]*)+$/i.test(content(lastInbound));
+ const newest=acknowledgement?lastInbound:[...evidence].reverse().find(m=>matches.some(x=>x.pattern.test(content(m))));
  const intentText=newest?content(newest):text;
  const intents=matches.filter(x=>x.pattern.test(intentText)).map(x=>x.intent);
  let intent=intents[0]||'other';
@@ -42,7 +45,7 @@ export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=nul
  let basis=intents.length?'Isyarat dalam mesej pelanggan':'Semakan admin diperlukan';
  const semanticMap:Record<string,string>={new_enquiry:'enquiry',ready_to_order:'new_order',design_work:'design',shipping_followup:'shipping'};
  const ranked=semantic?.matches||[];const hint=semanticMap[ranked[0]?.semantic_key];
- if(intent==='other'&&hint&&Number(ranked[0]?.similarity)>=0.82&&Number(ranked[0]?.similarity)-Number(ranked[1]?.similarity||0)>=0.025){intent=hint;basis='Cadangan semantik gte-small; perlu semakan admin';}
+ if(!acknowledgement&&intent==='other'&&hint&&Number(ranked[0]?.similarity)>=0.82&&Number(ranked[0]?.similarity)-Number(ranked[1]?.similarity||0)>=0.025){intent=hint;basis='Cadangan semantik gte-small; perlu semakan admin';}
  const orders=[...(ctx.orders||[]).map((o:RecordData)=>({...o,reference:o.order_no,kind:'icetak'})),...(ctx.marketplace_orders||[]).map((o:RecordData)=>({...o,reference:o.order_sn,kind:'shopee'}))];
  const references=orders.filter(o=>o.reference&&text.toUpperCase().includes(String(o.reference).toUpperCase()));
  const manual=confirmedOrder(c,ctx);
@@ -62,7 +65,7 @@ export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=nul
  const cod=linked?.kind==='shopee'&&(linked.financials||[]).some((f:RecordData)=>/cash|cod/i.test(f.payment_method||''));
  if(cod)warnings.push('Order COD: status platform bukan pengesahan tunai telah diterima.');
  let suggestion='';
- if(evidence.length){
+ if(evidence.length&&!acknowledgement){
   if(intent==='design')suggestion='Untuk cadangan saiz, boleh bagi ukuran lebar tempat nak letak topper dan kuantiti yang diperlukan? Boleh sertakan juga wording serta tarikh nak guna supaya saya boleh semak sekali.';
   else if(intent==='shipping')suggestion=linked?`Saya semak penghantaran untuk order ${linked.reference} dahulu ya. Saya akan maklumkan selepas semakan.`:'Boleh bagi nombor order yang nak disemak? Saya semak status parcel dahulu ya.';
   else if(intent==='payment')suggestion=linked?`Saya semak bayaran dan jumlah untuk order ${linked.reference} dahulu ya.`:'Boleh bagi nombor order atau detail tempahan? Saya semak jumlah dan pautan bayaran yang betul dahulu ya.';
@@ -73,7 +76,11 @@ export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=nul
  }
  const textEvidence=evidence.filter(m=>content(m));
  const caseInfo=caseSummary(c,ctx,intent,content(newest||textEvidence[textEvidence.length-1]||{}).slice(0,240));
- return {case:caseInfo,action_label:caseInfo.title,intent,intent_label:intentLabels[intent],intents,priority,urgent,
+ const work=workflow(c,ctx,intent,now);
+ caseInfo.facts.push(...work.facts);
+ if(acknowledgement&&!work.decision){caseInfo.title='Semak penutup perbualan';caseInfo.next='Pelanggan memberi pengakuan ringkas. Semak tiada isu tertinggal sebelum tandakan selesai.';}
+ if(work.title){caseInfo.title=work.title;caseInfo.next=work.next;}
+ return {workflow:work,acknowledgement,case:caseInfo,action_label:caseInfo.title,intent,intent_label:intentLabels[intent],intents,priority,urgent,
   confidence:ctx.identity_status==='ambiguous'||!textEvidence.length?'rendah':intents.length?'sederhana':'rendah',
   confidence_reasons:[textEvidence.length?`${textEvidence.length} mesej pelanggan digunakan`:'Tiada bukti teks',ctx.identity_status==='matched'?'Identiti CRM dipadankan':'Identiti CRM perlu semakan',linked?manual?`Order ${linked.reference} disahkan admin`:`Order ${linked.reference} disebut dalam chat`:'Order khusus belum dipastikan',intents.length===1?'Satu kategori utama dikenal pasti':intents.length>1?'Beberapa kehendak bercampur':'Kategori belum jelas'],
   confidence_note:'Tahap bukti untuk semakan, bukan kebarangkalian ketepatan atau izin auto-send.',
@@ -82,6 +89,6 @@ export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=nul
   evidence:evidence.map(m=>({id:m.id,text:content(m),at:m.created_at,type:m.message_type})),warnings,
   referenced_order:linked?{id:linked.id,reference:linked.reference,kind:linked.kind}:null,
   draft_message_count:draftMessages.length,session_boundary:ctx.session?.boundary_at||null,
-  status:effectiveStatus(review,c,now),reopened:!!review&&!currentReview,
+  status:effectiveStatus(review,c,now)==='waiting_customer'&&work.followup_due&&work.followup_at>(Date.parse(review?.updated_at||'')||0)?'needs_review':effectiveStatus(review,c,now),reopened:!!review&&!currentReview,
   response_text:currentReview?review.response_text||suggestion:suggestion};
 }
