@@ -148,9 +148,10 @@ function OrderCard({
 
 function QueueCard({row,onOpen}:{row:SearchRow;onOpen:(id:string)=>void}){
   const previewOrders=(row.readyOrders||[]).slice(0,4);
-  return <button type="button" className="pickup-queue-card" onClick={()=>onOpen(row.id)}>
+  const phone=phoneOf(row.phone);
+  return <div className="pickup-queue-card" role="button" tabIndex={0} onClick={()=>onOpen(row.id)} onKeyDown={(event)=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onOpen(row.id)}}}>
     <div className="pickup-queue-card-top">
-      <div className="pickup-queue-identity"><strong>{customerName(row.name)}</strong><span>{row.phone||row.bsuid||'No phone'}</span></div>
+      <div className="pickup-queue-identity"><strong>{customerName(row.name)}</strong>{phone?<div className="pickup-phone-links" onClick={(event)=>event.stopPropagation()}><a href={'whatsapp://send?phone='+phone}>{phone}</a><a href={'https://wa.me/'+phone} target="_blank" rel="noreferrer">WhatsApp</a></div>:<span>{row.bsuid||'No phone'}</span>}</div>
       <span className="pickup-queue-count">{row.readyUnpaid} READY</span>
     </div>
     <div className="pickup-queue-orders">
@@ -162,7 +163,7 @@ function QueueCard({row,onOpen}:{row:SearchRow;onOpen:(id:string)=>void}){
       {row.readyUnpaid>previewOrders.length?<div className="pickup-queue-more">+{row.readyUnpaid-previewOrders.length} lagi</div>:null}
     </div>
     <div className="pickup-queue-footer"><span>BELUM BAYAR</span><strong>{money(row.readyAmount)}</strong></div>
-  </button>;
+  </div>;
 }
 
 export default function PickupCounter({permissions=[],initialCustomer='',onOpenOrder,kioskKey=''}:Props){
@@ -544,7 +545,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
 
     {overview?<>
       <section className="pickup-customer">
-        <div><button type="button" className="pickup-back" onClick={resetToQueue}>← Back</button><span>Customer</span><h2>{customerName(overview.customer.name)}</h2><p>{overview.customer.phone?'+'.concat(overview.customer.phone.replace(/^\+/,'')):overview.customer.bsuid||'No phone linked'}</p></div>
+        <div><button type="button" className="pickup-back" onClick={resetToQueue}>← Back</button><span>Customer</span><h2>{customerName(overview.customer.name)}</h2>{phoneOf(overview.customer.phone)?<div className="pickup-phone-links dark"><a href={'whatsapp://send?phone='+phoneOf(overview.customer.phone)}>{phoneOf(overview.customer.phone)}</a><a href={'https://wa.me/'+phoneOf(overview.customer.phone)} target="_blank" rel="noreferrer">WhatsApp</a></div>:<p>{overview.customer.bsuid||'No phone linked'}</p>}</div>
         <div className="pickup-customer-actions">
           <button className="btn btn-outline" disabled={busy!==''} onClick={()=>void createLink(false)}>Copy Link</button>
           <button className="btn btn-outline" disabled={busy!==''} onClick={()=>void createLink(true)}>Copy Text</button>
