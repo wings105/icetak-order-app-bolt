@@ -13,7 +13,7 @@ type PickupOrder = {
   id:string; orderNo:string; orderToken?:string; total:number; balance:number;
   paid:boolean; ready:boolean; collected:boolean;
   group:'ready_unpaid'|'ready_paid'|'processing_unpaid'|'processing_paid'|'collected';
-  status:string; dateNeed?:string; createdAt:string; paymentMethod?:string; items:PickupItem[];
+  status:string; dateNeed?:string; createdAt:string; paymentMethod?:string; paymentWhatsappEnabled:boolean; items:PickupItem[];
 };
 type Overview = {
   ok:boolean;
@@ -102,10 +102,11 @@ async function rpc<T>(name:string,args:Record<string,unknown>={}){
 }
 
 function OrderCard({
-  order,paySelected,handoverSelected,onPayToggle,onHandoverToggle,onOpenOrder,onPreview,
+  order,paySelected,handoverSelected,onPayToggle,onHandoverToggle,onPaymentWhatsappToggle,paymentWhatsappBusy,onOpenOrder,onPreview,
 }:{
   order:PickupOrder;paySelected:boolean;handoverSelected:boolean;
   onPayToggle:(id:string)=>void;onHandoverToggle:(id:string)=>void;
+  onPaymentWhatsappToggle:(id:string,enabled:boolean)=>void;paymentWhatsappBusy:boolean;
   onOpenOrder?:(orderNo:string)=>void;
   onPreview:(src:string,title:string)=>void;
 }){
@@ -121,6 +122,15 @@ function OrderCard({
       <button className="pickup-order-link" onClick={()=>onOpenOrder?.(order.orderNo)}>{order.orderNo}</button>
       <span className={`pickup-state ${order.ready?'ready':'processing'}`}>{order.ready?'READY PICKUP':'PROCESSING'}</span>
       <span className={`pickup-state ${order.paid?'paid':'unpaid'}`}>{order.paid?'PAID':'UNPAID'}</span>
+      {canPay?<button type="button"
+        className={`pickup-wa-toggle ${order.paymentWhatsappEnabled!==false?'on':'off'}`}
+        aria-pressed={order.paymentWhatsappEnabled!==false}
+        title="Hantar WhatsApp payment received untuk order ini"
+        disabled={paymentWhatsappBusy}
+        onClick={()=>onPaymentWhatsappToggle(order.id,order.paymentWhatsappEnabled===false)}>
+        <span className="pickup-wa-switch"><i/></span>
+        <span>WhatsApp {order.paymentWhatsappEnabled!==false?'ON':'OFF'}</span>
+      </button>:null}
       <strong>{money(order.paid?order.total:order.balance)}</strong>
     </div>
     <div className="pickup-order-status">{order.status}{order.dateNeed?` · Need ${new Date(order.dateNeed).toLocaleDateString('en-MY')}`:''}</div>
@@ -243,11 +253,35 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
   };
   const selectedOrders=useMemo(()=>overview?.orders.filter((order)=>paySelected.has(order.id))||[],[overview,paySelected]);
   const payTotal=useMemo(()=>selectedOrders.reduce((sum,order)=>sum+Number(order.balance||0),0),[selectedOrders]);
+  const notifyOnCount=selectedOrders.filter((order)=>order.paymentWhatsappEnabled!==false).length;
+  const notifyOffCount=selectedOrders.length-notifyOnCount;
   const hasProcessing=selectedOrders.some((order)=>!order.ready);
 
   const refresh=async()=>{
     if(overview)await loadOverview(overview.customer.id,true);
     else await loadQueue();
+  };
+
+  const setPaymentWhatsapp=async(id:string,enabled:boolean)=>{
+    if(!overview||!canPay||busy!=='')return;
+    const previous=overview.orders.find((order)=>order.id===id)?.paymentWhatsappEnabled!==false;
+    setBusy(`wa:${id}`);setError('');
+    setOverview((current)=>current?{
+      ...current,
+      orders:current.orders.map((order)=>order.id===id?{...order,paymentWhatsappEnabled:enabled}:order),
+    }:current);
+    try{
+      await rpc<{ok:boolean;enabled:boolean}>('icetak_admin_set_pickup_payment_whatsapp',{
+        p_order_id:id,
+        p_enabled:enabled,
+      });
+    }catch(err:any){
+      setOverview((current)=>current?{
+        ...current,
+        orders:current.orders.map((order)=>order.id===id?{...order,paymentWhatsappEnabled:previous}:order),
+      }:current);
+      setError(err?.message||'Gagal ubah setting WhatsApp payment.');
+    }finally{setBusy('');}
   };
 
   const createCheckout=async(method:'cash'|'qrpay')=>{
@@ -498,6 +532,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
               {orders.map((order)=><OrderCard key={order.id} order={order}
                 paySelected={paySelected.has(order.id)} handoverSelected={handoverSelected.has(order.id)}
                 onPayToggle={(id)=>toggle(setPaySelected,id)} onHandoverToggle={(id)=>toggle(setHandoverSelected,id)}
+                onPaymentWhatsappToggle={(id,enabled)=>void setPaymentWhatsapp(id,enabled)} paymentWhatsappBusy={busy!==''}
                 onOpenOrder={onOpenOrder} onPreview={(src,title)=>setPreview({src,title})}/>)}
             </section>;
           })}
@@ -508,6 +543,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
           <span className="pickup-summary-label">PAYMENT SELECTION</span>
           <h3>{paySelected.size} order</h3>
           <div className="pickup-summary-total"><span>Jumlah penuh</span><strong>{money(payTotal)}</strong></div>
+          {selectedOrders.length?<div className="pickup-summary-wa"><span>WhatsApp payment</span><b>{notifyOnCount} ON{notifyOffCount?' · '+notifyOffCount+' OFF':''}</b></div>:null}
           {selectedOrders.map((order)=><div className="pickup-summary-line" key={order.id}><span>{order.orderNo}{!order.ready?' · PROCESSING':''}</span><b>{money(order.balance)}</b></div>)}
           {hasProcessing?<div className="pickup-warning">Ada order belum siap dipilih. Ia akan menjadi PAID, tetapi kekal PROCESSING dan tidak boleh handover.</div>:null}
           <button className="btn btn-primary pickup-main-action" disabled={!canPay||!paySelected.size||busy!==''} onClick={()=>void createCheckout('qrpay')}>{busy==='qrpay'?'Menyediakan…':'Generate 1 QRPay'}</button>
@@ -550,7 +586,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
         <div className="pickup-modal-kicker">FINAL PAYMENT CONFIRMATION</div>
         <h2 id="pickup-cash-confirm-title">Terima bayaran penuh?</h2>
         <p>Ini akan merekod <b>{money(payTotal)}</b> sebagai payment diterima untuk <b>{paySelected.size} order</b>. Semua order yang dipilih akan jadi PAID.</p>
-        {selectedOrders.length?<div className="pickup-modal-list">{selectedOrders.map((order)=><div key={order.id}><span>{order.orderNo}</span><b>{money(order.balance)}</b></div>)}</div>:null}
+        {selectedOrders.length?<div className="pickup-modal-list">{selectedOrders.map((order)=><div key={order.id}><span>{order.orderNo}<small className={order.paymentWhatsappEnabled!==false?'wa-on':'wa-off'}>WhatsApp {order.paymentWhatsappEnabled!==false?'ON':'OFF'}</small></span><b>{money(order.balance)}</b></div>)}</div>:null}
         <div className="pickup-modal-actions"><button type="button" className="btn btn-outline" disabled={busy==='cash'} onClick={()=>setCashConfirm(false)}>Batal</button><button type="button" className="btn pickup-pay-full" disabled={busy==='cash'} onClick={()=>void createCheckout('cash')}>{busy==='cash'?'Merekod…':'Ya, Payment Received'}</button></div>
       </section>
     </div>:null}
