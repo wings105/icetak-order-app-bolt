@@ -123,3 +123,7 @@ Conversation response corrections belong to Order System `ai_dashboard_training`
 ## 2026-09-20 — AI case facts require an explicit current-order subject
 
 Orders linked to a CRM customer are possible context, not proof that a conversation refers to a specific order. Admin must explicitly confirm the subject order for the current inbound revision and order session before its payment/shipping facts are used in the case brief. A new inbound revision, session change, ambiguous identity or missing canonical membership makes the binding unusable until reviewed again. Shortcuts may open existing order/draft/composer workflows, but the AI dashboard does not create orders, confirm payments, change fulfillment state or send messages implicitly.
+
+## 2026-09-27 — Public AWB references use a minimal ClickUp projection
+
+Owner approved order-ID links without login for internal printing. Group tasks by exact `ORDER ID / customer name`, preserve every image from the latest image comment, and render four task quadrants per A4. Store an indexed private derived cache from raw ClickUp updates; expose only print fields through `awb-preview`. The endpoint has no order/payment/message mutation capability. See `AWB_PREVIEW.md`.

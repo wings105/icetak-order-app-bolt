@@ -25,6 +25,11 @@
     <div id="app"></div>
     <script type="module">
       (async () => {
+        if (new URLSearchParams(location.search).has('awbpreview')) {
+          await import('./src/awb-preview.ts');
+          return;
+        }
+
         const adminRoute = new URLSearchParams(location.search).get('admin');
         const isAdmin = adminRoute === 'v2' || adminRoute === '1';
 

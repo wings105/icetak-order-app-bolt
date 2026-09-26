@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {previewItem} from '../supabase/functions/awb-preview/preview.ts';
+const colored={id:'color.png',url:'https://t3747262.p.clickup-attachments.com/t3747262/color/image.png',date:'100'};
+const mask={id:'mask.png',url:'https://t3747262.p.clickup-attachments.com/t3747262/mask/image.png',date:'101'};
+const pdf={id:'awb.pdf',url:'https://t3747262.p.clickup-attachments.com/t3747262/awb/file.pdf',date:'102'};
+const row={task_id:'test',title:'Long title',set_position:2,attachments:[pdf,mask,colored],comment_images:[colored,mask]};
+assert.deepEqual(previewItem(row).images.map(x=>x.url),[colored.url,mask.url]);
+assert.equal(previewItem({...row,comment_images:[]}).images[0].url,mask.url);
+assert.equal(previewItem({...row,attachments:[],comment_images:[]}).images.length,0);
+assert.equal(previewItem({...row,attachments:[colored]}).images.length,1);
+assert.equal(previewItem({...row,comment_images:[colored,colored]}).images.length,1);
+assert.equal(previewItem({...row,attachments:[{url:'javascript:alert(1)',extension:'png'}],comment_images:[]}).images.length,0);
+assert.equal(previewItem({...row,set_position:999}).set,null);
+console.log('PASS: multiple images, comment order, PDF exclusion, missing/deleted images, deduplication, safe URL, empty set');
