@@ -123,15 +123,17 @@ const WA_NUMBER="60179860656";
 const shapesData=[
   {id:"round",name:"Bulat (Round)",icon:"fa-circle"},
   {id:"square",name:"Petak (Square)",icon:"fa-square"},
-  {id:"rectangular",name:"Segi 4 Tepat",icon:"fa-vector-square",hasOrientation:true},
+  {id:"rectangular",name:"Segi 4 Tepat (Full)",icon:"fa-vector-square",hasOrientation:true},
+  {id:"custom",name:"Custom Size",icon:"fa-ruler-combined",hasOrientation:true},
   {id:"love",name:"Bentuk Hati",icon:"fa-heart"},
   {id:"mini",name:"Mini / Cupcake",icon:"fa-grip"}
 ];
 const sizesData={
-  round:[{size:'3"',price:6},{size:'3.5"',price:6},{size:'4"',price:6},{size:'4.5"',price:12},{size:'5"',price:12},{size:'5.5"',price:12},{size:'6"',price:24},{size:'6.5"',price:24},{size:'7"',price:24},{size:'7.5"',price:24},{size:'8"',price:24}],
-  square:[{size:'3"',price:6},{size:'3.5"',price:6},{size:'4"',price:12},{size:'4.5"',price:12},{size:'5"',price:12},{size:'5.5"',price:12},{size:'6"',price:24},{size:'6.5"',price:24},{size:'7"',price:24},{size:'7.5"',price:24},{size:'8"',price:24}],
-  rectangular:[{size:'5.5" x 3.7"',price:6},{size:'5.5" x 7.5" (Half A4)',price:12},{size:'11" x 7.5" (Full A4)',price:24}],
-  love:[{size:'3"',price:6},{size:'3.5"',price:6},{size:'4"',price:6},{size:'4.5"',price:12},{size:'5"',price:12},{size:'5.5"',price:12},{size:'6"',price:24},{size:'6.5"',price:24},{size:'7"',price:24},{size:'7.5"',price:24},{size:'8"',price:24}],
+  round:[{size:'2"',price:6},{size:'3"',price:6},{size:'3.5"',price:6},{size:'4"',price:6},{size:'4.5"',price:12},{size:'5"',price:12},{size:'5.5"',price:12},{size:'6"',price:24},{size:'6.5"',price:24},{size:'7"',price:24},{size:'7.5"',price:24}],
+  square:[{size:'2"',price:6},{size:'3"',price:6},{size:'3.5"',price:6},{size:'4"',price:12},{size:'4.5"',price:12},{size:'5"',price:12},{size:'5.5"',price:12},{size:'6"',price:24},{size:'6.5"',price:24},{size:'7"',price:24},{size:'7.5"',price:24}],
+  rectangular:[{size:'A6 Full',price:6},{size:'A5 Full',price:12},{size:'A4 Full',price:24}],
+  custom:[{size:'Custom A6',price:6},{size:'Custom A5',price:12},{size:'Custom A4',price:24}],
+  love:[{size:'2"',price:6},{size:'3"',price:6},{size:'3.5"',price:6},{size:'4"',price:6},{size:'4.5"',price:12},{size:'5"',price:12},{size:'5.5"',price:12},{size:'6"',price:24},{size:'6.5"',price:24},{size:'7"',price:24},{size:'7.5"',price:24}],
   mini:[{size:'1.8" (1 Set A4 / 24 pcs)',price:28.80,isMiniPack:true}]
 };
 let selectedShape=null,selectedOrientation="Landscape",selectedSizeObj=null,quantity=1,cart=[];
@@ -161,7 +163,8 @@ function selectShape(shapeId,el){
   el.classList.remove("border-slate-200","bg-white","text-slate-700");
   el.classList.add("border-emerald-600","bg-emerald-50","text-emerald-700","ring-2","ring-emerald-500/20");
   const ai=el.querySelector("i");if(ai){ai.classList.remove("text-slate-400");ai.classList.add("text-emerald-600")}
-  if(shapeId==="rectangular"){orientationSection.classList.remove("hidden");setOrientation("Landscape")}else orientationSection.classList.add("hidden");
+  const shapeObj=shapesData.find(s=>s.id===shapeId);
+  if(shapeObj?.hasOrientation){orientationSection.classList.remove("hidden");setOrientation("Landscape")}else orientationSection.classList.add("hidden");
   if(shapeId==="mini"){miniNotice.classList.remove("hidden");qtyUnitLabel.textContent="Set A4 (24pcs)"}else{miniNotice.classList.add("hidden");qtyUnitLabel.textContent="lembar/lapis"}
   renderSizeOptions(shapeId);
 }
@@ -202,7 +205,7 @@ function updateAddToCartButton(){
 function addItemToCart(){
   if(!selectedShape||!selectedSizeObj)return;
   const shapeObj=shapesData.find(s=>s.id===selectedShape);
-  cart.push({id:Date.now(),shapeId:selectedShape,shapeName:shapeObj.name,orientation:selectedShape==="rectangular"?selectedOrientation:null,size:selectedSizeObj.size,unitPrice:selectedSizeObj.price,quantity,totalPrice:selectedSizeObj.price*quantity,isMini:selectedShape==="mini"});
+  cart.push({id:Date.now(),shapeId:selectedShape,shapeName:shapeObj.name,orientation:shapeObj.hasOrientation?selectedOrientation:null,size:selectedSizeObj.size,unitPrice:selectedSizeObj.price,quantity,totalPrice:selectedSizeObj.price*quantity,isMini:selectedShape==="mini"});
   renderCart();showToast("Item ditambah ke dalam troli!");quantity=1;qtyInput.value=1;
 }
 function removeFromCart(id){cart=cart.filter(i=>i.id!==id);renderCart()}
