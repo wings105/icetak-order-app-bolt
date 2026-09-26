@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { IconRefresh, IconSearch } from '../components/Icons';
+import { IconRefresh, IconSearch, IconPhone, IconWhatsApp } from '../components/Icons';
 import './PickupCounter.css';
 
 const QR_URL = 'https://t3747262.p.clickup-attachments.com/t3747262/836016e0-e613-447b-b61a-291fddd3f83d_large.png';
@@ -39,6 +39,7 @@ type Props = {
   permissions?:string[];
   initialCustomer?:string;
   onOpenOrder?:(orderNo:string)=>void;
+  onOpenCustomer?:(customerId:string)=>void;
   kioskKey?:string;
 };
 
@@ -60,6 +61,17 @@ const customerName=(value:string|undefined)=>{
     || Boolean(phoneOf(candidate))
     || Boolean(bsuidOf(candidate))) return 'Customer';
   return candidate;
+};
+const CopyIcon=()=>(
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+  </svg>
+);
+const copyPhone=async(phone:string)=>{
+  try{await navigator.clipboard.writeText(phone);}
+  catch{
+    const el=document.createElement('textarea');el.value=phone;document.body.appendChild(el);el.select();document.execCommand('copy');el.remove();
+  }
 };
 const whatsappRecipient=(customer:Overview['customer'])=>{
   const phone=phoneOf(customer.phone);
@@ -146,12 +158,19 @@ function OrderCard({
   </article>;
 }
 
-function QueueCard({row,onOpen}:{row:SearchRow;onOpen:(id:string)=>void}){
+function QueueCard({row,onOpen,onOpenCustomer}:{row:SearchRow;onOpen:(id:string)=>void;onOpenCustomer?:(id:string)=>void}){
   const previewOrders=(row.readyOrders||[]).slice(0,4);
   const phone=phoneOf(row.phone);
   return <div className="pickup-queue-card" role="button" tabIndex={0} onClick={()=>onOpen(row.id)} onKeyDown={(event)=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onOpen(row.id)}}}>
     <div className="pickup-queue-card-top">
-      <div className="pickup-queue-identity"><strong>{customerName(row.name)}</strong>{phone?<div className="pickup-phone-links" onClick={(event)=>event.stopPropagation()}><a href={'whatsapp://send?phone='+phone}>{phone}</a><a href={'https://wa.me/'+phone} target="_blank" rel="noreferrer">WhatsApp</a></div>:<span>{row.bsuid||'No phone'}</span>}</div>
+      <div className="pickup-queue-identity">
+        <button type="button" className="pickup-customer-name-link" onClick={(event)=>{event.stopPropagation();onOpenCustomer?.(row.id)}}>{customerName(row.name)}</button>
+        {phone?<div className="pickup-phone-links" onClick={(event)=>event.stopPropagation()}>
+          <a className="pickup-phone-number" href={'whatsapp://send?phone='+phone}><IconPhone size={12}/><span>{phone}</span></a>
+          <button type="button" className="pickup-phone-icon-btn copy" title="Copy phone number" aria-label="Copy phone number" onClick={()=>void copyPhone(phone)}><CopyIcon/></button>
+          <a className="pickup-phone-icon-btn whatsapp" href={'https://wa.me/'+phone} target="_blank" rel="noreferrer" title="Open WhatsApp" aria-label="Open WhatsApp"><IconWhatsApp size={13}/></a>
+        </div>:<span>{row.bsuid||'No phone'}</span>}
+      </div>
       <span className="pickup-queue-count">{row.readyUnpaid} READY</span>
     </div>
     <div className="pickup-queue-orders">
@@ -166,7 +185,7 @@ function QueueCard({row,onOpen}:{row:SearchRow;onOpen:(id:string)=>void}){
   </div>;
 }
 
-export default function PickupCounter({permissions=[],initialCustomer='',onOpenOrder,kioskKey=''}:Props){
+export default function PickupCounter({permissions=[],initialCustomer='',onOpenOrder,onOpenCustomer,kioskKey=''}:Props){
   const canPay=permissions.includes('verify_payments');
   const canHandover=canPay||permissions.includes('approve_production');
   const [query,setQuery]=useState('');
@@ -532,12 +551,12 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
 
     {!overview&&searchRows.length>0?<section className="pickup-queue-section">
       <div className="pickup-queue-heading"><div><h2>Hasil carian</h2><p>Ready pickup dan belum bayar dipaparkan dahulu.</p></div><button type="button" className="btn btn-outline" onClick={resetToQueue}>Semua Ready</button></div>
-      <div className="pickup-queue-grid">{searchRows.map((row)=><QueueCard key={row.id} row={row} onOpen={(id)=>void loadOverview(id)}/>)}</div>
+      <div className="pickup-queue-grid">{searchRows.map((row)=><QueueCard key={row.id} row={row} onOpen={(id)=>void loadOverview(id)} onOpenCustomer={onOpenCustomer}/>)}</div>
     </section>:null}
 
     {!overview&&!searched&&!searchRows.length?<section className="pickup-queue-section">
       <div className="pickup-queue-heading"><div><h2>Ready · Belum Bayar</h2><p>{queue?.rows.length||0} customer · {queue?.orderCount||0} order siap</p></div><strong>{money(queue?.totalAmount||0)}</strong></div>
-      {queue?.rows.length?<div className="pickup-queue-grid">{queue.rows.map((row)=><QueueCard key={row.id} row={row} onOpen={(id)=>void loadOverview(id)}/>)}</div>
+      {queue?.rows.length?<div className="pickup-queue-grid">{queue.rows.map((row)=><QueueCard key={row.id} row={row} onOpen={(id)=>void loadOverview(id)} onOpenCustomer={onOpenCustomer}/>)}</div>
         :loading?<div className="pickup-queue-empty">Loading pickup queue…</div>:<div className="pickup-queue-empty">Tiada order ready yang belum dibayar.</div>}
     </section>:null}
 
@@ -545,7 +564,14 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
 
     {overview?<>
       <section className="pickup-customer">
-        <div><button type="button" className="pickup-back" onClick={resetToQueue}>← Back</button><span>Customer</span><h2>{customerName(overview.customer.name)}</h2>{phoneOf(overview.customer.phone)?<div className="pickup-phone-links dark"><a href={'whatsapp://send?phone='+phoneOf(overview.customer.phone)}>{phoneOf(overview.customer.phone)}</a><a href={'https://wa.me/'+phoneOf(overview.customer.phone)} target="_blank" rel="noreferrer">WhatsApp</a></div>:<p>{overview.customer.bsuid||'No phone linked'}</p>}</div>
+        <div><button type="button" className="pickup-back" onClick={resetToQueue}>← Back</button><span>Customer</span>
+          <button type="button" className="pickup-customer-name-link detail" onClick={()=>onOpenCustomer?.(overview.customer.id)}>{customerName(overview.customer.name)}</button>
+          {phoneOf(overview.customer.phone)?<div className="pickup-phone-links dark">
+            <a className="pickup-phone-number" href={'whatsapp://send?phone='+phoneOf(overview.customer.phone)}><IconPhone size={12}/><span>{phoneOf(overview.customer.phone)}</span></a>
+            <button type="button" className="pickup-phone-icon-btn copy" title="Copy phone number" aria-label="Copy phone number" onClick={()=>void copyPhone(phoneOf(overview.customer.phone))}><CopyIcon/></button>
+            <a className="pickup-phone-icon-btn whatsapp" href={'https://wa.me/'+phoneOf(overview.customer.phone)} target="_blank" rel="noreferrer" title="Open WhatsApp" aria-label="Open WhatsApp"><IconWhatsApp size={13}/></a>
+          </div>:<p>{overview.customer.bsuid||'No phone linked'}</p>}
+        </div>
         <div className="pickup-customer-actions">
           <button className="btn btn-outline" disabled={busy!==''} onClick={()=>void createLink(false)}>Copy Link</button>
           <button className="btn btn-outline" disabled={busy!==''} onClick={()=>void createLink(true)}>Copy Text</button>
