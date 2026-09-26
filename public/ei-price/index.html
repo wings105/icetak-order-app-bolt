@@ -76,7 +76,7 @@
           <button type="button" id="btn-minus" class="w-10 h-10 rounded-xl border border-slate-300 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-50 active:scale-95 transition-all"><i class="fa-solid fa-minus"></i></button>
           <input type="number" id="qty-input" min="1" value="1" readonly class="w-20 h-10 text-center font-extrabold text-lg border border-slate-300 rounded-xl bg-slate-50 text-slate-800">
           <button type="button" id="btn-plus" class="w-10 h-10 rounded-xl border border-slate-300 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-50 active:scale-95 transition-all"><i class="fa-solid fa-plus"></i></button>
-          <span id="qty-unit-label" class="text-xs text-slate-500 font-semibold">lembar / lapis</span>
+          <span id="qty-unit-label" class="text-xs text-slate-500 font-semibold">pcs</span>
         </div>
       </div>
 
@@ -137,8 +137,16 @@ const shapesData=[
 const sizesData={
   round:[{size:'2"',price:6},{size:'3"',price:6},{size:'3.5"',price:6},{size:'4"',price:6},{size:'4.5"',price:12},{size:'5"',price:12},{size:'5.5"',price:12},{size:'6"',price:24},{size:'6.5"',price:24},{size:'7"',price:24},{size:'7.5"',price:24}],
   square:[{size:'2"',price:6},{size:'3"',price:6},{size:'3.5"',price:6},{size:'4"',price:12},{size:'4.5"',price:12},{size:'5"',price:12},{size:'5.5"',price:12},{size:'6"',price:24},{size:'6.5"',price:24},{size:'7"',price:24},{size:'7.5"',price:24}],
-  rectangular:[{size:'A6 Full',price:6},{size:'A5 Full',price:12},{size:'A4 Full',price:24}],
-  custom:[{size:'Custom A6',price:6},{size:'Custom A5',price:12},{size:'Custom A4',price:24}],
+  rectangular:[
+    {size:'A6 Full',maxSize:'Max 3.7" × 5.5"',price:6},
+    {size:'A5 Full',maxSize:'Max 5.5" × 7.5"',price:12},
+    {size:'A4 Full',maxSize:'Max 7.5" × 11"',price:24}
+  ],
+  custom:[
+    {size:'Custom A6',maxSize:'Max 3.7" × 5.5"',price:6},
+    {size:'Custom A5',maxSize:'Max 5.5" × 7.5"',price:12},
+    {size:'Custom A4',maxSize:'Max 7.5" × 11"',price:24}
+  ],
   love:[{size:'2"',price:6},{size:'3"',price:6},{size:'3.5"',price:6},{size:'4"',price:6},{size:'4.5"',price:12},{size:'5"',price:12},{size:'5.5"',price:12},{size:'6"',price:24},{size:'6.5"',price:24},{size:'7"',price:24},{size:'7.5"',price:24}],
   mini:[
     {size:'1" (2.5 cm)',qtyPerA4:70,price:24,isMiniPack:true},
@@ -183,7 +191,7 @@ function selectShape(shapeId,el){
   const ai=el.querySelector("i");if(ai){ai.classList.remove("text-slate-400");ai.classList.add("text-emerald-600")}
   const shapeObj=shapesData.find(s=>s.id===shapeId);
   if(shapeObj?.hasOrientation){orientationSection.classList.remove("hidden");setOrientation("Landscape")}else orientationSection.classList.add("hidden");
-  if(shapeId==="mini"){miniNotice.classList.remove("hidden");qtyUnitLabel.textContent="Set A4"}else{miniNotice.classList.add("hidden");qtyUnitLabel.textContent="lembar/lapis"}
+  if(shapeId==="mini"){miniNotice.classList.remove("hidden");qtyUnitLabel.textContent="Set A4"}else{miniNotice.classList.add("hidden");qtyUnitLabel.textContent="pcs"}
   renderSizeOptions(shapeId);
 }
 function setOrientation(o){
@@ -200,7 +208,7 @@ function renderSizeOptions(shapeId){
   (sizesData[shapeId]||[]).forEach(sz=>{
     const btn=document.createElement("button");
     btn.type="button";btn.className="size-btn flex flex-col justify-between p-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 text-left hover:border-emerald-500 transition-all";
-    btn.innerHTML='<div><div class="font-bold text-xs text-slate-800">'+sz.size+'</div>'+(sz.qtyPerA4 ? '<div class="text-[10px] text-slate-500 mt-1">Kuantiti: <span class="font-bold text-slate-700">'+sz.qtyPerA4+' pcs/A4</span></div>' : '')+'</div><div class="text-[11px] font-semibold text-emerald-600 mt-1.5">RM '+sz.price.toFixed(2)+"</div>";
+    btn.innerHTML='<div><div class="font-bold text-xs text-slate-800">'+sz.size+'</div>'+(sz.maxSize ? '<div class="text-[10px] text-slate-500 mt-1 font-medium">'+sz.maxSize+'</div>' : '')+(sz.qtyPerA4 ? '<div class="text-[10px] text-slate-500 mt-1">Kuantiti: <span class="font-bold text-slate-700">'+sz.qtyPerA4+' pcs/A4</span></div>' : '')+'</div><div class="text-[11px] font-semibold text-emerald-600 mt-1.5">RM '+sz.price.toFixed(2)+"</div>";
     btn.onclick=()=>selectSize(sz,btn);sizeContainer.appendChild(btn);
   });
 }
@@ -223,7 +231,7 @@ function updateAddToCartButton(){
 function addItemToCart(){
   if(!selectedShape||!selectedSizeObj)return;
   const shapeObj=shapesData.find(s=>s.id===selectedShape);
-  cart.push({id:Date.now(),shapeId:selectedShape,shapeName:shapeObj.name,orientation:shapeObj.hasOrientation?selectedOrientation:null,size:selectedSizeObj.size,qtyPerA4:selectedSizeObj.qtyPerA4||null,unitPrice:selectedSizeObj.price,quantity,totalPrice:selectedSizeObj.price*quantity,isMini:selectedShape==="mini"});
+  cart.push({id:Date.now(),shapeId:selectedShape,shapeName:shapeObj.name,orientation:shapeObj.hasOrientation?selectedOrientation:null,size:selectedSizeObj.size,maxSize:selectedSizeObj.maxSize||null,qtyPerA4:selectedSizeObj.qtyPerA4||null,unitPrice:selectedSizeObj.price,quantity,totalPrice:selectedSizeObj.price*quantity,isMini:selectedShape==="mini"});
   renderCart();showToast("Item ditambah ke dalam troli!");quantity=1;qtyInput.value=1;
 }
 function removeFromCart(id){cart=cart.filter(i=>i.id!==id);renderCart()}
@@ -240,7 +248,7 @@ function renderCart(){
     total+=item.totalPrice;count+=item.quantity;
     const div=document.createElement("div");div.className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs";
     const orient=item.orientation?" ("+item.orientation+")":"";
-    div.innerHTML='<div class="pr-2"><div class="font-bold text-slate-800">'+item.shapeName+orient+'</div><div class="text-slate-500 font-medium">Saiz: <span class="text-slate-700 font-semibold">'+item.size+'</span></div>'+(item.qtyPerA4 ? '<div class="text-slate-500 font-medium">Kuantiti: <span class="text-slate-700 font-semibold">'+item.qtyPerA4+' pcs/A4</span></div>' : '')+'<div class="text-slate-500 font-medium mt-0.5">RM '+item.unitPrice.toFixed(2)+" × "+item.quantity+" "+(item.isMini?"Set A4":"lapis")+'</div></div><div class="flex items-center space-x-3"><span class="font-extrabold text-emerald-700 text-sm">RM '+item.totalPrice.toFixed(2)+'</span><button type="button" onclick="removeFromCart('+item.id+')" class="text-slate-400 hover:text-rose-500 transition-colors p-1"><i class="fa-solid fa-xmark text-sm"></i></button></div>';
+    div.innerHTML='<div class="pr-2"><div class="font-bold text-slate-800">'+item.shapeName+orient+'</div><div class="text-slate-500 font-medium">Saiz: <span class="text-slate-700 font-semibold">'+item.size+'</span></div>'+(item.maxSize ? '<div class="text-slate-500 font-medium">'+item.maxSize+'</div>' : '')+(item.qtyPerA4 ? '<div class="text-slate-500 font-medium">Kuantiti: <span class="text-slate-700 font-semibold">'+item.qtyPerA4+' pcs/A4</span></div>' : '')+'<div class="text-slate-500 font-medium mt-0.5">RM '+item.unitPrice.toFixed(2)+" × "+item.quantity+" "+(item.isMini?"Set A4":"pcs")+'</div></div><div class="flex items-center space-x-3"><span class="font-extrabold text-emerald-700 text-sm">RM '+item.totalPrice.toFixed(2)+'</span><button type="button" onclick="removeFromCart('+item.id+')" class="text-slate-400 hover:text-rose-500 transition-colors p-1"><i class="fa-solid fa-xmark text-sm"></i></button></div>';
     cartItemsContainer.appendChild(div);
   });
   grandTotalEl.textContent="RM "+total.toFixed(2);cartCountEl.textContent=count+" item";
@@ -252,6 +260,7 @@ function buildWhatsAppText(total){
     const o=item.orientation?" ("+item.orientation+")":"";
     text+=(idx+1)+". *"+item.shapeName+o+"*\n";
     text+="   • Saiz: "+item.size+"\n";
+    if(item.maxSize) text+="   • "+item.maxSize+"\n";
     if(item.qtyPerA4) text+="   • Kuantiti per A4: "+item.qtyPerA4+" pcs\n";
     text+="   • Kuantiti: "+item.quantity+"\n";
     text+="   • Subtotal: RM "+item.totalPrice.toFixed(2)+"\n\n";
