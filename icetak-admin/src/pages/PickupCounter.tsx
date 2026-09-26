@@ -39,6 +39,7 @@ type Props = {
   permissions?:string[];
   initialCustomer?:string;
   onOpenOrder?:(orderNo:string)=>void;
+  kioskKey?:string;
 };
 
 const money=(value:number)=>`RM ${Number(value||0).toFixed(2)}`;
@@ -164,7 +165,7 @@ function QueueCard({row,onOpen}:{row:SearchRow;onOpen:(id:string)=>void}){
   </button>;
 }
 
-export default function PickupCounter({permissions=[],initialCustomer='',onOpenOrder}:Props){
+export default function PickupCounter({permissions=[],initialCustomer='',onOpenOrder,kioskKey=''}:Props){
   const canPay=permissions.includes('verify_payments');
   const canHandover=canPay||permissions.includes('approve_production');
   const [query,setQuery]=useState('');
@@ -182,32 +183,57 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
   const [error,setError]=useState('');
   const [preview,setPreview]=useState<{src:string;title:string}|null>(null);
   const [cashConfirm,setCashConfirm]=useState(false);
+  const [cashHandledBy,setCashHandledBy]=useState('');
   const [voidConfirm,setVoidConfirm]=useState(false);
   const [voidReason,setVoidReason]=useState('Staff tersalah rekod payment');
   const [receiptReview,setReceiptReview]=useState<{url:string;fileName:string;mimeType:string}|null>(null);
   const [receiptReference,setReceiptReference]=useState('');
 
+  const callRpc=useCallback(async<T,>(name:string,args:Record<string,unknown>={})=>{
+    if(!kioskKey)return rpc<T>(name,args);
+    const {data,error}=await supabase.functions.invoke('pickup-kiosk',{
+      body:{key:kioskKey,kind:'rpc',name,args},
+    });
+    if(error)throw new Error(await functionErrorMessage(error));
+    if(data?.ok===false)throw new Error(data.error||'Kiosk request gagal.');
+    return data?.data as T;
+  },[kioskKey]);
+
+  const invokeFunction=useCallback(async<T,>(name:string,body:Record<string,unknown>)=>{
+    if(!kioskKey){
+      const {data,error}=await supabase.functions.invoke(name,{body});
+      if(error)throw new Error(await functionErrorMessage(error));
+      return data as T;
+    }
+    const {data,error}=await supabase.functions.invoke('pickup-kiosk',{
+      body:{key:kioskKey,kind:'function',name,args:body},
+    });
+    if(error)throw new Error(await functionErrorMessage(error));
+    if(data?.ok===false)throw new Error(data.error||'Kiosk request gagal.');
+    return data?.data as T;
+  },[kioskKey]);
+
   const loadQueue=useCallback(async()=>{
     setLoading(true);setError('');
     try{
-      const data=await rpc<ReadyQueue>('icetak_admin_pickup_ready_queue',{p_limit:80});
+      const data=await callRpc<ReadyQueue>('icetak_admin_pickup_ready_queue',{p_limit:80});
       setQueue(data);
     }catch(err:any){setError(err?.message||'Gagal load ready pickup queue');}
     finally{setLoading(false);}
-  },[]);
+  },[callRpc]);
 
   const loadLatestPaidCheckout=useCallback(async(id:string)=>{
     try{
-      const data=await rpc<{checkout:Checkout|null}>('icetak_admin_pickup_latest_paid_checkout',{p_customer_master_id:id});
+      const data=await callRpc<{checkout:Checkout|null}>('icetak_admin_pickup_latest_paid_checkout',{p_customer_master_id:id});
       setCheckout((current)=>data.checkout||(current&&!current.paid?current:null));
     }catch{/* overview remains usable if the optional paid lookup is unavailable */}
-  },[]);
+  },[callRpc]);
 
   const loadOverview=useCallback(async(id:string,keepSelection=false)=>{
     if(!id)return;
     setLoading(true);setError('');
     try{
-      const data=await rpc<Overview>('icetak_admin_pickup_customer_overview',{p_customer_master_id:id});
+      const data=await callRpc<Overview>('icetak_admin_pickup_customer_overview',{p_customer_master_id:id});
       setOverview(data);setSearchRows([]);setSearched(false);
       if(!keepSelection){
         setPaySelected(new Set(data.orders.filter((order)=>order.group==='ready_unpaid').map((order)=>order.id)));
@@ -238,7 +264,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
     }
     setLoading(true);setError('');setOverview(null);setCheckout(null);
     try{
-      const data=await rpc<{ok:boolean;rows:SearchRow[]}>('icetak_admin_pickup_customer_search',{p_query:query,p_limit:20});
+      const data=await callRpc<{ok:boolean;rows:SearchRow[]}>('icetak_admin_pickup_customer_search',{p_query:query,p_limit:20});
       const rows=(data.rows||[]).sort((left,right)=>right.readyUnpaid-left.readyUnpaid||right.readyAmount-left.readyAmount||left.name.localeCompare(right.name));
       const ready=rows.filter((row)=>row.readyUnpaid>0);
       const visible=ready.length?ready:rows;
@@ -271,7 +297,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
       orders:current.orders.map((order)=>order.id===id?{...order,paymentWhatsappEnabled:enabled}:order),
     }:current);
     try{
-      await rpc<{ok:boolean;enabled:boolean}>('icetak_admin_set_pickup_payment_whatsapp',{
+      await callRpc<{ok:boolean;enabled:boolean}>('icetak_admin_set_pickup_payment_whatsapp',{
         p_order_id:id,
         p_enabled:enabled,
       });
@@ -287,23 +313,31 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
   const createCheckout=async(method:'cash'|'qrpay')=>{
     if(!overview||paySelected.size===0)return;
     if(!canPay){setError('Permission verify_payments diperlukan.');return;}
+    if(method==='cash'&&!cashHandledBy){setError('Pilih nama staff yang menerima bayaran.');return;}
     setBusy(method);setError('');setNotice('');
     const readyIds=selectedOrders.filter((order)=>order.ready).map((order)=>order.id);
     try{
-      const data=await rpc<Checkout>('icetak_admin_create_pickup_checkout',{
-        p_customer_master_id:overview.customer.id,
-        p_order_ids:Array.from(paySelected),
-        p_method:method,p_source:'counter',
-      });
+      const data=method==='cash'
+        ?await callRpc<Checkout>('icetak_admin_create_pickup_checkout_attributed',{
+          p_customer_master_id:overview.customer.id,
+          p_order_ids:Array.from(paySelected),
+          p_method:method,p_source:kioskKey?'pickup_kiosk':'counter',
+          p_handled_by:cashHandledBy,
+        })
+        :await callRpc<Checkout>('icetak_admin_create_pickup_checkout',{
+          p_customer_master_id:overview.customer.id,
+          p_order_ids:Array.from(paySelected),
+          p_method:method,p_source:'counter',
+        });
       setCheckout(data);
       setCheckoutReadyIds(readyIds);
       setNotice(method==='cash'
-        ? `Bayaran cash ${money(data.amount)} sudah direkod untuk ${paySelected.size} order.`
+        ? `Bayaran cash ${money(data.amount)} sudah direkod oleh ${cashHandledBy} untuk ${paySelected.size} order.`
         : data.reused
           ? `QRPay ${money(data.amount)} sedia ada disambung semula. Tunggu transaksi dipadankan.`
           : `QRPay ${money(data.amount)} sudah disediakan. Tunggu transaksi dipadankan.`);
       if(method==='cash'){
-        setCashConfirm(false);
+        setCashConfirm(false);setCashHandledBy('');
         setPaySelected(new Set());
         setHandoverSelected(new Set(readyIds));
         await loadOverview(overview.customer.id,true);
@@ -319,7 +353,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
     if(!checkout?.paid||!checkout.checkoutId)return;
     setBusy('void');setError('');setNotice('');
     try{
-      await rpc<{ok:boolean}>('icetak_admin_void_pickup_payment',{
+      await callRpc<{ok:boolean}>('icetak_admin_void_pickup_payment',{
         p_checkout_id:checkout.checkoutId,
         p_reason:voidReason,
       });
@@ -335,10 +369,9 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
     if(!checkout?.checkoutId||!canPay)return;
     setBusy('receipt-view');setError('');
     try{
-      const {data,error:reviewError}=await supabase.functions.invoke('pickup-receipt',{
-        body:{action:'admin_view',checkout_id:checkout.checkoutId},
+      const data=await invokeFunction<any>('pickup-receipt',{
+        action:'admin_view',checkout_id:checkout.checkoutId,
       });
-      if(reviewError)throw new Error(await functionErrorMessage(reviewError));
       if(!data?.ok||!data.url)throw new Error(data?.error||'Tidak dapat membuka resit.');
       setReceiptReference('');
       setReceiptReview({url:data.url,fileName:data.fileName||'receipt',mimeType:data.mimeType||''});
@@ -353,7 +386,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
       .filter((order)=>order.ready&&(checkout.orderIds||[]).includes(order.id))
       .map((order)=>order.id);
     try{
-      const result=await rpc<Checkout>('icetak_admin_confirm_pickup_receipt',{
+      const result=await callRpc<Checkout>('icetak_admin_confirm_pickup_receipt',{
         p_checkout_id:checkout.checkoutId,
         p_transaction_reference:receiptReference.trim(),
         p_note:'Payment verified against uploaded customer receipt and bank transaction',
@@ -375,7 +408,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
     if(!activeCheckoutId||activeCheckoutPaid)return;
     const timer=window.setInterval(async()=>{
       try{
-        const status=await rpc<Checkout>('icetak_admin_pickup_checkout_status',{p_checkout_id:activeCheckoutId});
+        const status=await callRpc<Checkout>('icetak_admin_pickup_checkout_status',{p_checkout_id:activeCheckoutId});
         setCheckout(status);
         if(status.paid&&activeCustomerId){
           setNotice(`QRPay matched: ${status.transactionId||status.checkoutNo}. Semua order dipilih sudah PAID.`);
@@ -390,13 +423,13 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
       }catch{/* keep polling until staff leaves the page */}
     },4000);
     return()=>window.clearInterval(timer);
-  },[activeCheckoutId,activeCheckoutPaid,activeCustomerId,checkoutReadyIds,loadOverview,loadQueue]);
+  },[activeCheckoutId,activeCheckoutPaid,activeCustomerId,checkoutReadyIds,loadOverview,loadQueue,callRpc]);
 
   const handover=async()=>{
     if(!overview||handoverSelected.size===0||!canHandover)return;
     setBusy('handover');setError('');
     try{
-      const result=await rpc<{handoverNo:string;orderCount:number}>('icetak_admin_pickup_handover',{
+      const result=await callRpc<{handoverNo:string;orderCount:number}>('icetak_admin_pickup_handover',{
         p_customer_master_id:overview.customer.id,
         p_order_ids:Array.from(handoverSelected),
         p_checkout_id:checkout?.paid?checkout.checkoutId:null,
@@ -410,7 +443,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
 
   const prepareMessage=async()=>{
     if(!overview)throw new Error('Customer belum dipilih.');
-    const access=await rpc<{path:string}>('icetak_admin_create_pickup_access',{p_customer_master_id:overview.customer.id});
+    const access=await callRpc<{path:string}>('icetak_admin_create_pickup_access',{p_customer_master_id:overview.customer.id});
     const link=new URL(access.path,window.location.origin).toString();
     const ready=overview.orders.filter((order)=>order.group==='ready_unpaid');
     const total=ready.reduce((sum,order)=>sum+Number(order.balance||0),0);
@@ -464,10 +497,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
           pickup_location:'Bandar Baru Pasir Puteh',
         },
       };
-      const {data,error:sendError}=await supabase.functions.invoke('whatsapp-send',{body:payload});
-      if(sendError){
-        throw new Error(await functionErrorMessage(sendError));
-      }
+      const data=await invokeFunction<any>('whatsapp-send',payload);
       if(data?.ok===false)throw new Error(data.error||'Penghantaran WhatsApp gagal.');
       setNotice(`WhatsApp berjaya dihantar${data?.mode?` melalui ${data.mode==='text'?'free-form':'approved template'}`:''}.`);
     }catch(err:any){setError(err?.message||'Penghantaran WhatsApp gagal.');}
@@ -514,7 +544,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
 
     {overview?<>
       <section className="pickup-customer">
-        <div><button type="button" className="pickup-back" onClick={resetToQueue}>← Ready Queue</button><span>Customer</span><h2>{customerName(overview.customer.name)}</h2><p>{overview.customer.phone?'+'.concat(overview.customer.phone.replace(/^\+/,'')):overview.customer.bsuid||'No phone linked'}</p></div>
+        <div><button type="button" className="pickup-back" onClick={resetToQueue}>← Back</button><span>Customer</span><h2>{customerName(overview.customer.name)}</h2><p>{overview.customer.phone?'+'.concat(overview.customer.phone.replace(/^\+/,'')):overview.customer.bsuid||'No phone linked'}</p></div>
         <div className="pickup-customer-actions">
           <button className="btn btn-outline" disabled={busy!==''} onClick={()=>void createLink(false)}>Copy Link</button>
           <button className="btn btn-outline" disabled={busy!==''} onClick={()=>void createLink(true)}>Copy Text</button>
@@ -547,7 +577,7 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
           {selectedOrders.map((order)=><div className="pickup-summary-line" key={order.id}><span>{order.orderNo}{!order.ready?' · PROCESSING':''}</span><b>{money(order.balance)}</b></div>)}
           {hasProcessing?<div className="pickup-warning">Ada order belum siap dipilih. Ia akan menjadi PAID, tetapi kekal PROCESSING dan tidak boleh handover.</div>:null}
           <button className="btn btn-primary pickup-main-action" disabled={!canPay||!paySelected.size||busy!==''} onClick={()=>void createCheckout('qrpay')}>{busy==='qrpay'?'Menyediakan…':'Generate 1 QRPay'}</button>
-          <button className="btn pickup-pay-full pickup-main-action" disabled={!canPay||!paySelected.size||busy!==''} onClick={()=>setCashConfirm(true)}>Pay Full Cash</button>
+          <button className="btn pickup-pay-full pickup-main-action" disabled={!canPay||!paySelected.size||busy!==''} onClick={()=>{setCashHandledBy('');setCashConfirm(true);}}>Pay Full Cash</button>
           {checkout?.receiptSubmitted&&!checkout.paid?<div className="pickup-receipt-review">
             <span className="pickup-summary-label">PROOF SUBMITTED · ADMIN REVIEW</span>
             <strong>{money(checkout.amount)}</strong>
@@ -587,7 +617,11 @@ export default function PickupCounter({permissions=[],initialCustomer='',onOpenO
         <h2 id="pickup-cash-confirm-title">Terima bayaran penuh?</h2>
         <p>Ini akan merekod <b>{money(payTotal)}</b> sebagai payment diterima untuk <b>{paySelected.size} order</b>. Semua order yang dipilih akan jadi PAID.</p>
         {selectedOrders.length?<div className="pickup-modal-list">{selectedOrders.map((order)=><div key={order.id}><span>{order.orderNo}<small className={order.paymentWhatsappEnabled!==false?'wa-on':'wa-off'}>WhatsApp {order.paymentWhatsappEnabled!==false?'ON':'OFF'}</small></span><b>{money(order.balance)}</b></div>)}</div>:null}
-        <div className="pickup-modal-actions"><button type="button" className="btn btn-outline" disabled={busy==='cash'} onClick={()=>setCashConfirm(false)}>Batal</button><button type="button" className="btn pickup-pay-full" disabled={busy==='cash'} onClick={()=>void createCheckout('cash')}>{busy==='cash'?'Merekod…':'Ya, Payment Received'}</button></div>
+        <div className="pickup-handler-label">Siapa yang remark payment ini?</div>
+        <div className="pickup-handler-grid">
+          {['Nurul','Imah','Aisy','Fadlin','Owner'].map((name)=><button key={name} type="button" className={`pickup-handler-button ${cashHandledBy===name.toLowerCase()?'selected':''}`} disabled={busy==='cash'} onClick={()=>setCashHandledBy(name.toLowerCase())}>{name}</button>)}
+        </div>
+        <div className="pickup-modal-actions"><button type="button" className="btn btn-outline" disabled={busy==='cash'} onClick={()=>{setCashConfirm(false);setCashHandledBy('');}}>Batal</button><button type="button" className="btn pickup-confirm-danger" disabled={busy==='cash'||!cashHandledBy} onClick={()=>void createCheckout('cash')}>{busy==='cash'?'Merekod…':cashHandledBy?`Confirm — ${cashHandledBy.charAt(0).toUpperCase()+cashHandledBy.slice(1)}`:'Pilih Nama Dulu'}</button></div>
       </section>
     </div>:null}
     {receiptReview&&checkout?<div className="pickup-modal-backdrop" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget&&busy!=='receipt-confirm')setReceiptReview(null)}}>
