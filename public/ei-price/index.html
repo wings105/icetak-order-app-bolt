@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kalkulator Tempahan Edible Image</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body{font-family:'Plus Jakarta Sans',sans-serif;background:#f0fdf4}
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#f1f5f9}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+  </style>
+</head>
+<body class="p-3 sm:p-5 text-slate-800 antialiased min-h-screen flex flex-col items-center justify-start">
+  <header class="w-full max-w-lg mb-4 text-center">
+    <div class="inline-flex items-center justify-center p-3 bg-emerald-100 rounded-2xl text-emerald-600 mb-2 shadow-sm border border-emerald-200/60">
+      <i class="fa-solid fa-cake-candles text-2xl"></i>
+    </div>
+    <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Kalkulator Edible Image</h1>
+    <p class="text-xs md:text-sm text-slate-600 mt-1 font-medium">Tempah cetakan gambar kek mudah & pantas</p>
+    <div class="inline-flex items-center space-x-1.5 mt-2 px-3 py-1 bg-white/80 border border-emerald-200 rounded-full text-xs font-semibold text-emerald-800 shadow-xs">
+      <i class="fa-brands fa-whatsapp text-emerald-600"></i><span>WhatsApp: 017-9860656</span>
+    </div>
+  </header>
+
+  <main class="w-full max-w-lg space-y-4">
+    <div class="bg-white rounded-2xl shadow-sm border border-emerald-100 p-4 md:p-5">
+      <div class="flex items-center space-x-2 border-b border-slate-100 pb-3 mb-4">
+        <span class="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white shadow-xs">1</span>
+        <h2 class="font-bold text-slate-800 text-base">Pilih Spesifikasi Cetakan</h2>
+      </div>
+
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">1. Pilih Bentuk (*Shape*)</label>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" id="shape-options"></div>
+      </div>
+
+      <div id="orientation-section" class="hidden mb-5 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center justify-between">
+          <span>1b. Pilih Orientasi</span><span class="text-[10px] normal-case text-slate-400 font-normal">*Khusus Segi Empat Tepat</span>
+        </label>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" id="orient-landscape" class="orient-btn py-2 px-3 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 flex items-center justify-center space-x-2 transition-all">
+            <i class="fa-solid fa-file-image rotate-90 text-slate-400"></i><span>Melintang (*Landscape*)</span>
+          </button>
+          <button type="button" id="orient-portrait" class="orient-btn py-2 px-3 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 flex items-center justify-center space-x-2 transition-all">
+            <i class="fa-solid fa-file-image text-slate-400"></i><span>Menegak (*Portrait*)</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="mb-5">
+        <div class="flex justify-between items-center mb-2">
+          <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">2. Pilih Saiz (*Size*)</label>
+          <span id="price-badge" class="hidden text-xs font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">RM 0.00</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" id="size-options">
+          <div class="col-span-full text-center py-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">Sila pilih bentuk terlebih dahulu</div>
+        </div>
+        <div id="mini-notice" class="hidden mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs flex items-start space-x-2">
+          <i class="fa-solid fa-circle-info text-amber-500 mt-0.5"></i>
+          <span>Saiz Mini 1.8" dicetak 24 keping/A4 (RM1.20/pc atau RM28.80 sehelai A4).</span>
+        </div>
+      </div>
+
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">3. Kuantiti / Bilangan Lapis</label>
+        <div class="flex items-center space-x-3">
+          <button type="button" id="btn-minus" class="w-10 h-10 rounded-xl border border-slate-300 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-50 active:scale-95 transition-all"><i class="fa-solid fa-minus"></i></button>
+          <input type="number" id="qty-input" min="1" value="1" readonly class="w-20 h-10 text-center font-extrabold text-lg border border-slate-300 rounded-xl bg-slate-50 text-slate-800">
+          <button type="button" id="btn-plus" class="w-10 h-10 rounded-xl border border-slate-300 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-50 active:scale-95 transition-all"><i class="fa-solid fa-plus"></i></button>
+          <span id="qty-unit-label" class="text-xs text-slate-500 font-semibold">lembar / lapis</span>
+        </div>
+      </div>
+
+      <button id="add-to-cart-btn" disabled class="w-full bg-slate-200 text-slate-400 font-bold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 transition-all cursor-not-allowed">
+        <i class="fa-solid fa-cart-plus"></i><span>Tambah ke Troli</span>
+      </button>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-emerald-100 p-4 md:p-5">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+        <div class="flex items-center space-x-2">
+          <span class="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white shadow-xs">2</span>
+          <h2 class="font-bold text-slate-800 text-base">Troli Pesanan Anda</h2>
+        </div>
+        <span id="cart-count" class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-2.5 py-1 rounded-full">0 item</span>
+      </div>
+
+      <div id="cart-items" class="space-y-2.5 max-h-60 overflow-y-auto pr-1 my-3">
+        <div id="empty-cart-msg" class="text-center py-8 text-slate-400 text-xs">
+          <i class="fa-solid fa-basket-shopping text-3xl mb-2 opacity-30 text-emerald-600"></i><p>Troli anda masih kosong.</p>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 pt-3 mt-3">
+        <div class="flex justify-between items-center mb-3 bg-emerald-50/60 p-3 rounded-xl border border-emerald-100">
+          <span class="text-xs sm:text-sm font-bold text-slate-700">Jumlah Keseluruhan:</span>
+          <span id="grand-total" class="text-2xl font-black text-emerald-600">RM 0.00</span>
+        </div>
+        <a id="btn-send-wa" href="#" target="_blank" class="w-full mb-2 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold py-3.5 px-4 rounded-xl flex items-center justify-center space-x-2 shadow-md shadow-emerald-600/20 transition-all pointer-events-none opacity-50">
+          <i class="fa-brands fa-whatsapp text-xl"></i><span class="text-sm">Hantar Pesanan ke WhatsApp</span>
+        </a>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="btn-copy-wa" disabled class="w-full bg-slate-100 hover:bg-slate-200 active:scale-[0.98] text-slate-700 font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center space-x-1.5 transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed">
+            <i class="fa-regular fa-copy"></i><span>Salin Teks WA</span>
+          </button>
+          <button id="btn-clear-cart" disabled class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center space-x-1 transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed">
+            <i class="fa-solid fa-trash-can"></i><span>Kosongkan</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white text-xs font-medium px-4 py-2.5 rounded-full shadow-lg flex items-center space-x-2 transition-all duration-300 opacity-0 pointer-events-none translate-y-4 z-50">
+      <i class="fa-solid fa-circle-check text-emerald-400"></i><span id="toast-msg">Mesej disalin!</span>
+    </div>
+  </main>
+
+<script>
+const WA_NUMBER="60179860656";
+const shapesData=[
+  {id:"round",name:"Bulat (Round)",icon:"fa-circle"},
+  {id:"square",name:"Petak (Square)",icon:"fa-square"},
+  {id:"rectangular",name:"Segi 4 Tepat",icon:"fa-vector-square",hasOrientation:true},
+  {id:"love",name:"Bentuk Hati",icon:"fa-heart"},
+  {id:"mini",name:"Mini / Cupcake",icon:"fa-grip"}
+];
+const sizesData={
+  round:[{size:'3"',price:6},{size:'3.5"',price:6},{size:'4"',price:6},{size:'4.5"',price:12},{size:'5"',price:12},{size:'5.5"',price:12},{size:'6"',price:24},{size:'6.5"',price:24},{size:'7"',price:24},{size:'7.5"',price:24},{size:'8"',price:24}],
+  square:[{size:'3"',price:6},{size:'3.5"',price:6},{size:'4"',price:12},{size:'4.5"',price:12},{size:'5"',price:12},{size:'5.5"',price:12},{size:'6"',price:24},{size:'6.5"',price:24},{size:'7"',price:24},{size:'7.5"',price:24},{size:'8"',price:24}],
+  rectangular:[{size:'5.5" x 3.7"',price:6},{size:'5.5" x 7.5" (Half A4)',price:12},{size:'11" x 7.5" (Full A4)',price:24}],
+  love:[{size:'3"',price:6},{size:'3.5"',price:6},{size:'4"',price:6},{size:'4.5"',price:12},{size:'5"',price:12},{size:'5.5"',price:12},{size:'6"',price:24},{size:'6.5"',price:24},{size:'7"',price:24},{size:'7.5"',price:24},{size:'8"',price:24}],
+  mini:[{size:'1.8" (1 Set A4 / 24 pcs)',price:28.80,isMiniPack:true}]
+};
+let selectedShape=null,selectedOrientation="Landscape",selectedSizeObj=null,quantity=1,cart=[];
+const $=id=>document.getElementById(id);
+const shapeContainer=$("shape-options"),sizeContainer=$("size-options"),orientationSection=$("orientation-section"),orientLandscapeBtn=$("orient-landscape"),orientPortraitBtn=$("orient-portrait"),priceBadge=$("price-badge"),miniNotice=$("mini-notice"),qtyInput=$("qty-input"),btnMinus=$("btn-minus"),btnPlus=$("btn-plus"),addToCartBtn=$("add-to-cart-btn"),cartItemsContainer=$("cart-items"),emptyCartMsg=$("empty-cart-msg"),grandTotalEl=$("grand-total"),cartCountEl=$("cart-count"),btnSendWa=$("btn-send-wa"),btnCopyWa=$("btn-copy-wa"),btnClearCart=$("btn-clear-cart"),qtyUnitLabel=$("qty-unit-label");
+
+window.onload=()=>{renderShapeOptions();setupEventListeners()};
+
+function renderShapeOptions(){
+  shapeContainer.innerHTML="";
+  shapesData.forEach(shape=>{
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.className="shape-btn flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 bg-white text-slate-700 font-medium text-xs hover:border-emerald-500 hover:bg-emerald-50/50 transition-all text-center";
+    btn.innerHTML='<i class="fa-solid '+shape.icon+' text-lg mb-1.5 text-slate-400"></i><span>'+shape.name+"</span>";
+    btn.onclick=()=>selectShape(shape.id,btn);
+    shapeContainer.appendChild(btn);
+  });
+}
+function selectShape(shapeId,el){
+  selectedShape=shapeId;selectedSizeObj=null;updateAddToCartButton();
+  document.querySelectorAll(".shape-btn").forEach(b=>{
+    b.classList.remove("border-emerald-600","bg-emerald-50","text-emerald-700","ring-2","ring-emerald-500/20");
+    b.classList.add("border-slate-200","bg-white","text-slate-700");
+    const i=b.querySelector("i");if(i){i.classList.remove("text-emerald-600");i.classList.add("text-slate-400")}
+  });
+  el.classList.remove("border-slate-200","bg-white","text-slate-700");
+  el.classList.add("border-emerald-600","bg-emerald-50","text-emerald-700","ring-2","ring-emerald-500/20");
+  const ai=el.querySelector("i");if(ai){ai.classList.remove("text-slate-400");ai.classList.add("text-emerald-600")}
+  if(shapeId==="rectangular"){orientationSection.classList.remove("hidden");setOrientation("Landscape")}else orientationSection.classList.add("hidden");
+  if(shapeId==="mini"){miniNotice.classList.remove("hidden");qtyUnitLabel.textContent="Set A4 (24pcs)"}else{miniNotice.classList.add("hidden");qtyUnitLabel.textContent="lembar/lapis"}
+  renderSizeOptions(shapeId);
+}
+function setOrientation(o){
+  selectedOrientation=o;
+  const active=o==="Landscape"?orientLandscapeBtn:orientPortraitBtn;
+  const inactive=o==="Landscape"?orientPortraitBtn:orientLandscapeBtn;
+  active.classList.add("border-emerald-600","bg-emerald-50","text-emerald-700");
+  active.classList.remove("border-slate-200","bg-white","text-slate-700");
+  inactive.classList.remove("border-emerald-600","bg-emerald-50","text-emerald-700");
+  inactive.classList.add("border-slate-200","bg-white","text-slate-700");
+}
+function renderSizeOptions(shapeId){
+  sizeContainer.innerHTML="";priceBadge.classList.add("hidden");
+  (sizesData[shapeId]||[]).forEach(sz=>{
+    const btn=document.createElement("button");
+    btn.type="button";btn.className="size-btn flex flex-col justify-between p-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 text-left hover:border-emerald-500 transition-all";
+    btn.innerHTML='<div class="font-bold text-xs text-slate-800">'+sz.size+'</div><div class="text-[11px] font-semibold text-emerald-600 mt-1">RM '+sz.price.toFixed(2)+"</div>";
+    btn.onclick=()=>selectSize(sz,btn);sizeContainer.appendChild(btn);
+  });
+}
+function selectSize(sz,el){
+  selectedSizeObj=sz;
+  document.querySelectorAll(".size-btn").forEach(b=>{b.classList.remove("border-emerald-600","bg-emerald-50","ring-2","ring-emerald-500/20");b.classList.add("border-slate-200","bg-white")});
+  el.classList.remove("border-slate-200","bg-white");el.classList.add("border-emerald-600","bg-emerald-50","ring-2","ring-emerald-500/20");
+  priceBadge.textContent="RM "+sz.price.toFixed(2)+" / unit";priceBadge.classList.remove("hidden");updateAddToCartButton();
+}
+function setupEventListeners(){
+  btnMinus.onclick=()=>{if(quantity>1){quantity--;qtyInput.value=quantity}};
+  btnPlus.onclick=()=>{quantity++;qtyInput.value=quantity};
+  orientLandscapeBtn.onclick=()=>setOrientation("Landscape");orientPortraitBtn.onclick=()=>setOrientation("Portrait");
+  addToCartBtn.onclick=addItemToCart;btnCopyWa.onclick=copyCartToWhatsApp;btnClearCart.onclick=clearCart;
+}
+function updateAddToCartButton(){
+  if(selectedShape&&selectedSizeObj){addToCartBtn.disabled=false;addToCartBtn.classList.remove("bg-slate-200","text-slate-400","cursor-not-allowed");addToCartBtn.classList.add("bg-emerald-600","hover:bg-emerald-700","text-white","shadow-sm","active:scale-[0.99]")}
+  else{addToCartBtn.disabled=true;addToCartBtn.classList.add("bg-slate-200","text-slate-400","cursor-not-allowed");addToCartBtn.classList.remove("bg-emerald-600","hover:bg-emerald-700","text-white","shadow-sm","active:scale-[0.99]")}
+}
+function addItemToCart(){
+  if(!selectedShape||!selectedSizeObj)return;
+  const shapeObj=shapesData.find(s=>s.id===selectedShape);
+  cart.push({id:Date.now(),shapeId:selectedShape,shapeName:shapeObj.name,orientation:selectedShape==="rectangular"?selectedOrientation:null,size:selectedSizeObj.size,unitPrice:selectedSizeObj.price,quantity,totalPrice:selectedSizeObj.price*quantity,isMini:selectedShape==="mini"});
+  renderCart();showToast("Item ditambah ke dalam troli!");quantity=1;qtyInput.value=1;
+}
+function removeFromCart(id){cart=cart.filter(i=>i.id!==id);renderCart()}
+function clearCart(){cart=[];renderCart();showToast("Troli telah dikosongkan.")}
+function renderCart(){
+  cartItemsContainer.innerHTML="";
+  if(cart.length===0){
+    cartItemsContainer.innerHTML='<div id="empty-cart-msg" class="text-center py-8 text-slate-400 text-xs"><i class="fa-solid fa-basket-shopping text-3xl mb-2 opacity-30 text-emerald-600"></i><p>Troli anda masih kosong.</p></div>';
+    grandTotalEl.textContent="RM 0.00";cartCountEl.textContent="0 item";btnSendWa.classList.add("pointer-events-none","opacity-50");btnSendWa.removeAttribute("href");btnCopyWa.disabled=true;btnClearCart.disabled=true;return;
+  }
+  btnCopyWa.disabled=false;btnClearCart.disabled=false;
+  let total=0,count=0;
+  cart.forEach(item=>{
+    total+=item.totalPrice;count+=item.quantity;
+    const div=document.createElement("div");div.className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs";
+    const orient=item.orientation?" ("+item.orientation+")":"";
+    div.innerHTML='<div class="pr-2"><div class="font-bold text-slate-800">'+item.shapeName+orient+'</div><div class="text-slate-500 font-medium">Saiz: <span class="text-slate-700 font-semibold">'+item.size+'</span></div><div class="text-slate-500 font-medium mt-0.5">RM '+item.unitPrice.toFixed(2)+" × "+item.quantity+" "+(item.isMini?"Set":"lapis")+'</div></div><div class="flex items-center space-x-3"><span class="font-extrabold text-emerald-700 text-sm">RM '+item.totalPrice.toFixed(2)+'</span><button type="button" onclick="removeFromCart('+item.id+')" class="text-slate-400 hover:text-rose-500 transition-colors p-1"><i class="fa-solid fa-xmark text-sm"></i></button></div>';
+    cartItemsContainer.appendChild(div);
+  });
+  grandTotalEl.textContent="RM "+total.toFixed(2);cartCountEl.textContent=count+" item";
+  btnSendWa.href="https://wa.me/"+WA_NUMBER+"?text="+encodeURIComponent(buildWhatsAppText(total));btnSendWa.classList.remove("pointer-events-none","opacity-50");
+}
+function buildWhatsAppText(total){
+  let text="Salam, saya nak buat tempahan Edible Image:\n-----------------------------------\n";
+  cart.forEach((item,idx)=>{
+    const o=item.orientation?" ("+item.orientation+")":"";
+    text+=(idx+1)+". *"+item.shapeName+o+"*\n   • Saiz: "+item.size+"\n   • Kuantiti: "+item.quantity+" "+(item.isMini?"Set A4":"lapis/lembar")+"\n   • Subtotal: RM "+item.totalPrice.toFixed(2)+"\n\n";
+  });
+  return text+"-----------------------------------\n*JUMLAH ANGGARAN: RM "+total.toFixed(2)+"*\n\nSila bantu semak & sahkan rekabentuk/gambar saya. Terima kasih!";
+}
+function copyCartToWhatsApp(){
+  if(!cart.length)return;const text=buildWhatsAppText(cart.reduce((a,i)=>a+i.totalPrice,0));
+  navigator.clipboard?.writeText(text).then(()=>showToast("Teks pesanan disalin! Buka WhatsApp & tampal (paste).")).catch(()=>fallbackCopy(text));
+}
+function fallbackCopy(text){
+  const ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);ta.select();
+  try{document.execCommand("copy");showToast("Teks pesanan disalin! Buka WhatsApp & tampal (paste).")}catch(e){showToast("Gagal menyalin secara automatik.")}
+  document.body.removeChild(ta);
+}
+function showToast(msg){
+  const toast=$("toast"),m=$("toast-msg");m.textContent=msg;toast.classList.remove("opacity-0","pointer-events-none","translate-y-4");toast.classList.add("opacity-100","translate-y-0");
+  setTimeout(()=>{toast.classList.remove("opacity-100","translate-y-0");toast.classList.add("opacity-0","pointer-events-none","translate-y-4")},3000);
+}
+</script>
+</body>
+</html>
