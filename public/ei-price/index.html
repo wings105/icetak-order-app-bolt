@@ -247,12 +247,16 @@ function renderCart(){
   btnSendWa.href="https://wa.me/"+WA_NUMBER+"?text="+encodeURIComponent(buildWhatsAppText(total));btnSendWa.classList.remove("pointer-events-none","opacity-50");
 }
 function buildWhatsAppText(total){
-  let text="Salam, saya nak buat tempahan Edible Image:\n-----------------------------------\n";
+  let text="Ingin tempah\n\n";
   cart.forEach((item,idx)=>{
     const o=item.orientation?" ("+item.orientation+")":"";
-    text+=(idx+1)+". *"+item.shapeName+o+"*\n   • Saiz: "+item.size+"\n"+(item.qtyPerA4 ? "   • Kuantiti per A4: "+item.qtyPerA4+" pcs\n" : "")+"   • Bilangan: "+item.quantity+" "+(item.isMini?"Set A4":"lapis/lembar")+"\n   • Subtotal: RM "+item.totalPrice.toFixed(2)+"\n\n";
+    text+=(idx+1)+". *"+item.shapeName+o+"*\n";
+    text+="   • Saiz: "+item.size+"\n";
+    if(item.qtyPerA4) text+="   • Kuantiti per A4: "+item.qtyPerA4+" pcs\n";
+    text+="   • Kuantiti: "+item.quantity+"\n";
+    text+="   • Subtotal: RM "+item.totalPrice.toFixed(2)+"\n\n";
   });
-  return text+"-----------------------------------\n*JUMLAH ANGGARAN: RM "+total.toFixed(2)+"*\n\nSila bantu semak & sahkan rekabentuk/gambar saya. Terima kasih!";
+  return text+"-----------------------------------\n*JUMLAH ANGGARAN: RM "+total.toFixed(2)+"*\n\nbantu semak & sahkan rekabentuk/gambar saya dan postage/pickup date available.\nTerima kasih.";
 }
 function copyCartToWhatsApp(){
   if(!cart.length)return;const text=buildWhatsAppText(cart.reduce((a,i)=>a+i.totalPrice,0));
