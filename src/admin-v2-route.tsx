@@ -6,6 +6,7 @@ let rootHandle: Root | null = null;
 let mounting = false;
 
 function adminRoute() { return new URLSearchParams(location.search).get('admin') || ''; }
+function pickupKioskKey() { return new URLSearchParams(location.search).get('pickup-kiosk')?.trim() || ''; }
 
 function goV2() {
   const url = new URL(location.href);
@@ -35,6 +36,30 @@ async function ensureRoot() {
   return rootHandle;
 }
 
+async function mountPickupKiosk() {
+  const key=pickupKioskKey();
+  if(!key||mounting)return;
+  mounting=true;
+  try{
+    (globalThis as typeof globalThis & { __ICETAK_SUPABASE__?: typeof supabase }).__ICETAK_SUPABASE__ = supabase;
+    const root=await ensureRoot();
+    if(!root)return;
+    const [{createElement},{default:PickupCounter}]=await Promise.all([
+      import('react'),import('../icetak-admin/src/pages/PickupCounter'),import('../icetak-admin/src/index.css'),
+    ]);
+    const customer=new URLSearchParams(location.search).get('customer')?.trim()||'';
+    root.render(createElement('main',{className:'pickup-kiosk-shell'},
+      createElement('div',{className:'pickup-kiosk-badge'},'iCetak Pickup Counter · Kiosk'),
+      createElement(PickupCounter,{
+        permissions:['view_customers','verify_payments','approve_production'],
+        initialCustomer:customer,
+        kioskKey:key,
+      })
+    ));
+    document.title='iCetak — Pickup Counter';
+  } finally { mounting=false; }
+}
+
 async function renderLogin() {
   const root = await ensureRoot();
   if (!root) return;
@@ -47,6 +72,7 @@ async function renderLogin() {
 
 async function mountAdminV2() {
   normalizeLegacyAdminRoute();
+  if (pickupKioskKey()) return;
   if (adminRoute() !== V2_ROUTE || mounting) return;
   mounting = true;
   try {
@@ -97,6 +123,10 @@ supabase.auth.onAuthStateChange(() => {
   if (adminRoute() === V2_ROUTE) void mountAdminV2();
 });
 
-window.addEventListener('load', () => void mountAdminV2());
+window.addEventListener('load', () => {
+  if(pickupKioskKey())void mountPickupKiosk();
+  else void mountAdminV2();
+});
 normalizeLegacyAdminRoute();
-void mountAdminV2();
+if(pickupKioskKey())void mountPickupKiosk();
+else void mountAdminV2();
