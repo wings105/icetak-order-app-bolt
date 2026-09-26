@@ -58,9 +58,15 @@
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" id="size-options">
           <div class="col-span-full text-center py-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">Sila pilih bentuk terlebih dahulu</div>
         </div>
-        <div id="mini-notice" class="hidden mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs flex items-start space-x-2">
-          <i class="fa-solid fa-circle-info text-amber-500 mt-0.5"></i>
-          <span>Semua variasi Mini / Cupcake dikira 1 set A4 penuh pada harga RM24.00/A4.</span>
+        <div id="mini-notice" class="hidden mt-2 space-y-2">
+          <div class="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs flex items-start space-x-2">
+            <i class="fa-solid fa-circle-info text-amber-500 mt-0.5"></i>
+            <span>Semua variasi Mini / Cupcake dikira 1 set A4 penuh pada harga RM24.00/A4.</span>
+          </div>
+          <div class="p-2.5 bg-rose-50 border border-rose-300 rounded-lg text-rose-700 text-xs font-semibold">
+            <div>* Printed only, no pre-cut.</div>
+            <div>* Pre-cut contact first.</div>
+          </div>
         </div>
       </div>
 
@@ -135,17 +141,17 @@ const sizesData={
   custom:[{size:'Custom A6',price:6},{size:'Custom A5',price:12},{size:'Custom A4',price:24}],
   love:[{size:'2"',price:6},{size:'3"',price:6},{size:'3.5"',price:6},{size:'4"',price:6},{size:'4.5"',price:12},{size:'5"',price:12},{size:'5.5"',price:12},{size:'6"',price:24},{size:'6.5"',price:24},{size:'7"',price:24},{size:'7.5"',price:24}],
   mini:[
-    {size:'1" (70 pcs/A4)',price:24,isMiniPack:true},
-    {size:'3 cm / 1.2" (54 pcs/A4)',price:24,isMiniPack:true},
-    {size:'1.3" (40 pcs/A4)',price:24,isMiniPack:true},
-    {size:'1.5" (35 pcs/A4)',price:24,isMiniPack:true},
-    {size:'4 cm / 1.6" (28 pcs/A4)',price:24,isMiniPack:true},
-    {size:'1.8" (24 pcs/A4)',price:24,isMiniPack:true},
-    {size:'2" (18 pcs/A4)',price:24,isMiniPack:true},
-    {size:'5.5 cm (15 pcs/A4)',price:24,isMiniPack:true},
-    {size:'6 cm (12 pcs/A4)',price:24,isMiniPack:true},
-    {size:'2.5" (12 pcs/A4)',price:24,isMiniPack:true},
-    {size:'3" (6 pcs/A4)',price:24,isMiniPack:true}
+    {size:'1" (2.5 cm)',qtyPerA4:70,price:24,isMiniPack:true},
+    {size:'1.2" (3 cm)',qtyPerA4:54,price:24,isMiniPack:true},
+    {size:'1.3" (3.3 cm)',qtyPerA4:40,price:24,isMiniPack:true},
+    {size:'1.5" (3.8 cm)',qtyPerA4:35,price:24,isMiniPack:true},
+    {size:'1.6" (4 cm)',qtyPerA4:28,price:24,isMiniPack:true},
+    {size:'1.8" (4.4 cm)',qtyPerA4:24,price:24,isMiniPack:true},
+    {size:'2" (5 cm)',qtyPerA4:18,price:24,isMiniPack:true},
+    {size:'2.16" (5.5 cm)',qtyPerA4:15,price:24,isMiniPack:true},
+    {size:'2.37" (6 cm)',qtyPerA4:12,price:24,isMiniPack:true},
+    {size:'2.5" (6.3 cm)',qtyPerA4:12,price:24,isMiniPack:true},
+    {size:'3" (7.6 cm)',qtyPerA4:6,price:24,isMiniPack:true}
   ]
 };
 let selectedShape=null,selectedOrientation="Landscape",selectedSizeObj=null,quantity=1,cart=[];
@@ -194,7 +200,7 @@ function renderSizeOptions(shapeId){
   (sizesData[shapeId]||[]).forEach(sz=>{
     const btn=document.createElement("button");
     btn.type="button";btn.className="size-btn flex flex-col justify-between p-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 text-left hover:border-emerald-500 transition-all";
-    btn.innerHTML='<div class="font-bold text-xs text-slate-800">'+sz.size+'</div><div class="text-[11px] font-semibold text-emerald-600 mt-1">RM '+sz.price.toFixed(2)+"</div>";
+    btn.innerHTML='<div><div class="font-bold text-xs text-slate-800">'+sz.size+'</div>'+(sz.qtyPerA4 ? '<div class="text-[10px] text-slate-500 mt-1">Kuantiti: <span class="font-bold text-slate-700">'+sz.qtyPerA4+' pcs/A4</span></div>' : '')+'</div><div class="text-[11px] font-semibold text-emerald-600 mt-1.5">RM '+sz.price.toFixed(2)+"</div>";
     btn.onclick=()=>selectSize(sz,btn);sizeContainer.appendChild(btn);
   });
 }
@@ -217,7 +223,7 @@ function updateAddToCartButton(){
 function addItemToCart(){
   if(!selectedShape||!selectedSizeObj)return;
   const shapeObj=shapesData.find(s=>s.id===selectedShape);
-  cart.push({id:Date.now(),shapeId:selectedShape,shapeName:shapeObj.name,orientation:shapeObj.hasOrientation?selectedOrientation:null,size:selectedSizeObj.size,unitPrice:selectedSizeObj.price,quantity,totalPrice:selectedSizeObj.price*quantity,isMini:selectedShape==="mini"});
+  cart.push({id:Date.now(),shapeId:selectedShape,shapeName:shapeObj.name,orientation:shapeObj.hasOrientation?selectedOrientation:null,size:selectedSizeObj.size,qtyPerA4:selectedSizeObj.qtyPerA4||null,unitPrice:selectedSizeObj.price,quantity,totalPrice:selectedSizeObj.price*quantity,isMini:selectedShape==="mini"});
   renderCart();showToast("Item ditambah ke dalam troli!");quantity=1;qtyInput.value=1;
 }
 function removeFromCart(id){cart=cart.filter(i=>i.id!==id);renderCart()}
@@ -234,7 +240,7 @@ function renderCart(){
     total+=item.totalPrice;count+=item.quantity;
     const div=document.createElement("div");div.className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs";
     const orient=item.orientation?" ("+item.orientation+")":"";
-    div.innerHTML='<div class="pr-2"><div class="font-bold text-slate-800">'+item.shapeName+orient+'</div><div class="text-slate-500 font-medium">Saiz: <span class="text-slate-700 font-semibold">'+item.size+'</span></div><div class="text-slate-500 font-medium mt-0.5">RM '+item.unitPrice.toFixed(2)+" × "+item.quantity+" "+(item.isMini?"Set":"lapis")+'</div></div><div class="flex items-center space-x-3"><span class="font-extrabold text-emerald-700 text-sm">RM '+item.totalPrice.toFixed(2)+'</span><button type="button" onclick="removeFromCart('+item.id+')" class="text-slate-400 hover:text-rose-500 transition-colors p-1"><i class="fa-solid fa-xmark text-sm"></i></button></div>';
+    div.innerHTML='<div class="pr-2"><div class="font-bold text-slate-800">'+item.shapeName+orient+'</div><div class="text-slate-500 font-medium">Saiz: <span class="text-slate-700 font-semibold">'+item.size+'</span></div>'+(item.qtyPerA4 ? '<div class="text-slate-500 font-medium">Kuantiti: <span class="text-slate-700 font-semibold">'+item.qtyPerA4+' pcs/A4</span></div>' : '')+'<div class="text-slate-500 font-medium mt-0.5">RM '+item.unitPrice.toFixed(2)+" × "+item.quantity+" "+(item.isMini?"Set A4":"lapis")+'</div></div><div class="flex items-center space-x-3"><span class="font-extrabold text-emerald-700 text-sm">RM '+item.totalPrice.toFixed(2)+'</span><button type="button" onclick="removeFromCart('+item.id+')" class="text-slate-400 hover:text-rose-500 transition-colors p-1"><i class="fa-solid fa-xmark text-sm"></i></button></div>';
     cartItemsContainer.appendChild(div);
   });
   grandTotalEl.textContent="RM "+total.toFixed(2);cartCountEl.textContent=count+" item";
@@ -244,7 +250,7 @@ function buildWhatsAppText(total){
   let text="Salam, saya nak buat tempahan Edible Image:\n-----------------------------------\n";
   cart.forEach((item,idx)=>{
     const o=item.orientation?" ("+item.orientation+")":"";
-    text+=(idx+1)+". *"+item.shapeName+o+"*\n   • Saiz: "+item.size+"\n   • Kuantiti: "+item.quantity+" "+(item.isMini?"Set A4":"lapis/lembar")+"\n   • Subtotal: RM "+item.totalPrice.toFixed(2)+"\n\n";
+    text+=(idx+1)+". *"+item.shapeName+o+"*\n   • Saiz: "+item.size+"\n"+(item.qtyPerA4 ? "   • Kuantiti per A4: "+item.qtyPerA4+" pcs\n" : "")+"   • Bilangan: "+item.quantity+" "+(item.isMini?"Set A4":"lapis/lembar")+"\n   • Subtotal: RM "+item.totalPrice.toFixed(2)+"\n\n";
   });
   return text+"-----------------------------------\n*JUMLAH ANGGARAN: RM "+total.toFixed(2)+"*\n\nSila bantu semak & sahkan rekabentuk/gambar saya. Terima kasih!";
 }
