@@ -100,9 +100,39 @@
         </div>
       </div>
 
-      <a id="btn-send-wa" href="#" target="_blank" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl flex items-center justify-center space-x-2 shadow-md transition-all">
-        <i class="fa-brands fa-whatsapp text-xl"></i><span>WhatsApp untuk Tempahan</span>
-      </a>
+      <button id="add-to-cart-btn" type="button" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 shadow-sm transition-all">
+        <i class="fa-solid fa-cart-plus"></i><span>Tambah ke Troli</span>
+      </button>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow-sm border border-amber-100 p-4 md:p-5">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+        <div class="flex items-center space-x-2">
+          <span class="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">2</span>
+          <h2 class="font-bold text-slate-800 text-base">Troli Pesanan</h2>
+        </div>
+        <span id="cart-count" class="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold px-2.5 py-1 rounded-full">0 item</span>
+      </div>
+
+      <div id="cart-items" class="space-y-2.5 max-h-72 overflow-y-auto pr-1 my-3">
+        <div class="text-center py-8 text-slate-400 text-xs">
+          <i class="fa-solid fa-basket-shopping text-3xl mb-2 opacity-30 text-amber-500"></i>
+          <p>Troli masih kosong.</p>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 pt-3 mt-3">
+        <div class="flex justify-between items-center mb-3 bg-amber-50 p-3 rounded-xl border border-amber-100">
+          <span class="text-xs sm:text-sm font-bold text-slate-700">Jumlah Keseluruhan</span>
+          <span id="cart-grand-total" class="text-2xl font-black text-amber-600">RM0.00</span>
+        </div>
+        <a id="btn-send-wa" href="#" target="_blank" class="w-full mb-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl flex items-center justify-center space-x-2 shadow-md transition-all pointer-events-none opacity-50">
+          <i class="fa-brands fa-whatsapp text-xl"></i><span>WhatsApp untuk Tempahan</span>
+        </a>
+        <button id="btn-clear-cart" type="button" disabled class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center space-x-1.5 transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="fa-solid fa-trash-can"></i><span>Kosongkan Troli</span>
+        </button>
+      </div>
     </section>
 
     <section class="bg-white rounded-2xl shadow-sm border border-amber-100 p-4 md:p-5">
@@ -142,6 +172,7 @@ let process="preorder";
 let selectedSize="a6";
 let selectedColour="Gold Mirror";
 let quantity=1;
+let cart=[];
 
 const $=id=>document.getElementById(id);
 
@@ -226,19 +257,81 @@ function getMaxSize(){
 }
 
 function buildWhatsAppText(){
-  const total=getUnitPrice()*quantity;
+  const total=cart.reduce((sum,item)=>sum+item.total,0);
   let text="Berminat dengan pilihan:\n\n";
-  text+="*"+(material==="acrylic"?"Acrylic Cake Topper":"Mirror Gold Artpaper Topper")+"*\n";
-  text+="• Process: "+(process==="preorder"?"Pre-order":"Urgent / Same Day")+"\n";
-  text+="• Size: "+getSizeLabel()+"\n";
-  text+="• Max size: "+getMaxSize()+"\n";
-  text+="• Colour: "+selectedColour+"\n";
-  text+="• Kuantiti: "+quantity+"\n";
-  text+="• Anggaran: RM"+total.toFixed(2)+"\n\n";
+  cart.forEach((item,idx)=>{
+    text+=(idx+1)+". *"+item.materialName+"*\n";
+    text+="• Process: "+item.processName+"\n";
+    text+="• Size: "+item.sizeName+"\n";
+    text+="• Max size: "+item.maxSize+"\n";
+    text+="• Colour: "+item.colour+"\n";
+    text+="• Kuantiti: "+item.quantity+"\n";
+    text+="• Anggaran: RM"+item.total.toFixed(2)+"\n";
+    if(idx<cart.length-1) text+="\n";
+  });
+  text+="\n*Jumlah anggaran: RM"+total.toFixed(2)+"*\n\n";
   text+="Tarikh perlu: __ / __ / 2026\n\n";
   text+="Pilihan delivery:\nPostage\nPickup — Pasir Puteh, Kelantan\n\n";
   text+="Boleh check availability dan cara nak proceed? Terima kasih.";
   return text;
+}
+
+function addToCart(){
+  const unit=getUnitPrice();
+  cart.push({
+    id:Date.now()+Math.random(),
+    material,
+    materialName:material==="acrylic"?"Acrylic Cake Topper":"Mirror Gold Artpaper Topper",
+    process,
+    processName:process==="preorder"?"Pre-order":"Urgent / Same Day",
+    sizeName:getSizeLabel(),
+    maxSize:getMaxSize(),
+    colour:selectedColour,
+    quantity,
+    unitPrice:unit,
+    total:unit*quantity
+  });
+  quantity=1;
+  updateAll();
+  renderCart();
+}
+
+function removeCartItem(id){
+  cart=cart.filter(item=>item.id!==id);
+  renderCart();
+}
+
+function clearCart(){
+  cart=[];
+  renderCart();
+}
+
+function renderCart(){
+  const el=$("cart-items");
+  const count=cart.reduce((sum,item)=>sum+item.quantity,0);
+  const total=cart.reduce((sum,item)=>sum+item.total,0);
+  $("cart-count").textContent=count+" item";
+  $("cart-grand-total").textContent="RM"+total.toFixed(2);
+
+  if(!cart.length){
+    el.innerHTML='<div class="text-center py-8 text-slate-400 text-xs"><i class="fa-solid fa-basket-shopping text-3xl mb-2 opacity-30 text-amber-500"></i><p>Troli masih kosong.</p></div>';
+    $("btn-send-wa").classList.add("pointer-events-none","opacity-50");
+    $("btn-send-wa").removeAttribute("href");
+    $("btn-clear-cart").disabled=true;
+    return;
+  }
+
+  el.innerHTML="";
+  cart.forEach(item=>{
+    const div=document.createElement("div");
+    div.className="flex items-start justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs";
+    div.innerHTML='<div class="pr-3"><div class="font-bold text-slate-800">'+item.materialName+'</div><div class="text-slate-500 mt-0.5">'+item.processName+' · '+item.sizeName+'</div><div class="text-slate-500">'+item.colour+' · '+item.quantity+' pcs</div><div class="text-slate-500">RM'+item.unitPrice.toFixed(2)+' × '+item.quantity+'</div></div><div class="flex items-center space-x-3"><span class="font-extrabold text-amber-700 text-sm">RM'+item.total.toFixed(2)+'</span><button type="button" onclick="removeCartItem('+item.id+')" class="text-slate-400 hover:text-rose-500 p-1"><i class="fa-solid fa-xmark"></i></button></div>';
+    el.appendChild(div);
+  });
+
+  $("btn-send-wa").href="https://wa.me/"+WA_NUMBER+"?text="+encodeURIComponent(buildWhatsAppText());
+  $("btn-send-wa").classList.remove("pointer-events-none","opacity-50");
+  $("btn-clear-cart").disabled=false;
 }
 
 function updateAll(){
@@ -251,7 +344,6 @@ function updateAll(){
   $("summary-size").textContent=getSizeLabel();
   $("summary-colour").textContent=selectedColour;
   $("grand-total").textContent="RM"+total.toFixed(2);
-  $("btn-send-wa").href="https://wa.me/"+WA_NUMBER+"?text="+encodeURIComponent(buildWhatsAppText());
 }
 
 $("mat-acrylic").onclick=()=>{
@@ -270,8 +362,10 @@ $("process-urgent").onclick=()=>{
 };
 $("btn-minus").onclick=()=>{if(quantity>1){quantity--;updateAll()}};
 $("btn-plus").onclick=()=>{quantity++;updateAll()};
+$("add-to-cart-btn").onclick=addToCart;
+$("btn-clear-cart").onclick=clearCart;
 
-renderSizes();renderColours();updateAll();
+renderSizes();renderColours();updateAll();renderCart();
 </script>
 </body>
 </html>
