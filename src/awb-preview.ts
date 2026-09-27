@@ -1,5 +1,5 @@
 import './awb-preview.css';
-type Item={task_id:string;title:string;set:number|null;images:{url:string;name:string}[]};
+type Item={task_id:string;title:string;customize_name?:string;set:number|null;images:{url:string;name:string}[]};
 type Preview={order_id:string;items:Item[];updated_at:string};
 const root=document.getElementById('app')!;
 const orderId=(new URLSearchParams(location.search).get('awbpreview')||'').trim();
@@ -10,7 +10,7 @@ document.body.classList.add('awb-preview-page');
 document.title=`Reference Order ${orderId}`;
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 function toolbar(message:string){
- root.innerHTML=`<div class="awb-toolbar"><div><strong>Reference Order · ${escape(orderId)}</strong><small>A4 · setiap item dalam satu ruang A6</small><small id="awb-status" role="status">${escape(message)}</small></div><div class="awb-actions"><button id="awb-refresh" type="button">Refresh</button><button id="awb-print" type="button" disabled>Print / Save PDF</button></div></div><div id="awb-content"></div>`;
+ root.innerHTML=`<div class="awb-toolbar"><div><strong>Reference Order · ${escape(orderId)}</strong><small>A4 · 4 × 4 · 16 task setiap halaman</small><small id="awb-status" role="status">${escape(message)}</small></div><div class="awb-actions"><button id="awb-refresh" type="button">Refresh</button><button id="awb-print" type="button" disabled>Print / Save PDF</button></div></div><div id="awb-content"></div>`;
  root.querySelector('#awb-refresh')!.addEventListener('click',()=>void load());
  root.querySelector('#awb-print')!.addEventListener('click',()=>window.print());
 }
@@ -25,10 +25,10 @@ async function load(){
   if(!response.ok)throw new Error(data.error||'Preview gagal dimuat.');
   if(!Array.isArray(data.items)||!data.items.length)throw new Error('Tiada item untuk order ini.');
   const pages:string[]=[];
-  for(let offset=0;offset<data.items.length;offset+=4){
-   pages.push(`<main class="awb-sheet" aria-label="Halaman ${pages.length+1}">${data.items.slice(offset,offset+4).map(item=>{
+  for(let offset=0;offset<data.items.length;offset+=16){
+   pages.push(`<main class="awb-sheet" aria-label="Halaman ${pages.length+1}">${data.items.slice(offset,offset+16).map(item=>{
     const images=item.images.map(image=>({...image,url:safeImageUrl(image.url)})).filter(image=>image.url);
-    return `<section class="awb-item"><h1>${escape(item.title)}</h1><div class="awb-images ${images.length>1?'awb-multiple':''}" style="--image-rows:${Math.ceil(images.length/2)}">${images.length?images.map(image=>`<div class="awb-image-slot"><img src="${escape(image.url)}" alt="${escape(item.title)}" loading="eager"><span class="awb-image-failure" hidden>Gambar gagal dimuat.<br>Tekan Refresh.</span></div>`).join(''):'<span class="awb-missing">Preview belum ada</span>'}</div></section>`;
+    return `<section class="awb-item"><div class="awb-item-heading"><h1>${escape(item.title)}</h1>${item.customize_name?.trim()?`<p class="awb-customize-name">${escape(item.customize_name)}</p>`:''}</div><div class="awb-images ${images.length>1?'awb-multiple':''}" style="--image-rows:${Math.ceil(images.length/2)}">${images.length?images.map(image=>`<div class="awb-image-slot"><img src="${escape(image.url)}" alt="${escape(item.title)}" loading="eager"><span class="awb-image-failure" hidden>Gambar gagal dimuat.<br>Tekan Refresh.</span></div>`).join(''):'<span class="awb-missing">Preview belum ada</span>'}</div></section>`;
    }).join('')}</main>`);
   }
   content.innerHTML=pages.join('');

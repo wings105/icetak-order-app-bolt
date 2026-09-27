@@ -2,7 +2,7 @@
 
 Route: `https://shop.decocake.my/?awbpreview=<ORDER ID / customer name>`.
 
-Owner-approved public internal print reference. Exact custom-field order ID lookup; no login, AI, generation job, or Activepieces round trip on page open. The page returns only task ID, title, set and image URLs. Raw payloads, contact details, prices and credentials are not exposed.
+Owner-approved public internal print reference. Exact custom-field order ID lookup; no login, AI, generation job, or Activepieces round trip on page open. The page returns only task ID, title, Customize Name, set and image URLs. Raw payloads, contact details, prices and credentials are not exposed.
 
 ## Data
 
@@ -16,7 +16,7 @@ The upstream Get Task snapshot is required to include custom_fields and attachme
 
 ## Layout
 
-One task per A4 quadrant (A6 allocation), 2x2 grid, up to four tasks per sheet. More tasks produce another A4. Multiple images share the task quadrant. Wrapped titles, image contain sizing, 10mm sheet padding and 6mm grid gaps match the approved sample. Empty set is accepted; numeric sets sort first. Missing images show `Preview belum ada`.
+One task per cell, 4x4 grid, up to 16 tasks per A4 sheet. More tasks produce another A4. Multiple images share the task quadrant. Wrapped task title followed by the Customize Name value (omitted when empty), image contain sizing, 10mm sheet padding and 3mm grid gaps. Empty set is accepted; numeric sets sort first. Missing images show `Preview belum ada`.
 
 Print/Save PDF waits for all images to load, is disabled on image loading failure, and excludes toolbar/status. Missing preview items remain visible and are counted in the toolbar. This is a dynamic HTML page, not a stored PDF or automatic PDF attachment.
 

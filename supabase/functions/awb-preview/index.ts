@@ -18,7 +18,7 @@ Deno.serve(async req => {
  try {
   const db=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   const {data,error}=await db.from('clickup_awb_preview_tasks')
-   .select('task_id,title,set_position,attachments,comment_images,comment_at,received_at')
+   .select('task_id,title,customize_name,set_position,attachments,comment_images,comment_at,received_at')
    .eq('order_reference',orderId).order('set_position').order('task_id').limit(201);
   if(error) throw error;
   if(!data?.length) return json({error:'Order ID belum ditemui dalam data ClickUp.',order_id:orderId},404);

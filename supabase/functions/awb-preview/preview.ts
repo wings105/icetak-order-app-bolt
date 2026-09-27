@@ -17,5 +17,5 @@ export function previewItem(row: any) {
   const url=safeUrl(a.url); if(!url || seen.has(url))return []; seen.add(url);
   return [{url,name:String(a.title||a.name||'Preview')}];
  });
- return {task_id:row.task_id,title:row.title,set:row.set_position===999?null:row.set_position,images};
+ return {task_id:row.task_id,title:row.title,customize_name:String(row.customize_name||''),set:row.set_position===999?null:row.set_position,images};
 }
