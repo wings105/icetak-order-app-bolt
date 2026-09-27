@@ -2,6 +2,8 @@
 
 ## 2026-09-27 — AWB reference preview
 
+- [PRODUCTION] AWB sheets now use a 4×4 grid (16 tasks per A4). Customize Name is projected from raw ClickUp custom fields and shown below each task title with wrapping; blank values are omitted. Existing rows were backfilled for this field. Production browser verified order 260924U9ED78FC with both customization texts and all 1 + 2 direct ClickUp images. Build and image-selection checks pass. Physical printer and multi-sheet output remain unverified.
+
 - [PRODUCTION] Public `?awbpreview=<custom-field-order-id>` page groups ClickUp tasks into A4 sheets with one A6 quadrant per task, wrapped titles and all images from the latest image comment. Private indexed projection updates from raw task events; endpoint exposes print fields only. Browser-verified on shop.decocake.my: 260924U9ED78FC shows two tasks with 1 + 2 images; IC260922-7118 shows one missing preview and one round image; Refresh reloads and Print becomes enabled after images load. Physical printer output, mobile viewport and multi-sheet print output not verified. Build and image-selection regression checks pass.
 
 - [PRODUCTION] WhatsApp 24-hour windows are monotonic when delayed WasapFlow events arrive: old customer messages can no longer overwrite newer session timestamps, existing stale conversations were backfilled, and `check-24h-window` independently selects the newest inbound/customer timestamp. Production verification reduced stale window rows from 48 to 0, false-closed active conversations from 2 to 0, and returned `can_send_freeform=true` for customer `60126253704` until 23 Sep 2026 10:51 MYT.
