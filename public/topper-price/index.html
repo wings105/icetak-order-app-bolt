@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kalkulator Harga Cake Topper</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body{font-family:'Plus Jakarta Sans',sans-serif;background:#fff7ed}
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#f1f5f9}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+  </style>
+</head>
+<body class="p-3 sm:p-5 text-slate-800 antialiased min-h-screen flex flex-col items-center">
+  <header class="w-full max-w-lg mb-4 text-center">
+    <div class="inline-flex items-center justify-center p-3 bg-amber-100 rounded-2xl text-amber-600 mb-2 shadow-sm border border-amber-200">
+      <i class="fa-solid fa-crown text-2xl"></i>
+    </div>
+    <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Cake Topper Price</h1>
+    <p class="text-xs md:text-sm text-slate-600 mt-1 font-medium">Pilih material, proses, saiz & terus WhatsApp</p>
+    <div class="inline-flex items-center space-x-1.5 mt-2 px-3 py-1 bg-white border border-amber-200 rounded-full text-xs font-semibold text-amber-800">
+      <i class="fa-brands fa-whatsapp text-emerald-600"></i><span>WhatsApp: 017-9860656</span>
+    </div>
+  </header>
+
+  <main class="w-full max-w-lg space-y-4">
+    <section class="bg-white rounded-2xl shadow-sm border border-amber-100 p-4 md:p-5">
+      <div class="flex items-center space-x-2 border-b border-slate-100 pb-3 mb-4">
+        <span class="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">1</span>
+        <h2 class="font-bold text-slate-800 text-base">Pilih Topper</h2>
+      </div>
+
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">1. Material</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="mat-acrylic" type="button" class="material-btn rounded-xl border-2 border-amber-500 bg-amber-50 p-3 text-left">
+            <div class="font-extrabold text-sm text-amber-700"><i class="fa-solid fa-gem mr-1"></i>Acrylic</div>
+            <div class="text-[10px] text-slate-500 mt-1">Kukuh, premium & banyak pilihan warna</div>
+          </button>
+          <button id="mat-artpaper" type="button" class="material-btn rounded-xl border border-slate-200 bg-white p-3 text-left">
+            <div class="font-extrabold text-sm text-slate-800"><i class="fa-solid fa-star mr-1 text-amber-500"></i>Mirror Gold Artpaper</div>
+            <div class="text-[10px] text-slate-500 mt-1">Ringan, premium & mirror gold</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">2. Process</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="process-preorder" type="button" class="process-btn rounded-xl border-2 border-amber-500 bg-amber-50 p-3 text-left">
+            <div class="font-bold text-sm text-amber-700">Pre-order</div>
+            <div class="text-[10px] text-slate-500 mt-1">2–3 hari bekerja</div>
+          </button>
+          <button id="process-urgent" type="button" class="process-btn rounded-xl border border-slate-200 bg-white p-3 text-left">
+            <div class="font-bold text-sm text-slate-800">Urgent / Same Day</div>
+            <div class="text-[10px] text-slate-500 mt-1">Tertakluk kepada slot & T&C</div>
+          </button>
+        </div>
+        <div class="mt-2 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-700">
+          <div><b>Urgent / Same Day:</b> tertakluk kepada slot available & T&C.</div>
+          <div>Tidak termasuk Friday & Public Holiday.</div>
+        </div>
+      </div>
+
+      <div class="mb-5">
+        <div class="flex justify-between items-center mb-2">
+          <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">3. Size</label>
+          <span id="price-badge" class="text-xs font-bold bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full">RM20.00 / unit</span>
+        </div>
+        <div id="size-options" class="grid grid-cols-1 sm:grid-cols-3 gap-2"></div>
+        <div class="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600">
+          Custom size available within selected maximum size. Ukuran mungkin berbeza ±0.1–0.3 inci.
+        </div>
+      </div>
+
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">4. Colour</label>
+        <div id="colour-options" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">5. Quantity</label>
+        <div class="flex items-center space-x-3">
+          <button type="button" id="btn-minus" class="w-10 h-10 rounded-xl border border-slate-300 flex items-center justify-center text-slate-600"><i class="fa-solid fa-minus"></i></button>
+          <input type="number" id="qty-input" min="1" value="1" readonly class="w-20 h-10 text-center font-extrabold text-lg border border-slate-300 rounded-xl bg-slate-50">
+          <button type="button" id="btn-plus" class="w-10 h-10 rounded-xl border border-slate-300 flex items-center justify-center text-slate-600"><i class="fa-solid fa-plus"></i></button>
+          <span class="text-xs text-slate-500 font-semibold">pcs</span>
+        </div>
+      </div>
+
+      <div class="rounded-xl bg-amber-50 border border-amber-200 p-3 mb-4">
+        <div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Material</span><span id="summary-material" class="font-semibold">Acrylic</span></div>
+        <div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Process</span><span id="summary-process" class="font-semibold">Pre-order</span></div>
+        <div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Size</span><span id="summary-size" class="font-semibold">A6 Standard</span></div>
+        <div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Colour</span><span id="summary-colour" class="font-semibold">Gold Mirror</span></div>
+        <div class="flex justify-between items-end pt-2 mt-2 border-t border-amber-200">
+          <span class="font-bold text-slate-700 text-sm">Jumlah Anggaran</span>
+          <span id="grand-total" class="text-2xl font-black text-amber-600">RM20.00</span>
+        </div>
+      </div>
+
+      <a id="btn-send-wa" href="#" target="_blank" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl flex items-center justify-center space-x-2 shadow-md transition-all">
+        <i class="fa-brands fa-whatsapp text-xl"></i><span>WhatsApp untuk Tempahan</span>
+      </a>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow-sm border border-amber-100 p-4 md:p-5">
+      <h2 class="font-bold text-slate-800 mb-3">Info Ringkas</h2>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200"><b>Free Design</b><br><span class="text-slate-500">Boleh request ukuran ikut kesesuaian saiz kek.</span></div>
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200"><b>Delivery</b><br><span class="text-slate-500">Postage atau pickup di Pasir Puteh, Kelantan.</span></div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mt-3">
+        <a href="https://swiy.co/goldtopper" target="_blank" class="rounded-xl border border-amber-300 bg-amber-50 px-3 py-3 text-center text-xs font-bold text-amber-800">
+          <i class="fa-regular fa-images mr-1"></i>Lihat Contoh Design
+        </a>
+        <a href="https://www.dafont.com/" target="_blank" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-center text-xs font-bold text-slate-700">
+          <i class="fa-solid fa-font mr-1"></i>Pilih Font
+        </a>
+      </div>
+    </section>
+  </main>
+
+<script>
+const WA_NUMBER="60179860656";
+
+const acrylicSizes=[
+  {id:"a6",name:"A6 Standard",max:"14 × 10 cm / 5.5\" × 4\"",preorder:20,urgent:25},
+  {id:"a5",name:"A5 Large",max:"20 × 14 cm / 8\" × 5.5\"",preorder:35,urgent:40},
+  {id:"a7",name:"A7 Mini",max:"10 × 7 cm / 4\" × 2.8\"",preorder:12,urgent:15}
+];
+
+const acrylicColours=[
+  "Gold Mirror","Silver Mirror","Black","White","Clear / Transparent","Rose Gold",
+  "Dark Blue","Light Blue","Red","Yellow","Pink","Gold Glitter","Silver Glitter",
+  "Lilac / Light Purple","Mirror Blue","Bronze","Green","Orange"
+];
+
+let material="acrylic";
+let process="preorder";
+let selectedSize="a6";
+let selectedColour="Gold Mirror";
+let quantity=1;
+
+const $=id=>document.getElementById(id);
+
+function setActive(btn,group){
+  document.querySelectorAll(group).forEach(b=>{
+    b.classList.remove("border-2","border-amber-500","bg-amber-50");
+    b.classList.add("border","border-slate-200","bg-white");
+    const title=b.querySelector(".font-extrabold,.font-bold");
+    if(title){title.classList.remove("text-amber-700");title.classList.add("text-slate-800")}
+  });
+  btn.classList.remove("border","border-slate-200","bg-white");
+  btn.classList.add("border-2","border-amber-500","bg-amber-50");
+  const title=btn.querySelector(".font-extrabold,.font-bold");
+  if(title){title.classList.remove("text-slate-800");title.classList.add("text-amber-700")}
+}
+
+function renderSizes(){
+  const el=$("size-options");
+  el.innerHTML="";
+  if(material==="artpaper"){
+    selectedSize="artpaper-a5";
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.className="size-btn rounded-xl border-2 border-amber-500 bg-amber-50 p-3 text-left";
+    btn.innerHTML='<div class="font-bold text-sm text-amber-700">Custom up to A5</div><div class="text-[10px] text-slate-500 mt-1">Max 20 × 14 cm / 8\" × 5.5\"</div><div class="text-[11px] font-bold text-amber-600 mt-2">RM'+getUnitPrice().toFixed(2)+'</div>';
+    el.appendChild(btn);
+    return;
+  }
+  acrylicSizes.forEach(sz=>{
+    const btn=document.createElement("button");
+    btn.type="button";
+    const active=sz.id===selectedSize;
+    btn.className="size-btn rounded-xl p-3 text-left "+(active?"border-2 border-amber-500 bg-amber-50":"border border-slate-200 bg-white");
+    btn.innerHTML='<div class="font-bold text-sm '+(active?"text-amber-700":"text-slate-800")+'">'+sz.name+'</div><div class="text-[10px] text-slate-500 mt-1">Max '+sz.max+'</div><div class="text-[11px] font-bold text-amber-600 mt-2">RM'+(process==="preorder"?sz.preorder:sz.urgent).toFixed(2)+'</div>';
+    btn.onclick=()=>{selectedSize=sz.id;renderSizes();updateAll()};
+    el.appendChild(btn);
+  });
+}
+
+function renderColours(){
+  const el=$("colour-options");
+  el.innerHTML="";
+  if(material==="artpaper"){
+    selectedColour="Mirror Gold";
+    const chip=document.createElement("button");
+    chip.type="button";
+    chip.className="rounded-lg px-3 py-2 text-xs font-semibold border-2 border-amber-500 bg-amber-50 text-amber-700";
+    chip.textContent="Mirror Gold";
+    el.appendChild(chip);
+    return;
+  }
+  if(!acrylicColours.includes(selectedColour)) selectedColour="Gold Mirror";
+  acrylicColours.forEach(col=>{
+    const btn=document.createElement("button");
+    btn.type="button";
+    const active=col===selectedColour;
+    btn.className="rounded-lg px-3 py-2 text-xs font-semibold "+(active?"border-2 border-amber-500 bg-amber-50 text-amber-700":"border border-slate-200 bg-slate-50 text-slate-700");
+    btn.textContent=col;
+    btn.onclick=()=>{selectedColour=col;renderColours();updateAll()};
+    el.appendChild(btn);
+  });
+}
+
+function getSelectedSize(){
+  return acrylicSizes.find(s=>s.id===selectedSize)||acrylicSizes[0];
+}
+
+function getUnitPrice(){
+  if(material==="artpaper") return process==="preorder"?15:18;
+  const s=getSelectedSize();
+  return process==="preorder"?s.preorder:s.urgent;
+}
+
+function getSizeLabel(){
+  if(material==="artpaper") return "Custom up to A5";
+  return getSelectedSize().name;
+}
+
+function getMaxSize(){
+  if(material==="artpaper") return '20 × 14 cm / 8" × 5.5"';
+  return getSelectedSize().max;
+}
+
+function buildWhatsAppText(){
+  const total=getUnitPrice()*quantity;
+  let text="Berminat dengan pilihan:\n\n";
+  text+="*"+(material==="acrylic"?"Acrylic Cake Topper":"Mirror Gold Artpaper Topper")+"*\n";
+  text+="• Process: "+(process==="preorder"?"Pre-order":"Urgent / Same Day")+"\n";
+  text+="• Size: "+getSizeLabel()+"\n";
+  text+="• Max size: "+getMaxSize()+"\n";
+  text+="• Colour: "+selectedColour+"\n";
+  text+="• Kuantiti: "+quantity+"\n";
+  text+="• Anggaran: RM"+total.toFixed(2)+"\n\n";
+  text+="Tarikh perlu: __ / __ / 2026\n\n";
+  text+="Pilihan delivery:\nPostage\nPickup — Pasir Puteh, Kelantan\n\n";
+  text+="Boleh check availability dan cara nak proceed? Terima kasih.";
+  return text;
+}
+
+function updateAll(){
+  const unit=getUnitPrice();
+  const total=unit*quantity;
+  $("qty-input").value=quantity;
+  $("price-badge").textContent="RM"+unit.toFixed(2)+" / unit";
+  $("summary-material").textContent=material==="acrylic"?"Acrylic":"Mirror Gold Artpaper";
+  $("summary-process").textContent=process==="preorder"?"Pre-order":"Urgent / Same Day";
+  $("summary-size").textContent=getSizeLabel();
+  $("summary-colour").textContent=selectedColour;
+  $("grand-total").textContent="RM"+total.toFixed(2);
+  $("btn-send-wa").href="https://wa.me/"+WA_NUMBER+"?text="+encodeURIComponent(buildWhatsAppText());
+}
+
+$("mat-acrylic").onclick=()=>{
+  material="acrylic";selectedSize="a6";selectedColour="Gold Mirror";
+  setActive($("mat-acrylic"),".material-btn");renderSizes();renderColours();updateAll();
+};
+$("mat-artpaper").onclick=()=>{
+  material="artpaper";selectedSize="artpaper-a5";selectedColour="Mirror Gold";
+  setActive($("mat-artpaper"),".material-btn");renderSizes();renderColours();updateAll();
+};
+$("process-preorder").onclick=()=>{
+  process="preorder";setActive($("process-preorder"),".process-btn");renderSizes();updateAll();
+};
+$("process-urgent").onclick=()=>{
+  process="urgent";setActive($("process-urgent"),".process-btn");renderSizes();updateAll();
+};
+$("btn-minus").onclick=()=>{if(quantity>1){quantity--;updateAll()}};
+$("btn-plus").onclick=()=>{quantity++;updateAll()};
+
+renderSizes();renderColours();updateAll();
+</script>
+</body>
+</html>
