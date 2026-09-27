@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burn Away Combo Price</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body{font-family:'Plus Jakarta Sans',sans-serif;background:#fff7ed}
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#f1f5f9}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+  </style>
+</head>
+<body class="p-3 sm:p-5 text-slate-800 antialiased min-h-screen flex flex-col items-center">
+  <header class="w-full max-w-lg mb-4 text-center">
+    <div class="inline-flex items-center justify-center p-3 bg-orange-100 rounded-2xl text-orange-600 mb-2 shadow-sm border border-orange-200">
+      <i class="fa-solid fa-fire-flame-curved text-2xl"></i>
+    </div>
+    <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Burn Away Combo</h1>
+    <p class="text-xs md:text-sm text-slate-600 mt-1 font-medium">Edible Image + Wafer Paper · 2 Layer</p>
+    <div class="inline-flex items-center space-x-1.5 mt-2 px-3 py-1 bg-white border border-orange-200 rounded-full text-xs font-semibold text-orange-800">
+      <i class="fa-brands fa-whatsapp text-emerald-600"></i><span>WhatsApp: 017-9860656</span>
+    </div>
+  </header>
+
+  <main class="w-full max-w-lg space-y-4">
+    <section class="bg-white rounded-2xl shadow-sm border border-orange-100 p-4 md:p-5">
+      <div class="flex items-center space-x-2 border-b border-slate-100 pb-3 mb-4">
+        <span class="flex h-7 w-7 items-center justify-center rounded-full bg-orange-500 text-xs font-bold text-white">1</span>
+        <h2 class="font-bold text-slate-800 text-base">Pilih Spesifikasi</h2>
+      </div>
+
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">1. Process</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="process-preorder" type="button" class="process-btn rounded-xl border-2 border-orange-500 bg-orange-50 p-3 text-left">
+            <div class="font-bold text-sm text-orange-700">Pre-order</div>
+            <div class="text-[10px] text-slate-500 mt-1">3–5 hari bekerja</div>
+          </button>
+          <button id="process-urgent" type="button" class="process-btn rounded-xl border border-slate-200 bg-white p-3 text-left">
+            <div class="font-bold text-sm text-slate-800">Urgent</div>
+            <div class="text-[10px] text-slate-500 mt-1">Tertakluk slot available</div>
+          </button>
+        </div>
+        <div class="mt-2 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-700">
+          Urgent: perlu confirm & bayar sebelum 12 PM, tertakluk kepada slot. Tidak termasuk Friday & Public Holiday.
+        </div>
+      </div>
+
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">2. Review</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="review-no" type="button" class="review-btn rounded-xl border-2 border-orange-500 bg-orange-50 p-3 text-left">
+            <div class="font-bold text-sm text-orange-700">No Review</div>
+            <div class="text-[10px] text-slate-500 mt-1">Terus proses selepas detail lengkap</div>
+          </button>
+          <button id="review-need" type="button" class="review-btn rounded-xl border border-slate-200 bg-white p-3 text-left">
+            <div class="font-bold text-sm text-slate-800">Need Review</div>
+            <div class="text-[10px] text-slate-500 mt-1">Semak design dahulu</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">3. Shape</label>
+        <div id="shape-options" class="grid grid-cols-3 gap-2"></div>
+      </div>
+
+      <div class="mb-5">
+        <div class="flex justify-between items-center mb-2">
+          <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">4. Bottom Layer — Edible Image</label>
+          <span id="edible-price" class="text-xs font-bold bg-orange-100 text-orange-800 px-2.5 py-0.5 rounded-full">RM12.00</span>
+        </div>
+        <div id="edible-sizes" class="grid grid-cols-3 gap-2"></div>
+      </div>
+
+      <div class="mb-5">
+        <div class="flex justify-between items-center mb-2">
+          <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">5. Top Layer — Wafer Paper</label>
+          <span id="wafer-price" class="text-xs font-bold bg-orange-100 text-orange-800 px-2.5 py-0.5 rounded-full">RM6.00</span>
+        </div>
+        <div id="wafer-sizes" class="grid grid-cols-3 gap-2"></div>
+      </div>
+
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">6. Quantity</label>
+        <div class="flex items-center space-x-3">
+          <button type="button" id="btn-minus" class="w-10 h-10 rounded-xl border border-slate-300 flex items-center justify-center text-slate-600"><i class="fa-solid fa-minus"></i></button>
+          <input type="number" id="qty-input" min="1" value="1" readonly class="w-20 h-10 text-center font-extrabold text-lg border border-slate-300 rounded-xl bg-slate-50">
+          <button type="button" id="btn-plus" class="w-10 h-10 rounded-xl border border-slate-300 flex items-center justify-center text-slate-600"><i class="fa-solid fa-plus"></i></button>
+          <span class="text-xs text-slate-500 font-semibold">pcs</span>
+        </div>
+      </div>
+
+      <div class="rounded-xl bg-orange-50 border border-orange-200 p-3 mb-4">
+        <div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Shape</span><span id="summary-shape" class="font-semibold">Round / Bulat</span></div>
+        <div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Edible Image</span><span id="summary-edible" class="font-semibold">5 inch</span></div>
+        <div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Wafer Paper</span><span id="summary-wafer" class="font-semibold">5 inch</span></div>
+        <div class="flex justify-between items-end pt-2 mt-2 border-t border-orange-200">
+          <span class="font-bold text-slate-700 text-sm">Anggaran</span>
+          <span id="current-total" class="text-2xl font-black text-orange-600">RM18.00</span>
+        </div>
+      </div>
+
+      <button id="add-to-cart-btn" type="button" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 shadow-sm transition-all">
+        <i class="fa-solid fa-cart-plus"></i><span>Tambah ke Troli</span>
+      </button>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow-sm border border-orange-100 p-4 md:p-5">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+        <div class="flex items-center space-x-2">
+          <span class="flex h-7 w-7 items-center justify-center rounded-full bg-orange-500 text-xs font-bold text-white">2</span>
+          <h2 class="font-bold text-slate-800 text-base">Troli Pesanan</h2>
+        </div>
+        <span id="cart-count" class="bg-orange-50 text-orange-700 border border-orange-200 text-xs font-bold px-2.5 py-1 rounded-full">0 item</span>
+      </div>
+
+      <div id="cart-items" class="space-y-2.5 max-h-72 overflow-y-auto pr-1 my-3">
+        <div class="text-center py-8 text-slate-400 text-xs">
+          <i class="fa-solid fa-basket-shopping text-3xl mb-2 opacity-30 text-orange-500"></i>
+          <p>Troli masih kosong.</p>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 pt-3 mt-3">
+        <div class="flex justify-between items-center mb-3 bg-orange-50 p-3 rounded-xl border border-orange-100">
+          <span class="text-xs sm:text-sm font-bold text-slate-700">Jumlah Keseluruhan</span>
+          <span id="cart-grand-total" class="text-2xl font-black text-orange-600">RM0.00</span>
+        </div>
+        <a id="btn-send-wa" href="#" target="_blank" class="w-full mb-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl flex items-center justify-center space-x-2 shadow-md transition-all pointer-events-none opacity-50">
+          <i class="fa-brands fa-whatsapp text-xl"></i><span>WhatsApp untuk Tempahan</span>
+        </a>
+        <button id="btn-clear-cart" type="button" disabled class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center space-x-1.5 transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="fa-solid fa-trash-can"></i><span>Kosongkan Troli</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow-sm border border-orange-100 p-4 md:p-5">
+      <h2 class="font-bold text-slate-800 mb-3">Info Ringkas</h2>
+      <div class="space-y-2 text-xs">
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+          <b>2 Layer</b><br><span class="text-slate-500">Bottom layer menggunakan Edible Image, top layer menggunakan Wafer Paper.</span>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+          <b>Saiz layer boleh berbeza</b><br><span class="text-slate-500">Contoh: Edible 5" + Wafer 6". Harga dikira berdasarkan kedua-dua layer.</span>
+        </div>
+        <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+          Edible Image biasanya lebih kecil atau sama saiz dengan Wafer Paper, ikut kesesuaian design dan kek.
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+const WA_NUMBER="60179860656";
+const shapes=["Round / Bulat","Square / Petak","Love Shape / Hati"];
+const edibleSizes=["3 inch","3.5 inch","4 inch","4.5 inch","5 inch","5.5 inch","6 inch","6.5 inch","7 inch","7.5 inch"];
+const waferSizes=[...edibleSizes,"8 inch"];
+
+let process="Pre-order";
+let review="No Review";
+let shape="Round / Bulat";
+let edibleSize="5 inch";
+let waferSize="5 inch";
+let quantity=1;
+let cart=[];
+
+const $=id=>document.getElementById(id);
+
+function edibleBase(size,style){
+  const n=parseFloat(size);
+  let base=n>=6?24:n>=4.5?12:6;
+  if(style==="Square / Petak" && size==="4 inch") base=12;
+  return base;
+}
+function waferBase(size){
+  return parseFloat(size)<=6?6:12;
+}
+function unitPrice(){
+  return edibleBase(edibleSize,shape)+waferBase(waferSize);
+}
+
+function setActive(btn,group){
+  document.querySelectorAll(group).forEach(b=>{
+    b.classList.remove("border-2","border-orange-500","bg-orange-50");
+    b.classList.add("border","border-slate-200","bg-white");
+    const title=b.querySelector(".font-bold");
+    if(title){title.classList.remove("text-orange-700");title.classList.add("text-slate-800")}
+  });
+  btn.classList.remove("border","border-slate-200","bg-white");
+  btn.classList.add("border-2","border-orange-500","bg-orange-50");
+  const title=btn.querySelector(".font-bold");
+  if(title){title.classList.remove("text-slate-800");title.classList.add("text-orange-700")}
+}
+
+function renderShape(){
+  const el=$("shape-options");
+  el.innerHTML="";
+  shapes.forEach(s=>{
+    const active=s===shape;
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.className="shape-btn rounded-xl p-2.5 text-xs font-semibold "+(active?"border-2 border-orange-500 bg-orange-50 text-orange-700":"border border-slate-200 bg-white text-slate-700");
+    btn.textContent=s;
+    btn.onclick=()=>{shape=s;renderShape();renderSizes();updateAll()};
+    el.appendChild(btn);
+  });
+}
+
+function renderSizeButtons(containerId,sizes,current,setter,type){
+  const el=$(containerId);
+  el.innerHTML="";
+  sizes.forEach(s=>{
+    const active=s===current;
+    const price=type==="edible"?edibleBase(s,shape):waferBase(s);
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.className="rounded-xl p-2 text-left "+(active?"border-2 border-orange-500 bg-orange-50":"border border-slate-200 bg-white");
+    btn.innerHTML='<div class="font-bold text-xs '+(active?"text-orange-700":"text-slate-800")+'">'+s.replace(" inch",'"')+'</div><div class="text-[10px] text-slate-500 mt-1">RM'+price.toFixed(2)+'</div>';
+    btn.onclick=()=>{setter(s);renderSizes();updateAll()};
+    el.appendChild(btn);
+  });
+}
+
+function renderSizes(){
+  renderSizeButtons("edible-sizes",edibleSizes,edibleSize,v=>edibleSize=v,"edible");
+  renderSizeButtons("wafer-sizes",waferSizes,waferSize,v=>waferSize=v,"wafer");
+  $("edible-price").textContent="RM"+edibleBase(edibleSize,shape).toFixed(2);
+  $("wafer-price").textContent="RM"+waferBase(waferSize).toFixed(2);
+}
+
+function updateAll(){
+  $("qty-input").value=quantity;
+  $("summary-shape").textContent=shape;
+  $("summary-edible").textContent=edibleSize;
+  $("summary-wafer").textContent=waferSize;
+  $("current-total").textContent="RM"+(unitPrice()*quantity).toFixed(2);
+}
+
+function addToCart(){
+  const unit=unitPrice();
+  cart.push({
+    id:Date.now()+Math.random(),
+    process,review,shape,edibleSize,waferSize,quantity,
+    unitPrice:unit,total:unit*quantity
+  });
+  quantity=1;
+  updateAll();
+  renderCart();
+}
+
+function removeCartItem(id){
+  cart=cart.filter(item=>item.id!==id);
+  renderCart();
+}
+
+function clearCart(){
+  cart=[];
+  renderCart();
+}
+
+function buildWhatsAppText(){
+  const total=cart.reduce((sum,item)=>sum+item.total,0);
+  let text="Berminat dengan pilihan:\n\n";
+  cart.forEach((item,idx)=>{
+    text+=(idx+1)+". *Burn Away Combo*\n";
+    text+="• Process: "+item.process+"\n";
+    text+="• Review: "+item.review+"\n";
+    text+="• Shape: "+item.shape+"\n";
+    text+="• Edible Image: "+item.edibleSize+"\n";
+    text+="• Wafer Paper: "+item.waferSize+"\n";
+    text+="• Kuantiti: "+item.quantity+"\n";
+    text+="• Anggaran: RM"+item.total.toFixed(2)+"\n";
+    if(idx<cart.length-1) text+="\n";
+  });
+  text+="\n*Jumlah anggaran: RM"+total.toFixed(2)+"*\n\n";
+  text+="Tarikh perlu: __ / __ / 2026\n\n";
+  text+="Pilihan delivery:\nPostage\nPickup — Pasir Puteh, Kelantan\n\n";
+  text+="Boleh check availability dan cara nak proceed? Terima kasih.";
+  return text;
+}
+
+function renderCart(){
+  const el=$("cart-items");
+  const count=cart.reduce((sum,item)=>sum+item.quantity,0);
+  const total=cart.reduce((sum,item)=>sum+item.total,0);
+  $("cart-count").textContent=count+" item";
+  $("cart-grand-total").textContent="RM"+total.toFixed(2);
+
+  if(!cart.length){
+    el.innerHTML='<div class="text-center py-8 text-slate-400 text-xs"><i class="fa-solid fa-basket-shopping text-3xl mb-2 opacity-30 text-orange-500"></i><p>Troli masih kosong.</p></div>';
+    $("btn-send-wa").classList.add("pointer-events-none","opacity-50");
+    $("btn-send-wa").removeAttribute("href");
+    $("btn-clear-cart").disabled=true;
+    return;
+  }
+
+  el.innerHTML="";
+  cart.forEach(item=>{
+    const div=document.createElement("div");
+    div.className="flex items-start justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs";
+    div.innerHTML='<div class="pr-3"><div class="font-bold text-slate-800">Burn Away Combo</div><div class="text-slate-500 mt-0.5">'+item.process+' · '+item.review+'</div><div class="text-slate-500">'+item.shape+'</div><div class="text-slate-500">Edible '+item.edibleSize+' · Wafer '+item.waferSize+'</div><div class="text-slate-500">RM'+item.unitPrice.toFixed(2)+' × '+item.quantity+'</div></div><div class="flex items-center space-x-3"><span class="font-extrabold text-orange-700 text-sm">RM'+item.total.toFixed(2)+'</span><button type="button" onclick="removeCartItem('+item.id+')" class="text-slate-400 hover:text-rose-500 p-1"><i class="fa-solid fa-xmark"></i></button></div>';
+    el.appendChild(div);
+  });
+
+  $("btn-send-wa").href="https://wa.me/"+WA_NUMBER+"?text="+encodeURIComponent(buildWhatsAppText());
+  $("btn-send-wa").classList.remove("pointer-events-none","opacity-50");
+  $("btn-clear-cart").disabled=false;
+}
+
+$("process-preorder").onclick=()=>{process="Pre-order";setActive($("process-preorder"),".process-btn")};
+$("process-urgent").onclick=()=>{process="Urgent";setActive($("process-urgent"),".process-btn")};
+$("review-no").onclick=()=>{review="No Review";setActive($("review-no"),".review-btn")};
+$("review-need").onclick=()=>{review="Need Review";setActive($("review-need"),".review-btn")};
+$("btn-minus").onclick=()=>{if(quantity>1){quantity--;updateAll()}};
+$("btn-plus").onclick=()=>{quantity++;updateAll()};
+$("add-to-cart-btn").onclick=addToCart;
+$("btn-clear-cart").onclick=clearCart;
+
+renderShape();renderSizes();updateAll();renderCart();
+</script>
+</body>
+</html>
