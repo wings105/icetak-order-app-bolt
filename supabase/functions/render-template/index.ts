@@ -17,26 +17,39 @@ async function admin(req:Request){
  return {...rows[0],allowed:rows[0].role==='owner'||(ps[0]?.permissions||[]).includes('manage_admins')};
 }
 function sku(value:unknown){const s=String(value||'').trim().toUpperCase();if(!/^[A-Z0-9_-]{1,40}$/.test(s))throw new Error('SKU tidak sah');return s;}
-function config(value:any){
- const t=value?.text;if(!t)throw new Error('Tetapan tulisan diperlukan');
- const c:any={width:Number(value.width),height:Number(value.height),text:{}};
- if(!Number.isInteger(c.width)||!Number.isInteger(c.height)||c.width<1||c.height<1||c.width>8000||c.height>8000||c.width*c.height>24000000)throw new Error('Gambar maksimum 8000px / 24 megapixel');
- for(const [k,min,max] of [['x',0,100],['y',0,100],['boxWidth',1,100],['boxHeight',1,100],['fontSize',1,2000],['strokeWidth',0,100]] as const){
-  const n=Number(t[k]);if(!Number.isFinite(n)||n<min||n>max)throw new Error('Tetapan '+k+' tidak sah');c.text[k]=n;
+function textStyle(t:any){
+ if(!t)throw new Error('Tetapan tulisan diperlukan');const style:any={};
+ for(const [k,min,max,defaultValue] of [['x',0,100,null],['y',0,100,null],['boxWidth',1,100,null],['boxHeight',1,100,null],['fontSize',1,2000,null],['strokeWidth',0,100,null],['curve',-140,140,0],['rotation',-180,180,0],['tracking',-20,100,0],['scaleX',10,300,100],['scaleY',10,300,100]] as const){
+  const n=Number(t[k]??defaultValue);if(!Number.isFinite(n)||n<min||n>max)throw new Error('Tetapan '+k+' tidak sah');style[k]=n;
  }
- for(const k of ['fill','stroke']){if(!/^#[a-f0-9]{6}$/i.test(t[k]||''))throw new Error('Warna tidak sah');c.text[k]=t[k];}
+ for(const k of ['fill','stroke']){if(!/^#[a-f0-9]{6}$/i.test(t[k]||''))throw new Error('Warna tidak sah');style[k]=t[k];}
  if(!['Impact','Arial','Arial Black','Georgia','Times New Roman','Verdana','Trebuchet MS','Courier New'].includes(t.fontFamily))throw new Error('Font tidak sah');
  if(!['400','700','900'].includes(String(t.fontWeight)))throw new Error('Font weight tidak sah');
  if(!['left','center','right'].includes(t.align)||!['input','upper','lower'].includes(t.letterCase))throw new Error('Alignment / huruf tidak sah');
- Object.assign(c.text,{fontFamily:t.fontFamily,fontWeight:String(t.fontWeight),align:t.align,letterCase:t.letterCase,autoFit:t.autoFit!==false});
- const bw=c.text.boxWidth/2,bh=c.text.boxHeight/2;
- if(c.text.x-bw<0||c.text.x+bw>100||c.text.y-bh<0||c.text.y+bh>100)throw new Error('Kawasan tulisan mesti berada dalam gambar');
+ Object.assign(style,{fontFamily:t.fontFamily,fontWeight:String(t.fontWeight),align:t.align,letterCase:t.letterCase,autoFit:t.autoFit!==false});
+ const bw=style.boxWidth/2,bh=style.boxHeight/2;
+ if(style.x-bw<0||style.x+bw>100||style.y-bh<0||style.y+bh>100)throw new Error('Kawasan tulisan mesti berada dalam gambar');return style;
+}
+function config(value:any,s:string){
+ const c:any={width:Number(value?.width),height:Number(value?.height)};
+ if(!Number.isInteger(c.width)||!Number.isInteger(c.height)||c.width<1||c.height<1||c.width>8000||c.height>8000||c.width*c.height>24000000)throw new Error('Gambar maksimum 8000px / 24 megapixel');
+ // Keep the legacy response shape for older hosted editors.
+ if(!Array.isArray(value.layers)){c.text=textStyle(value?.text);return c;}
+ if(!value.layers.length||value.layers.length>12)throw new Error('Gunakan 1 hingga 12 text layer');
+ const ids=new Set(),fields=new Set();
+ c.layers=value.layers.map((l:any)=>{
+  if(!l||!/^[a-zA-Z0-9_-]{1,40}$/.test(l.id)||ids.has(l.id)||!/^[a-zA-Z][a-zA-Z0-9_]{0,39}$/.test(l.field)||typeof l.label!=='string'||!l.label.trim()||l.label.length>60)throw new Error('ID layer / field tidak sah');
+  if(['sku','__proto__','constructor','prototype'].includes(l.field))throw new Error('Nama field tidak sah');ids.add(l.id);fields.add(l.field);
+  return {id:l.id,field:l.field,label:l.label.trim(),font_path:assetPath(s,l.font_path,'fonts',true),text:textStyle(l.text)};
+ });
+ if(fields.size>8)throw new Error('Maksimum 8 input field');
+ const labels=new Map();for(const l of c.layers){if(labels.has(l.field)&&labels.get(l.field)!==l.label)throw new Error('Label input yang sama mesti sepadan');labels.set(l.field,l.label);}
  return c;
 }
 function assetPath(s:string,path:unknown,kind:string,optional=false){
  if(optional&&!path)return null;
  const p=String(path||''),prefix=s+'/'+kind+'/';
- if(!p.startsWith(prefix)||!/^([A-Z0-9_-]+)\/(images|fonts)\/[a-f0-9-]+\.(png|jpg|webp|ttf|otf)$/.test(p))throw new Error('Asset template tidak sah');
+ if(!p.startsWith(prefix)||!/^([A-Z0-9_-]+)\/(images|fonts)\/[a-f0-9-]+\.(png|jpg|webp|ttf|otf)$/.test(p)||(kind==='images'?!/\.(png|jpg|webp)$/.test(p):!/\.(ttf|otf)$/.test(p)))throw new Error('Asset template tidak sah');
  return p;
 }
 async function exists(path:string){
@@ -77,9 +90,9 @@ Deno.serve(async req=>{
   const b=await req.json();
   if(b.action==='list')return out({ok:true,templates:await rest('render_templates?select=sku,image_path,font_path,config,version,updated_at&order=sku&limit=200')});
   if(b.action!=='save')throw new Error('Action tidak sah');
-  const s=sku(b.sku),c=config(b.config),image=assetPath(s,b.image_path,'images')!,font=assetPath(s,b.font_path,'fonts',true);
+  const s=sku(b.sku),image=assetPath(s,b.image_path,'images')!,font=assetPath(s,b.font_path,'fonts',true),c=config(b.config,s);
   if(!Number.isInteger(b.expected_version)||b.expected_version<0)throw new Error('Version diperlukan');
-  await Promise.all([exists(image),font?exists(font):Promise.resolve()]);
+  const paths=new Set<string>([image]);if(font)paths.add(font);for(const l of c.layers||[])if(l.font_path)paths.add(l.font_path);await Promise.all([...paths].map(exists));
   const template=await rest('rpc/icetak_render_template_save',{p_actor:a.username,p_sku:s,p_image_path:image,p_font_path:font,p_config:c,p_expected_version:b.expected_version});
   return out({ok:true,template});
  }catch(e){const error=e instanceof Error?e.message:'Request failed';return out({ok:false,error},error.includes('TEMPLATE_CHANGED')?409:400);}

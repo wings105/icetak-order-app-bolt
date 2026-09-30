@@ -9,33 +9,45 @@
 </head>
 <body><main><div class="card">
 <section class="preview" aria-label="Preview hasil"><canvas id="c" hidden></canvas><div id="empty" class="empty">Pilih SKU dan masukkan wording untuk mula.</div></section>
-<aside><span class="badge">Renderer v2 · Template tersimpan</span><h1>iCetak Render Test</h1><p>Masukkan SKU dan wording. Gaya tulisan ikut tetapan template dalam admin.</p>
-<form id="form"><label for="sku">SKU</label><input id="sku" value="YS0184" maxlength="40" required><label for="name">Wording</label><input id="name" value="Jayna turns 4" maxlength="200" required>
+<aside><span class="badge">Renderer v3 · Curve & text layers</span><h1>iCetak Render Test</h1><p>Masukkan SKU. Input dan gaya tulisan ikut tetapan template dalam admin.</p>
+<form id="form"><label for="sku">SKU</label><input id="sku" value="YS0184" maxlength="40" required><div id="fields"><label for="name">Wording</label><input id="name" data-field="name" value="Jayna turns 4" maxlength="200" required></div>
 <div class="actions"><button id="render" type="submit">Render</button><button id="download" class="secondary" type="button" disabled>Download PNG</button><button id="copy" class="secondary" type="button">Copy URL</button></div></form>
 <p id="msg" role="status" aria-live="polite"></p><label>Link test</label><div id="url"></div><p><a class="btn" href="/?admin=v2&amp;view=render-templates">Upload / Edit Template ↗</a></p><small>Download PNG menggunakan resolusi asal template.</small>
 </aside></div></main>
 <script type="module">
-import {API,prepareRender,displayRender,downloadCanvas} from './renderer.js';
-const $=id=>document.getElementById(id),canvas=$('c'),sku=$('sku'),name=$('name'),msg=$('msg'),download=$('download'),empty=$('empty');
-let ticket=0,completed=null;
-const params=new URLSearchParams(location.search);sku.value=(params.get('sku')||'YS0184').toUpperCase();name.value=params.get('name')||'Jayna turns 4';
-function link(){const u=new URL(location.href);u.searchParams.set('sku',sku.value.trim().toUpperCase());u.searchParams.set('name',name.value.trim());history.replaceState({},'',u);$('url').textContent=u.toString();return u.toString();}
-function invalidate(){ticket++;completed=null;download.disabled=true;canvas.hidden=true;empty.hidden=false;empty.textContent='Tekan Render untuk preview wording terbaru.';msg.textContent='';}
+import {API,getFields,normalizeConfig,prepareRender,displayRender,downloadCanvas} from './renderer.js';
+const $=id=>document.getElementById(id),canvas=$('c'),sku=$('sku'),msg=$('msg'),download=$('download'),empty=$('empty'),fields=$('fields');
+let ticket=0,completed=null,loadedSku=null,initial=true;
+const params=new URLSearchParams(location.search);sku.value=(params.get('sku')||'YS0184').toUpperCase();$('name').value=params.get('name')||'Jayna turns 4';
+const values=()=>Object.fromEntries([...fields.querySelectorAll('input')].map(el=>[el.dataset.field,el.value.trim()]));
+function link(){const u=new URL(location.href);u.search='';u.searchParams.set('sku',sku.value.trim().toUpperCase());for(const [key,value] of Object.entries(values()))u.searchParams.set(key,value);history.replaceState({},'',u);$('url').textContent=u.toString();return u.toString();}
+function invalidate(){ticket++;completed=null;download.disabled=true;canvas.hidden=true;empty.hidden=false;empty.textContent='Tekan Render untuk preview terbaru.';msg.textContent='';}
+function inputs(template,s){
+ const previous=values(),same=loadedSku===s||loadedSku===null;
+ fields.replaceChildren();
+ getFields(normalizeConfig(template.config,template.font_path)).forEach((f,i)=>{
+  const label=document.createElement('label'),input=document.createElement('input');label.htmlFor='field-'+f.key;label.textContent=f.label;
+  input.id=label.htmlFor;input.dataset.field=f.key;input.maxLength=200;input.required=true;
+  input.value=initial&&params.has(f.key)?params.get(f.key):same&&previous[f.key]!==undefined?previous[f.key]:i===0?'Jayna turns 4':'';
+  input.oninput=()=>{invalidate();link();};fields.append(label,input);
+ });loadedSku=s;initial=false;
+}
 async function render(){
  const id=++ticket;completed=null;download.disabled=true;canvas.hidden=true;empty.hidden=false;empty.textContent='Memuatkan template dan font…';msg.className='';msg.textContent='';
- const s=sku.value.trim().toUpperCase(),wording=name.value.trim();link();
+ const s=sku.value.trim().toUpperCase();
  try{
   if(!/^[A-Z0-9_-]{1,40}$/.test(s))throw new Error('SKU tidak sah');
-  if(!wording)throw new Error('Masukkan wording dahulu');
   const r=await fetch(API+'?'+new URLSearchParams({sku:s}),{cache:'no-store',signal:AbortSignal.timeout(20000)});
-  const data=await r.json();if(!r.ok||!data.ok)throw new Error(data.error||'Template gagal dimuatkan');
+  const data=await r.json();if(id!==ticket)return;if(!r.ok||!data.ok)throw new Error(data.error||'Template gagal dimuatkan');
+  inputs(data.template,s);link();const wording=values();
+  if(Object.values(wording).some(v=>!v))throw new Error('Isi semua wording dahulu kemudian tekan Render.');
   const result=await prepareRender(data.template,wording);if(id!==ticket)return;
-  displayRender(canvas,result);canvas.hidden=false;empty.hidden=true;download.disabled=false;completed={sku:s,wording};
-  msg.textContent='Rendered: '+s+' · '+result.text+' · '+result.fontSize.toFixed(1)+' px · '+canvas.width+' × '+canvas.height+' px';
+  displayRender(canvas,result);canvas.hidden=false;empty.hidden=true;download.disabled=false;completed={sku:s,wording:Object.values(wording)[0]};
+  msg.textContent='Rendered: '+s+' · '+result.layers.length+' layer · '+canvas.width+' × '+canvas.height+' px';
  }catch(e){if(id!==ticket)return;msg.className='error';msg.textContent=e.message||'Render gagal. Cuba semula.';empty.textContent=msg.textContent;}
 }
 $('form').onsubmit=e=>{e.preventDefault();void render();};
-sku.oninput=invalidate;name.oninput=invalidate;
+sku.oninput=invalidate;sku.onchange=()=>void render();$('name').oninput=()=>{invalidate();link();};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(link());msg.textContent='Link disalin.';}catch{msg.textContent='Salin link dalam kotak Link test.';}};
 download.onclick=async()=>{if(!completed)return;download.disabled=true;const id=ticket;try{await downloadCanvas(canvas,(completed.sku+'-'+completed.wording.replace(/[^a-z0-9]+/gi,'-')).toLowerCase()+'.png');}catch(e){msg.textContent=e.message;}finally{if(id===ticket&&completed)download.disabled=false;}};
 link();void render();

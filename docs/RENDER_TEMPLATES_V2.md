@@ -1,38 +1,42 @@
-# SKU template renderer v2
+# SKU template renderer v3
 
-## Scope and routes
+## Routes and ownership
 
 - Admin V2: `/?admin=v2&view=render-templates`, Settings → Render Templates.
 - Public test: `/render-test/?sku=YS0184&name=Jayna+turns+4`.
-- One raster template and one text region per SKU. Upload original blank PNG/JPG/WebP, up to 6 MB, maximum 8000 px per side and 24 megapixels.
-- Font selection or custom TTF/OTF upload; fill, outline, maximum font size, weight, alignment, letter case, auto-fit, text-region dimensions and position. Position/region use percentages of original image. Font/outline sizes are original-image pixels.
-- Click preview to reposition the text region. Preview guides never appear in exported PNG.
-- The test form has SKU plus one wording field, Render, Copy URL and Download PNG. PNG preserves original pixel dimensions and transparency.
+- Admin implementation: `icetak-admin/src/pages/RenderTemplates.tsx`.
+- Shared Canvas engine: `public/render-test/renderer.js`.
+- Order System owns template records, audit events, Storage and the `render-template` Edge Function. Existing save RPC and RLS/grants remain unchanged.
 
-## Ownership and security
+## Configuration contract
 
-Order System owns `render_templates`, append-only `render_template_events`, public `render-templates` Storage bucket and `render-template` Edge Function.
-Admin UI belongs solely in `icetak-admin/src/pages/RenderTemplates.tsx`. Shared canvas engine is `public/render-test/renderer.js`.
+New saves use `config: {width, height, layers: [{id, field, label, font_path, text}]}`. Old `config.text` plus top-level `font_path` records normalize to one layer bound to `name` without rewriting stored records. The endpoint also accepts old editor save payloads and preserves their text shape.
 
-- Anonymous GET by exact SKU exposes only SKU, asset paths, configuration and version. No customer/order/payment data is involved.
-- POST list/upload/save requires a valid Supabase Auth user matched to an active admin, and owner role or existing Manage Admins permission. The UI uses the existing shared Supabase session.
-- Gateway JWT verification is disabled deliberately because GET is public. All POST actions authenticate in the function body; no service credential is shipped to browsers.
-- Tables have RLS enabled, no client grants/policies. The save RPC is SECURITY INVOKER, service-role-only. Save atomically checks expected version and records before/after template history.
-- Uploaded assets use UUID paths rather than overwriting cached assets. Storage uploads are service-only through the authenticated endpoint. MIME is detected from file signatures.
-- Image and font decoding must complete before drawing; stale asynchronous results do not replace newer previews. Download is disabled until the current render succeeds. Missing templates show an explicit upload instruction.
+Each layer has independent font/system fallback, fill, stroke, maximum font size, alignment, letter case, auto-fit and region position/dimensions. New controls:
+- `curve`: signed circular arc in degrees, -140..140; positive arch ∩, negative smile ∪, zero straight.
+- `rotation`: -180..180 degrees.
+- `tracking`: -20..100 original-image pixels.
+- `scaleX` / `scaleY`: 10..300 percent; 100 is unchanged.
+- Up to 12 layers and 8 unique input fields. Duplicating a layer preserves its field binding, so one input can appear in several places. Layer order is paint order.
+- Custom font is stored per layer. Asset checks include every unique font path and require the same SKU prefix.
+- Region centers/dimensions remain percentages; font/stroke/tracking use original-image pixels.
+- Click preview relocates the active layer, drag moves it relative to its previous position, arrow buttons move 1 original-image pixel.
+- Public form generates labels and inputs from unique field bindings. URL parameters use the field keys; old name URLs still work.
 
-## Verification and remaining limits
+Auto-fit measures glyph ink and stroke after curve, nonuniform scale and rotation. The text is centered vertically by its transformed bounds; left/center/right align those bounds inside the region. All glyph strokes precede all fills. Guides are a preview overlay and never enter exported PNG.
 
-Backend deployed; SQL grants/RLS/bucket state queried, public missing-template GET returns 404, unauthenticated POST returns 401. Rolled-back SQL test proves create/update/version conflict and two audit records without leaving QA templates.
+This phase implements text along a curve. It does not implement Photoshop glyph Warp distortion or all Blending Options (shadow/glow/gradient/double stroke remain future work). System fonts can vary by device; upload TTF/OTF for consistent font appearance.
 
-Controlled tests prove PNG/TTF upload handling, role rejection, signature validation, config bounds, save/read configuration and stale-version conflict using mocked Auth/Storage/REST boundaries. Canvas tests with a synthetic 1200×1600 raster prove full image pixels, auto-fit, uppercase, uploaded font, guide exclusion, corrupted-image rejection, dimension mismatch and overflow rejection. New page TypeScript check, Admin V2 source boundary check and complete admin bundle with external existing Supabase dependency pass.
+## Security and save behavior
 
-Authenticated hosted admin upload/save and mobile browser interactions have not been verified. The browser session currently reaches Admin Login. System fonts vary by device; upload a custom font for the same typeface across devices. The owner will upload the real blank YS0184 template after release. No legacy gray/thumbnail asset is automatically imported.
+Anonymous exact-SKU GET exposes only template assets/configuration. POST list/upload/save still validates Supabase Auth and an active owner or Manage Admins admin. Service keys remain server-only. Save uses the existing service-only SECURITY INVOKER RPC with expected-version conflict detection and atomic before/after audit. No schema migration or historical backfill is required.
 
-Deleting uploaded assets/template records is deliberately outside the first test UI. Unreferenced assets from an interrupted setup may remain until a later cleanup feature.
+## Verification (2026-10-01 MYT)
 
-## Hosting handoff
+Controlled canvas tests: up/down curves, rotation and scale fit inside the region for 25 combinations; duplicate bindings use one input; multiple input values render distinct layers; long text auto-fits; legacy records remain readable; PNG original dimensions and bottom image pixels remain intact; guides differ only in preview; invalid dimensions, images, overflow and long input reject.
 
-Source commit: `1f5012ec220a63cca9d4709ed14b95942f932f7c` on `production`. GitHub Public Domain Guard completed successfully, including dependency installation, Vite smoke and full production build.
+Controlled Edge handler tests: authenticated v3 save/read preserves curve/scale and shared layers; every custom font is checked; no-auth/staff requests reject; malformed transforms, reserved fields, duplicate IDs and other-SKU font paths reject; stale versions return conflict; legacy saves still succeed. Auth/Storage/REST providers are mocked in these handler tests.
 
-Hosted frontend status remains ATTEMPTED: both browser reload and HTTP request with a new version query still return POC renderer v1; `/render-test/renderer.js` returns the old storefront HTML fallback rather than JavaScript. This proves the release has not reached the served assets. No Cloudflare connector was available in the plugin directory search; hosting build/deploy logs cannot be inspected with the current tools. Deploy the current `production` branch in the Cloudflare project serving `shop.decocake.my`, then recheck renderer v2, the JavaScript asset and authenticated admin upload/save. Do not ask the owner to upload into the old page or treat the successful GitHub build as a hosting deployment.
+TypeScript page check, full admin bundle and Admin V2 source boundary check pass. Hosted v2 was directly observed on 2026-10-01; prior v1 hosting blocker is resolved. User-uploaded YS0184 PNG exists and was opened at 2480×3508, but its template record was not yet saved when work began.
+
+Status at source commit: engine VERIFIED in controlled Canvas environment; frontend UI ATTEMPTED pending hosted v3 smoke check. Authenticated admin editing is currently blocked by the normal Admin Login in the agent browser. Do not claim hosted editor interactions were exercised until that evidence exists.
