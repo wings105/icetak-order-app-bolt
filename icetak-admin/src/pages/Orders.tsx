@@ -178,7 +178,8 @@ function readUrlState() {
   const p = new URLSearchParams(window.location.search);
   let extra: Partial<Filters> = {};
   try { extra = JSON.parse(p.get('filters') || '{}') as Partial<Filters>; } catch { extra = {}; }
-  const view = (p.get('view') || extra.view || 'active') as QuickView;
+  const rawView=p.get('orders_view') || p.get('view') || extra.view || 'active';
+  const view = (rawView==='orders'?'active':rawView) as QuickView;
   const sort = (p.get('sort') || 'urgency') as SortKey;
   const dir = (p.get('dir') === 'desc' ? 'desc' : 'asc') as SortDir;
   return { query: p.get('q') || '', filters: { ...extra, view } as Filters, sort, dir, explicit: p.has('view') || p.has('filters') || p.has('q') || p.has('sort') };

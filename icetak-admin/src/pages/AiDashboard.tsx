@@ -33,7 +33,9 @@ function OrderRef({value}:{value:unknown}){
 
 type Props={onOpenOrder:(orderNo:string)=>void;onOpenDrafts:(query?:string)=>void;canViewDrafts:boolean;onCreateDraft?:(customer:{name:string;phone:string;channel?:string})=>void;canCreateDraft?:boolean};
 export default function AiDashboard({onOpenOrder,onOpenDrafts,canViewDrafts,onCreateDraft,canCreateDraft=false}:Props){
- const [rows,setRows]=useState<Row[]>([]),[channel,setChannel]=useState(''),[search,setSearch]=useState(''),[query,setQuery]=useState('');
+ const initialQuery=new URLSearchParams(window.location.search).get('ai_q')||'';
+ const initialChannel=new URLSearchParams(window.location.search).get('ai_channel')||'';
+ const [rows,setRows]=useState<Row[]>([]),[channel,setChannel]=useState(['whatsapp','shopee'].includes(initialChannel)?initialChannel:''),[search,setSearch]=useState(initialQuery),[query,setQuery]=useState(initialQuery);
  const [status,setStatus]=useState('needs_review'),[intent,setIntent]=useState(''),[queue,setQueue]=useState(''),[sort,setSort]=useState('priority');
  const [viewMode,setViewMode]=useState<'conversation'|'card'|'list'>(()=>{try{const saved=localStorage.getItem('icetak.aiDashboard.view.v2');return saved==='list'||saved==='card'?saved:'conversation';}catch{return 'conversation';}});
  useEffect(()=>{try{localStorage.setItem('icetak.aiDashboard.view.v2',viewMode);}catch{/* View switching still works when browser storage is unavailable. */}},[viewMode]);

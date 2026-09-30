@@ -95,3 +95,9 @@ See `docs/VERIFICATION_PROTOCOL.md`.
 - Shipping/payment attention paths added for operational recovery.
 
 For exact implementation history, inspect Git commits and Supabase migration history on the relevant production system.
+
+
+## 2026-09-30 — Business Command Center
+
+- [VERIFIED backend; ATTEMPTED UI] Whole-system snapshots and audited sales tracking deployed to both Supabase projects. Live SQL, rolled-back sales lifecycle/idempotency tests, gateway role redaction and TypeScript/build checks passed. Five-view frontend implemented; visual interactions and hosting publication remain unverified. See docs/PRODUCTION_STATE.md for scope and limits.
+

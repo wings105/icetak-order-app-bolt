@@ -28,7 +28,7 @@ const PickupCounter = lazy(() => import('./pages/PickupCounter'));
 
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
   'ai-dashboard': { title: 'AI Action Dashboard', subtitle: 'WhatsApp & Shopee · Semakan admin' },
-  dashboard: { title: 'Order Control Tower', subtitle: 'Business Overview' },
+  dashboard: { title: 'Business Command Center', subtitle: 'Seluruh operasi iCetak' },
   orders: { title: 'Orders', subtitle: 'Full order lifecycle' },
   'marketplace-orders': { title: 'Marketplace Orders', subtitle: 'Shopee & external marketplace orders' },
   'pickup-counter': { title: 'Pickup Counter', subtitle: 'Multi-order payment & secure handover' },
@@ -69,7 +69,7 @@ export default function App({ adminData }: Props) {
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
   const initialDraftTab=linkedView==='draft-followups'||initialParams.get('draft_tab')==='followup'?'followup':'all';
-  const [page, setPage] = useState(linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':'dashboard');
+  const [page, setPage] = useState(linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','clickup-queue','integrations','whatsapp-control'].includes(linkedView)?linkedView:'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [marketplaceSearch,setMarketplaceSearch]=useState(initialParams.get('marketplace_q')?.trim() || '');
   const [aiCustomer,setAiCustomer]=useState<{name:string;phone:string;channel?:string}|null>(null);

@@ -19,9 +19,9 @@ const badgeClass=(s:string)=>{const x=s.toLowerCase();return x.includes('cancel'
 
 export default function MarketplaceOrders({initialSearch='',onOpenCustomer}:Props){
   const [search,setSearch]=useState(initialSearch);
-  const [status,setStatus]=useState('all');
+  const [status,setStatus]=useState(()=>{const value=new URLSearchParams(window.location.search).get('mp_status')||'all';return ['all','TO_SHIP','READY_TO_SHIP','PROCESSED','SHIPPED','COMPLETED','CANCELLED'].includes(value)?value:'all';});
   const [provider,setProvider]=useState('all');
-  const [shipBy,setShipBy]=useState('all');
+  const [shipBy,setShipBy]=useState(()=>{const value=new URLSearchParams(window.location.search).get('mp_ship_by')||'all';return ['all','today','tomorrow','overdue'].includes(value)?value:'all';});
   const [payload,setPayload]=useState<Payload>({rows:[],summary:{}});
   const [loading,setLoading]=useState(false);
   const [offset,setOffset]=useState(0);
