@@ -15,7 +15,7 @@
 <p id="msg" role="status" aria-live="polite"></p><label>Link test</label><div id="url"></div><p><a class="btn" href="/?admin=v2&amp;view=render-templates">Upload / Edit Template ↗</a></p><small>Download PNG menggunakan resolusi asal template.</small>
 </aside></div></main>
 <script type="module">
-import {API,getFields,normalizeConfig,prepareRender,displayRender,downloadCanvas} from './renderer.js';
+import {API,getFields,normalizeConfig,prepareRender,displayRender,downloadCanvas} from './renderer.js?v=3.1';
 const $=id=>document.getElementById(id),canvas=$('c'),sku=$('sku'),msg=$('msg'),download=$('download'),empty=$('empty'),fields=$('fields');
 let ticket=0,completed=null,loadedSku=null,initial=true;
 const params=new URLSearchParams(location.search);sku.value=(params.get('sku')||'YS0184').toUpperCase();$('name').value=params.get('name')||'Jayna turns 4';

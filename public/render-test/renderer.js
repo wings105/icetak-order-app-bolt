@@ -93,9 +93,9 @@ export async function prepareRender(template,wording,{guides=false,selectedLayer
   const l=c.layers[index],t=l.text,raw=String(values[l.field]??'');
   const text=(t.letterCase==='upper'?raw.toUpperCase():t.letterCase==='lower'?raw.toLowerCase():raw).trim();
   const x=c.width*t.x/100,y=c.height*t.y/100,w=c.width*t.boxWidth/100,h=c.height*t.boxHeight/100,family=customFonts[index]||t.fontFamily;
-  await document.fonts.load(t.fontWeight+' '+t.fontSize+'px "'+family+'"',text||'A');
+  await document.fonts.load(t.fontWeight+' '+t.fontSize+'px "'+family+'", sans-serif',text||'A');
   ctx.textAlign='center';ctx.textBaseline='alphabetic';
-  const measure=n=>{ctx.font=t.fontWeight+' '+n+'px "'+family+'"';return layoutText(ctx,text,t,n);};
+  const measure=n=>{ctx.font=t.fontWeight+' '+n+'px "'+family+'", sans-serif';return layoutText(ctx,text,t,n);};
   let size=t.fontSize;
   if(text){
    const fits=n=>{const m=measure(n);return m.width<=w&&m.height<=h;};
