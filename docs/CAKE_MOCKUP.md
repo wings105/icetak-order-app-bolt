@@ -29,3 +29,7 @@ Route: `/mockup` and `/mockup/`. Customer-only visual sizing tool. Source: `src/
 `npm run build`
 
 Rendered interaction and production status must be checked per `VERIFICATION_PROTOCOL.md` before claiming completion.
+
+## Release verification (2026-10-01)
+
+Release `4e0c89d` passed Cloudflare Workers Builds and GitHub guard. Live public browser checks prove top/front preview with sample artwork, inch/cm conversion, edible clearance/side-height warnings, multi-tier acrylic placement and PNG preparation with a native download link. The cloud browser disables WebGL; completed native download events did not arrive through its adapter. Controlled Chromium with software WebGL and with WebGL disabled verifies desktop/mobile interactions, uploads, actual decoded 1600px PNG downloads and stale-export invalidation. Hosted 3D and completed downloads in the cloud browser are not independently claimed. Standalone Chromium could not access the hosted site because its environment proxy certificate was not trusted; certificate validation was preserved.
