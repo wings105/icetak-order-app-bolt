@@ -101,3 +101,8 @@ For exact implementation history, inspect Git commits and Supabase migration his
 
 - [VERIFIED backend; ATTEMPTED UI] Whole-system snapshots and audited sales tracking deployed to both Supabase projects. Live SQL, rolled-back sales lifecycle/idempotency tests, gateway role redaction and TypeScript/build checks passed. Five-view frontend implemented; visual interactions and hosting publication remain unverified. See docs/PRODUCTION_STATE.md for scope and limits.
 
+
+
+## 2026-10-01 — SKU renderer v3
+
+- [PRODUCTION public render/export; VERIFIED engine; ATTEMPTED authenticated editor] SKU renderer adds per-layer curve direction/strength, rotation, tracking, horizontal/vertical scale and multiple field bindings while reading legacy one-region templates. Public production smoke on YS0184 proves down-curve wording, input invalidation and a decoded 2480×3508 PNG preserving the full template. Initial setup reuses the owner's uploaded artwork and records one audited version-1 save. Controlled tests prove two inputs/three layers, both curve directions, transform bounds, auto-fit, stale-render rejection, legacy save compatibility and API guards. GitHub and Cloudflare builds pass; authenticated admin interactions and mobile QA remain unverified. See docs/RENDER_TEMPLATES_V2.md.
