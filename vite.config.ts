@@ -10,6 +10,9 @@ export default defineConfig({
   },
   build: {
     target: 'es2020',
-    rollupOptions: { maxParallelFileOps: 128 },
+    rollupOptions: {
+      maxParallelFileOps: 128,
+      input: { main: path.resolve(__dirname, 'index.html'), mockup: path.resolve(__dirname, 'mockup/index.html') },
+    },
   },
 });

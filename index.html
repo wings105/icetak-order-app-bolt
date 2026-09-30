@@ -25,6 +25,10 @@
     <div id="app"></div>
     <script type="module">
       (async () => {
+        if (/^\/mockup\/?$/.test(location.pathname)) {
+          await import('./src/cake-mockup/main.tsx');
+          return;
+        }
         if (new URLSearchParams(location.search).has('awbpreview')) {
           await import('./src/awb-preview.ts');
           return;
