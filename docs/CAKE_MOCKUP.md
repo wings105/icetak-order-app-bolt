@@ -15,6 +15,7 @@ Route: `/mockup` and `/mockup/`. Customer-only visual sizing tool. Source: `src/
 ## Interaction and privacy
 
 - Orthographic 3D/top/front views; mouse/touch orbit and wheel/pinch/slider zoom. Render on changes, without a permanent animation loop. Geometries/materials/textures are disposed on rebuild.
+- When WebGL 2 is unavailable, a Canvas 2D fallback provides dimensionally scaled top/front elevations, cylindrical edible projection, multi-tier occlusion, uploaded artwork, zoom and PNG export. It is labelled Preview 2D and does not offer orbit. Product artwork generation is shared with the 3D renderer.
 - Upload PNG/JPG/WEBP up to 10 MB; decode and downsample in browser to a maximum 2048-pixel edge. Acrylic crops transparent outer margins. Uploaded designs stay in page memory; there is no server upload, customer tracking, order write or automatic WhatsApp send.
 - Save PNG includes dimensions and approximation notes. Generated download has a native fallback link. WhatsApp opens a prepared enquiry to the existing store number 60179860656; customer sends it explicitly.
 - No new backend contract or Supabase schema changes. Three.js is bundled locally; no runtime CDN dependency. The example edible image is a static generated example, not customer content.

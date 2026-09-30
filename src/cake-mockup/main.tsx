@@ -2,7 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { defaults, factor, fmt, layout, assessment, round, summary, type Config, type Product, type Unit, type View } from './model';
 import { CakeScene } from './scene';
+import { CanvasScene } from './canvas-scene';
 import './style.css';
+
+type PreviewScene = CakeScene | CanvasScene;
 
 const cakeColors = ['#fffdf9', '#fff0cf', '#ffc3d5', '#b5dafa', '#bce5ce', '#d8c2ab', '#70432d', '#d4c2f0', '#d5d8df', '#292929'];
 const acrylicColors = [{ label: 'Gold', value: '#c69b48' }, { label: 'Silver', value: '#9ba3b0' }, { label: 'Black', value: '#20232a' }, { label: 'Rose gold', value: '#bb796f' }];
@@ -23,23 +26,29 @@ function Slider({ label, value, onChange, min = -100, max = 100, suffix = '%' }:
   return <label className="slider"><span>{label}<output>{round(value)}{suffix}</output></span><input type="range" aria-label={label} min={min} max={max} step="1" value={value} onChange={e => onChange(Number(e.target.value))} /></label>;
 }
 
-function Preview({ config, sceneRef, view, setView, zoom, setZoom }: { config: Config; sceneRef: React.MutableRefObject<CakeScene | null>; view: View; setView: (v: View) => void; zoom: number; setZoom: (v: number) => void }) {
+function Preview({ config, sceneRef, view, setView, zoom, setZoom }: { config: Config; sceneRef: React.MutableRefObject<PreviewScene | null>; view: View; setView: (v: View) => void; zoom: number; setZoom: (v: number) => void }) {
   const host = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState('');
+  const [fallback, setFallback] = useState(false);
   useEffect(() => {
     try { sceneRef.current = new CakeScene(host.current!, () => setView('3d'), setZoom); }
-    catch (e) { setFailed('Preview 3D perlukan WebGL 2. Cuba Chrome, Safari atau Edge terkini dengan hardware acceleration aktif.'); console.error('[cake-mockup]', e); }
+    catch {
+      try { sceneRef.current = new CanvasScene(host.current!); setFallback(true); }
+      catch (e) { setFailed('Preview tidak dapat dimuatkan. Refresh halaman untuk cuba semula.'); console.error('[cake-mockup]', e); }
+    }
     return () => { sceneRef.current?.dispose(); sceneRef.current = null; };
   }, [sceneRef, setView, setZoom]);
   useEffect(() => { sceneRef.current?.update(config); }, [config, sceneRef]);
   useEffect(() => { sceneRef.current?.setView(view); }, [view, sceneRef]);
   useEffect(() => { sceneRef.current?.setZoom(zoom); }, [zoom, sceneRef]);
   const l = layout(config);
+  const shownView = fallback && view === '3d' ? config.product.kind === 'edible' && config.product.placement === 'top' ? 'top' : 'front' : view;
   return <section className="preview" aria-label="Preview kek">
-    <div className="view-switch"><Segments label="Sudut pandangan" value={view} onChange={setView} options={[['3d', '3D'], ['top', 'Atas'], ['front', 'Depan']]} /></div>
+    <div className="view-switch"><Segments label="Sudut pandangan" value={shownView} onChange={setView} options={fallback ? [['top', 'Atas'], ['front', 'Depan']] : [['3d', '3D'], ['top', 'Atas'], ['front', 'Depan']]} /></div>
+    {fallback ? <span className="fallback-badge">Preview 2D</span> : null}
     <div className="stage" ref={host} data-testid="cake-stage">{failed ? <div className="webgl-error" role="alert">{failed}</div> : null}</div>
     <div className="preview-caption">{config.tiers.length} tier · {config.product.kind === 'edible' ? 'Edible' : 'Acrylic'} {fmt(config.product.width, config.unit)} × {fmt(l.h, config.unit)}</div>
-    <div className="preview-toolbar"><label className="zoom">−<input aria-label="Zoom" type="range" min="0.7" max="2" step="0.05" value={zoom} onChange={e => setZoom(Number(e.target.value))} />+</label><span>Putar dengan jari / mouse</span></div>
+    <div className="preview-toolbar"><label className="zoom">−<input aria-label="Zoom" type="range" min="0.7" max="2" step="0.05" value={zoom} onChange={e => setZoom(Number(e.target.value))} />+</label><span>{fallback ? 'Pilih Atas / Depan' : 'Putar dengan jari / mouse'}</span></div>
     <label className="measure-toggle"><input type="checkbox" checked={config.measures} onChange={() => window.dispatchEvent(new Event('cake-toggle-measures'))} /> Tunjuk ukuran</label>
   </section>;
 }
@@ -76,7 +85,7 @@ function App() {
   const [uploadBusy, setUploadBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [downloadUrl, setDownloadUrl] = useState('');
-  const sceneRef = useRef<CakeScene | null>(null);
+  const sceneRef = useRef<PreviewScene | null>(null);
   const sample = useRef<HTMLImageElement | null>(null);
   const assets = useRef<{ edible: HTMLImageElement | null; acrylic: HTMLImageElement | null; edibleName: string; acrylicName: string }>({ edible: null, acrylic: null, edibleName: '', acrylicName: '' });
   const configRef = useRef(c); configRef.current = c;

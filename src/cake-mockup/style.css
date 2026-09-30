@@ -44,6 +44,7 @@ h3 { font-size: 15px; font-weight: 700; margin: 0 0 10px; }
 .text-button { border: 0; background: transparent; color: var(--blue); padding: 8px 0; font-size: 13px; }
 .preview { position: sticky; top: 12px; height: calc(100dvh - 100px); min-height: 520px; max-height: 980px; border: 1px solid var(--line); border-radius: 12px; background: #eaf3ff; overflow: hidden; }
 .stage { position: absolute; inset: 65px 0 100px; }.stage canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+.fallback-badge { position: absolute; left: 15px; top: 50px; font-size: 10px; color: #516989; z-index: 1; }
 .stage[data-context-lost="true"]:after { content: "Preview terhenti. Refresh halaman untuk sambung."; position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; background: #ffffffee; }
 .view-switch { position: absolute; z-index: 2; top: 18px; left: 50%; transform: translateX(-50%); width: min(290px, 85%); }
 .view-switch .segments { background: #f7faff; }.view-switch button { font-size: 15px; }
