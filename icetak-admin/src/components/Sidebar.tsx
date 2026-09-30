@@ -47,6 +47,7 @@ const navItems: NavItem[] = [
     children: [
       { key: 'settings', label: 'General Settings' },
       { key: 'ai-learning', label: 'AI Learning' },
+      { key: 'render-templates', label: 'Render Templates' },
     ],
   },
 ];
@@ -61,20 +62,21 @@ type Props = {
   canViewCustomers?: boolean;
   canViewPickup?: boolean;
   canViewAi?: boolean;
+  canManageTemplates?: boolean;
 };
 
 type ShippingAttention = { attention?: number; critical?: number; oldest_hours?: number };
 type FollowupSummary = { counts?: { due?: number; failed?: number } };
 
-export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false, canViewCustomers = false, canViewPickup = false, canViewAi = false }: Props) {
+export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false, canViewCustomers = false, canViewPickup = false, canViewAi = false, canManageTemplates = false }: Props) {
   const visibleNavItems = navItems.filter((item) => {
     if (['finance','qrpay-summary','draft-orders'].includes(item.key) && !canViewFinance) return false;
     if (item.key === 'customers' && !canViewCustomers) return false;
     if (item.key === 'ai-dashboard' && !canViewAi) return false;
     if (item.key === 'pickup-counter' && !canViewPickup) return false;
     return true;
-  }).map((item) => item.key === 'settings' && !canViewFinance
-    ? { ...item, children: item.children?.filter((child) => child.key !== 'ai-learning') }
+  }).map((item) => item.key === 'settings'
+    ? { ...item, children: item.children?.filter((child) => (child.key !== 'ai-learning' || canViewFinance) && (child.key !== 'render-templates' || canManageTemplates)) }
     : item);
   const [expanded, setExpanded] = useState<string | null>(
     visibleNavItems.find((n) => n.children?.some((c) => c.key === active))?.key ?? null
@@ -139,4 +141,5 @@ export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile,
     </aside>
   </>;
 }
+
 

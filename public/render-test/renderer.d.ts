@@ -1,0 +1,13 @@
+export type TextConfig={x:number;y:number;boxWidth:number;boxHeight:number;fontFamily:string;fontWeight:string;fontSize:number;fill:string;stroke:string;strokeWidth:number;align:'left'|'center'|'right';letterCase:'input'|'upper'|'lower';autoFit:boolean};
+export type RenderConfig={width:number;height:number;text:TextConfig};
+export type RenderTemplate={sku:string;image_path:string;font_path:string|null;config:RenderConfig;version:number;updated_at?:string};
+export const STORAGE_BASE:string;
+export const API:string;
+export const DEFAULT_TEXT:TextConfig;
+export function loadImage(src:string):Promise<HTMLImageElement>;
+export function readImageFile(file:File):Promise<{width:number;height:number}>;
+export function loadFont(path:string|null,weight?:string):Promise<string|null>;
+export function validateConfig(c:RenderConfig):void;
+export function prepareRender(template:RenderTemplate,wording:string,options?:{guides?:boolean}):Promise<{canvas:HTMLCanvasElement;fontSize:number;text:string}>;
+export function displayRender(target:HTMLCanvasElement,result:{canvas:HTMLCanvasElement}):void;
+export function downloadCanvas(canvas:HTMLCanvasElement,filename:string):Promise<void>;

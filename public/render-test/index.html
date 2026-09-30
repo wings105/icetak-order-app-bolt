@@ -1,143 +1,42 @@
 <!doctype html>
-<html lang="en">
+<html lang="ms">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>iCetak Render Test</title>
 <style>
-:root{font-family:Inter,system-ui,Arial,sans-serif;color:#111827;background:#f3f4f6}
-*{box-sizing:border-box}
-body{margin:0}
-main{max-width:1100px;margin:0 auto;padding:24px}
-.card{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(0,0,0,.06)}
-.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
-@media(max-width:850px){.grid{grid-template-columns:1fr}}
-h1{margin:0 0 6px;font-size:24px}.muted{color:#6b7280;font-size:14px}
-label{display:block;font-size:12px;font-weight:700;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.04em}
-input{width:100%;padding:11px 12px;border:1px solid #d1d5db;border-radius:10px;font-size:15px}
-button,a.btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 12px;border:0;border-radius:10px;background:#111827;color:#fff;text-decoration:none;font-weight:700;cursor:pointer}
-button.secondary{background:#e5e7eb;color:#111827}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-.canvas-wrap{background:#e5e7eb;border-radius:14px;padding:10px}
-canvas{display:block;width:100%;height:auto;background:#fff;border-radius:8px}
-.badge{display:inline-flex;background:#dbeafe;color:#1d4ed8;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:700}
-pre{white-space:pre-wrap;background:#111827;color:#e5e7eb;padding:12px;border-radius:10px;font-size:12px}
-.err{color:#b91c1c;font-weight:700}
+:root{font-family:system-ui,Arial,sans-serif;color:#15223b;background:#f3f5f9}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}main{max-width:1100px;margin:32px auto;padding:20px}.card{padding:22px;border:1px solid #dce3ed;border-radius:16px;background:white;display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:24px}h1{font-size:23px;margin:10px 0}p,small{color:#64748b;line-height:1.5}label{display:block;font-size:12px;font-weight:700;margin:18px 0 6px}input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px}button,a.btn{display:inline-flex;align-items:center;padding:11px 14px;border:0;border-radius:8px;font-weight:600;cursor:pointer;background:#2563eb;color:white;text-decoration:none;font-size:13px}button:disabled{opacity:.45;cursor:default}.secondary{background:#edf2fa;color:#23416a}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.preview{position:relative;min-height:340px;border:1px solid #dce3ed;border-radius:10px;overflow:hidden;background:repeating-conic-gradient(#edf1f6 0% 25%,white 0% 50%) 0/20px 20px}canvas{display:block;width:100%;height:auto}.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;background:#f8fafc;color:#64748b}.badge{background:#dbeafe;color:#1d4ed8;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:700}.error{color:#b91c1c}#msg{font-size:13px;overflow-wrap:anywhere}#url{font-size:12px;word-break:break-all;background:#f1f5f9;border-radius:8px;padding:12px}aside>a{font-size:13px;color:#2563eb}@media(max-width:850px){main{margin:0;padding:14px}.card{grid-template-columns:1fr;padding:16px}aside{grid-row:1}.preview{min-height:300px}}
 </style>
 </head>
-<body>
-<main>
-  <div class="card">
-    <div class="grid">
-      <section>
-        <div class="canvas-wrap"><canvas id="c" width="1447" height="2048"></canvas></div>
-      </section>
-      <aside>
-        <span class="badge">POC renderer v1</span>
-        <h1>iCetak Template Renderer</h1>
-        <p class="muted">SKU-based render test. No Photoshop / Photopea needed.</p>
-
-        <label>SKU</label>
-        <input id="sku" value="YS0184" />
-
-        <label>Customize Name</label>
-        <input id="name" value="Jayna turns 4" />
-
-        <div class="actions">
-          <button id="render">Render</button>
-          <button class="secondary" id="copy">Copy URL</button>
-          <button class="secondary" id="download">Download PNG</button>
-        </div>
-
-        <label>Current URL</label>
-        <pre id="url"></pre>
-
-        <p class="muted">Rule for YS0184: uppercase, yellow fill, blue outline, auto-shrink to fit the ribbon.</p>
-        <p id="msg" class="muted"></p>
-      </aside>
-    </div>
-  </div>
-</main>
-
-<script>
-const BASES = {
-  YS0184: "./YS0184.jpg"
-};
-
-const CONFIGS = {
-  YS0184: {
-    width: 1447, height: 2048,
-    text: {x: 724, y: 831, maxWidth: 620, maxFont: 86, minFont: 34, fill:"#ffe600", stroke:"#0645d8", strokeWidth:16}
-  }
-};
-
-const canvas = document.getElementById("c");
-const ctx = canvas.getContext("2d");
-const skuEl = document.getElementById("sku");
-const nameEl = document.getElementById("name");
-const msg = document.getElementById("msg");
-const urlEl = document.getElementById("url");
-const img = new Image();
-img.onerror = () => { msg.className="err"; msg.textContent="Template image gagal load."; };
-
-function fitFont(text, cfg){
-  let size = cfg.maxFont;
-  do{
-    ctx.font = "900 " + size + "px Impact, Arial Black, sans-serif";
-    if(ctx.measureText(text).width <= cfg.maxWidth) return size;
-    size -= 2;
-  }while(size >= cfg.minFont);
-  return cfg.minFont;
+<body><main><div class="card">
+<section class="preview" aria-label="Preview hasil"><canvas id="c" hidden></canvas><div id="empty" class="empty">Pilih SKU dan masukkan wording untuk mula.</div></section>
+<aside><span class="badge">Renderer v2 · Template tersimpan</span><h1>iCetak Render Test</h1><p>Masukkan SKU dan wording. Gaya tulisan ikut tetapan template dalam admin.</p>
+<form id="form"><label for="sku">SKU</label><input id="sku" value="YS0184" maxlength="40" required><label for="name">Wording</label><input id="name" value="Jayna turns 4" maxlength="200" required>
+<div class="actions"><button id="render" type="submit">Render</button><button id="download" class="secondary" type="button" disabled>Download PNG</button><button id="copy" class="secondary" type="button">Copy URL</button></div></form>
+<p id="msg" role="status" aria-live="polite"></p><label>Link test</label><div id="url"></div><p><a class="btn" href="/?admin=v2&amp;view=render-templates">Upload / Edit Template ↗</a></p><small>Download PNG menggunakan resolusi asal template.</small>
+</aside></div></main>
+<script type="module">
+import {API,prepareRender,displayRender,downloadCanvas} from './renderer.js';
+const $=id=>document.getElementById(id),canvas=$('c'),sku=$('sku'),name=$('name'),msg=$('msg'),download=$('download'),empty=$('empty');
+let ticket=0,completed=null;
+const params=new URLSearchParams(location.search);sku.value=(params.get('sku')||'YS0184').toUpperCase();name.value=params.get('name')||'Jayna turns 4';
+function link(){const u=new URL(location.href);u.searchParams.set('sku',sku.value.trim().toUpperCase());u.searchParams.set('name',name.value.trim());history.replaceState({},'',u);$('url').textContent=u.toString();return u.toString();}
+function invalidate(){ticket++;completed=null;download.disabled=true;canvas.hidden=true;empty.hidden=false;empty.textContent='Tekan Render untuk preview wording terbaru.';msg.textContent='';}
+async function render(){
+ const id=++ticket;completed=null;download.disabled=true;canvas.hidden=true;empty.hidden=false;empty.textContent='Memuatkan template dan font…';msg.className='';msg.textContent='';
+ const s=sku.value.trim().toUpperCase(),wording=name.value.trim();link();
+ try{
+  if(!/^[A-Z0-9_-]{1,40}$/.test(s))throw new Error('SKU tidak sah');
+  if(!wording)throw new Error('Masukkan wording dahulu');
+  const r=await fetch(API+'?'+new URLSearchParams({sku:s}),{cache:'no-store',signal:AbortSignal.timeout(20000)});
+  const data=await r.json();if(!r.ok||!data.ok)throw new Error(data.error||'Template gagal dimuatkan');
+  const result=await prepareRender(data.template,wording);if(id!==ticket)return;
+  displayRender(canvas,result);canvas.hidden=false;empty.hidden=true;download.disabled=false;completed={sku:s,wording};
+  msg.textContent='Rendered: '+s+' · '+result.text+' · '+result.fontSize.toFixed(1)+' px · '+canvas.width+' × '+canvas.height+' px';
+ }catch(e){if(id!==ticket)return;msg.className='error';msg.textContent=e.message||'Render gagal. Cuba semula.';empty.textContent=msg.textContent;}
 }
-
-function updateUrl(){
-  const u = new URL(location.href);
-  u.searchParams.set("sku", skuEl.value.trim().toUpperCase());
-  u.searchParams.set("name", nameEl.value.trim());
-  history.replaceState({}, "", u);
-  urlEl.textContent = u.toString();
-}
-
-function render(){
-  const sku = skuEl.value.trim().toUpperCase();
-  const text = nameEl.value.trim().toUpperCase();
-  const cfg = CONFIGS[sku];
-  if(!cfg || !BASES[sku]){
-    msg.className="err";
-    msg.textContent="SKU belum ada template config.";
-    return;
-  }
-  msg.className="muted";
-  canvas.width=cfg.width; canvas.height=cfg.height;
-  img.onload = ()=>{
-    ctx.clearRect(0,0,cfg.width,cfg.height);
-    ctx.drawImage(img,0,0,cfg.width,cfg.height);
-    const fs=fitFont(text,cfg.text);
-    ctx.font="900 "+fs+"px Impact, Arial Black, sans-serif";
-    ctx.textAlign="center";
-    ctx.textBaseline="middle";
-    ctx.lineJoin="round";
-    ctx.miterLimit=2;
-    ctx.strokeStyle=cfg.text.stroke;
-    ctx.lineWidth=cfg.text.strokeWidth;
-    ctx.strokeText(text,cfg.text.x,cfg.text.y);
-    ctx.fillStyle=cfg.text.fill;
-    ctx.fillText(text,cfg.text.x,cfg.text.y);
-    msg.textContent="Rendered: "+sku+" · "+text+" · font "+fs+"px";
-  };
-  img.src = BASES[sku];
-  updateUrl();
-}
-
-const params = new URLSearchParams(location.search);
-skuEl.value = (params.get("sku") || "YS0184").toUpperCase();
-nameEl.value = params.get("name") || "Jayna turns 4";
-document.getElementById("render").onclick=render;
-document.getElementById("copy").onclick=async()=>{ updateUrl(); await navigator.clipboard.writeText(urlEl.textContent); msg.textContent="URL copied."; };
-document.getElementById("download").onclick=()=>{ render(); setTimeout(()=>{ const a=document.createElement("a"); a.download=(skuEl.value+"-"+nameEl.value.replace(/[^a-z0-9]+/gi,"-")+".png").toLowerCase(); a.href=canvas.toDataURL("image/png"); a.click(); },150); };
-nameEl.addEventListener("keydown",e=>{if(e.key==="Enter")render()});
-skuEl.addEventListener("keydown",e=>{if(e.key==="Enter")render()});
-render();
-</script>
-</body>
-</html>
+$('form').onsubmit=e=>{e.preventDefault();void render();};
+sku.oninput=invalidate;name.oninput=invalidate;
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(link());msg.textContent='Link disalin.';}catch{msg.textContent='Salin link dalam kotak Link test.';}};
+download.onclick=async()=>{if(!completed)return;download.disabled=true;const id=ticket;try{await downloadCanvas(canvas,(completed.sku+'-'+completed.wording.replace(/[^a-z0-9]+/gi,'-')).toLowerCase()+'.png');}catch(e){msg.textContent=e.message;}finally{if(id===ticket&&completed)download.disabled=false;}};
+link();void render();
+</script></body></html>
