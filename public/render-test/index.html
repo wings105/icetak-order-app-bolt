@@ -4,24 +4,25 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>iCetak Render Test</title>
 <style>
-:root{font-family:system-ui,Arial,sans-serif;color:#15223b;background:#f3f5f9}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}main{max-width:1100px;margin:32px auto;padding:20px}.card{padding:22px;border:1px solid #dce3ed;border-radius:16px;background:white;display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:24px}h1{font-size:23px;margin:10px 0}p,small{color:#64748b;line-height:1.5}label{display:block;font-size:12px;font-weight:700;margin:18px 0 6px}input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px}button,a.btn{display:inline-flex;align-items:center;padding:11px 14px;border:0;border-radius:8px;font-weight:600;cursor:pointer;background:#2563eb;color:white;text-decoration:none;font-size:13px}button:disabled{opacity:.45;cursor:default}.secondary{background:#edf2fa;color:#23416a}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.preview{position:relative;min-height:340px;border:1px solid #dce3ed;border-radius:10px;overflow:hidden;background:repeating-conic-gradient(#edf1f6 0% 25%,white 0% 50%) 0/20px 20px}canvas{display:block;width:100%;height:auto}.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;background:#f8fafc;color:#64748b}.badge{background:#dbeafe;color:#1d4ed8;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:700}.error{color:#b91c1c}#msg{font-size:13px;overflow-wrap:anywhere}#url{font-size:12px;word-break:break-all;background:#f1f5f9;border-radius:8px;padding:12px}aside>a{font-size:13px;color:#2563eb}@media(max-width:850px){main{margin:0;padding:14px}.card{grid-template-columns:1fr;padding:16px}aside{grid-row:1}.preview{min-height:300px}}
+:root{font-family:system-ui,Arial,sans-serif;color:#15223b;background:#f3f5f9}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}main{max-width:1100px;margin:32px auto;padding:20px}.card{padding:22px;border:1px solid #dce3ed;border-radius:16px;background:white;display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:24px}h1{font-size:23px;margin:10px 0}p,small{color:#64748b;line-height:1.5}label{display:block;font-size:12px;font-weight:700;margin:18px 0 6px}input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px}button,a.btn{display:inline-flex;align-items:center;padding:11px 14px;border:0;border-radius:8px;font-weight:600;cursor:pointer;background:#2563eb;color:white;text-decoration:none;font-size:13px}button:disabled,a[aria-disabled=true]{opacity:.45;cursor:default;pointer-events:none}a.btn.secondary{background:#edf2fa;color:#23416a}.secondary{background:#edf2fa;color:#23416a}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.preview{position:relative;min-height:340px;border:1px solid #dce3ed;border-radius:10px;overflow:hidden;background:repeating-conic-gradient(#edf1f6 0% 25%,white 0% 50%) 0/20px 20px}canvas{display:block;width:100%;height:auto}.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;background:#f8fafc;color:#64748b}.badge{background:#dbeafe;color:#1d4ed8;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:700}.error{color:#b91c1c}#msg{font-size:13px;overflow-wrap:anywhere}#url{font-size:12px;word-break:break-all;background:#f1f5f9;border-radius:8px;padding:12px}aside>a{font-size:13px;color:#2563eb}@media(max-width:850px){main{margin:0;padding:14px}.card{grid-template-columns:1fr;padding:16px}aside{grid-row:1}.preview{min-height:300px}}
 </style>
 </head>
 <body><main><div class="card">
 <section class="preview" aria-label="Preview hasil"><canvas id="c" hidden></canvas><div id="empty" class="empty">Pilih SKU dan masukkan wording untuk mula.</div></section>
 <aside><span class="badge">Renderer v3 · Curve & text layers</span><h1>iCetak Render Test</h1><p>Masukkan SKU. Input dan gaya tulisan ikut tetapan template dalam admin.</p>
 <form id="form"><label for="sku">SKU</label><input id="sku" value="YS0184" maxlength="40" required><div id="fields"><label for="name">Wording</label><input id="name" data-field="name" value="Jayna turns 4" maxlength="200" required></div>
-<div class="actions"><button id="render" type="submit">Render</button><button id="download" class="secondary" type="button" disabled>Download PNG</button><button id="copy" class="secondary" type="button">Copy URL</button></div></form>
+<div class="actions"><button id="render" type="submit">Render</button><a id="download" class="btn secondary" aria-disabled="true">Download PNG</a><button id="copy" class="secondary" type="button">Copy URL</button></div></form>
 <p id="msg" role="status" aria-live="polite"></p><label>Link test</label><div id="url"></div><p><a class="btn" href="/?admin=v2&amp;view=render-templates">Upload / Edit Template ↗</a></p><small>Download PNG menggunakan resolusi asal template.</small>
 </aside></div></main>
 <script type="module">
-import {API,getFields,normalizeConfig,prepareRender,displayRender,downloadCanvas} from './renderer.js?v=3.1';
+import {API,getFields,normalizeConfig,prepareRender,displayRender} from './renderer.js?v=3.2';
 const $=id=>document.getElementById(id),canvas=$('c'),sku=$('sku'),msg=$('msg'),download=$('download'),empty=$('empty'),fields=$('fields');
-let ticket=0,completed=null,loadedSku=null,initial=true;
+let ticket=0,completed=null,loadedSku=null,initial=true,pngUrl=null;
+function clearDownload(){if(pngUrl)URL.revokeObjectURL(pngUrl);pngUrl=null;download.removeAttribute('href');download.setAttribute('aria-disabled','true');}
 const params=new URLSearchParams(location.search);sku.value=(params.get('sku')||'YS0184').toUpperCase();$('name').value=params.get('name')||'Jayna turns 4';
 const values=()=>Object.fromEntries([...fields.querySelectorAll('input')].map(el=>[el.dataset.field,el.value.trim()]));
 function link(){const u=new URL(location.href);u.search='';u.searchParams.set('sku',sku.value.trim().toUpperCase());for(const [key,value] of Object.entries(values()))u.searchParams.set(key,value);history.replaceState({},'',u);$('url').textContent=u.toString();return u.toString();}
-function invalidate(){ticket++;completed=null;download.disabled=true;canvas.hidden=true;empty.hidden=false;empty.textContent='Tekan Render untuk preview terbaru.';msg.textContent='';}
+function invalidate(){ticket++;completed=null;clearDownload();canvas.hidden=true;empty.hidden=false;empty.textContent='Tekan Render untuk preview terbaru.';msg.textContent='';}
 function inputs(template,s){
  const previous=values(),same=loadedSku===s||loadedSku===null;
  fields.replaceChildren();
@@ -33,7 +34,7 @@ function inputs(template,s){
  });loadedSku=s;initial=false;
 }
 async function render(){
- const id=++ticket;completed=null;download.disabled=true;canvas.hidden=true;empty.hidden=false;empty.textContent='Memuatkan template dan font…';msg.className='';msg.textContent='';
+ const id=++ticket;completed=null;clearDownload();canvas.hidden=true;empty.hidden=false;empty.textContent='Memuatkan template dan font…';msg.className='';msg.textContent='';
  const s=sku.value.trim().toUpperCase();
  try{
   if(!/^[A-Z0-9_-]{1,40}$/.test(s))throw new Error('SKU tidak sah');
@@ -42,13 +43,16 @@ async function render(){
   inputs(data.template,s);link();const wording=values();
   if(Object.values(wording).some(v=>!v))throw new Error('Isi semua wording dahulu kemudian tekan Render.');
   const result=await prepareRender(data.template,wording);if(id!==ticket)return;
-  displayRender(canvas,result);canvas.hidden=false;empty.hidden=true;download.disabled=false;completed={sku:s,wording:Object.values(wording)[0]};
+  const blob=await new Promise(resolve=>result.canvas.toBlob(resolve,'image/png'));if(id!==ticket)return;if(!blob)throw new Error('PNG gagal dijana');
+  pngUrl=URL.createObjectURL(blob);download.href=pngUrl;download.download=(s+'-'+Object.values(wording)[0].replace(/[^a-z0-9]+/gi,'-')).toLowerCase()+'.png';download.setAttribute('aria-disabled','false');
+  displayRender(canvas,result);canvas.hidden=false;empty.hidden=true;completed={sku:s,wording:Object.values(wording)[0]};
   msg.textContent='Rendered: '+s+' · '+result.layers.length+' layer · '+canvas.width+' × '+canvas.height+' px';
  }catch(e){if(id!==ticket)return;msg.className='error';msg.textContent=e.message||'Render gagal. Cuba semula.';empty.textContent=msg.textContent;}
 }
 $('form').onsubmit=e=>{e.preventDefault();void render();};
 sku.oninput=invalidate;sku.onchange=()=>void render();$('name').oninput=()=>{invalidate();link();};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(link());msg.textContent='Link disalin.';}catch{msg.textContent='Salin link dalam kotak Link test.';}};
-download.onclick=async()=>{if(!completed)return;download.disabled=true;const id=ticket;try{await downloadCanvas(canvas,(completed.sku+'-'+completed.wording.replace(/[^a-z0-9]+/gi,'-')).toLowerCase()+'.png');}catch(e){msg.textContent=e.message;}finally{if(id===ticket&&completed)download.disabled=false;}};
+download.onclick=e=>{if(!completed||!pngUrl)e.preventDefault();};
+window.addEventListener('pagehide',()=>{if(pngUrl)URL.revokeObjectURL(pngUrl);});
 link();void render();
 </script></body></html>
