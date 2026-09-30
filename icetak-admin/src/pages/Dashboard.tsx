@@ -5,6 +5,7 @@ import { IconPlus } from '../components/Icons';
 import { Bars, OrdersChart } from '../components/command-center/Charts';
 import SalesPanel from '../components/command-center/SalesPanel';
 import WhatsAppShortcuts from '../components/command-center/WhatsAppShortcuts';
+import DeliveryIcon from '../components/command-center/DeliveryIcon';
 import { adminHref, dateTime, money, number, stages } from '../components/command-center/contracts';
 import type { Breakdown, Snapshot } from '../components/command-center/contracts';
 import './Dashboard.css';
@@ -71,7 +72,7 @@ export default function Dashboard({onQuickOrder,onOpenOrder}:Props){
    {(tab==='overview'||tab==='orders')&&<>
     <Panel title="Order harian" hint={`Tempoh dipilih · ${number(p.previous_orders)} order dalam tempoh sebelumnya`}><OrdersChart rows={trend} onDay={d=>{setPreset('custom');setFrom(d);setTo(d);}}/></Panel>
     <Panel title="Fokus hari ini" hint="Order / draft yang memerlukan tindakan" action={<select aria-label="Jenis focus" value={focusType} onChange={e=>setFocusType(e.target.value)}><option value="all">Semua</option><option value="orders">iCetak</option><option value="marketplace-orders">Shopee</option><option value="draft-orders">Draft</option></select>}>
-     <div className="cc-focus-scroll"><table className="cc-table cc-focus-table"><thead><tr><th>Perkara</th><th>Sebab</th><th>Tindakan</th></tr></thead><tbody>{focusRows.slice(0,12).map(f=><tr key={f.key}><td><div className="cc-focus-customer"><b>{f.name||f.reference}</b><WhatsAppShortcuts phone={f.phone} name={f.name||f.reference}/></div><small><span>{f.reference}</span><Copy value={f.reference}/></small></td><td>{f.reason}<small>{f.deadline?dateTime(f.deadline):'—'}</small></td><td>{f.module==='orders'&&onOpenOrder?<button onClick={()=>onOpenOrder(f.reference)}>Buka order</button>:<a href={focusLink(f)}>Semak ↗</a>}</td></tr>)}</tbody></table>{!focusRows.length&&<p className="cc-empty">Tiada item dalam focus ini.</p>}</div>
+     <div className="cc-focus-scroll"><table className="cc-table cc-focus-table"><thead><tr><th>Perkara</th><th>Sebab</th><th>Tindakan</th></tr></thead><tbody>{focusRows.slice(0,12).map(f=><tr key={f.key}><td><div className="cc-focus-customer"><DeliveryIcon method={f.delivery_method}/><b>{f.name||f.reference}</b><WhatsAppShortcuts phone={f.phone} name={f.name||f.reference}/></div><small><span>{f.reference}</span><Copy value={f.reference}/></small></td><td>{f.reason}<small>{f.deadline?dateTime(f.deadline):'—'}</small></td><td>{f.module==='orders'&&onOpenOrder?<button onClick={()=>onOpenOrder(f.reference)}>Buka order</button>:<a href={focusLink(f)}>Semak ↗</a>}</td></tr>)}</tbody></table>{!focusRows.length&&<p className="cc-empty">Tiada item dalam focus ini.</p>}</div>
     </Panel>
     <BreakdownPanel title="Pipeline operasi" hint="Backlog semasa · order dan komponen berbeza unit" rows={data.order.pipeline} onSelect={r=>{if(r.module)window.location.assign(r.module==='orders'?ordersLink(r.filter||'active'):r.module==='marketplace-orders'?mpLink(r.filter):adminHref(r.module));}}/>
     <BreakdownPanel title="Courier mix" hint="Order shipment dicipta dalam tempoh dipilih · unique order per courier" rows={data.order.couriers} color="orange" onSelect={()=>showBreakdown('Courier mix',data.order.couriers)}/>

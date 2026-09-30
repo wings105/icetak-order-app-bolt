@@ -1,5 +1,5 @@
 export type Breakdown = { label: string; value: number; module?: string; filter?: string };
-export type Focus = { key: string; name: string; reference: string; module: string; reason: string; deadline?: string; owner?: string; phone?: string | null };
+export type Focus = { key: string; name: string; reference: string; module: string; reason: string; deadline?: string; owner?: string; phone?: string | null; delivery_method?: string | null };
 export type Opportunity = { id: string; customer_name: string; phone?: string; source: string; stage: string; owner: string; estimated_value: number; version: number; identity_key: string; note?: string; updated_at: string };
 export type Trend = { date: string; icetak: number; shopee: number; gmv?: number };
 export type Snapshot = {
