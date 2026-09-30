@@ -30,3 +30,9 @@ Controlled tests prove PNG/TTF upload handling, role rejection, signature valida
 Authenticated hosted admin upload/save and mobile browser interactions have not been verified. The browser session currently reaches Admin Login. System fonts vary by device; upload a custom font for the same typeface across devices. The owner will upload the real blank YS0184 template after release. No legacy gray/thumbnail asset is automatically imported.
 
 Deleting uploaded assets/template records is deliberately outside the first test UI. Unreferenced assets from an interrupted setup may remain until a later cleanup feature.
+
+## Hosting handoff
+
+Source commit: `1f5012ec220a63cca9d4709ed14b95942f932f7c` on `production`. GitHub Public Domain Guard completed successfully, including dependency installation, Vite smoke and full production build.
+
+Hosted frontend status remains ATTEMPTED: both browser reload and HTTP request with a new version query still return POC renderer v1; `/render-test/renderer.js` returns the old storefront HTML fallback rather than JavaScript. This proves the release has not reached the served assets. No Cloudflare connector was available in the plugin directory search; hosting build/deploy logs cannot be inspected with the current tools. Deploy the current `production` branch in the Cloudflare project serving `shop.decocake.my`, then recheck renderer v2, the JavaScript asset and authenticated admin upload/save. Do not ask the owner to upload into the old page or treat the successful GitHub build as a hosting deployment.
