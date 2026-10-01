@@ -39,11 +39,12 @@ export function normalizeConfig(c,fontPath=null){
  return {width:c?.width,height:c?.height,layers:Array.isArray(c?.layers)?c.layers.map(l=>({...l,text:{...DEFAULT_TEXT,...l.text}})):[{id:'wording',field:'name',label:'Wording',font_path:fontPath,text:{...DEFAULT_TEXT,...c?.text}}]};
 }
 export function getFields(c){
- const fields=new Map();for(const l of normalizeConfig(c).layers)if(!fields.has(l.field))fields.set(l.field,{key:l.field,label:l.label});return [...fields.values()];
+ return getInputFields(normalizeConfig(c));
 }
 export function validateConfig(c){
  if(!Number.isInteger(c.width)||!Number.isInteger(c.height)||c.width<1||c.height<1||c.width>8000||c.height>8000||c.width*c.height>24000000)throw new Error('Dimensi template tidak sah');
  const layers=normalizeConfig(c).layers;
+ validatePatterns({...c,layers});
  if(!layers.length||layers.length>12)throw new Error('Gunakan 1 hingga 12 text layer');
  const ids=new Set();
  for(const l of layers){
@@ -83,14 +84,14 @@ function layoutText(ctx,text,t,size){
 }
 export async function prepareRender(template,wording,{guides=false,selectedLayer=null}={}){
  const c=normalizeConfig(template.config,template.font_path);validateConfig(c);
- const values=typeof wording==='string'?{[c.layers[0].field]:wording}:wording||{};
+ const values=resolveValues(c,typeof wording==='string'?{[c.layers[0].field]:wording}:wording||{});
  for(const f of getFields(c))if(String(values[f.key]??'').length>200)throw new Error(f.label+': maksimum 200 aksara');
  const [img,customFonts]=await Promise.all([loadImage(STORAGE_BASE+template.image_path),Promise.all(c.layers.map(l=>loadFont(l.font_path,l.text.fontWeight)))]);
  if(img.naturalWidth!==c.width||img.naturalHeight!==c.height)throw new Error('Dimensi template tidak sepadan. Upload dan Save semula template.');
  const canvas=document.createElement('canvas');canvas.width=c.width;canvas.height=c.height;
  const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0);const results=[];
  for(let index=0;index<c.layers.length;index++){
-  const l=c.layers[index],t=l.text,raw=String(values[l.field]??'');
+  const l=c.layers[index],t=l.text,raw=resolveLayerText(l,values);
   const text=(t.letterCase==='upper'?raw.toUpperCase():t.letterCase==='lower'?raw.toLowerCase():raw).trim();
   const x=c.width*t.x/100,y=c.height*t.y/100,w=c.width*t.boxWidth/100,h=c.height*t.boxHeight/100,family=customFonts[index]||t.fontFamily;
   await document.fonts.load(t.fontWeight+' '+t.fontSize+'px "'+family+'", sans-serif',text||'A');
@@ -122,3 +123,4 @@ export async function downloadCanvas(canvas,filename){
  if(!blob)throw new Error('PNG gagal dijana');
  const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000);
 }
+import {getInputFields,validatePatterns,resolveValues,resolveLayerText} from './fields.js';

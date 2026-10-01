@@ -1,4 +1,5 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import {getInputFields,validatePatterns,resolveValues} from './render-fields.js';
 const url=Deno.env.get('SUPABASE_URL')||'',key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const bucket='render-templates', maxBytes=6*1024*1024;
 const cors={'access-control-allow-origin':'*','access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'authorization,apikey,content-type,x-client-info'};
@@ -40,11 +41,11 @@ function config(value:any,s:string){
  c.layers=value.layers.map((l:any)=>{
   if(!l||!/^[a-zA-Z0-9_-]{1,40}$/.test(l.id)||ids.has(l.id)||!/^[a-zA-Z][a-zA-Z0-9_]{0,39}$/.test(l.field)||typeof l.label!=='string'||!l.label.trim()||l.label.length>60)throw new Error('ID layer / field tidak sah');
   if(['sku','__proto__','constructor','prototype'].includes(l.field))throw new Error('Nama field tidak sah');ids.add(l.id);fields.add(l.field);
-  return {id:l.id,field:l.field,label:l.label.trim(),font_path:assetPath(s,l.font_path,'fonts',true),text:textStyle(l.text)};
+  return {id:l.id,field:l.field,label:l.label.trim(),font_path:assetPath(s,l.font_path,'fonts',true),text:textStyle(l.text),...(l.pattern!==undefined?{pattern:l.pattern}:{}),...(l.field_labels?{field_labels:l.field_labels}:{}),...(l.legacy_full_wording===true?{legacy_full_wording:true}:{})};
  });
  if(fields.size>8)throw new Error('Maksimum 8 input field');
  const labels=new Map();for(const l of c.layers){if(labels.has(l.field)&&labels.get(l.field)!==l.label)throw new Error('Label input yang sama mesti sepadan');labels.set(l.field,l.label);}
- return c;
+ validatePatterns(c);return c;
 }
 function assetPath(s:string,path:unknown,kind:string,optional=false){
  if(optional&&!path)return null;
@@ -56,6 +57,41 @@ async function exists(path:string){
  const r=await fetch(url+'/storage/v1/object/public/'+bucket+'/'+path,{signal:AbortSignal.timeout(15000)});
  await r.body?.cancel();if(!r.ok)throw new Error('Asset gagal load. Upload semula sebelum Save.');
 }
+const hex=(bytes:ArrayBuffer)=>Array.from(new Uint8Array(bytes)).map(b=>b.toString(16).padStart(2,'0')).join('');
+async function automationAuth(req:Request){
+ const auth=req.headers.get('authorization')||'',token=auth.replace(/^Bearer /,'');
+ if(/^rk_[a-f0-9]{64}$/.test(token)){
+  const hash=hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token)));
+  const check=await rest('rpc/icetak_render_key_authorize',{p_hash:hash});
+  if(!check.allowed)throw Object.assign(new Error(check.error||'API key tidak sah'),{status:check.status||401});
+  return {username:check.actor};
+ }
+ const a=await admin(req);if(!a)throw Object.assign(new Error('API key / admin login diperlukan'),{status:401});
+ if(!a.allowed)throw Object.assign(new Error('Akses Owner / Manage Admins diperlukan'),{status:403});return a;
+}
+async function signedKey(){return crypto.subtle.importKey('raw',new TextEncoder().encode(key),{name:'HMAC',hash:'SHA-256'},false,['sign','verify']);}
+function signedPayload(s:string,fields:Record<string,string>,version:number,expires:number){return new TextEncoder().encode(JSON.stringify({sku:s,fields:Object.entries(fields).sort(([a],[b])=>a.localeCompare(b)),version,expires}));}
+async function automation(req:Request,b:any){
+ const s=sku(b.sku);
+ if(b.action==='automation-template'&&b.sig){
+  const expires=Number(b.expires),version=Number(b.version);
+  if(!Number.isInteger(expires)||expires<Math.floor(Date.now()/1000)||expires>Math.floor(Date.now()/1000)+1805||!Number.isInteger(version)||!/^([a-f0-9]{64})$/.test(b.sig))throw Object.assign(new Error('Link output tamat tempoh / tidak sah'),{status:401});
+  const fields=resolveValues({layers:[]} as any,b.fields);
+  const signature=Uint8Array.from(b.sig.match(/../g), (v:string)=>parseInt(v,16));
+  if(!await crypto.subtle.verify('HMAC',await signedKey(),signature,signedPayload(s,fields,version,expires)))throw Object.assign(new Error('Link output tidak sah'),{status:401});
+ }else await automationAuth(req);
+ const rows=await rest('render_templates?sku=eq.'+encodeURIComponent(s)+'&select=sku,image_path,font_path,config,version&limit=1');
+ if(!rows[0])throw Object.assign(new Error('Template '+s+' belum disimpan'),{status:404});
+ const template=rows[0];
+ if(b.version!==undefined&&Number(b.version)!==template.version)throw Object.assign(new Error('Template berubah. Jana link output baru.'),{status:409});
+ const c=Array.isArray(template.config.layers)?template.config:{...template.config,layers:[{field:'name',label:'Wording',text:template.config.text}]};
+ const fields=resolveValues(c,b.fields,{required:true,strict:true});
+ if(b.action==='automation-template')return out({ok:true,template});
+ const expires=Math.floor(Date.now()/1000)+1800,version=template.version;
+ const sig=hex(await crypto.subtle.sign('HMAC',await signedKey(),signedPayload(s,fields,version,expires)));
+ const query={sku:s,...fields,version:String(version),expires:String(expires),sig};
+ return out({ok:true,query,expires,fields:getInputFields(c),version});
+}
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response('ok',{headers:cors});
  try{
@@ -65,6 +101,10 @@ Deno.serve(async req=>{
    return rows[0]?out({ok:true,template:rows[0]}):out({ok:false,error:'Template '+s+' belum disimpan. Upload melalui Admin Render Templates dahulu.'},404);
   }
   if(req.method!=='POST')return out({ok:false,error:'Method not allowed'},405);
+  const multipart=(req.headers.get('content-type')||'').startsWith('multipart/form-data');
+  if(!multipart&&Number(req.headers.get('content-length')||0)>65536)return out({ok:false,error:'Request terlalu besar'},413);
+  const b=multipart?null:await req.json();
+  if(b?.action==='automation-template'||b?.action==='automation-link')return await automation(req,b);
   const a=await admin(req);if(!a)return out({ok:false,error:'Sila log masuk sebagai admin'},401);
   if(!a.allowed)return out({ok:false,error:'Akses Owner / Manage Admins diperlukan'},403);
   if(Number(req.headers.get('content-length')||0)>maxBytes+65536)return out({ok:false,error:'Fail maksimum 6 MB'},413);
@@ -87,7 +127,12 @@ Deno.serve(async req=>{
    if(!r.ok)throw new Error('Upload gagal ('+r.status+')');
    return out({ok:true,path});
   }
-  const b=await req.json();
+  if(b.action==='automation-key'){
+   const token='rk_'+hex(crypto.getRandomValues(new Uint8Array(32)).buffer),hash=hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token)));
+   await rest('rpc/icetak_render_key_rotate',{p_actor:a.username,p_hash:hash});
+   return out({ok:true,token,message:'Simpan key dalam AP. Key lama bagi admin ini dibatalkan.'});
+  }
+  if(b.action==='automation-revoke'){await rest('rpc/icetak_render_key_revoke',{p_actor:a.username});return out({ok:true});}
   if(b.action==='list')return out({ok:true,templates:await rest('render_templates?select=sku,image_path,font_path,config,version,updated_at&order=sku&limit=200')});
   if(b.action!=='save')throw new Error('Action tidak sah');
   const s=sku(b.sku),image=assetPath(s,b.image_path,'images')!,font=assetPath(s,b.font_path,'fonts',true),c=config(b.config,s);
@@ -95,5 +140,5 @@ Deno.serve(async req=>{
   const paths=new Set<string>([image]);if(font)paths.add(font);for(const l of c.layers||[])if(l.font_path)paths.add(l.font_path);await Promise.all([...paths].map(exists));
   const template=await rest('rpc/icetak_render_template_save',{p_actor:a.username,p_sku:s,p_image_path:image,p_font_path:font,p_config:c,p_expected_version:b.expected_version});
   return out({ok:true,template});
- }catch(e){const error=e instanceof Error?e.message:'Request failed';return out({ok:false,error},error.includes('TEMPLATE_CHANGED')?409:400);}
+ }catch(e){const error=e instanceof Error?e.message:'Request failed';return out({ok:false,error},(e as any)?.status||(error.includes('TEMPLATE_CHANGED')?409:400));}
 });

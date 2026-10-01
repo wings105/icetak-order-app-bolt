@@ -15,7 +15,8 @@
 <p id="msg" role="status" aria-live="polite"></p><label>Link test</label><div id="url"></div><p><a class="btn" href="/?admin=v2&amp;view=render-templates">Upload / Edit Template ↗</a></p><small>Download PNG menggunakan resolusi asal template.</small>
 </aside></div></main>
 <script type="module">
-import {API,getFields,normalizeConfig,prepareRender,displayRender} from './renderer.js?v=3.2';
+import {API,getFields,normalizeConfig,prepareRender,displayRender} from './renderer.js?v=4.0';
+import {resolveValues} from './fields.js';
 const $=id=>document.getElementById(id),canvas=$('c'),sku=$('sku'),msg=$('msg'),download=$('download'),empty=$('empty'),fields=$('fields');
 let ticket=0,completed=null,loadedSku=null,initial=true,pngUrl=null;
 function clearDownload(){if(pngUrl)URL.revokeObjectURL(pngUrl);pngUrl=null;download.removeAttribute('href');download.setAttribute('aria-disabled','true');}
@@ -24,12 +25,13 @@ const values=()=>Object.fromEntries([...fields.querySelectorAll('input')].map(el
 function link(){const u=new URL(location.href);u.search='';u.searchParams.set('sku',sku.value.trim().toUpperCase());for(const [key,value] of Object.entries(values()))u.searchParams.set(key,value);history.replaceState({},'',u);$('url').textContent=u.toString();return u.toString();}
 function invalidate(){ticket++;completed=null;clearDownload();canvas.hidden=true;empty.hidden=false;empty.textContent='Tekan Render untuk preview terbaru.';msg.textContent='';}
 function inputs(template,s){
- const previous=values(),same=loadedSku===s||loadedSku===null;
+ const same=loadedSku===s||loadedSku===null;
+ const previous=resolveValues(normalizeConfig(template.config,template.font_path),initial?Object.fromEntries(getFields(template.config).filter(f=>params.has(f.key)).map(f=>[f.key,params.get(f.key)])):values());
  fields.replaceChildren();
  getFields(normalizeConfig(template.config,template.font_path)).forEach((f,i)=>{
   const label=document.createElement('label'),input=document.createElement('input');label.htmlFor='field-'+f.key;label.textContent=f.label;
   input.id=label.htmlFor;input.dataset.field=f.key;input.maxLength=200;input.required=true;
-  input.value=initial&&params.has(f.key)?params.get(f.key):same&&previous[f.key]!==undefined?previous[f.key]:i===0?'Jayna turns 4':'';
+  input.value=same&&previous[f.key]!==undefined?previous[f.key]:i===0?(template.config.layers?.some(l=>l.pattern)?'Jayna':'Jayna turns 4'):'';
   input.oninput=()=>{invalidate();link();};fields.append(label,input);
  });loadedSku=s;initial=false;
 }

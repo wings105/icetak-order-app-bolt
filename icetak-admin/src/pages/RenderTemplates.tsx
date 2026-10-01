@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { API, DEFAULT_TEXT, displayRender, downloadCanvas, getFields, loadFont, normalizeConfig, prepareRender, readImageFile, validateConfig } from '../../../public/render-test/renderer.js';
 import type { RenderConfig, RenderTemplate, TextConfig, TextLayer } from '../../../public/render-test/renderer.js';
+import {patternKeys} from '../../../public/render-test/fields.js';
 import './RenderTemplates.css';
 
 const freshConfig=():RenderConfig=>({width:1447,height:2048,layers:[{id:'wording',field:'name',label:'Wording',font_path:null,text:{...DEFAULT_TEXT}}]});
@@ -17,16 +18,17 @@ export default function RenderTemplates(){
  const [templates,setTemplates]=useState<RenderTemplate[]>([]),[sku,setSku]=useState('YS0184'),[imagePath,setImagePath]=useState('');
  const [config,setConfig]=useState<RenderConfig>(freshConfig),[version,setVersion]=useState(0),[selected,setSelected]=useState('wording');
  const [values,setValues]=useState<Record<string,string>>({name:'Jayna turns 4'}),[guides,setGuides]=useState(true);
+ const [automationKey,setAutomationKey]=useState(''),[outputUrl,setOutputUrl]=useState('');
  const [busy,setBusy]=useState(true),[notice,setNotice]=useState(''),[error,setError]=useState(''),[ready,setReady]=useState(false),[sizes,setSizes]=useState<Record<string,number>>({}),[saved,setSaved]=useState(false);
  const canvas=useRef<HTMLCanvasElement>(null),sequence=useRef(0),drag=useRef<{x:number;y:number}|null>(null);
  const layer=config.layers.find(l=>l.id===selected)||config.layers[0],style=layer.text,fields=getFields(config);
  const template:RenderTemplate={sku,image_path:imagePath,font_path:null,config,version};
- function invalidate(){sequence.current++;setReady(false);}
+ function invalidate(){sequence.current++;setReady(false);setOutputUrl('');}
  function change(update:(c:RenderConfig)=>RenderConfig){invalidate();setSaved(false);setConfig(update);}
  function patchLayer(p:Partial<TextLayer>){change(c=>({...c,layers:c.layers.map(l=>l.id===layer.id?{...l,...p}:l)}));}
  function text<K extends keyof TextConfig>(key:K,value:TextConfig[K]){patchLayer({text:{...style,[key]:value}});}
  function apply(t?:RenderTemplate,s='YS0184'){
-  const c=t?normalizeConfig(t.config,t.font_path):freshConfig();invalidate();setSku(t?.sku||s);setImagePath(t?.image_path||'');setConfig(c);setSelected(c.layers[0].id);setValues(Object.fromEntries(getFields(c).map((f,i)=>[f.key,i===0?'Jayna turns 4':''])));setVersion(t?.version||0);setSaved(!!t);setError('');setNotice(t?'Template dimuatkan.':'Template baru: upload gambar kosong dahulu.');
+  const c=t?normalizeConfig(t.config,t.font_path):freshConfig();invalidate();setSku(t?.sku||s);setImagePath(t?.image_path||'');setConfig(c);setSelected(c.layers[0].id);setValues(Object.fromEntries(getFields(c).map((f,i)=>[f.key,f.key==='age'?'4':i===0?(c.layers.some(l=>l.pattern)?'Jayna':'Jayna turns 4'):''])));setVersion(t?.version||0);setSaved(!!t);setError('');setNotice(t?'Template dimuatkan.' : 'Template baru: upload gambar kosong dahulu.');
  }
  useEffect(()=>{let active=true;request({action:'list'}).then(r=>{if(active){setTemplates(r.templates);const t=r.templates.find((x:RenderTemplate)=>x.sku==='YS0184');if(t)apply(t);}}).catch(e=>{if(active)setNotice(message(e));}).finally(()=>{if(active)setBusy(false);});return()=>{active=false;};},[]);
  useEffect(()=>{
@@ -50,7 +52,7 @@ export default function RenderTemplates(){
  async function download(){setBusy(true);try{const result=await prepareRender(template,values);await downloadCanvas(result.canvas,sku+'-preview.png');setNotice('PNG tanpa garisan panduan didownload.');}catch(e){setNotice(message(e));}finally{setBusy(false);}}
  function addLayer(duplicate=false){
   const id='layer_'+crypto.randomUUID().slice(0,8),field=duplicate?layer.field:'field_'+id.slice(6),label=duplicate?layer.label:'Field '+(fields.length+1);
-  change(c=>({...c,layers:[...c.layers,{...layer,id,field,label,text:{...style,y:Math.min(100-style.boxHeight/2,style.y+style.boxHeight)}}]}));setSelected(id);if(!duplicate)setValues(v=>({...v,[field]:'Contoh tulisan'}));
+  change(c=>({...c,layers:[...c.layers,{...layer,id,field,label,...(!duplicate?{pattern:undefined,field_labels:undefined,legacy_full_wording:undefined}:{}),text:{...style,y:Math.min(100-style.boxHeight/2,style.y+style.boxHeight)}}]}));setSelected(id);if(!duplicate)setValues(v=>({...v,[field]:'Contoh tulisan'}));
  }
  function position(x:number,y:number){patchLayer({text:{...style,x:Math.max(style.boxWidth/2,Math.min(100-style.boxWidth/2,x)),y:Math.max(style.boxHeight/2,Math.min(100-style.boxHeight/2,y))}});}
  const testParams=new URLSearchParams({sku});for(const f of fields)testParams.set(f.key,values[f.key]||'');const testUrl='/render-test/?'+testParams;
@@ -69,6 +71,8 @@ export default function RenderTemplates(){
    <div className="rt-actions"><button type="button" disabled={fields.length>=8||config.layers.length>=12} onClick={()=>addLayer()}>+ Field baru</button><button type="button" className="rt-secondary" disabled={config.layers.length>=12} onClick={()=>addLayer(true)}>Duplikat layer</button><button type="button" className="rt-secondary" disabled={config.layers.length===1} onClick={()=>{change(c=>({...c,layers:c.layers.filter(l=>l.id!==layer.id)}));setSelected(config.layers.find(l=>l.id!==layer.id)!.id);}}>Buang layer</button></div>
    <label>Input untuk layer ini<select aria-label="Input untuk layer ini" value={layer.field} onChange={e=>patchLayer({field:e.target.value,label:fields.find(f=>f.key===e.target.value)!.label})}>{fields.map(f=><option key={f.key} value={f.key}>{f.label} ({f.key})</option>)}</select></label>
    <label>Label input<input aria-label="Label input" maxLength={60} value={layer.label} onChange={e=>change(c=>({...c,layers:c.layers.map(l=>l.field===layer.field?{...l,label:e.target.value}:l)}))}/></label>
+   <label>Pola wording (optional)<input aria-label="Pola wording" value={layer.pattern||''} maxLength={400} placeholder="{{name}} turns {{age}}" onChange={e=>patchLayer({pattern:e.target.value||undefined})}/></label><small>Gabungkan beberapa input pada satu curve. Kosongkan untuk guna satu input seperti biasa.</small>
+   {patternKeys(layer.pattern).map(key=><label key={key}>Label {key}<input aria-label={'Label '+key} maxLength={60} value={layer.field_labels?.[key]||(key===layer.field?layer.label:key)} onChange={e=>patchLayer({field_labels:{...layer.field_labels,[key]:e.target.value}})}/></label>)}
    <small>Duplikat layer untuk wording yang sama di tempat lain. Field baru menambah satu input pada form test. Susunan layer menentukan lapisan depan/belakang.</small>
    <div className="rt-actions">{[-1,1].map(dir=><button key={dir} type="button" className="rt-secondary" disabled={dir<0?config.layers[0].id===layer.id:config.layers.at(-1)!.id===layer.id} onClick={()=>change(c=>{const a=[...c.layers],i=a.findIndex(l=>l.id===layer.id);[a[i],a[i+dir]]=[a[i+dir],a[i]];return {...c,layers:a};})}>{dir<0?'Ke belakang':'Ke depan'}</button>)}</div>
    <h3>3. Gaya tulisan</h3><div className="rt-two">
@@ -88,7 +92,15 @@ export default function RenderTemplates(){
    <div className="rt-two">{number('x','Posisi X (%)',0,100,.1)}{number('y','Posisi Y (%)',0,100,.1)}{number('boxWidth','Lebar kawasan (%)',1,100,.1)}{number('boxHeight','Tinggi kawasan (%)',1,100,.1)}</div>
    <div className="rt-actions">{([[-1,0,'←'],[0,-1,'↑'],[0,1,'↓'],[1,0,'→']] as const).map(([dx,dy,label])=><button type="button" className="rt-secondary" key={label} aria-label={'Gerak '+label+' 1 px'} onClick={()=>position(style.x+dx/config.width*100,style.y+dy/config.height*100)}>{label}</button>)}</div>
    <div className="rt-actions"><button type="button" disabled={!ready||!imagePath} onClick={()=>void save()}>Save Template</button><span className={saved?'rt-saved':'rt-unsaved'}>{saved?'Disimpan':'Belum disimpan'}</span></div>
-  </fieldset><p role="status" className="rt-notice">{notice}</p></section>
+   </fieldset><p role="status" className="rt-notice">{notice}</p>
+   <h3>Automation AP</h3><p>Request PNG terus tanpa tekan Download. Field ikut template yang disimpan.</p>
+   <code>/render-test/output.png</code><p>{fields.map(f=>f.key).join(', ')}</p>
+   <div className="rt-actions"><button type="button" disabled={busy||!saved||!ready} onClick={async()=>{setBusy(true);try{const r=await request({action:'automation-link',sku,fields:Object.fromEntries(fields.map(f=>[f.key,values[f.key]||'']))});setOutputUrl(location.origin+'/render-test/output.png?'+new URLSearchParams(r.query));setNotice('Link PNG sah 30 minit.');}catch(e){setNotice(message(e));}finally{setBusy(false);}}}>Jana link PNG terus</button></div>
+   {outputUrl&&<p style={{overflowWrap:'anywhere'}}><a href={outputUrl} target="_blank" rel="noreferrer">Buka PNG terus ↗</a><input aria-label="Link PNG terus" readOnly value={outputUrl} onFocus={e=>e.target.select()}/></p>}
+   <div className="rt-actions"><button type="button" disabled={busy} onClick={async()=>{setBusy(true);setAutomationKey('');try{const r=await request({action:'automation-key'});setAutomationKey(r.token);setNotice(r.message);}catch(e){setNotice(message(e));}finally{setBusy(false);}}}>Jana / tukar API key AP</button><button type="button" className="rt-secondary" disabled={busy} onClick={async()=>{setBusy(true);try{await request({action:'automation-revoke'});setAutomationKey('');setNotice('API key admin ini dibatalkan.');}catch(e){setNotice(message(e));}finally{setBusy(false);}}}>Batalkan key</button></div>
+   {automationKey&&<label>API key (salin sekali ke AP)<input aria-label="API key AP" type="password" readOnly value={automationKey} onFocus={e=>e.target.select()}/><button type="button" className="rt-secondary" onClick={()=>void navigator.clipboard.writeText(automationKey).then(()=>setNotice('API key disalin.')).catch(()=>setNotice('Pilih dan salin key secara manual.'))}>Copy key</button></label>}
+   <small>POST JSON: {'{sku, fields}'} · Authorization: Bearer API_KEY. Key hanya boleh render; tidak boleh edit template.</small>
+  </section>
   <section className="rt-card rt-preview"><h3>Preview</h3>{fields.map(f=><label key={f.key}>{f.label}<input aria-label={'Test '+f.label} value={values[f.key]||''} maxLength={200} disabled={busy} onChange={e=>{invalidate();setValues(v=>({...v,[f.key]:e.target.value}));}}/></label>)}
    <label className="rt-check"><input type="checkbox" checked={guides} onChange={e=>{invalidate();setGuides(e.target.checked);}}/>Tunjuk kawasan tulisan</label>
    <div className="rt-canvas">{!imagePath?<div className="rt-empty">Upload template kosong untuk mula preview.</div>:<><canvas aria-label="Preview template" ref={canvas} style={{visibility:ready?'visible':'hidden',touchAction:'none'}} onPointerDown={e=>{if(busy||!ready)return;drag.current={x:e.clientX,y:e.clientY};e.currentTarget.setPointerCapture(e.pointerId);}} onPointerCancel={()=>{drag.current=null;}} onPointerUp={e=>{if(!drag.current||busy||!ready)return;const start=drag.current;drag.current=null;const r=e.currentTarget.getBoundingClientRect(),dx=e.clientX-start.x,dy=e.clientY-start.y;if(Math.hypot(dx,dy)<4)position((e.clientX-r.left)/r.width*100,(e.clientY-r.top)/r.height*100);else position(style.x+dx/r.width*100,style.y+dy/r.height*100);}}/>{!ready&&<div className="rt-loading">{error||'Memuatkan preview…'}</div>}</>}</div>

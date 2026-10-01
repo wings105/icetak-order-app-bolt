@@ -1,5 +1,5 @@
 export type TextConfig={x:number;y:number;boxWidth:number;boxHeight:number;fontFamily:string;fontWeight:string;fontSize:number;fill:string;stroke:string;strokeWidth:number;align:'left'|'center'|'right';letterCase:'input'|'upper'|'lower';autoFit:boolean;curve:number;rotation:number;tracking:number;scaleX:number;scaleY:number};
-export type TextLayer={id:string;field:string;label:string;font_path:string|null;text:TextConfig};
+export type TextLayer={id:string;field:string;label:string;font_path:string|null;text:TextConfig;pattern?:string;field_labels?:Record<string,string>;legacy_full_wording?:boolean};
 export type RenderConfig={width:number;height:number;layers:TextLayer[];text?:TextConfig};
 export type RenderTemplate={sku:string;image_path:string;font_path:string|null;config:RenderConfig;version:number;updated_at?:string};
 export type RenderResult={canvas:HTMLCanvasElement;fontSize:number;text:string;layers:{id:string;label:string;text:string;fontSize:number}[]};

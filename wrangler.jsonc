@@ -5,6 +5,18 @@
   "preview_urls": true,
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/render-test/output.png",
+      "/render-test/automation"
+    ]
+  },
+  "main": "worker/render-output.js",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "browser": {
+    "binding": "BROWSER"
   }
 }
