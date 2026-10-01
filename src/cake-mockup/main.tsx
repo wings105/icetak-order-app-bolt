@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { defaults, factor, fmt, layout, assessment, round, summary, type Config, type Product, type Unit, type View } from './model';
 import { CakeScene } from './scene';
 import { CanvasScene } from './canvas-scene';
+import { edibleCatalog, edibleChoice, ediblePriceText, money, orientation, presetDimensions, productName, type EdibleShape } from './edible';
 import './style.css';
 
 type PreviewScene = CakeScene | CanvasScene;
@@ -47,7 +48,7 @@ function Preview({ config, sceneRef, view, setView, zoom, setZoom }: { config: C
     <div className="view-switch"><Segments label="Sudut pandangan" value={shownView} onChange={setView} options={fallback ? [['top', 'Atas'], ['front', 'Depan']] : [['3d', '3D'], ['top', 'Atas'], ['front', 'Depan']]} /></div>
     {fallback ? <span className="fallback-badge">Preview 2D</span> : null}
     <div className="stage" ref={host} data-testid="cake-stage">{failed ? <div className="webgl-error" role="alert">{failed}</div> : null}</div>
-    <div className="preview-caption">{config.tiers.length} tier · {config.product.kind === 'edible' ? 'Edible' : 'Acrylic'} {fmt(config.product.width, config.unit)} × {fmt(l.h, config.unit)}</div>
+    <div className="preview-caption">{config.tiers.length} tier · {productName(config.product)} {fmt(config.product.width, config.unit)} × {fmt(l.h, config.unit)}</div>
     <div className="preview-toolbar"><label className="zoom">−<input aria-label="Zoom" type="range" min="0.7" max="2" step="0.05" value={zoom} onChange={e => setZoom(Number(e.target.value))} />+</label><span>{fallback ? 'Pilih Atas / Depan' : 'Putar dengan jari / mouse'}</span></div>
     <label className="measure-toggle"><input type="checkbox" checked={config.measures} onChange={() => window.dispatchEvent(new Event('cake-toggle-measures'))} /> Tunjuk ukuran</label>
   </section>;
@@ -103,7 +104,7 @@ function App() {
   const product = (v: Partial<Product>) => setC(old => ({ ...old, product: { ...old.product, ...v } }));
   const dimension = (key: 'width' | 'height', n: number) => setC(old => {
     const p = old.product;
-    if (p.kind === 'edible' && p.shape === 'round') return { ...old, product: { ...p, width: n, height: n } };
+    if (p.kind === 'edible' && p.shape !== 'rect') return { ...old, product: { ...p, width: n, height: n } };
     const ratio = p.height / p.width;
     return { ...old, product: { ...p, [key]: n, ...(p.lockRatio ? key === 'width' ? { height: Math.max(0.25, Math.min(30, n * ratio)) } : { width: Math.max(0.25, Math.min(30, n / ratio)) } : {}) } };
   });
@@ -122,6 +123,14 @@ function App() {
   };
   const p = c.product, l = layout(c), info = assessment(c);
   const isRound = p.kind === 'edible' && p.shape === 'round';
+  const singleSize = p.kind === 'edible' && p.shape !== 'rect';
+  const choice = edibleChoice(p);
+  const direction = orientation(p);
+  function chooseShape(shape: EdibleShape) {
+    if (shape === 'rect') product({ shape, width: 7.5, height: 5.5, lockRatio: false });
+    else { const width = edibleCatalog.some(s => s.shape === shape && Math.abs(s.width - p.width) < 0.002) ? p.width : 5;
+      product({ shape, width, height: width, lockRatio: true }); }
+  }
   async function upload(file?: File) {
     if (!file) return;
     setUploadBusy(true); setNotice(''); const kind = p.kind;
@@ -129,7 +138,7 @@ function App() {
       const img = await loadUpload(file, kind === 'acrylic');
       assets.current[kind] = img; assets.current[`${kind}Name`] = file.name;
       setC(old => old.product.kind !== kind ? old : ({ ...old, product: { ...old.product, image: img, imageName: file.name,
-        ...(old.product.shape !== 'round' && old.product.lockRatio ? { height: Math.max(0.25, Math.min(30, old.product.width * img.naturalHeight / img.naturalWidth)) } : {}) } }));
+        ...(old.product.lockRatio && (old.product.kind === 'acrylic' || old.product.shape === 'rect') ? { height: Math.max(0.25, Math.min(30, old.product.width * img.naturalHeight / img.naturalWidth)) } : {}) } }));
       setNotice('Design dimuatkan. Gambar ini diproses dalam browser anda sahaja.');
     } catch (e) { setNotice(e instanceof Error ? e.message : 'Gambar tidak dapat dibaca.'); }
     finally { setUploadBusy(false); }
@@ -169,18 +178,30 @@ function App() {
         <Segments label="Jenis produk" value={p.kind} options={[['edible', 'Edible image'], ['acrylic', 'Acrylic']]} onChange={chooseKind} />
         <div className="field"><h3>Lokasi design</h3><Segments label="Lokasi design" value={p.placement} options={[['top', 'Atas kek'], ['side', 'Sisi kek']]} onChange={placement => { product({ placement, x: 0, y: 0, rotation: 0 }); setView(placement === 'side' ? 'front' : '3d'); }} /></div>
         {c.tiers.length > 1 ? <label className="field select-field"><span>Letak pada tier</span><select aria-label="Letak pada tier" value={p.tier} onChange={e => product({ tier: Number(e.target.value) })}>{c.tiers.map((_, i) => <option key={i} value={i}>Tier {i + 1} {i === 0 ? '(bawah)' : '(atas)'}</option>)}</select></label> : null}
-        {p.kind === 'edible' ? <div className="field"><h3>Bentuk design</h3><Segments label="Bentuk design" value={p.shape} options={[['round', '◯  Bulat'], ['rect', '▢  Petak / segi empat']]} onChange={shape => product({ shape, height: shape === 'round' ? p.width : p.height })} /></div> : null}
-        <label className="field select-field"><span>Saiz pilihan</span><select aria-label="Saiz pilihan" value="custom" onChange={e => {
+        {p.kind === 'edible' ? <div className="field edible-shapes"><h3>Bentuk design</h3><Segments label="Bentuk design" value={p.shape} options={[['round', '◯  Bulat'], ['square', '▢  Square'], ['rect', '▭  Rectangular'], ['heart', '♡  Love']]} onChange={chooseShape} /></div> : null}
+        {p.kind === 'edible' && p.shape === 'rect' ? <div className="field"><h3>Orientasi rectangular</h3><Segments label="Orientasi rectangular" value={direction} options={[['landscape', 'Landscape'], ['portrait', 'Portrait']]} onChange={v => { if (v !== direction) product({ width: p.height, height: p.width }); }} /><p className="help">Ukuran dipaparkan sebagai lebar × tinggi.</p></div> : null}
+        <label className="field select-field"><span>Saiz pilihan</span><select aria-label="Saiz pilihan" value={p.kind === 'edible' ? choice?.id || 'custom' : 'custom'} onChange={e => {
           if (e.target.value === 'custom') return;
+          if (p.kind === 'edible') {
+            const preset = edibleCatalog.find(s => s.id === e.target.value);
+            if (preset) product({ ...presetDimensions(preset, direction), lockRatio: p.shape !== 'rect' });
+            return;
+          }
           const dims = e.target.value.split(',').map(Number);
-          if (p.kind === 'edible' && isRound) product({ width: dims[0], height: dims[0] });
-          else if (p.image && p.lockRatio) { const ratio = p.image.naturalHeight / p.image.naturalWidth; const scale = Math.min(dims[0] / p.image.naturalWidth, dims[1] / p.image.naturalHeight); product({ width: p.image.naturalWidth * scale, height: p.image.naturalHeight * scale }); void ratio; }
+          if (p.image && p.lockRatio) { const scale = Math.min(dims[0] / p.image.naturalWidth, dims[1] / p.image.naturalHeight); product({ width: p.image.naturalWidth * scale, height: p.image.naturalHeight * scale }); }
           else product({ width: dims[0], height: dims[1] });
         }}><option value="custom">Custom · {fmt(p.width, c.unit)}{!isRound ? ` × ${fmt(l.h, c.unit)}` : ''}</option>
-          {p.kind === 'acrylic' ? <><option value={`${10 / 2.54},${7 / 2.54}`}>A7 · 10 × 7 cm</option><option value={`${14 / 2.54},${10 / 2.54}`}>A6 · 14 × 10 cm</option><option value={`${20 / 2.54},${14 / 2.54}`}>A5 · 20 × 14 cm</option></> : isRound ? [2, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5].map(n => <option value={n} key={n}>{fmt(n, c.unit)}</option>) : <><option value="5.5,3.7">A6 · 5.5 × 3.7 inch</option><option value="7.5,5.5">A5 · 7.5 × 5.5 inch</option><option value="11,7.5">A4 · 11 × 7.5 inch</option></>}
+          {p.kind === 'acrylic' ? <><option value={`${10 / 2.54},${7 / 2.54}`}>A7 · 10 × 7 cm</option><option value={`${14 / 2.54},${10 / 2.54}`}>A6 · 14 × 10 cm</option><option value={`${20 / 2.54},${14 / 2.54}`}>A5 · 20 × 14 cm</option></> : [1.2, 6, 12, 24].map(price => {
+            const presets = edibleCatalog.filter(s => s.shape === p.shape && s.price === price);
+            return presets.length ? <optgroup key={price} label={`${money(price)} / ${price === 1.2 ? 'pc' : 'keping'}`}>{presets.map(s => {
+              const d = presetDimensions(s, direction);
+              return <option key={s.id} value={s.id}>{s.name ? `${s.name} · ` : ''}{fmt(d.width, c.unit)}{p.shape === 'rect' ? ` × ${fmt(d.height, c.unit)}` : ''} · {money(s.price)}{s.capacity ? ` / pc · ${s.capacity}/A4` : ''}</option>;
+            })}</optgroup> : null;
+          })}
         </select></label>
-        <Measure label={isRound ? 'Saiz design (diameter)' : 'Lebar design'} value={p.width} unit={c.unit} onChange={n => dimension('width', n)} />
-        {!isRound ? <><Measure label="Tinggi design" value={p.height} unit={c.unit} onChange={n => dimension('height', n)} /><label className="checkbox-label"><input type="checkbox" checked={p.lockRatio} onChange={e => product({ lockRatio: e.target.checked })} /> Kekalkan nisbah design</label></> : null}
+        <Measure label={isRound ? 'Saiz design (diameter)' : p.kind === 'edible' && p.shape === 'square' ? 'Saiz square (sisi)' : p.kind === 'edible' && p.shape === 'heart' ? 'Saiz love (lebar / tinggi)' : 'Lebar design'} value={p.width} unit={c.unit} onChange={n => dimension('width', n)} />
+        {!singleSize ? <><Measure label="Tinggi design" value={p.height} unit={c.unit} onChange={n => dimension('height', n)} /><label className="checkbox-label"><input type="checkbox" checked={p.lockRatio} onChange={e => product({ lockRatio: e.target.checked })} /> Kekalkan nisbah design</label></> : null}
+        {p.kind === 'edible' ? <div className="edible-price" data-testid="edible-price" aria-live="polite"><span>Harga edible</span><strong>{ediblePriceText(p)}</strong><small>{choice?.capacity ? `Cupcake ${fmt(p.width, c.unit)} · ${choice.capacity} pcs boleh muat pada A4.` : choice ? 'Harga untuk 1 keping mengikut saiz pilihan.' : 'Saiz ini tiada dalam senarai harga. Hubungi kedai untuk semakan.'}</small>{p.shape === 'heart' ? <small>Saiz love diukur pada lebar dan tinggi maksimum yang sama.</small> : null}</div> : null}
         {p.kind === 'acrylic' ? <><p className="help">Ukuran bahagian design sahaja, tanpa batang. Preset ialah had maksimum; bentuk design menentukan ukuran akhir.</p><div className="field"><h3>Warna acrylic</h3><div className="acrylic-colors">{acrylicColors.map(co => <button key={co.value} aria-pressed={p.color === co.value} onClick={() => product({ color: co.value })}><i style={{ background: co.value }} />{co.label}</button>)}</div></div><label className="wording"><span>Wording contoh</span><textarea aria-label="Wording contoh" value={p.wording} rows={2} maxLength={80} onChange={e => product({ wording: e.target.value, image: null, imageName: '' })} /></label></> : null}
         <div className="field position-fields"><h3>Kedudukan design</h3><Slider label={p.placement === 'side' && c.shape === 'round' ? 'Keliling kek' : 'Kiri / Kanan'} value={p.x} onChange={x => product({ x })} />
           <Slider label={p.placement === 'side' ? 'Atas / Bawah' : 'Depan / Belakang'} value={p.y} onChange={y => product({ y })} />

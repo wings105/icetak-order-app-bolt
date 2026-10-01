@@ -1,9 +1,11 @@
+import { type EdibleShape, edibleChoice, ediblePriceText, productName, rotatedOutline } from './edible.ts';
+
 export type Unit = 'inch' | 'cm';
 export type Shape = 'round' | 'rect';
 export type View = '3d' | 'top' | 'front';
 export type Tier = { width: number; depth: number; height: number };
 export type Product = {
-  kind: 'edible' | 'acrylic'; shape: Shape; width: number; height: number;
+  kind: 'edible' | 'acrylic'; shape: EdibleShape; width: number; height: number;
   placement: 'top' | 'side'; tier: number; x: number; y: number; rotation: number;
   lift: number; color: string; wording: string; image: HTMLImageElement | null;
   imageName: string; lockRatio: boolean;
@@ -23,7 +25,7 @@ export function layout(c: Config) {
   const bottom = c.tiers.slice(0, tierIndex).reduce((v, t) => v + t.height, 0) + 0.16;
   const top = bottom + tier.height;
   const p = c.product;
-  const h = p.kind === 'edible' && p.shape === 'round' ? p.width : p.height;
+  const h = p.kind === 'edible' && p.shape !== 'rect' ? p.width : p.height;
   const ox = p.x / 100 * tier.width / 2;
   const oz = p.y / 100 * (c.shape === 'round' ? tier.width : tier.depth) / 2;
   return { tier, tierIndex, bottom, top, h, ox, oz, total: c.tiers.reduce((v, t) => v + t.height, 0) + 0.16 };
@@ -36,18 +38,15 @@ export function assessment(c: Config) {
   let detail = '';
   if (p.kind === 'edible' && p.placement === 'top') {
     const a = p.rotation * Math.PI / 180;
+    const points = rotatedOutline(p.shape, p.width, h, a);
     if (c.shape === 'round' && p.shape === 'round') margin = t.width / 2 - p.width / 2 - Math.hypot(ox, oz);
     else if (c.shape === 'round') {
       let furthest = 0;
-      for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
-        const x = sx * p.width / 2, y = sy * h / 2;
-        furthest = Math.max(furthest, Math.hypot(ox + x * Math.cos(a) - y * Math.sin(a), oz + x * Math.sin(a) + y * Math.cos(a)));
-      }
+      for (const [x, y] of points) furthest = Math.max(furthest, Math.hypot(ox + x, oz + y));
       margin = t.width / 2 - furthest;
     } else {
-      const w = p.shape === 'round' ? p.width : Math.abs(p.width * Math.cos(a)) + Math.abs(h * Math.sin(a));
-      const d = p.shape === 'round' ? p.width : Math.abs(p.width * Math.sin(a)) + Math.abs(h * Math.cos(a));
-      margin = Math.min(t.width / 2 - Math.abs(ox) - w / 2, t.depth / 2 - Math.abs(oz) - d / 2);
+      margin = p.shape === 'round' ? Math.min(t.width / 2 - Math.abs(ox) - p.width / 2, t.depth / 2 - Math.abs(oz) - h / 2)
+        : Math.min(...points.flatMap(([x, y]) => [t.width / 2 - Math.abs(ox + x), t.depth / 2 - Math.abs(oz + y)]));
     }
     if (margin < -0.001) warnings.push(`Design terkeluar daripada permukaan kek (${fmt(-margin, c.unit)}).`);
     detail = margin >= 0 ? `Ruang tepi paling kecil: ${fmt(margin, c.unit)}.` : 'Kecilkan design atau ubah kedudukan.';
@@ -61,12 +60,13 @@ export function assessment(c: Config) {
   } else if (p.placement === 'side') {
     const center = t.height / 2 + p.y / 100 * t.height / 2;
     const a = p.kind === 'acrylic' || c.shape === 'rect' ? p.rotation * Math.PI / 180 : 0;
-    const vertical = Math.abs(p.width * Math.sin(a)) + Math.abs(h * Math.cos(a));
-    if (center + vertical / 2 > t.height + 0.001 || center - vertical / 2 < -0.001)
+    const points = p.kind === 'edible' && p.shape === 'round' ? [[-p.width / 2, -h / 2], [p.width / 2, h / 2]]
+      : rotatedOutline(p.kind === 'edible' ? p.shape : 'rect', p.width, h, a);
+    if (center + Math.max(...points.map(v => v[1])) > t.height + 0.001 || center + Math.min(...points.map(v => v[1])) < -0.001)
       warnings.push('Design melebihi tinggi dinding kek pada kedudukan ini.');
     const span = c.shape === 'round' && p.kind === 'edible' ? Math.PI * t.width : t.width;
     if (p.width > span + 0.001) warnings.push(c.shape === 'round' && p.kind === 'edible' ? 'Edible lebih panjang daripada satu keliling kek; hujung akan bertindih.' : 'Design lebih lebar daripada bahagian depan kek.');
-    if (c.shape === 'rect' && Math.abs(ox) + (Math.abs(p.width * Math.cos(a)) + Math.abs(h * Math.sin(a))) / 2 > t.width / 2 + 0.001)
+    if (c.shape === 'rect' && points.some(v => Math.abs(ox + v[0]) > t.width / 2 + 0.001))
       warnings.push('Design terkeluar dari tepi dinding kek.');
     detail = c.shape === 'round' && p.kind === 'edible'
       ? `Lebar ${fmt(p.width, c.unit)} diukur sepanjang lengkungan. Keliling kek: ${fmt(Math.PI * t.width, c.unit)}.`
@@ -93,9 +93,10 @@ export function summary(c: Config) {
     'Berminat dengan pilihan Cake Mockup:',
     `Kek: ${c.shape === 'round' ? 'Bulat' : 'Petak'} · ${c.tiers.length} tier`,
     ...c.tiers.map((t, i) => `Tier ${i + 1} (${i === 0 ? 'bawah' : 'atas'}): ${fmt(t.width, c.unit)}${c.shape === 'rect' ? ` × ${fmt(t.depth, c.unit)}` : ''} · tinggi ${fmt(t.height, c.unit)}`),
-    `Produk: ${p.kind === 'edible' ? 'Edible image' : 'Acrylic topper'}`,
+    `Produk: ${productName(p)}`,
     `Saiz design: ${fmt(p.width, c.unit)} × ${fmt(h, c.unit)}${p.kind === 'edible' && p.shape === 'round' ? ' (bulat)' : ''}`,
     `Lokasi: ${p.placement === 'top' ? 'Atas' : 'Sisi'} kek · Tier ${p.tier + 1}`,
+    ...(p.kind === 'edible' ? [`Harga edible: ${ediblePriceText(p)}`, ...(edibleChoice(p)?.capacity ? [`Cupcake: ${edibleChoice(p)!.capacity} pcs / A4`] : [])] : []),
     ...(p.kind === 'acrylic' ? [`Wording: ${p.wording}`, `Ukuran design tidak termasuk batang.`] : []),
     `Tarikh perlu: __/__/____`,
     'Boleh semak kesesuaian dan cara nak proceed? Saya boleh lampirkan gambar mockup.',

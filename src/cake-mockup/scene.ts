@@ -2,6 +2,7 @@ import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { type Config, type View, layout, fmt } from './model';
 import { productCanvas } from './texture';
+import { productName, ediblePriceText } from './edible';
 
 function productTexture(c: Config) {
   const texture = new T.CanvasTexture(productCanvas(c));
@@ -216,7 +217,7 @@ export class CakeScene {
     ctx.drawImage(this.renderer.domElement, 0, 0);
     ctx.fillStyle = '#10214f'; ctx.font = 'bold 30px Arial'; ctx.fillText('decocake.my · Cake Mockup', 36, exportH + 45);
     ctx.font = '24px Arial';
-    ctx.fillText(`${c.product.kind === 'edible' ? 'Edible image' : 'Acrylic'} ${fmt(c.product.width, c.unit)} × ${fmt(layout(c).h, c.unit)} · ${c.product.placement === 'top' ? 'Atas' : 'Sisi'} · Tier ${c.product.tier + 1}`, 36, exportH + 88);
+    ctx.fillText(`${productName(c.product)} ${fmt(c.product.width, c.unit)} × ${fmt(layout(c).h, c.unit)} · ${c.product.placement === 'top' ? 'Atas' : 'Sisi'} · Tier ${c.product.tier + 1}${c.product.kind === 'edible' ? ` · ${ediblePriceText(c.product)}` : ''}`, 36, exportH + 88);
     ctx.fillText(`Kek ${c.tiers.map(t => `${fmt(t.width, c.unit)}${c.shape === 'rect' ? ` × ${fmt(t.depth, c.unit)}` : ''}, tinggi ${fmt(t.height, c.unit)}`).join(' / ')}`, 36, exportH + 124);
     ctx.fillStyle = '#556581'; ctx.font = '21px Arial'; ctx.fillText('Anggaran visual. Ukur ruang selepas hiasan; ukuran acrylic tidak termasuk batang.', 36, exportH + 160);
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); this.renderer.setSize(w, h); this.requestRender();

@@ -1,4 +1,5 @@
 import { type Config, layout } from './model';
+import { traceHeart } from './edible';
 
 export function productCanvas(c: Config) {
   const p = c.product, h = layout(c).h;
@@ -9,6 +10,7 @@ export function productCanvas(c: Config) {
   const w = canvas.width, ch = canvas.height;
   if (p.kind === 'edible') {
     if (p.shape === 'round') { ctx.beginPath(); ctx.ellipse(w / 2, ch / 2, w / 2, ch / 2, 0, 0, Math.PI * 2); ctx.clip(); }
+    if (p.shape === 'heart') { traceHeart(ctx, w, ch); ctx.clip(); }
     ctx.fillStyle = '#fce0e6'; ctx.fillRect(0, 0, w, ch);
   }
   if (p.image) {

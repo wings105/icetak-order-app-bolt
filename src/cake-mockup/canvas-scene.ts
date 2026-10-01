@@ -1,5 +1,6 @@
 import { type Config, type View, layout, fmt } from './model';
 import { productCanvas } from './texture';
+import { productName, ediblePriceText } from './edible';
 
 /** Orthographic top/front sizing preview when WebGL is unavailable. */
 export class CanvasScene {
@@ -122,7 +123,7 @@ export class CanvasScene {
     this.draw(image, 1600, h); cv.width = 1600; cv.height = h + 180;
     const ctx = cv.getContext('2d')!; ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.drawImage(image, 0, 0);
     ctx.fillStyle = '#10214f'; ctx.font = 'bold 30px Arial'; ctx.fillText('decocake.my · Cake Mockup · Preview 2D', 36, h + 45);
-    ctx.font = '24px Arial'; ctx.fillText(`${c.product.kind === 'edible' ? 'Edible image' : 'Acrylic'} ${fmt(c.product.width, c.unit)} × ${fmt(layout(c).h, c.unit)} · ${c.product.placement === 'top' ? 'Atas' : 'Sisi'} · Tier ${c.product.tier + 1}`, 36, h + 88);
+    ctx.font = '24px Arial'; ctx.fillText(`${productName(c.product)} ${fmt(c.product.width, c.unit)} × ${fmt(layout(c).h, c.unit)} · ${c.product.placement === 'top' ? 'Atas' : 'Sisi'} · Tier ${c.product.tier + 1}${c.product.kind === 'edible' ? ` · ${ediblePriceText(c.product)}` : ''}`, 36, h + 88);
     ctx.fillText(`Kek ${c.tiers.map(t => `${fmt(t.width, c.unit)}${c.shape === 'rect' ? ` × ${fmt(t.depth, c.unit)}` : ''}, tinggi ${fmt(t.height, c.unit)}`).join(' / ')}`, 36, h + 124);
     ctx.fillStyle = '#556581'; ctx.font = '21px Arial'; ctx.fillText('Anggaran visual. Ukur ruang selepas hiasan; ukuran acrylic tidak termasuk batang.', 36, h + 160);
     return new Promise((resolve, reject) => cv.toBlob(b => b ? resolve(b) : reject(new Error('Gambar tidak dapat disimpan.')), 'image/png'));

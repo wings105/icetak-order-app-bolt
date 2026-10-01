@@ -33,3 +33,19 @@ Rendered interaction and production status must be checked per `VERIFICATION_PRO
 ## Release verification (2026-10-01)
 
 Release `4e0c89d` passed Cloudflare Workers Builds and GitHub guard. Live public browser checks prove top/front preview with sample artwork, inch/cm conversion, edible clearance/side-height warnings, multi-tier acrylic placement and PNG preparation with a native download link. The cloud browser disables WebGL; completed native download events did not arrive through its adapter. Controlled Chromium with software WebGL and with WebGL disabled verifies desktop/mobile interactions, uploads, actual decoded 1600px PNG downloads and stale-export invalidation. Hosted 3D and completed downloads in the cloud browser are not independently claimed. Standalone Chromium could not access the hosted site because its environment proxy certificate was not trusted; certificate validation was preserved.
+
+## Edible catalogue (owner supplied, 2026-10-01)
+
+Edible shape choices are independent of cake shape: Bulat, Square, Rectangular and Love. Love uses equal maximum width/height and a shared normalized heart outline for Canvas/Three texture clipping and top-surface clearance. Square always has equal sides. Uploading artwork preserves these selected footprints; rectangular presets use exact product dimensions rather than shrinking to the uploaded image's aspect ratio.
+
+| Per piece | Bulat (inch) | Square (inch) | Love (inch) | Rectangular (inch) |
+| --- | --- | --- | --- | --- |
+| RM6 | 3, 3.5, 4 | 3, 3.5 | 3, 3.5, 4 | 5.5 × 3.7 |
+| RM12 | 4.5, 5, 5.5 | 4, 4.5, 5, 5.5 | 4.5, 5, 5.5 | 5.5 × 7.5 (half A4) |
+| RM24 | 6, 6.5, 7, 7.5 | 6, 6.5, 7, 7.5 | 6, 6.5, 7, 7.5 | 11 × 7.5 (A4) |
+
+Cupcake is a Bulat preset: 1.8 inch, RM1.20/pc, 24/A4. This is a per-piece quote and a reference sheet capacity, not an automatically inferred A4 bundle price or minimum order.
+
+Rectangular landscape/portrait swaps width and height; preset identity and price survive the swap. Display-unit changes preserve inches and prices. Exact catalogue matches display the supplied price; unsupported custom dimensions require a store quote. Acrylic pricing is not added. Presets/prices live in `src/cake-mockup/edible.ts` and do not change backend/storefront catalogue records.
+
+Controlled Chromium validation passes in WebGL 3D and no-WebGL 2D at desktop 1536×1024/mobile 390×844: all 34 presets, all six rectangular orientations, unit/price preservation, square 4-inch price boundary, cupcake/WhatsApp capacity, custom pricing, heart alpha-mask lobes/cleft/tip, top/side placement, upload footprint, decoded 1600px PNG download, stale export invalidation and acrylic regression. No runtime errors/overflow. Public smoke for this catalogue update is pending.
