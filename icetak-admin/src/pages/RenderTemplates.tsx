@@ -58,7 +58,7 @@ export default function RenderTemplates(){
  const testParams=new URLSearchParams({sku});for(const f of fields)testParams.set(f.key,values[f.key]||'');const testUrl='/render-test/?'+testParams;
  const number=(key:keyof TextConfig,label:string,min:number,max:number,step=1)=><label>{label}<input aria-label={label} type="number" min={min} max={max} step={step} value={style[key] as number} onChange={e=>text(key,Number(e.target.value))}/></label>;
  return <div className="rt">
-  <div className="rt-header"><div><h2>Render Templates</h2><p>Renderer v3 · curve dan beberapa text layer bagi setiap SKU</p></div><a href={testUrl} target="_blank" rel="noreferrer">Buka Render Test ↗</a></div>
+  <div className="rt-header"><div><h2>Render Templates</h2><p>Renderer v4 · curve, pola wording dan automation PNG</p></div><a href={testUrl} target="_blank" rel="noreferrer">Buka Render Test ↗</a></div>
   <div className="rt-grid"><section className="rt-card"><fieldset disabled={busy}>
    <h3>1. Template kosong</h3>
    <label>Template tersimpan<select aria-label="Template tersimpan" value={templates.some(t=>t.sku===sku)?sku:''} onChange={e=>apply(templates.find(t=>t.sku===e.target.value),e.target.value||'YS0184')}><option value="">Template baru</option>{templates.map(t=><option key={t.sku}>{t.sku}</option>)}</select></label>

@@ -181,3 +181,8 @@ Admin v2 calls Order `admin-ai-dashboard`, which validates staff permissions and
 ## 2026-10-01 — Derived order work read model
 
 Order System owns private ai_clickup_work_snapshots, ai_order_work_source and service-only icetak_ai_order_work_queue. Existing ClickUp ingestion additionally projects full task snapshots, including marketplace tasks without Webapp IDs. No new canonical mutation/public endpoint. Timestamp monotonicity and exact unique references protect mapping; conflicts remain unknown. Authenticated admin-ai-dashboard joins scoped operational context for chat and separately returns global order work. Chat review/subject confirmation remains independent. Stored replay and separately scheduled connector-based provider pull are distinct recovery layers; see AI_ACTION_DASHBOARD.md.
+
+
+## 2026-10-01 — SKU renderer native PNG automation
+
+The existing Cloudflare asset Worker owns `/render-test/output.png` and `/render-test/automation`, using managed Browser Run to execute the same Canvas renderer. Other customer/admin routes remain static assets. Order System render-template owns template snapshots, owner-authorized API-key management, service-only key hashes/rate counters and 30-minute signed output grants. AP may download and upload the PNG to an explicit ClickUp task; the renderer itself does not send comments/messages or mutate orders. See RENDER_AUTOMATION_AP.md for verified output and integration limitations.
