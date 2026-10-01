@@ -139,3 +139,8 @@ Owner approved order-ID links without login for internal printing. Group tasks b
 - Not verified: desktop/mobile rendered interactions and authenticated hosted frontend. Browser download failed; public site reaches Admin Login. A GitHub commit does not prove frontend hosting publication.
 - Existing production webhooks, automations, messaging and customer app preserved; no historical backfill.
 
+
+
+## 2026-10-01 — Order work remains independent of chat resolution
+
+Use a private derived ClickUp projection rather than force legacy marketplace tasks into canonical orders. Match explicit Webapp IDs/task links or exact unique Order ID/Order SN; never guess by customer name. Global order priorities read current ledger/shipment/component state before card pagination. Keep production completion, shipping, payment and customer-response resolution separate. Admin case binding still guards case facts. Per-set progress can retire earlier work without closing a complaint/correction. Reconciliation cannot mutate canonical orders/payments/tasks or send messages. Stored replay and real provider pull must be named separately.

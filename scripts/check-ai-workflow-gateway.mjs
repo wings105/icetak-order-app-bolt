@@ -25,13 +25,15 @@ try{
   else if(path.includes('admin_permissions?'))data=[{permissions:[]}];
   else if(path.includes('private_runtime_settings?'))data=[{setting_value:'test-only-bridge'}];
   else if(path.includes('/ai-dashboard-bridge'))data={rows:[c],capabilities:{},fetched_at:'2026-09-23T12:00:00Z'};
+  else if(path.includes('/rpc/icetak_ai_order_work_queue'))data={rows:[{...ctx.orders[0],reference:'IC-TEST',production_tasks:[{id:'one',progress_stage:5,rule_matched:true}]},{id:'shipped',reference:'IC-DONE',status:'Shipped'}],total:2,has_more:false};
   else if(path.includes('/rpc/icetak_ai_dashboard_context'))data={[conversationId]:structuredClone(ctx)};
   else if(path.includes('ai_dashboard_case_orders?'))data=[{conversation_id:conversationId,order_id:orderId,order_kind:'icetak',inbound_revision:'r',session_key:'||'}];
   else if(path.includes('production_components?')){
    assert.ok(path.includes(`order_id=in.(${orderId})`));
    if(failRead)return Response.json({message:'fixture read unavailable'},{status:503});
    data=[{id:'component',order_id:orderId,review_required:true,review_status:'waiting_customer_review'}];
-  }else if(path.includes('whatsapp_settings?'))data=[{value:false}];
+  }else if(path.includes('ai_order_work_source?'))data=[];
+  else if(path.includes('whatsapp_settings?'))data=[{value:false}];
   else if(path.includes('ai_dashboard_events?')||path.includes('ai_dashboard_training?'))data=[];
   else throw Error(`Unexpected request ${path}`);
   return Response.json(data);
@@ -45,7 +47,8 @@ try{
   const response=await request(action);assert.equal(response.status,200);const body=await response.json();const row=body.row||body.rows[0];
   assert.equal(row.analysis.case.title,'Semak kelulusan pelanggan');assert.equal(row.analysis.workflow.decision,true);assert.equal(row.context.orders[0].production_reviews.length,1);assert.ok(row.context.workflow_checked_at);assert.equal(body.capabilities.whatsapp_api,false);
  }
- assert.ok(requests.every(r=>r.method==='GET'||r.path.includes('/rpc/icetak_ai_dashboard_context')||r.path.includes('/ai-dashboard-bridge')),'Read actions must not issue mutation RPCs');
+ const global=await (await request('work')).json();assert.equal(global.rows.length,1);assert.equal(global.rows[0].work.key,'production');assert.equal(global.active_total,1);assert.equal(global.total,2);
+ assert.ok(requests.every(r=>r.method==='GET'||r.path.includes('/rpc/icetak_ai_dashboard_context')||r.path.includes('/rpc/icetak_ai_order_work_queue')||r.path.includes('/ai-dashboard-bridge')),'Read actions must not issue mutation RPCs');
  failRead=true;const failed=await request();assert.equal(failed.status,500);assert.equal((await failed.json()).ok,false,'Missing source must not masquerade as successful fresh data');
  console.log('PASS: actual gateway list/detail responses include current review action; auth, permission and read-failure guards preserved; no mutation calls.');
 }finally{globalThis.fetch=originalFetch;globalThis.Deno=originalDeno;await rm(dir,{recursive:true,force:true});}

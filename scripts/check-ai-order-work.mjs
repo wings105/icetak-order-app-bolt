@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import {orderOperation} from '../supabase/functions/admin-ai-dashboard/operations.ts';
+import {analyze} from '../supabase/functions/admin-ai-dashboard/analysis.ts';
+import {sessionKey} from '../supabase/functions/admin-ai-dashboard/case.ts';
+const now=Date.parse('2026-10-01T02:00:00Z');
+const task=(id,stage)=>({id,progress_stage:stage,rule_matched:true,status:stage===7?'complete':'printing',stage:stage===7?'Ready':'Production'});
+const base={id:'order',order_no:'IC-TEST',status:'Ready to Process',payment_status:'paid',production_tasks:[task('set1',5),task('set2',2)]};
+assert.equal(orderOperation(base,now).key,'design','One printing set must not retire design for another set');
+assert.equal(orderOperation({...base,production_tasks:[task('set1',5),task('set2',7)]},now).key,'production');
+const ready=orderOperation({...base,production_tasks:[task('set1',7),task('set2',7)]},now);
+assert.equal(ready.key,'ready');assert.equal(ready.shipped,false);assert.equal(ready.active,true,'ClickUp complete is not shipment complete');
+for(const status of ['Shipped','Completed','Cancelled']){
+ const work=orderOperation({...base,status},now);assert.equal(work.active,false);assert.equal(work.key,'done');
+}
+assert.equal(orderOperation({...base,logistics:[{status:'IN_TRANSIT'}]},now).active,false,'Courier movement retires production actions even if commercial status lags');
+assert.equal(orderOperation({...base,production_tasks:[{...task('x',7),rule_matched:false}]},now).key,'unknown');
+assert.equal(orderOperation({...base,payment_status:'pending',payment_method:'S-COD'},now).key,'design');
+assert.equal(orderOperation({...base,payment_status:'paid',payment_method:'S-COD'},now).paid,false,'COD is not a receipt of funds');
+assert.equal(orderOperation({...base,deadline:'2026-10-01T05:00:00Z'},now).due,true);
+assert.equal(orderOperation({...base,deadline:'1970-01-01T00:00:00Z'},now).due,false);
+assert.equal(orderOperation({...base,status:'Shipped',logistics:[{status:'DELIVERY_FAILED'}]},now).key,'issue');
+assert.equal(orderOperation({...base,status:'Shipped',production_tasks:[{...task('x',7),change_requested_at:'2026-10-01T01:50:00Z'}]},now).key,'review');
+const c={id:'c',channel:'shopee',inbound_revision:'new',last_inbound_at:'2026-10-01T01:50:00Z',messages:[{direction:'inbound',message_type:'text',text_content:'Boleh? Urgent ya',created_at:'2026-10-01T01:00:00Z'},{direction:'inbound',message_type:'text',text_content:'Please RUSH shipment IC-TEST',created_at:'2026-10-01T01:50:00Z'}]};
+const ctx={identity_status:'matched',session:{},orders:[{...base,status:'Shipped',tracking:'TRACK-TEST',production_reviews:[{review_required:true,review_status:'pending'}]}]};
+ctx.case_order={order_id:'order',order_kind:'icetak',inbound_revision:'new',session_key:sessionKey(ctx)};
+let a=analyze(c,ctx,null,now);assert.equal(a.intent,'shipping');assert.equal(a.urgent,true);assert.match(a.case.request,/RUSH shipment/);assert.match(a.suggestion,/TRACK-TEST/);assert.equal(a.case.title,'Semak tracking penghantaran');assert.equal(a.status,'needs_review','Shipping does not resolve the customer question');
+const correction={...c,messages:[{...c.messages[1],text_content:'Saya nak tukar wording pada design ini'}]};
+a=analyze(correction,ctx,null,now);assert.equal(a.intent,'design');assert.equal(a.status,'needs_review');assert.equal(a.case.title,'Semak design / saiz','New correction is not overwritten by finished old production');
+const price={...c,messages:[{...c.messages[1],text_content:'Saiz 4 x 5.5 inch masih RM20?'}]};
+a=analyze(price,ctx,null,now);assert.match(a.suggestion,/4 x 5.5/);assert.match(a.suggestion,/RM20/);assert.ok(!a.suggestion.includes('boleh bagi ukuran'));
+console.log('PASS: multi-set progression, production vs shipment completion, courier movement, unknown mapping, COD, deadlines, newest RUSH request, tracking response, correction and supplied price/size.');

@@ -40,8 +40,8 @@ assert.equal(check({...draftCtx,identity_status:'ambiguous'}).workflow.followup_
 assert.equal(check(draftCtx,{...c,last_inbound_at:'2026-09-23T11:30:00Z'}).workflow.followup_due,false);
 // The real gateway enrichment contract: scoped IDs, pagination, converted draft, current session.
 const contexts={one:structuredClone({...base,drafts:[draft]})};let paths=[];
-await enrichContexts(contexts,async path=>{paths.push(path);if(path.startsWith('production_components'))return path.endsWith('offset=0')?Array.from({length:500},(_,i)=>({id:String(i),order_id:orderId,review_required:true,review_status:'pending'})):[{id:'501',order_id:orderId,review_status:'approved'}];return [{...draft,order_id:orderId,status:'confirmed'}];});
-assert.equal(contexts.one.orders[0].production_reviews.length,501);assert.equal(check(contexts.one).workflow.followup_due,false);assert.ok(contexts.one.workflow_checked_at);assert.equal(paths.length,3);assert.ok(paths.every(p=>!p.includes('undefined')));
+await enrichContexts(contexts,async path=>{paths.push(path);if(path.startsWith('ai_order_work_source'))return [];if(path.startsWith('production_components'))return path.endsWith('offset=0')?Array.from({length:500},(_,i)=>({id:String(i),order_id:orderId,review_required:true,review_status:'pending'})):[{id:'501',order_id:orderId,review_status:'approved'}];return [{...draft,order_id:orderId,status:'confirmed'}];});
+assert.equal(contexts.one.orders[0].production_reviews.length,501);assert.equal(check(contexts.one).workflow.followup_due,false);assert.ok(contexts.one.workflow_checked_at);assert.equal(paths.length,4);assert.ok(paths.every(p=>!p.includes('undefined')));
 await enrichContexts({x:{...base,identity_status:'ambiguous'}},async()=>{throw Error('Ambiguous IDs must not be queried');});
 // Refresh cancellation must retain old UI/composer, including editing during a request.
 let safe=true,calls=0;

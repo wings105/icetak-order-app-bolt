@@ -1,5 +1,10 @@
 - [PRODUCTION] Admin prepaid/chat draft review notifications now use the idempotent WhatsApp notification queue instead of an unlogged direct WasapFlow call. Provider failures are persisted with bounded retries, a minute scheduler dispatches delayed retries, successful delivery updates `admin_link_sent_at`, and an audit event is recorded. Production smoke recovered all four missed evening drafts exactly once: four queue rows sent, four draft timestamps set and four audit events recorded.\n\n# Changelog
 
+## 2026-10-01 — Operational order work read model
+
+- [VERIFIED] Private ClickUp projection links legacy Order SN / explicit Webapp IDs and preserves separate set progress. Global order work reads current order/payment/shipment/task state independently of chat review. Printing/completion retire earlier work; shipment movement retires postage work; new review corrections remain actionable. Live SQL grants/mapping, rollback lifecycle and actual gateway controlled-response tests passed; v7 sources read back after deploy. Rendered frontend and first scheduled provider backup remain pending; this entry does not claim UI verification.
+
+
 ## 2026-09-27 — AWB reference preview
 
 - [PRODUCTION] AWB sheets now use a 4×4 grid (16 tasks per A4). Customize Name is projected from raw ClickUp custom fields and shown below each task title with wrapping; blank values are omitted. Existing rows were backfilled for this field. Production browser verified order 260924U9ED78FC with both customization texts and all 1 + 2 direct ClickUp images. Build and image-selection checks pass. Physical printer and multi-sheet output remain unverified.

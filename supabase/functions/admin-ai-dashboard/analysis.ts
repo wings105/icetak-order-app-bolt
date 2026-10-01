@@ -1,5 +1,6 @@
 import { workflow } from './workflow.ts';
 import { confirmedOrder, caseSummary } from './case.ts';
+import { orderOperation } from './operations.ts';
 export type RecordData=Record<string,any>;
 const content=(m:RecordData)=>String(m.text_content||m.caption||'').trim();
 const at=(m:RecordData)=>Date.parse(m.created_at||'')||0;
@@ -26,7 +27,7 @@ export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=nul
  const evidence=inbound.slice(-5);const text=evidence.map(content).join('\n');
  const matches:Array<{intent:string;pattern:RegExp}>=[
   {intent:'complaint',pattern:/refund|rosak|salah barang|kecewa|complaint|tak reply|x reply|tak balas|x balas|cancel|batal/i},
-  {intent:'shipping',pattern:/tracking|parcel|courier|penghantaran|bila.{0,20}(sampai|pos|ship)|(?:dah|dh|belum).{0,12}(pos|ship)|barang.{0,12}(mana|sampai)/i},
+  {intent:'shipping',pattern:/tracking|parcel|courier|penghantaran|shipment|shipping|rush.{0,20}ship|bila.{0,20}(sampai|pos|ship)|(?:dah|dh|belum).{0,12}(pos|ship)|barang.{0,12}(mana|sampai)/i},
   {intent:'design',pattern:/design|desain|font|huruf|initial|intial|wording|tulisan|saiz|size|ukuran|diameter|gambar|tiramisu/i},
   {intent:'payment',pattern:/bayar|payment|transfer|resit|receipt|qr\b|akaun|pautan|\blink\b/i},
   {intent:'new_order',pattern:/(nak|mahu|want|boleh).{0,18}(order|tempah|beli)|order.{0,12}(macam|mcm|how)/i},
@@ -36,7 +37,7 @@ export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=nul
  // Prefer the newest meaningful customer request; generic automation never resolves it.
  const lastInbound=evidence[evidence.length-1];
  const acknowledgement=!!lastInbound&&lastInbound.message_type==='text'&&content(lastInbound).length<100&&/^(?:(?:ok(?:ay|ey)?|baik|terima kasih|tq+|thanks?|thank you|ya|ye)[\s,.!🙏👍😊]*)+$/i.test(content(lastInbound));
- const newest=acknowledgement?lastInbound:[...evidence].reverse().find(m=>matches.some(x=>x.pattern.test(content(m))));
+ const newest=lastInbound&&content(lastInbound)?lastInbound:[...evidence].reverse().find(m=>content(m));
  const intentText=newest?content(newest):text;
  const intents=matches.filter(x=>x.pattern.test(intentText)).map(x=>x.intent);
  let intent=intents[0]||'other';
@@ -51,9 +52,9 @@ export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=nul
  const manual=confirmedOrder(c,ctx);
  const linked=manual||(ctx.identity_status!=='ambiguous'&&references.length===1?references[0]:null);
  const urgencyText=intentText.replace(/(?:tak|tidak|x|not|no)\s+(?:urgent|rush|rushing)/gi,'');
- const urgent=/\burgent\b|\basap\b|segera|esok|hari ini|harini|today|tomorrow|sempat|smpt/i.test(urgencyText);
+ const urgent=!acknowledgement&&/\burgent\b|\brush\b|\basap\b|segera|esok|hari ini|harini|today|tomorrow|sempat|smpt/i.test(urgencyText);
  const age=Math.max(0,(now-(Date.parse(c.last_inbound_at||'')||now))/3600000);
- const priority=Math.min(100,(intent==='complaint'?80:intent==='shipping'?65:intent==='payment'?60:intent==='design'?50:40)+(urgent?20:0)+Math.min(15,Math.floor(age/12)));
+ const priority=acknowledgement?10:Math.min(100,(intent==='complaint'?80:intent==='shipping'?65:intent==='payment'?60:intent==='design'?50:40)+(urgent?20:0)+Math.min(15,Math.floor(age/12)));
  const warnings:string[]=[];
  if(ctx.identity_status==='ambiguous')warnings.push('Identiti bertindih. Order dan penerima mesti disemak dalam CRM.');
  if(c.channel==='shopee')warnings.push('Balasan automation luar mungkin tiada dalam DB. Semak chat asal sebelum membalas.');
@@ -73,6 +74,21 @@ export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=nul
   else if(intent==='new_order')suggestion='Boleh bagi produk yang nak ditempah, saiz, kuantiti, wording dan tarikh nak guna? Nak pickup atau penghantaran ya?';
   else if(intent==='enquiry')suggestion='Nak tanya produk yang mana ya? Boleh bagi contoh, saiz dan kuantiti supaya saya boleh semak pilihan serta harga yang sesuai.';
   else if(intent==='followup')suggestion='Saya semak perkembangan tempahan dahulu ya. Boleh sahkan nombor order yang dimaksudkan?';
+  if(linked){
+   const work=orderOperation(linked,now);
+   if(intent==='shipping'&&work.shipped){
+    const tracking=linked.tracking||(linked.shipments||[]).find((s:RecordData)=>s.tracking_number)?.tracking_number;
+    suggestion=`Order ${linked.reference} sudah dihantar berdasarkan rekod semasa.${tracking?` Nombor tracking: ${tracking}.`:' Saya semak nombor tracking dahulu ya.'}`;
+   }else if(['shipping','followup'].includes(intent)&&work.tasks.length){
+    const states=[...new Set(work.tasks.map((t:RecordData)=>t.stage||t.status).filter(Boolean))].join(' / ');
+    suggestion=`Rekod order ${linked.reference} kini menunjukkan ${states||'status perlu disemak'}. Saya semak semua item dan aturan penghantaran dahulu ya.`;
+   }else if(intent==='payment'&&work.paid) suggestion=`Rekod ${linked.kind==='shopee'?'platform':'bayaran'} untuk order ${linked.reference} menunjukkan status paid. Saya semak pertanyaan bayaran yang dimaksudkan ya.`;
+   else if(intent==='complaint')suggestion=`Maaf atas kesulitan untuk order ${linked.reference}. Saya semak masalah yang dimaklumkan dan tindakan yang sesuai dahulu ya.`;
+  }
+  // Reuse details the customer has already supplied; never fabricate a price confirmation.
+  const size=intentText.match(/\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*(?:inch|in|inci|cm)?/i)?.[0];
+  const amount=intentText.match(/RM\s*\d+(?:\.\d{1,2})?/i)?.[0];
+  if(size&&['design','enquiry'].includes(intent)) suggestion=`Saya semak saiz ${size}${amount?` dan harga ${amount} yang ditanya`:''} dahulu ya.${amount?' Saya sahkan quotation sebelum maklumkan harga.':' Saya semak kesesuaian dan harga berdasarkan detail yang diberi.'}`;
  }
  const textEvidence=evidence.filter(m=>content(m));
  const caseInfo=caseSummary(c,ctx,intent,content(newest||textEvidence[textEvidence.length-1]||{}).slice(0,240));

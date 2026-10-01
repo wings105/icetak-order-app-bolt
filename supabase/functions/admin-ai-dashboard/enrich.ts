@@ -1,3 +1,4 @@
+import { orderOperation } from './operations.ts';
 type Data = Record<string, any>;
 type Read = (path: string) => Promise<Data[]>;
 const uuid = (v: unknown) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ''));
@@ -18,17 +19,24 @@ export async function enrichContexts(contexts: Record<string, Data>, read: Read)
   }
   return result;
  }
- const [components, drafts] = await Promise.all([
-  batches('production_components', 'order_id', 'id,order_id,review_required,review_status,updated_at', ids('orders')),
+ const [components, drafts, canonicalWork, marketplaceWork] = await Promise.all([
+  batches('production_components', 'order_id', 'id,order_id,review_required,review_status,updated_at,progress_stage,customer_stage,clickup_status,last_synced_at', ids('orders')),
   batches('qrpay_order_drafts', 'id', 'id,order_id,order_no,order_session_id,status,payment_status,updated_at,followup_enabled,followup_count,last_followup_at,next_followup_at,customer_link_sent_at,customer_responded_at', ids('drafts')),
+  batches('ai_order_work_source', 'id', '*&kind=eq.icetak', ids('orders')),
+  batches('ai_order_work_source', 'id', '*&kind=eq.shopee', ids('marketplace_orders')),
  ]);
  for (const ctx of values) {
   if (ctx.identity_status === 'ambiguous') continue;
-  for (const order of ctx.orders || []) order.production_reviews = components.filter(c => c.order_id === order.id);
+  for (const order of ctx.orders || []) {
+   Object.assign(order, canonicalWork.find(o => o.id === order.id) || {});
+   order.production_reviews = components.filter(c => c.order_id === order.id);
+  }
+  for (const order of ctx.marketplace_orders || []) Object.assign(order, marketplaceWork.find(o => o.id === order.id) || {});
   ctx.drafts = (ctx.drafts || []).flatMap((draft: Data) => {
    const current = drafts.find(d => d.id === draft.id && d.order_session_id === draft.order_session_id);
    return current ? [{ ...draft, ...current }] : [];
   });
+  for (const order of [...(ctx.orders || []), ...(ctx.marketplace_orders || [])]) order.work = orderOperation(order);
   ctx.workflow_checked_at = new Date().toISOString();
  }
  return contexts;

@@ -176,3 +176,8 @@ Admin v2 calls Order `admin-ai-dashboard`, which validates staff permissions and
 - Not verified: desktop/mobile rendered interactions and authenticated hosted frontend. Browser download failed; public site reaches Admin Login. A GitHub commit does not prove frontend hosting publication.
 - Existing production webhooks, automations, messaging and customer app preserved; no historical backfill.
 
+
+
+## 2026-10-01 — Derived order work read model
+
+Order System owns private ai_clickup_work_snapshots, ai_order_work_source and service-only icetak_ai_order_work_queue. Existing ClickUp ingestion additionally projects full task snapshots, including marketplace tasks without Webapp IDs. No new canonical mutation/public endpoint. Timestamp monotonicity and exact unique references protect mapping; conflicts remain unknown. Authenticated admin-ai-dashboard joins scoped operational context for chat and separately returns global order work. Chat review/subject confirmation remains independent. Stored replay and separately scheduled connector-based provider pull are distinct recovery layers; see AI_ACTION_DASHBOARD.md.

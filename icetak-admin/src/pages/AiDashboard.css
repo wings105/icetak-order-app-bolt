@@ -60,3 +60,21 @@
 @media(max-width:650px){.ai-board .ai-work-queues{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.ai-board .ai-work-queues button{padding:10px}.ai-board .ai-work-queues small{font-size:11px}.ai-board .ai-work-queues span{font-size:12px}.ai-focus-guide{gap:8px;font-size:12px}.ai-focus-guide strong{width:100%}.ai-board .ai-workspace-body{display:flex}.ai-board .ai-inline-workspace .ai-workspace{height:720px;min-height:0}.ai-board .ai-heading h1{font-size:22px}.ai-board .ai-conversation-list button{min-width:180px}.ai-board .ai-workspace-tabs>span{display:none}.ai-board .ai-case-summary{padding:12px}}
 
 .ai-board .ai-primary:hover:not(:disabled){background:#1e40af;color:#fff}.ai-board .ai-resolve:hover:not(:disabled){background:#065f46;color:#fff}.ai-board .ai-work-queues button.selected:hover:not(:disabled){background:var(--queue);color:#fff}.ai-board .ai-workspace.tab-review .ai-detail-grid{display:block}.ai-board .ai-inline-workspace.ai-expanded .ai-workspace{height:100%;min-height:0}
+/* Order operations remain visible independently of chat review state. */
+.ai-global-work{margin:20px 0 28px;padding:20px;border:1px solid #d8e3eb;border-radius:16px;background:#f7fafc}
+.ai-global-work h2,.ai-chat-work-heading{font-size:20px;margin:0 0 8px}
+.ai-global-work .ai-orders-title{align-items:flex-start;gap:16px}
+.ai-global-work .ai-orders-title p{margin:0;color:#526577;max-width:720px}
+.ai-global-work-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px;margin:16px 0;max-height:520px;overflow:auto;align-items:start}
+.ai-global-work .ai-order-tile{background:#fff;margin:0;min-width:0}
+.ai-global-work .ai-order-tile h3{overflow-wrap:anywhere;margin:10px 0 5px}
+.ai-order-due{border-left:4px solid #d97706!important}
+.ai-order-progress{padding:10px 0;border-top:1px solid #e4e9ef;margin-top:10px;font-size:13px}
+.ai-order-progress>p{margin:5px 0 9px;line-height:1.5}
+.ai-work-retired{display:block;color:#13724d;margin:8px 0;line-height:1.5}
+.ai-task-progress{display:flex;flex-direction:column;gap:5px;padding:10px 0;border-top:1px solid #e4e9ef;overflow-wrap:anywhere}
+.ai-task-progress small{color:#64748b;line-height:1.5}
+.ai-task-progress progress{width:100%;height:7px;accent-color:#2563eb}
+.ai-global-work .ai-order-tabs{margin:15px 0 10px;flex-wrap:wrap}
+.ai-chat-work-heading{margin-top:24px}
+@media(max-width:600px){.ai-global-work{padding:12px}.ai-global-work .ai-orders-title{flex-direction:column}.ai-global-work-grid{grid-template-columns:1fr;max-height:440px}}

@@ -1,4 +1,5 @@
 import { enrichContexts } from './enrich.ts';
+import { orderOperation } from './operations.ts';
 import { caseOrders, sessionKey } from './case.ts';
 import { analyze, identity, intentLabels } from './analysis.ts';
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -88,9 +89,15 @@ Deno.serve(async req=>{
   const canManage=owner||admin.permissions.includes('manage_customers');
   if(!canRead)return json({ok:false,error:'Akses CRM diperlukan.'},403);
   const b=await req.json();const action=String(b.action||'list');
-  if(!['list','detail','review','send','training','training_list','case_order'].includes(action))return json({ok:false,error:'Invalid action'},400);
-  if(!['list','training_list'].includes(action)&&!isUuid(b.conversation_id))return json({ok:false,error:'Invalid conversation ID'},400);
+  if(!['list','work','detail','review','send','training','training_list','case_order'].includes(action))return json({ok:false,error:'Invalid action'},400);
+  if(!['list','work','training_list'].includes(action)&&!isUuid(b.conversation_id))return json({ok:false,error:'Invalid conversation ID'},400);
   if(['review','send','training','case_order'].includes(action)&&!canManage)return json({ok:false,error:'Manage Customers permission required'},403);
+  if(action==='work'){
+   const data=await rpc('icetak_ai_order_work_queue',{});
+   const rows=(data.rows||[]).map((o:any)=>({...o,work:orderOperation(o)})).filter((o:any)=>o.work.active)
+    .sort((a:any,b:any)=>b.work.priority-a.work.priority||(Date.parse(a.deadline)||Infinity)-(Date.parse(b.deadline)||Infinity)||a.reference.localeCompare(b.reference));
+   return json({ok:true,...data,rows,active_total:rows.length,fetched_at:new Date().toISOString()});
+  }
   if(action==='training_list'){
    const channel=['whatsapp','shopee'].includes(b.channel)?b.channel:'whatsapp';
    const intent=intentLabels[b.intent]?b.intent:'other';
