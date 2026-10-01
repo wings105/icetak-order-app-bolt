@@ -141,6 +141,11 @@ The public response excludes recipient address, sender address, phone numbers, p
 
 ## Duplicate protection
 
+SPX tracking links support both `MY` followed by digits and the observed ParcelDaily
+format `MY` followed by digits plus `A`. Keep the provider tracking number intact;
+do not remove the suffix to satisfy a validator. Regression assertions are in
+`supabase/tests/spx_tracking_suffix.sql`.
+
 - Gateway lock by stable `reference`
 - Active shipment lookup before provider creation
 - Webhook uniqueness: `(provider, provider_event_id)`

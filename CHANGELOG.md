@@ -1,5 +1,9 @@
 - [PRODUCTION] Admin prepaid/chat draft review notifications now use the idempotent WhatsApp notification queue instead of an unlogged direct WasapFlow call. Provider failures are persisted with bounded retries, a minute scheduler dispatches delayed retries, successful delivery updates `admin_link_sent_at`, and an audit event is recorded. Production smoke recovered all four missed evening drafts exactly once: four queue rows sent, four draft timestamps set and four audit events recorded.\n\n# Changelog
 
+## 2026-10-01 — SPX tracking suffix recovery
+
+- [PRODUCTION] Tracking-link and courier recognition accept ParcelDaily SPX numbers ending in `A` as well as existing numeric `MY` numbers, preserving the complete provider number. Live migration `20261001095802_spx_tracking_suffix` applied; 11 valid/invalid/courier regression cases passed. Five first-scan notifications blocked today were recovered through the existing guarded queue: all five reached `sent` at 17:58 MYT with one attempt and a provider message ID each. A rollback retry test retained exactly five queue rows. No master/per-order controls, historical migration files, or sent/cancelled notification policies were changed.
+
 ## 2026-10-01 — Operational order work read model
 
 - [VERIFIED] Private ClickUp projection links legacy Order SN / explicit Webapp IDs and preserves separate set progress. Global order work reads current order/payment/shipment/task state independently of chat review. Printing/completion retire earlier work; shipment movement retires postage work; new review corrections remain actionable. Live SQL grants/mapping, rollback lifecycle and actual gateway controlled-response tests passed; v7 sources read back after deploy. Rendered frontend and first scheduled provider backup remain pending; this entry does not claim UI verification.
