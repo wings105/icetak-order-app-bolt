@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "check:admin-v2": "node scripts/check-admin-v2-source.mjs",
-    "build": "npm run check:admin-v2 && vite build && npm run build:inbox",
+    "build": "npm run check:admin-v2 && vite build",
     "build:inbox": "npm --prefix apps/inbox ci && npm --prefix apps/inbox run build",
     "preview": "vite preview"
   },
