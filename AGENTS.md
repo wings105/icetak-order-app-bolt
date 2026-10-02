@@ -38,6 +38,7 @@ Do not move responsibility between these projects casually. Cross-project bridge
 ## High-level system boundaries
 
 - Customer storefront/order portal: root `src/`, `public/`
+- Unified Inbox frontend: `apps/inbox/`, served at `/inbox/` through the shop production build
 - Admin V2: `icetak-admin/`
 - Order System backend: `supabase/` plus backend integration code
 - Production documentation: `docs/`
@@ -159,6 +160,7 @@ If outcome verification has not happened, the correct status is ATTEMPTED, not D
 ## Key subsystem documentation
 
 - Verification protocol: `docs/VERIFICATION_PROTOCOL.md`
+- Unified Inbox hosting: `docs/UNIFIED_INBOX_HOSTING.md`
 - Admin V2: `docs/ADMIN_V2_SOURCE_OF_TRUTH.md`
 - Unified draft engine: `docs/UNIFIED_ORDER_DRAFT_ENGINE_V1.md`
 - AI feedback/learning: `docs/DRAFT_AI_FEEDBACK_V14.md`

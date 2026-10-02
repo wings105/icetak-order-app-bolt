@@ -125,6 +125,14 @@ When a meaningful production architecture change ships:
 4. Add the production-facing change to `CHANGELOG.md`.
 5. If the system boundary/decision changed, update `docs/ARCHITECTURE.md` and `docs/DECISIONS.md` too.
 
+## 2026-10-02 — Unified Inbox hosting
+
+- [PRODUCTION] `https://shop.decocake.my/inbox/` serves the staff Inbox login; `/inbox` redirects to the trailing-slash entry. Frontend source: `apps/inbox/` on `production`, imported from Inbox repository main `fdbcaa291e51fc69634287b9acd4a0a2d95b7f7f`.
+- Release `9b35249efe2c03a01994a2a9c8b2b5939b56cd82`; Cloudflare version `69ce3c0d-3f25-4fad-98b5-e7af354fface`. Workers Builds and GitHub guard passed. Production browser verified Inbox page identity/login gate, root catalogue and Edible Image product navigation.
+- Local build/typecheck passed. All 79 pre-existing storefront build files were byte-identical except the deliberate shop service-worker cache isolation change. Existing renderer Worker/bindings and mockup build input remain present.
+- Backend remains Inbox Supabase `uujcqcsfghqkukaydruc`; both projects were healthy and Inbox conversations/messages/customers RLS was active. No backend migration, credential, webhook or message/order mutation was performed. Authenticated staff Inbox workflows were not exercised.
+- See `UNIFIED_INBOX_HOSTING.md` for build and ownership details.
+
 
 ## 2026-09-30 — Business Command Center
 

@@ -70,6 +70,8 @@ Repository source for this backend is primarily under `supabase/`.
 
 Project: `icetak-unified-inbox` / `uujcqcsfghqkukaydruc`.
 
+The frontend lives in `apps/inbox/` and is served at `https://shop.decocake.my/inbox/` by the existing Cloudflare production Worker. It has its own React/Vite dependencies, assets, scoped service worker and cache. Hosting shares the storefront origin; Supabase ownership and existing backend bridges remain separate. See `UNIFIED_INBOX_HOSTING.md`.
+
 This project is conversation-centric. It owns:
 
 - customers/identities as known by inbox channels

@@ -108,6 +108,14 @@ Why: the project is intentionally able to move between Codex, Claude, Bolt or ot
 
 Add a new ADR section when a change alters a system boundary, source of truth, security/payment rule, deployment ownership or long-lived integration contract. Include status, decision and reason. Do not record minor UI implementation choices here.
 
+## 2026-10-02 — Unified Inbox shares Cloudflare hosting under /inbox/
+
+Status: Active, production route verified.
+
+Use the existing shop production Worker to serve the independent frontend in `apps/inbox/` at `/inbox/`. Build it after the storefront into `dist/inbox`, with its own dependency lockfile, styles, PWA scope and cache prefix. Exclude `/inbox` and its descendants from the shop service worker; each worker may delete only its own cache prefix. Keep conversation/auth/media/functions in Inbox Supabase `uujcqcsfghqkukaydruc` and canonical shop data in Order System `buivecgahhmrhlmfujgt`.
+
+Reason: the owner requested the shop subpath while preserving storefront behavior. The `production` branch publishes the custom domain; `main` only produces previews. Future Inbox frontend edits belong in this production app folder. The original Inbox repository remains provenance/backend reference rather than an automatically synchronized frontend source.
+
 
 
 ## 2026-09-19 — AI action review spans WhatsApp and Shopee
