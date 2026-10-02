@@ -22,7 +22,7 @@ export default defineConfig({
     target: 'es2020',
     rollupOptions: {
       maxParallelFileOps: 128,
-      input: { main: path.resolve(__dirname, 'index.html'), mockup: path.resolve(__dirname, 'mockup/index.html') },
+      input: { main: path.resolve(__dirname, 'index.html'), mockup: path.resolve(__dirname, 'mockup/index.html'), channelInboxQa: path.resolve(__dirname, 'qa/channel-inbox/index.html') },
     },
   },
 });
