@@ -1,0 +1,19 @@
+{
+  "name": "Icetak Unified Inbox",
+  "short_name": "Icetak",
+  "description": "Unified WhatsApp inbox for Icetak",
+  "start_url": "/inbox/",
+  "scope": "/inbox/",
+  "display": "standalone",
+  "background_color": "#111b21",
+  "theme_color": "#111b21",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/inbox/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

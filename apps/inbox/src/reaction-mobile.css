@@ -1,0 +1,15 @@
+button[aria-label="React"] {
+  display: block !important;
+  opacity: 0.72;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button[aria-label="React"] {
+    opacity: 0;
+  }
+
+  .group:hover button[aria-label="React"] {
+    opacity: 1;
+  }
+}
+

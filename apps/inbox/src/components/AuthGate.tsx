@@ -1,0 +1,127 @@
+import { FormEvent, ReactNode, useEffect, useState } from 'react';
+import { Loader2, LockKeyhole, LogOut } from 'lucide-react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+
+interface AuthGateProps {
+  children: ReactNode;
+}
+
+export function AuthGate({ children }: AuthGateProps) {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      setSession(data.session);
+      setLoading(false);
+    }).catch(() => {
+      if (!mounted) return;
+      setSession(null);
+      setLoading(false);
+    });
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.subscription.unsubscribe();
+    };
+  }, []);
+
+  async function handleLogin(event: FormEvent) {
+    event.preventDefault();
+    if (!email.trim() || !password) return;
+
+    setSubmitting(true);
+    setError(null);
+    const { error: loginError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (loginError) setError(loginError.message);
+    setSubmitting(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#111b21] text-[#8696a0]">
+        <Loader2 className="animate-spin" size={30} />
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#111b21] px-4">
+        <form onSubmit={handleLogin} className="w-full max-w-sm rounded-2xl border border-[#2a3942] bg-[#202c33] p-6 shadow-xl">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="rounded-full bg-[#005c4b] p-3 text-[#00d9a3]">
+              <LockKeyhole size={24} />
+            </div>
+            <div>
+              <h1 className="font-semibold text-[#e9edef]">Log masuk staf ICETAK</h1>
+              <p className="text-xs text-[#8696a0]">Diperlukan untuk Test Mode dan operasi database.</p>
+            </div>
+          </div>
+
+          <label className="mb-1 block text-xs font-medium text-[#aebac1]">E-mel</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            autoComplete="email"
+            className="mb-4 w-full rounded-lg border border-[#3b4a54] bg-[#111b21] px-3 py-2.5 text-sm text-[#e9edef] outline-none focus:border-[#00a884]"
+            placeholder="staf@decocake.my"
+          />
+
+          <label className="mb-1 block text-xs font-medium text-[#aebac1]">Kata laluan</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="current-password"
+            className="w-full rounded-lg border border-[#3b4a54] bg-[#111b21] px-3 py-2.5 text-sm text-[#e9edef] outline-none focus:border-[#00a884]"
+            placeholder="••••••••"
+          />
+
+          {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={submitting || !email.trim() || !password}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-[#00a884] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#008f72] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting && <Loader2 size={16} className="animate-spin" />}
+            Log masuk
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-screen">
+      <button
+        onClick={() => supabase.auth.signOut()}
+        title="Log keluar"
+        className="absolute right-3 top-3 z-[100] rounded-full bg-[#202c33] p-2 text-[#8696a0] shadow hover:text-white"
+      >
+        <LogOut size={16} />
+      </button>
+      {children}
+    </div>
+  );
+}
+
