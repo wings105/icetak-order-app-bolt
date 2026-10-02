@@ -9,7 +9,7 @@ export default defineConfig({
     apply: 'build',
     closeBundle() {
       const cwd = path.resolve(__dirname, 'apps/inbox');
-      execFileSync('npm', ['ci'], { cwd, stdio: 'inherit' });
+      execFileSync('npm', ['ci', '--include=dev'], { cwd, stdio: 'inherit' });
       execFileSync('npm', ['run', 'build'], { cwd, stdio: 'inherit' });
     },
   }],
