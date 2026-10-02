@@ -33,3 +33,15 @@ Observed on production: Inbox title and staff login gate at the intended URL, `/
 Local build comparison preserved all 79 existing storefront files byte for byte except the intentional service-worker update. Inbox compiled assets reference the Inbox project and contain no shop Supabase URL. Cache cleanup/request interception checks and Inbox typecheck passed. Both Supabase projects were healthy, and conversations/messages/customers RLS was active.
 
 Authenticated Inbox operations, customer sends, orders and payments were not exercised during hosting verification. No database/function/auth configuration was changed.
+
+## Admin V2 Channel / Inbox panel
+
+Status: ATTEMPTED for UI verification. The implementation is deployed; successful build/deployment does not establish authenticated production behavior.
+
+Release `8a1a8d89e6d6fef40d63744e63314c51e02f85d9` adds the Channel / Inbox sidebar item in `icetak-admin/`, embeds the existing same-origin `/inbox/` behind its own staff login, keeps the iframe mounted after its first opening when navigating other admin menus, and provides Fullscreen/Kecilkan and Buka tab baharu controls. The direct admin entry is `/?admin=v2&view=channel-inbox`.
+
+Only `icetak-admin/src/App.tsx`, `components/Sidebar.tsx`, and the new `pages/ChannelInbox.tsx` / `pages/ChannelInbox.css` were changed. The patch was based on the latest production commit and published with a fast-forward-only update. Storefront behavior, other admin page implementations, Supabase configuration, permissions, records and webhooks were not changed.
+
+Root/Inbox builds, the focused ChannelInbox TypeScript check, whitespace checks and the source-of-truth guard passed. Workers Builds succeeded with Cloudflare version `190708c5-1391-4bbc-9316-e87dc6a3c390`. Production Admin login in the cloud test browser returned `Failed to fetch`, so the authenticated panel and its controls were not smoke-checked. A separate synthetic-admin QA preview (`agent/channel-inbox-qa-20261002`, commit `dc45d5e`) has backend calls disabled and does not change production; browser credential-observation restrictions also prevented completion of that UI test. No completed changelog entry is recorded until observable UI verification is available.
+
+Remaining verification: sign in normally, open Channel / Inbox, confirm the existing Inbox staff gate/workspace, switch to another menu and back without reloading the iframe, check Fullscreen/Kecilkan and the new-tab link. Do not send messages or change business records merely to validate this embedding.
