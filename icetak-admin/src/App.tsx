@@ -20,6 +20,7 @@ import WhatsAppOutbox from './pages/WhatsAppOutbox';
 import Integrations from './pages/Integrations';
 import StaffRoles from './pages/StaffRoles';
 import Settings from './pages/Settings';
+import ChannelInbox from './pages/ChannelInbox';
 
 const RenderTemplates = lazy(() => import('./pages/RenderTemplates'));
 const AiDashboard = lazy(() => import('./pages/AiDashboard'));
@@ -28,6 +29,7 @@ const CreateOrder = lazy(() => import('./pages/CreateOrder'));
 const PickupCounter = lazy(() => import('./pages/PickupCounter'));
 
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
+  'channel-inbox': { title: 'Channel / Inbox', subtitle: 'WhatsApp & Shopee' },
   'render-templates': { title: 'Render Templates', subtitle: 'Upload template & customize tulisan' },
   'ai-dashboard': { title: 'AI Action Dashboard', subtitle: 'WhatsApp & Shopee · Semakan admin' },
   dashboard: { title: 'Business Command Center', subtitle: 'Seluruh operasi iCetak' },
@@ -71,8 +73,9 @@ export default function App({ adminData }: Props) {
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
   const initialDraftTab=linkedView==='draft-followups'||initialParams.get('draft_tab')==='followup'?'followup':'all';
-  const [page, setPage] = useState(linkedView === 'render-templates' ? 'render-templates' : linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','clickup-queue','integrations','whatsapp-control'].includes(linkedView)?linkedView:'dashboard');
+  const [page, setPage] = useState(linkedView === 'channel-inbox' ? 'channel-inbox' : linkedView === 'render-templates' ? 'render-templates' : linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','clickup-queue','integrations','whatsapp-control'].includes(linkedView)?linkedView:'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [inboxOpened, setInboxOpened] = useState(linkedView === 'channel-inbox');
   const [marketplaceSearch,setMarketplaceSearch]=useState(initialParams.get('marketplace_q')?.trim() || '');
   const [aiCustomer,setAiCustomer]=useState<{name:string;phone:string;channel?:string}|null>(null);
   const [aiDraftQuery,setAiDraftQuery]=useState('');
@@ -84,6 +87,7 @@ export default function App({ adminData }: Props) {
   const canViewPickup = canViewCustomers || permissions.includes('verify_payments') || permissions.includes('approve_production');
 
   const navigate = (key: string) => {
+    if (key === 'channel-inbox') setInboxOpened(true);
     setAiCustomer(null);if(key!=='draft-orders')setAiDraftQuery('');
     if (key === 'quick-order' || key === 'manual-order') key = 'create-order';
     setLinkedPayment(null);
@@ -92,7 +96,8 @@ export default function App({ adminData }: Props) {
     if (key !== 'marketplace-orders') url.searchParams.delete('marketplace_q');
     if (key !== 'orders') url.searchParams.delete('order');
     if (key !== 'customers' && key !== 'pickup-counter') url.searchParams.delete('customer');
-    if (key === 'render-templates') url.searchParams.set('view','render-templates');
+    if (key === 'channel-inbox') url.searchParams.set('view','channel-inbox');
+    else if (key === 'render-templates') url.searchParams.set('view','render-templates');
     else if (key === 'ai-dashboard') url.searchParams.set('view','ai-dashboard');
     else if (key === 'customers') url.searchParams.set('view','customers');
     else if (key === 'marketplace-orders') { url.searchParams.set('view','marketplace-orders'); url.searchParams.delete('marketplace_q'); }
@@ -194,7 +199,7 @@ export default function App({ adminData }: Props) {
     }
   };
 
-  return <div className="app-layout"><Sidebar canManageTemplates={canManageTemplates} active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} canViewFinance={permissions.includes('view_finance')} canViewCustomers={canViewCustomers} canViewAi={canViewAi} canViewPickup={canViewPickup} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} onOpenInternalOrder={openOrder} onOpenMarketplace={openMarketplace} /><div className="content-area">{renderPage()}</div></div></div>;
+  return <div className="app-layout"><Sidebar canManageTemplates={canManageTemplates} active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} canViewFinance={permissions.includes('view_finance')} canViewCustomers={canViewCustomers} canViewAi={canViewAi} canViewPickup={canViewPickup} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} onOpenInternalOrder={openOrder} onOpenMarketplace={openMarketplace} /><div className="content-area">{inboxOpened && <ChannelInbox active={page === 'channel-inbox'} />}{page !== 'channel-inbox' && renderPage()}</div></div></div>;
 }
 
 

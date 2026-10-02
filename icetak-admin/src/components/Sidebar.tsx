@@ -15,6 +15,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: IconDashboard },
   { key: 'ai-dashboard', label: 'AI Dashboard', icon: IconIntegration },
+  { key: 'channel-inbox', label: 'Channel / Inbox', icon: IconWhatsApp },
   { key: 'orders-menu', label: 'Orders', icon: IconOrders, children: [
     { key: 'orders', label: 'iCetak Orders' },
     { key: 'marketplace-orders', label: 'Marketplace Orders' },
