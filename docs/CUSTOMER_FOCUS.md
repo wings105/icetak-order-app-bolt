@@ -1,6 +1,6 @@
 # Fokus Customer — Admin V2
 
-Status: VERIFIED in controlled Admin desktop/mobile; published-source/hosted owner smoke pending.
+Status: VERIFIED in controlled Admin desktop/mobile. Source publication and public Admin login gate confirmed; authenticated hosted owner smoke pending.
 Route: https://shop.decocake.my/?admin=v2&view=customer-focus
 
 ## Operation
@@ -32,6 +32,8 @@ State writes take an advisory transaction lock, optimistic version, request UUID
 - Browser plugin unavailable; Playwright controlled Admin route at 1440×1000/390×844: sidebar/direct route, filters/search, single/multi sort, columns/reload persistence, paging, CSV, waiting/design retirement, save conflict retention, exact conversation navigation, readonly buttons, no blank/error overlay/runtime errors. Screenshot evidence outside repository.
 - Admin TypeScript, AI dashboard/work/gateway regressions and complete storefront + Inbox production build pass.
 - Backend v9 (7 files) and Inbox bridge v2 source readback/auth rejection checked. Authenticated hosted owner flow is not proven by source publication or these controlled checks.
+- Production releases 79c32929 and 14e6564c published the panel and safe delayed-chat loading respectively. Final 14e6564c Workers Builds and GitHub guard both completed successfully. Cache-bypassed public assets are main-DIlDwLOT.js → admin-v2-route-FWB38LvF.js → App-CUHUii02.js, with CustomerFocus-DY1zhbYS.js and AiDashboard-DfN3dwlD.js. Route/sidebar/panel actions and the chat loading guard are present in those served bytes.
+- Public cloud browser reaches the normal Admin V2 login at the exact route above. This confirms the hosted entry/auth gate, not the authenticated owner's list or save workflow. Controlled desktop/mobile checks include an 800ms delayed chat-detail response without runtime errors.
 
 ## Migration records
 
