@@ -1,6 +1,6 @@
 # Sales Channel comparison
 
-Status: backend and controlled rendered Admin V2 VERIFIED (2026-10-04 MYT). Hosting publication awaits the release smoke check.
+Status: backend and controlled rendered Admin V2 VERIFIED (2026-10-04 MYT). Production frontend publication is confirmed; authenticated hosted-owner interactions remain unverified.
 
 Entry: Finance → Sales Channel. Existing Untung Order remains the initial Finance tab. Shopee and Deco own orders are compared in MYR with Malaysia order dates, rolling day/week/1/3/6/12-month/all/custom ranges. Calendar-month clamping reuses Sales SKU's period function. Trend is daily up to 93 days, monthly above that. Both channel totals remain visible while channel/kind/search filter only the order list. Exact counts, 50-row pagination, capped 5,000-row CSV export and existing order detail routes are included.
 
@@ -33,3 +33,8 @@ finance-admin v31 ACTIVE, JWT verification enabled; new read action passes throu
 - Finance gateway tests, Admin type/build and complete storefront+Inbox/source-ownership build pass. Hosted authenticated owner interactions remain unverified separately from controlled testing and asset publication.
 
 Run node supabase/tests/finance-admin-order-profit.test.mjs, supabase/tests/sales-channel.sql in a rollback transaction, and node icetak-admin/tests/playwright-sales-channel.mjs with the existing FINANCE_PLAYWRIGHT_MODULE / FINANCE_CHROMIUM_EXECUTABLE overrides when required.
+
+
+## Publication checkpoint (2026-10-04 MYT)
+
+Source release d01216db2db166c944295fe0e6b6fded882533da is on production. Workers Builds d04954e4-3dd9-461a-8839-22646ed75433 and GitHub Public Domain Guard completed successfully. Cache-bypassed live root points to main-D-PF0qeH.js → admin-v2-route-gYo44iHO.js → App-DKZcXNRt.js. The live Admin asset contains Sales Channel, sales_channel_report, the known-percentage warning, pending aging, Deco label and order drilldown table. This confirms publication of the feature; owner-authenticated hosted interactions are still distinct from the controlled tests above.
