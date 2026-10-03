@@ -141,6 +141,6 @@ For exact implementation history, inspect Git commits and Supabase migration his
 - Activepieces Code adapter and setup guide added; controlled multipart upload/comment/retry tests pass. Not installed/tested in owner's AP and no real ClickUp post performed. Temporary QA key removed. See docs/RENDER_AUTOMATION_AP.md.
 
 
-## 2026-10-03 — [VERIFIED] Full Shopee order finance
+## 2026-10-03 — [PRODUCTION] Full Shopee order finance
 
-Grouped raw finance fields/source/history, refund shipping-loss contribution retaining incurred costs, server filters/numeric sort, daily/courier charts and full CSV export. Owner-only Excel preview/import matches order/shop/currency, deduplicates and keeps webhook priority. Six real payloads reconcile; rollback accounting/import tests and desktop/mobile field/filter/export/XLSX flows pass. Backend finance-admin v29 retains JWT and permissions. Production frontend publication pending; hosted owner flow unverified. See docs/ORDER_FINANCE_DETAIL.md.
+Grouped raw finance fields/source/history, refund shipping-loss contribution retaining incurred costs, server filters/numeric sort, daily/courier charts and full CSV export. Owner-only Excel preview/import matches order/shop/currency, deduplicates and keeps webhook priority. Six real payloads reconcile; rollback accounting/import tests and desktop/mobile field/filter/export/XLSX flows pass. Backend finance-admin v29 retains JWT and permissions. Release 695285e passed Cloudflare Workers Builds and GitHub guard; published root/admin assets confirmed. Hosted owner flow unverified. See docs/ORDER_FINANCE_DETAIL.md.

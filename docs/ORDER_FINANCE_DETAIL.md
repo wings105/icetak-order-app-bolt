@@ -1,6 +1,6 @@
 # Full Shopee order finance
 
-Status: backend and controlled UI VERIFIED, production publication pending.
+Status: backend and controlled UI VERIFIED; production release 695285e passed Cloudflare Workers Builds and GitHub guard. Hosted authenticated owner flow remains unverified.
 
 Admin V2 Finance → Untung Order uses the same server dataset for the order list, numeric filters, daily/courier charts, summary and CSV export. The existing material settings and per-order cost editor remain separate. Existing bank/P&L, storefront, Inbox and outbound order integrations are unchanged.
 
@@ -29,4 +29,4 @@ Detail shows grouped fields, field search, source paths, reasons and last 30 his
 - Admin TypeScript/build and full storefront+Inbox build/source ownership check pass. ExcelJS 4.4.0 loads only when importing.
 - finance-admin v29 ACTIVE, JWT enabled, deployed source equals repository source. Security advisor reports private RLS-without-policy informational item; private table/functions explicitly deny anon/authenticated.
 
-Hosted authenticated owner UI is not exercised: public entry requires owner login. Production asset/CI smoke evidence will be recorded after publication.
+Hosted authenticated owner UI is not exercised: public entry requires owner login. Public root/admin asset smoke confirms the published release; no-auth finance request returns 401. Root production build also installs pinned ExcelJS 4.4.0, matching the standalone admin dependency. New migration filenames are aligned with versions recorded by the live migration service; SQL contents are unchanged.
