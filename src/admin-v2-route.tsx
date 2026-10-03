@@ -1,6 +1,7 @@
 import type { Root } from 'react-dom/client';
 import { api, supabase } from './appdeploy-client';
 
+// Admin V2 modules, including Finance Sales SKU, are mounted through this shared route.
 const V2_ROUTE = 'v2';
 let rootHandle: Root | null = null;
 let mounting = false;
