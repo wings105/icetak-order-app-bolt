@@ -1,1 +1,1 @@
-Trigger frontend rebuild for Unified Order Draft Engine V1 — 2026-08-13. Includes admin draft and customer review/payment pages.
+Trigger frontend rebuild for Finance Sales SKU — 2026-10-03. Verified release b524c913 includes Admin V2 SKU rankings, rolling periods, trends, CSV and order drilldown. Existing Worker and Inbox build remain unchanged.
