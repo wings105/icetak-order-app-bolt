@@ -1,6 +1,6 @@
 # Fokus Customer — Admin V2
 
-Status: VERIFIED in controlled Admin desktop/mobile. Source publication and public Admin login gate confirmed; authenticated hosted owner smoke pending.
+Status: Live user load failed on 2026-10-04 (8s database statement timeout). Backend performance repair VERIFIED on complete live data under the same 8s service-role budget; authenticated hosted owner recovery remains pending. Earlier controlled UI checks do not prove the reported live failure was resolved in the owner's browser.
 Route: https://shop.decocake.my/?admin=v2&view=customer-focus
 
 ## Operation
@@ -39,5 +39,17 @@ State writes take an advisory transaction lock, optimistic version, request UUID
 
 Order: 20261003190237_customer_focus_panel; 20261003190535_customer_focus_clickup_dates; 20261003192531_customer_focus_active_drafts.
 Inbox ONLY: 20261003190238_customer_focus_chats.
+
+Order performance repair: 20261003231918_customer_focus_query_performance.
+
+## 2026-10-04 — Live load failure and repair
+
+The user screenshot shows `Edge Function returned a non-2xx status code`. Production logs at 23:12:55 UTC identify admin-ai-dashboard v9 HTTP 500 caused by PostgREST 57014 / `canceling statement due to statement timeout` in icetak_customer_focus_snapshot. The gateway's 60s fetch deadline did not change PostgREST's inherited 8s service-role statement budget. Inbox focus requests and draft reads succeeded.
+
+Repair adds a partial latest-full-task index with the exact existing ClickUp event predicate/order, an index for archive max(received_at), and a once-built task date map instead of a per-order date-table join. RPC remains SECURITY INVOKER/service-only; no role/global timeout, auth, business data, provider status or frontend changes.
+
+Live 8s service-role tests: complete 4,053/4,053 orders, no truncation, 356 dated tasks; actual PostgREST-shaped JSON serialization plan 1,120ms (62 read / 65,878 hit blocks). All order fields and task/date contents match the previous query across 4,053 rows when task arrays are compared by task ID; older hash-join array order was not guaranteed. Complete chat RPC (3,435), active draft RPC (12) and exact identity RPC (3,435) also succeed under 8s. The actual focusRows model consumes those full live reads and yields 3,589 rows / 1,808 actionable / 632 paid in 1,432ms at the inspection snapshot. These counts can change.
+
+Focus and AI regression checks pass. Both indexes valid; anon/authenticated cannot execute snapshot, service_role can, and security-definer remains false. Advisors retain the expected INFO no-policy finding on the private service-only panel tables. No admin save/customer send was issued. Additional local browser recovery check was blocked before page load by Chrome process_singleton socket() Operation not permitted in the execution environment; no new rendered pass is claimed. Authenticated owner refresh remains the final live UI confirmation.
 
 Disable/remove sidebar entry to roll back frontend access; private read/state tables can remain without altering business records. Do not reapply old migrations or rewrite existing webhook history.
