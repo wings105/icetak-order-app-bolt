@@ -28,7 +28,7 @@ begin
   update public.marketplace_order_financials set currency='USD' where order_id=a;r:=finance.order_profit_row(a);assert r->>'nett' is null and r->>'profit' is null,'Do not mix currencies';
   update public.marketplace_order_financials set currency='MYR' where order_id=a;
   update public.marketplace_order_items set quantity=2,line_subtotal=20 where order_id=a;r:=finance.order_profit_row(a);assert r->>'cost_state'='detail_changed' and r->>'profit' is null,'Changed item facts require re-review';
-  update public.marketplace_orders set current_status='CANCELLED' where id=a;r:=finance.order_profit_row(a);assert r->>'profit_state'='lifecycle_review' and r->>'profit' is null,'Cancelled/refund not final profit';
+  update public.marketplace_orders set current_status='CANCELLED' where id=a;r:=finance.order_profit_row(a);assert (r->>'lifecycle_review')::boolean and (r->>'profit')::numeric=-3,'Cancelled retains incurred costs and known loss';
   insert into public.marketplace_orders(id,order_sn,currency,current_status,first_seen_at) values(b,'QA-PROFIT-'||b,'MYR','READY_TO_SHIP','2026-10-01');
   insert into public.marketplace_order_items(order_id,line_no,item_sku,title,quantity,line_subtotal) values(b,1,'QA-TOPPER','Cake Topper',1,10),(b,2,'QA-EDIBLE','Edible Image',1,20);
   new_s:=public.finance_material_settings_save((s->>'version')::bigint,jsonb_set(s->'rates','{topper}','50'),'{"qa-unit":{"category":"topper","unit_cost":2}}','admin1');

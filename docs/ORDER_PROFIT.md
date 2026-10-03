@@ -51,3 +51,6 @@ The six corresponding public RPCs are executable only by service_role. Private t
 - Authenticated hosted owner UI remains a separate production smoke check. A published commit or login page alone does not establish that check.
 
 Run `node supabase/tests/finance-admin-order-profit.test.mjs`. Run the SQL test in a rollback transaction. For UI, run `icetak-admin/tests/playwright-order-profit.mjs` with Playwright available and optional `FINANCE_PLAYWRIGHT_MODULE`, `FINANCE_CHROMIUM_EXECUTABLE`, `FINANCE_QA_OUTPUT` overrides.
+
+
+Full finance breakdown extension: see [ORDER_FINANCE_DETAIL.md](ORDER_FINANCE_DETAIL.md) for accounting, history, import, filtering and validation contracts.

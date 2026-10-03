@@ -17,7 +17,8 @@ export async function parseFinanceExcel(file:File):Promise<ImportOrder[]>{
 }
 export function downloadFinanceCsv(report:FinanceReport){
  const columns=['order_sn','status','currency','finance_source','income_state','nett','cost_total','profit','margin','courier','shop_id','shipping_net','return_shipping','refund_total','seller_promotion','fee_total','platform_ads','affiliate','reconciliation','reasons'];
+ const fieldKeys=[...new Set(report.rows.flatMap(r=>Object.keys(r.finance_fields||{})))].sort();columns.push(...fieldKeys.map(k=>'raw.'+k));
  const csvCell=(v:unknown)=>{let s=Array.isArray(v)?v.join(' | '):String(v??'');if(/^[=+@\-]/.test(s)&&typeof v!=='number')s="'"+s;return '"'+s.replaceAll('"','""')+'"'};
- const rows=report.rows.map(r=>columns.map(k=>csvCell((r as unknown as Record<string,unknown>)[k]??(r.finance_metrics as unknown as Record<string,unknown>|undefined)?.[k])).join(','));
+ const rows=report.rows.map(r=>columns.map(k=>csvCell(k.startsWith('raw.')?(r.finance_fields?.[k.slice(4)]?.amount??(typeof r.finance_fields?.[k.slice(4)]?.value==='object'?JSON.stringify(r.finance_fields?.[k.slice(4)]?.value):r.finance_fields?.[k.slice(4)]?.value)):(r as unknown as Record<string,unknown>)[k]??(r.finance_metrics as unknown as Record<string,unknown>|undefined)?.[k])).join(','));
  const url=URL.createObjectURL(new Blob(['\ufeff'+[columns.join(','),...rows].join('\r\n')],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='icetak-order-finance.csv';a.click();window.setTimeout(()=>URL.revokeObjectURL(url),1000);
 }

@@ -139,3 +139,8 @@ For exact implementation history, inspect Git commits and Supabase migration his
 - render-template v4 and service-only/RLS key RPCs support render-only key rotation/revocation/rate limits; admin editor includes pattern labels, output-link and key controls. Authenticated Admin interactions remain unverified.
 - Release 3bb9fad passed current GitHub guard/Cloudflare build. Live signed GET decoded and visually checked at 2480×3508 (5,092,393 bytes); authenticated POST returned matching output and retry cache hit. Live missing-field/no-auth/tamper rejection and public age-edit/regenerate checks pass. Desktop public UI verified; mobile not verified.
 - Activepieces Code adapter and setup guide added; controlled multipart upload/comment/retry tests pass. Not installed/tested in owner's AP and no real ClickUp post performed. Temporary QA key removed. See docs/RENDER_AUTOMATION_AP.md.
+
+
+## 2026-10-03 — [VERIFIED] Full Shopee order finance
+
+Grouped raw finance fields/source/history, refund shipping-loss contribution retaining incurred costs, server filters/numeric sort, daily/courier charts and full CSV export. Owner-only Excel preview/import matches order/shop/currency, deduplicates and keeps webhook priority. Six real payloads reconcile; rollback accounting/import tests and desktop/mobile field/filter/export/XLSX flows pass. Backend finance-admin v29 retains JWT and permissions. Production frontend publication pending; hosted owner flow unverified. See docs/ORDER_FINANCE_DETAIL.md.
