@@ -54,3 +54,5 @@ Run `node supabase/tests/finance-admin-order-profit.test.mjs`. Run the SQL test 
 
 
 Full finance breakdown extension: see [ORDER_FINANCE_DETAIL.md](ORDER_FINANCE_DETAIL.md) for accounting, history, import, filtering and validation contracts.
+
+SKU rankings and trend reporting: see [SALES_SKU.md](SALES_SKU.md).

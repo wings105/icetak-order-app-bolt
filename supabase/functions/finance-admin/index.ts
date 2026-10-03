@@ -74,6 +74,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({})) as JsonObject;
     const action = String(body.action || "snapshot");
 
+    if (action === "sales_sku_report") return json({success:true,data:await rpc("finance_sales_sku_report",{p_filter:{from:body.from||null,to:body.to||null,currency:body.currency||"MYR",shop_id:body.shop_id||null,query:String(body.query||"").slice(0,200),sku_key:body.sku_key||null}})});
     if (action === "order_finance_options") return json({success:true,data:await rpc("finance_order_finance_options")});
     if (action === "order_finance_report" || action === "order_finance_export") return json({success:true,data:await rpc("finance_order_report",{p_filter:{
       from:body.from||null,to:body.to||null,query:String(body.query||"").slice(0,200),category:body.category||null,state:body.state||null,status:body.status||"all",
