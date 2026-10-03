@@ -1,1 +1,1 @@
-Trigger frontend rebuild for Finance Sales SKU — 2026-10-03. Verified release b524c913 includes Admin V2 SKU rankings, rolling periods, trends, CSV and order drilldown. Existing Worker and Inbox build remain unchanged.
+Retry production frontend rebuild for Finance Sales SKU — 2026-10-03 14:40 MYT, requested by owner. Verified release b524c913 includes Admin V2 SKU rankings, all date periods, trends, CSV and order drilldown. Preserve existing Worker and Inbox build.
