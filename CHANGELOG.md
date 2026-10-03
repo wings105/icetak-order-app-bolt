@@ -2,7 +2,7 @@
 
 ## 2026-10-03 — Shopee order contribution and material settings
 
-- [VERIFIED] Finance → Untung Order separates released/escrow income and actual/estimated contribution, exposes per-item material and extra order costs, flags incomplete data, and shows owner-only Nett/Untung in Marketplace Orders. Separate Settings → Modal Bahan holds four initial percentages and optional SKU/unit costs with frozen historical versions. Live service-role rollback tests prove release/zero/fee/currency/cost/version/trigger/permission behavior; gateway auth tests and rendered desktop/mobile workflows pass, with no app runtime errors. finance-admin v28 is deployed with JWT verification preserved. Production frontend publication and authenticated hosted-owner smoke are separate checks; see `docs/ORDER_PROFIT.md`.
+- [VERIFIED] Finance → Untung Order separates released/escrow income and actual/estimated contribution, exposes per-item material and extra order costs, flags incomplete data, and shows owner-only Nett/Untung in Marketplace Orders. Separate Settings → Modal Bahan holds four initial percentages and optional SKU/unit costs with frozen historical versions. Live service-role rollback tests prove release/zero/fee/currency/cost/version/trigger/permission behavior; gateway auth tests and rendered desktop/mobile workflows pass, with no app runtime errors. finance-admin v28 is deployed with JWT verification preserved. Frontend release `534d2c9` passed Workers Builds/guard and the live JavaScript asset contains the new UI/actions. Authenticated hosted-owner smoke remains unverified; see `docs/ORDER_PROFIT.md`.
 
 ## 2026-10-02 — Unified Inbox on shop Cloudflare hosting
 
