@@ -73,7 +73,7 @@ export default function AiDashboard({onOpenOrder,onOpenDrafts,canViewDrafts,onCr
    setNote(d.row.context.review?.note||'');setOverride(d.row.context.review?.intent_override||'');setFetched(d.fetched_at);
   }catch(e){if(seq===detailSeq.current){setDetailFailed(true);setError((e as Error).message);}}finally{if(seq===detailSeq.current)setDetailLoading(false);}
  };
- useEffect(()=>{const id=new URLSearchParams(window.location.search).get('ai_conversation');if(id&&/^[0-9a-f-]{36}$/i.test(id)){setViewMode('conversation');setSideTab('orders');void open({id} as Row);}},[]);
+ useEffect(()=>{const id=new URLSearchParams(window.location.search).get('ai_conversation');if(id&&/^[0-9a-f-]{36}$/i.test(id)){setViewMode('conversation');setSideTab('orders');void open({id,name:'Memuatkan customer…',channel:'',context:{},analysis:{status:'needs_review',case:{},workflow:{},warnings:[]}} as Row);}},[]);
  const [refreshError,setRefreshError]=useState('');
  const refreshGuard=useRef(false);
  refreshGuard.current=hasUnsaved||busy||loading||detailLoading||!!confirm||closeConfirm||detailFailed;
