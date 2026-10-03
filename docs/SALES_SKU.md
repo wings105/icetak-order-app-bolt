@@ -24,3 +24,8 @@ Run `node supabase/tests/finance-admin-order-profit.test.mjs` and `node icetak-a
 ## Publication checkpoint
 
 Source release `b524c9132d2c4f67c72b58858daf511d4a4ed0e8` and rebuild trigger `6c1e6a55c55c835302e6590e806f9c38cd0634b7` are on production; GitHub Public Domain Guard passed for both. The published source tree equals the locally verified tree. At the 2026-10-03 06:38 UTC checkpoint, six cache-bypassed live polls still served `main-CUC30-YA.js` → `App-B6wbDnZB.js`, without `sales_sku_report` or the Sales SKU tab. Direct Worker origin also served the old release. Therefore hosting publication and authenticated hosted-owner behavior are pending, not PRODUCTION. Current session has no Cloudflare deployment credential or signed-in dashboard session; deployment logs/retry need the connected Cloudflare account. Do not treat the rebuild trigger or GitHub guard as hosting success.
+
+
+## 2026-10-04 — Publication confirmed
+
+Workers Builds recovered and production release d3532961 published. Live root/admin asset chain contains sales_sku_report and the Sales SKU periods/tab; owner supplied the authenticated Finance → Sales SKU screenshot and confirmed the feature is visible. This supersedes the earlier pending-hosting checkpoint. Sales Channel is a separate comparison report; see SALES_CHANNEL.md.

@@ -164,3 +164,8 @@ Use the same native Canvas code in server Chromium rather than reproducing curve
 Status: Active. Use append-only effective material settings, selecting the version at order first_seen_at and capturing per-order item-cost snapshots. Defaults apply to future orders; existing actual costs cannot be silently recalculated. Changed item facts require cost re-review. Existing orders have a reproducible original-version preview without bulk history backfill.
 
 Use canonical released/escrow income, retain explicit actual versus estimated/allocated costs, and subtract platform deductions only once. Order contribution is before business overhead and does not write journal entries. Reason: dependable order decisions without false settlement/profit confirmation or double-posting costs to the business ledger. Owner-only gateway and cost/version audit preserve accountability. See ORDER_PROFIT.md.
+
+
+## 2026-10-04 — Compare channels on goods sales and expose evidence gaps
+
+The sales channel follows purchase ownership, not the conversation channel. Shopee mirrors must never inflate direct sales. Compare MYR goods after known seller promotions, before refunds, with shipping/cash/settlement/profit separate. Use known percentages when sales are incomplete and label that denominator. A report-estimated nett is not release proof, and missing direct costs cannot create profit. Read-only gateway reporting must not backfill financial facts or post journal entries. See SALES_CHANNEL.md.

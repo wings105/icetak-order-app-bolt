@@ -4,8 +4,9 @@ import { supabase } from '../lib/supabase';
 import './Finance.css';
 import OrderProfit from './OrderProfit';
 import SalesSku from './SalesSku';
+import SalesChannel from './SalesChannel';
 
-type Tab = 'sales-sku' | 'order-profit' | 'overview' | 'transactions' | 'reconciliation' | 'expenses' | 'shopee' | 'accounts' | 'reports' | 'webhooks';
+type Tab = 'sales-channel' | 'sales-sku' | 'order-profit' | 'overview' | 'transactions' | 'reconciliation' | 'expenses' | 'shopee' | 'accounts' | 'reports' | 'webhooks';
 type Account = { id:number; code:string; name:string; account_type:string; account_subtype:string|null; opening_balance:number|string; balance:number|string };
 type Connection = { slug:string; name:string; source_type:string; is_active:boolean; last_event_at:string|null };
 type Transaction = {
@@ -31,6 +32,7 @@ type Report = { from:string;to:string;income:number|string;expense:number|string
 type Props = { canManage:boolean; onOpenOrder?:(orderNo:string)=>void; onOpenSettings?:()=>void };
 
 const tabs:Array<{key:Tab;label:string}> = [
+  {key:'sales-channel',label:'Sales Channel'},
   {key:'order-profit',label:'Untung Order'},
   {key:'sales-sku',label:'Sales SKU'},
   {key:'overview',label:'Overview'}, {key:'transactions',label:'Transactions'}, {key:'reconciliation',label:'Reconciliation'},
@@ -101,11 +103,12 @@ export default function Finance({canManage,onOpenOrder,onOpenSettings}:Props){
   const webhookBase=`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/finance-webhook`;
   const copy=async(value:string)=>{await navigator.clipboard.writeText(value);};
 
-  if(loading&&!snapshot&&tab!=='order-profit'&&tab!=='sales-sku')return <div className="loading"><span className="spinner"/> Loading Finance…</div>;
+  if(loading&&!snapshot&&tab!=='order-profit'&&tab!=='sales-sku'&&tab!=='sales-channel')return <div className="loading"><span className="spinner"/> Loading Finance…</div>;
   return <div className="fade-in finance-page">
     <div className="page-header"><div><h1 className="page-title">Finance</h1><p className="page-subtitle">Untung setiap order dan rekod kewangan perniagaan. Owner access only.</p></div><button className="btn btn-outline" onClick={()=>void loadSnapshot()}><IconRefresh size={16}/> Refresh bank</button></div>
     {error&&<div className="finance-alert"><b>Finance error</b><span>{error}</span></div>}
     <div className="finance-tabs">{tabs.map((item)=><button key={item.key} className={tab===item.key?'active':''} onClick={()=>setTab(item.key)}>{item.label}{item.key==='reconciliation'&&openCases.length>0?<span>{openCases.length}</span>:null}</button>)}</div>
+    {tab==='sales-channel'&&<SalesChannel canManage={canManage} onOpenOrder={onOpenOrder}/>}
     {tab==='sales-sku'&&<SalesSku canManage={canManage}/>}
     {tab==='order-profit'&&<OrderProfit canManage={canManage} onOpenSettings={onOpenSettings}/>}
 

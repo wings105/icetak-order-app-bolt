@@ -171,3 +171,9 @@ Backend and controlled frontend VERIFIED. Private material-cost history and per-
 ## 2026-10-03 — Full Shopee finance details
 
 Release 695285e passed Workers Builds and GitHub guard. Private immutable finance snapshots, full received-field/source/history display, refund/return loss contribution, server-backed filters/sort/daily/courier charts/full CSV and owner-only Excel preview/import are added. finance-admin v29 is ACTIVE with JWT, source readback equal and no-auth 401. Six original payloads reconcile; live webhook arrivals grew coverage to 28 orders / 29 snapshots at 11:23 MYT. No retained QA orders, changed modal percentages, or finance journal writes. Controlled desktop/mobile and live rollback accounting/import tests pass. Hosted owner login flow remains unverified. See ORDER_FINANCE_DETAIL.md.
+
+
+## 2026-10-04 — Sales Channel comparison
+
+- Backend and controlled Admin desktop/mobile VERIFIED. Finance → Sales Channel compares Shopee / Deco sales, known shares, trends, receipts/pending evidence, contribution completeness and customer/operational metrics. Hosted frontend smoke pending.
+- Order System migration 20261003172037_sales_channel_analytics, service-only invoker reports, finance-admin v31 ACTIVE with JWT/owner checks retained. No business record/journal/notification mutation. See SALES_CHANNEL.md.

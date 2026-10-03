@@ -1,3 +1,7 @@
+## 2026-10-04 — [VERIFIED] Shopee / Deco Sales Channel comparison
+
+Finance → Sales Channel compares known MYR goods sales, percentage, trend, average order, contribution completeness, receipt/pending evidence, fees/refunds/shipping losses, repeat customers, fulfillment timing and top products. Scoped order filters/CSV and existing detail routes retain owner Finance access. Live SQL and controlled desktop/mobile checks pass; hosting smoke pending. See docs/SALES_CHANNEL.md.
+
 - [PRODUCTION] Admin prepaid/chat draft review notifications now use the idempotent WhatsApp notification queue instead of an unlogged direct WasapFlow call. Provider failures are persisted with bounded retries, a minute scheduler dispatches delayed retries, successful delivery updates `admin_link_sent_at`, and an audit event is recorded. Production smoke recovered all four missed evening drafts exactly once: four queue rows sent, four draft timestamps set and four audit events recorded.\n\n# Changelog
 
 ## 2026-10-03 — Sales SKU analytics
