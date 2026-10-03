@@ -177,3 +177,8 @@ Release 695285e passed Workers Builds and GitHub guard. Private immutable financ
 
 - Backend and controlled Admin desktop/mobile VERIFIED. Finance → Sales Channel compares Shopee / Deco sales, known shares, trends, receipts/pending evidence, contribution completeness and customer/operational metrics. Hosted frontend smoke pending.
 - Order System migration 20261003172037_sales_channel_analytics, service-only invoker reports, finance-admin v31 ACTIVE with JWT/owner checks retained. No business record/journal/notification mutation. See SALES_CHANNEL.md.
+
+
+## 2026-10-04 — Fokus Customer
+
+Backend and controlled Admin desktop/mobile VERIFIED. New sidebar list at ?admin=v2&view=customer-focus joins current order/task/courier data, active drafts and customer chats with auditable manual panel observations. Three Order migrations and one Inbox migration applied; admin-ai-dashboard v9 JWT-enabled and ai-dashboard-bridge v2 private-token-authenticated. No order/payment/task/message mutation or retained QA state. Source publication/hosted owner smoke pending. See CUSTOMER_FOCUS.md.

@@ -14,6 +14,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: IconDashboard },
+  { key: 'customer-focus', label: 'Fokus Customer', icon: IconOrders },
   { key: 'ai-dashboard', label: 'AI Dashboard', icon: IconIntegration },
   { key: 'channel-inbox', label: 'Channel / Inbox', icon: IconWhatsApp },
   { key: 'orders-menu', label: 'Orders', icon: IconOrders, children: [
@@ -73,7 +74,7 @@ export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile,
   const visibleNavItems = navItems.filter((item) => {
     if (['finance','qrpay-summary','draft-orders'].includes(item.key) && !canViewFinance) return false;
     if (item.key === 'customers' && !canViewCustomers) return false;
-    if (item.key === 'ai-dashboard' && !canViewAi) return false;
+    if (['ai-dashboard','customer-focus'].includes(item.key) && !canViewAi) return false;
     if (item.key === 'pickup-counter' && !canViewPickup) return false;
     return true;
   }).map((item) => item.key === 'settings'

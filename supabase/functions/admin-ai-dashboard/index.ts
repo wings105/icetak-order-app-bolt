@@ -1,4 +1,5 @@
 import { enrichContexts } from './enrich.ts';
+import { focusRows, validateFocusUpdate } from './focus.ts';
 import { orderOperation } from './operations.ts';
 import { caseOrders, sessionKey } from './case.ts';
 import { analyze, identity, intentLabels } from './analysis.ts';
@@ -59,7 +60,7 @@ async function privateSetting(key: string) {
 async function rpc(name:string,body:unknown) {
  const response=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{
  method:'POST',headers:{apikey:SERVICE_ROLE_KEY,authorization:`Bearer ${SERVICE_ROLE_KEY}`,'content-type':'application/json'},
- body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});
+ body:JSON.stringify(body),signal:AbortSignal.timeout(name.startsWith('icetak_customer_focus')?60000:20000)});
  const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.message||'Database operation failed');return data;
 }
 async function inbox(body:unknown) {
@@ -89,9 +90,25 @@ Deno.serve(async req=>{
   const canManage=owner||admin.permissions.includes('manage_customers');
   if(!canRead)return json({ok:false,error:'Akses CRM diperlukan.'},403);
   const b=await req.json();const action=String(b.action||'list');
-  if(!['list','work','detail','review','send','training','training_list','case_order'].includes(action))return json({ok:false,error:'Invalid action'},400);
-  if(!['list','work','training_list'].includes(action)&&!isUuid(b.conversation_id))return json({ok:false,error:'Invalid conversation ID'},400);
+  if(!['focus','focus_save','list','work','detail','review','send','training','training_list','case_order'].includes(action))return json({ok:false,error:'Invalid action'},400);
+  if(!['focus','focus_save','list','work','training_list'].includes(action)&&!isUuid(b.conversation_id))return json({ok:false,error:'Invalid conversation ID'},400);
   if(['review','send','training','case_order'].includes(action)&&!canManage)return json({ok:false,error:'Manage Customers permission required'},403);
+  if(action==='focus'||action==='focus_save'){
+   if(action==='focus_save'&&!canManage)return json({ok:false,error:'Manage Customers permission required'},403);
+   const [snapshot,source,drafts]=await Promise.all([rpc('icetak_customer_focus_snapshot',{}),inbox({action:'focus'}),rpc('icetak_customer_focus_drafts',{})]);snapshot.drafts=drafts.rows||[];
+   const identities=await rpc('icetak_customer_focus_identities',{p_identities:source.rows.map(identity)});
+   const rows=focusRows(snapshot,source.rows,identities).filter((r:any)=>r.kind==='chat'||r.work.active||r.chat.reply);
+   if(action==='focus_save'){
+    if(!isUuid(b.request_id)||!/^((icetak|shopee|draft|chat):[0-9a-f-]{36})$/.test(String(b.row_key||'')))return json({ok:false,error:'Invalid focus identity'},400);
+    const row=rows.find((r:any)=>r.key===b.row_key);if(!row)return json({ok:false,error:'Row changed or unavailable. Muat semula.'},409);
+    const data=validateFocusUpdate(b,row);
+    const state=await rpc('icetak_customer_focus_save',{p_key:row.key,p_actor:admin.username,p_version:b.expected_version,p_request:b.request_id,p_data:data});
+    return json({ok:true,state});
+   }
+   return json({ok:true,rows,capabilities:{can_manage:canManage},fetched_at:new Date().toISOString(),coverage:{orders:snapshot.order_total,drafts:drafts.total,chats:source.total,
+    truncated:snapshot.orders_truncated||source.truncated||drafts.truncated,chat_messages:6,clickup:snapshot.clickup,
+    inbox_checked_at:source.fetched_at,order_checked_at:snapshot.checked_at}});
+  }
   if(action==='work'){
    const data=await rpc('icetak_ai_order_work_queue',{});
    const rows=(data.rows||[]).map((o:any)=>({...o,work:orderOperation(o)})).filter((o:any)=>o.work.active)
@@ -187,5 +204,5 @@ Deno.serve(async req=>{
    p_snoozed_until:b.review_action==='snooze'?new Date(Date.now()+24*3600000).toISOString():null});
   return json({ok:true,...result});
  }catch(error){const message=error instanceof Error?error.message:String(error);
-  return json({ok:false,error:message},/CHAT_CHANGED|REVIEW_CHANGED|TRAINING_CHANGED|CASE_CHANGED|Request ID conflict/.test(message)?409:500);}
+  return json({ok:false,error:message},/FOCUS_CHANGED|SOURCE_CHANGED|REQUEST_CONFLICT|CHAT_CHANGED|REVIEW_CHANGED|TRAINING_CHANGED|CASE_CHANGED|Request ID conflict/.test(message)?409:500);}
 });

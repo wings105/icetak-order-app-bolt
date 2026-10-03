@@ -24,6 +24,7 @@ Deno.serve(async req=>{
   if(!expected||!supplied||supplied!==expected)return out({ok:false,error:'Unauthorized'},401);
   const b=await req.json();const action=t(b.action)||'list';
   if(action==='capabilities')return out({ok:true,...await capability()});
+  if(action==='focus')return out({ok:true,...await db('rpc/icetak_customer_focus_chats',{})});
   if(action==='list'||action==='detail'){
    if(action==='detail'&&!uuid(b.conversation_id))return out({ok:false,error:'Invalid conversation ID'},400);
    return out({ok:true,...await read(action==='detail'?b.conversation_id:null,b),capabilities:await capability()});

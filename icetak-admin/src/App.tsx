@@ -23,6 +23,7 @@ import Settings from './pages/Settings';
 import ChannelInbox from './pages/ChannelInbox';
 
 const RenderTemplates = lazy(() => import('./pages/RenderTemplates'));
+const CustomerFocus = lazy(() => import('./pages/CustomerFocus'));
 const AiDashboard = lazy(() => import('./pages/AiDashboard'));
 const AiLearningSettings = lazy(() => import('./pages/AiLearningSettings'));
 const CreateOrder = lazy(() => import('./pages/CreateOrder'));
@@ -31,6 +32,7 @@ const PickupCounter = lazy(() => import('./pages/PickupCounter'));
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
   'channel-inbox': { title: 'Channel / Inbox', subtitle: 'WhatsApp & Shopee' },
   'render-templates': { title: 'Render Templates', subtitle: 'Upload template & customize tulisan' },
+  'customer-focus': { title: 'Fokus Customer', subtitle: 'Customer, order & tindakan harian' },
   'ai-dashboard': { title: 'AI Action Dashboard', subtitle: 'WhatsApp & Shopee · Semakan admin' },
   dashboard: { title: 'Business Command Center', subtitle: 'Seluruh operasi iCetak' },
   orders: { title: 'Orders', subtitle: 'Full order lifecycle' },
@@ -73,7 +75,7 @@ export default function App({ adminData }: Props) {
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
   const initialDraftTab=linkedView==='draft-followups'||initialParams.get('draft_tab')==='followup'?'followup':'all';
-  const [page, setPage] = useState(linkedView === 'channel-inbox' ? 'channel-inbox' : linkedView === 'render-templates' ? 'render-templates' : linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','settings','clickup-queue','integrations','whatsapp-control'].includes(linkedView)?linkedView:'dashboard');
+  const [page, setPage] = useState(linkedView === 'customer-focus' ? 'customer-focus' : linkedView === 'channel-inbox' ? 'channel-inbox' : linkedView === 'render-templates' ? 'render-templates' : linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','settings','clickup-queue','integrations','whatsapp-control'].includes(linkedView)?linkedView:'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [inboxOpened, setInboxOpened] = useState(linkedView === 'channel-inbox');
   const [marketplaceSearch,setMarketplaceSearch]=useState(initialParams.get('marketplace_q')?.trim() || '');
@@ -98,6 +100,7 @@ export default function App({ adminData }: Props) {
     if (key !== 'customers' && key !== 'pickup-counter') url.searchParams.delete('customer');
     if (key === 'channel-inbox') url.searchParams.set('view','channel-inbox');
     else if (key === 'render-templates') url.searchParams.set('view','render-templates');
+    else if (key === 'customer-focus') url.searchParams.set('view','customer-focus');
     else if (key === 'ai-dashboard') url.searchParams.set('view','ai-dashboard');
     else if (key === 'customers') url.searchParams.set('view','customers');
     else if (key === 'marketplace-orders') { url.searchParams.set('view','marketplace-orders'); url.searchParams.delete('marketplace_q'); }
@@ -108,6 +111,7 @@ export default function App({ adminData }: Props) {
     else if (key === 'create-order') url.searchParams.set('view','create-order');
     else if (key === 'finance' || key === 'settings') url.searchParams.set('view',key);
     else { url.searchParams.delete('view'); url.searchParams.delete('date'); }
+    if(key!=='ai-dashboard')url.searchParams.delete('ai_conversation');
     ['qrpay_tx','qrpay_amount','qrpay_phone','qrpay_name','qrpay_paid_at'].forEach((param)=>url.searchParams.delete(param));
     window.history.replaceState({}, '', url);
     setPage(key); setMobileOpen(false);
@@ -174,17 +178,18 @@ export default function App({ adminData }: Props) {
   const renderPage = () => {
     switch (page) {
       case 'render-templates': return canManageTemplates ? <Suspense fallback={<div style={{padding:24}}>Memuatkan editor template...</div>}><RenderTemplates /></Suspense> : <div style={{padding:24}}>Akses Owner / Manage Admins diperlukan.</div>;
+      case 'customer-focus': return canViewAi ? <Suspense fallback={<div style={{padding:24}}>Memuatkan Fokus Customer...</div>}><CustomerFocus onOpenDrafts={query=>{setAiDraftQuery(query);navigate('draft-orders');}} onOpenOrder={openOrder} onOpenMarketplace={openMarketplace} onOpenChat={id=>{navigate('ai-dashboard');const url=new URL(window.location.href);url.searchParams.set('ai_conversation',id);window.history.replaceState({},'',url);}} /></Suspense> : <div style={{padding:24}}>Akses CRM diperlukan.</div>;
       case 'ai-dashboard': return canViewAi ? <Suspense fallback={<div style={{padding:24}}>Memuatkan AI Dashboard...</div>}><AiDashboard onOpenOrder={openOrder} onOpenDrafts={(query='')=>{setAiDraftQuery(query);navigate('draft-orders');}} onCreateDraft={customer=>{navigate('create-order');setLinkedPayment(null);setAiCustomer(customer);}} canCreateDraft={permissions.includes('create_order')||permissions.includes('quick_arrange')} canViewDrafts={permissions.includes('view_finance')} /></Suspense> : <div style={{padding:24}}>Akses CRM diperlukan.</div>;
-      case 'dashboard': return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      case 'dashboard': return <Dashboard onOpenFocus={canViewAi?()=>navigate('customer-focus'):undefined} adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'orders': return <Orders permissions={permissions} initialOrder={linkedOrder} />;
       case 'marketplace-orders': return <MarketplaceOrders key={marketplaceSearch || 'all'} initialSearch={marketplaceSearch} onOpenCustomer={openCustomer} canViewFinance={permissions.includes('view_finance')} canManageFinance={permissions.includes('manage_finance')} />;
-      case 'customers': return canViewCustomers ? <Customers permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder} onOpenPickup={openPickup} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
-      case 'pickup-counter': return canViewPickup ? <Suspense fallback={<div style={{padding:24}}>Loading Pickup Counter...</div>}><PickupCounter permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder} onOpenCustomer={openCustomer}/></Suspense> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      case 'customers': return canViewCustomers ? <Customers permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder} onOpenPickup={openPickup} /> : <Dashboard onOpenFocus={canViewAi?()=>navigate('customer-focus'):undefined} adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      case 'pickup-counter': return canViewPickup ? <Suspense fallback={<div style={{padding:24}}>Loading Pickup Counter...</div>}><PickupCounter permissions={permissions} initialCustomer={linkedCustomer} onOpenOrder={openOrder} onOpenCustomer={openCustomer}/></Suspense> : <Dashboard onOpenFocus={canViewAi?()=>navigate('customer-focus'):undefined} adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'create-order': return <Suspense fallback={<div style={{padding:24}}>Loading Create Order...</div>}><CreateOrder key={linkedPayment?.transactionId||'new-order'} permissions={permissions} onOpenOrder={openOrder} onOpenDrafts={()=>navigate('draft-orders')} linkedPayment={linkedPayment} initialCustomer={aiCustomer} /></Suspense>;
       case 'payments': return <Payments onOpenOrder={openOrder} canManage={permissions.includes('verify_payments')} />;
-      case 'finance': return permissions.includes('view_finance') ? <Finance canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} onOpenSettings={()=>{navigate('settings');window.requestAnimationFrame(()=>document.getElementById('material-cost-settings')?.scrollIntoView({block:'start'}));}} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
-      case 'draft-orders': return permissions.includes('view_finance') ? <DraftWorkspace initialQuery={aiDraftQuery} initialTab={aiDraftQuery?'all':initialDraftTab} canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} onCreateOrder={()=>navigate('create-order')} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
-      case 'qrpay-summary': return permissions.includes('view_finance') ? <QrPayDailySummary canManage={permissions.includes('manage_finance')} onCreateOrder={permissions.includes('create_order')&&permissions.includes('verify_payments')?createOrderFromQrPay:undefined} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      case 'finance': return permissions.includes('view_finance') ? <Finance canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} onOpenSettings={()=>{navigate('settings');window.requestAnimationFrame(()=>document.getElementById('material-cost-settings')?.scrollIntoView({block:'start'}));}} /> : <Dashboard onOpenFocus={canViewAi?()=>navigate('customer-focus'):undefined} adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      case 'draft-orders': return permissions.includes('view_finance') ? <DraftWorkspace initialQuery={aiDraftQuery} initialTab={aiDraftQuery?'all':initialDraftTab} canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} onCreateOrder={()=>navigate('create-order')} /> : <Dashboard onOpenFocus={canViewAi?()=>navigate('customer-focus'):undefined} adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      case 'qrpay-summary': return permissions.includes('view_finance') ? <QrPayDailySummary canManage={permissions.includes('manage_finance')} onCreateOrder={permissions.includes('create_order')&&permissions.includes('verify_payments')?createOrderFromQrPay:undefined} onOpenOrder={openOrder} /> : <Dashboard onOpenFocus={canViewAi?()=>navigate('customer-focus'):undefined} adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'shipping': return <Shipping />;
       case 'clickup-queue': return <ClickUpQueue permissions={permissions} onOpenOrder={openOrder} />;
       case 'whatsapp-control': return <WhatsAppControl />;
@@ -195,8 +200,8 @@ export default function App({ adminData }: Props) {
       case 'settings': return <Settings permissions={permissions} onOpenAiLearning={() => navigate('ai-learning')} />;
       case 'ai-learning': return permissions.includes('view_finance') || permissions.includes('manage_admins')
         ? <Suspense fallback={<div style={{ padding: 24 }}>Loading AI Learning...</div>}><AiLearningSettings /></Suspense>
-        : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
-      default: return <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+        : <Dashboard onOpenFocus={canViewAi?()=>navigate('customer-focus'):undefined} adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      default: return <Dashboard onOpenFocus={canViewAi?()=>navigate('customer-focus'):undefined} adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
     }
   };
 

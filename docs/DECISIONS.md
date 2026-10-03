@@ -169,3 +169,8 @@ Use canonical released/escrow income, retain explicit actual versus estimated/al
 ## 2026-10-04 — Compare channels on goods sales and expose evidence gaps
 
 The sales channel follows purchase ownership, not the conversation channel. Shopee mirrors must never inflate direct sales. Compare MYR goods after known seller promotions, before refunds, with shipping/cash/settlement/profit separate. Use known percentages when sales are incomplete and label that denominator. A report-estimated nett is not release proof, and missing direct costs cannot create profit. Read-only gateway reporting must not backfill financial facts or post journal entries. See SALES_CHANNEL.md.
+
+
+## 2026-10-04 — Customer Focus is an operational list with separate audited observations
+
+Use the existing Order System task/order projection and Inbox bridge for a sortable customer/order/draft list. Store panel notes, explicit detail checks, dates and work hiding in private versioned state/events. Source/message changes reopen earlier work observations. These observations cannot confirm payment, shipment, collection, external reply or ClickUp completion. Exact identity and explicit order references protect multi-order context; unbound inquiries remain visible. Reason: reduce owner admin/design prioritization work without rewriting authoritative lifecycles or enabling autonomous messages. See CUSTOMER_FOCUS.md.

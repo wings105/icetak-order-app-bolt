@@ -152,3 +152,8 @@ For exact implementation history, inspect Git commits and Supabase migration his
 ## 2026-10-03 — [PRODUCTION] Full Shopee order finance
 
 Grouped raw finance fields/source/history, refund shipping-loss contribution retaining incurred costs, server filters/numeric sort, daily/courier charts and full CSV export. Owner-only Excel preview/import matches order/shop/currency, deduplicates and keeps webhook priority. Six real payloads reconcile; rollback accounting/import tests and desktop/mobile field/filter/export/XLSX flows pass. Backend finance-admin v29 retains JWT and permissions. Release 695285e passed Cloudflare Workers Builds and GitHub guard; published root/admin assets confirmed. Hosted owner flow unverified. See docs/ORDER_FINANCE_DETAIL.md.
+
+
+## 2026-10-04 — Fokus Customer
+
+- [VERIFIED] Admin sidebar sortable list joins orders, active drafts, payment evidence, customer chat, per-set ClickUp progress/due/needed dates and shipment state. Filters, multi-sort, persistent columns, CSV and audited Urus decisions verified in controlled desktop/mobile and live SQL rollback checks. Printing retires design; source/new-message changes invalidate old hiding. Backend gateway v9 retains JWT/admin authorization; Inbox bridge v2 retains private-token auth. Hosted owner interaction remains unverified; see docs/CUSTOMER_FOCUS.md.
