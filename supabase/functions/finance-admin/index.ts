@@ -74,6 +74,13 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({})) as JsonObject;
     const action = String(body.action || "snapshot");
 
+    if (action === "order_finance_options") return json({success:true,data:await rpc("finance_order_finance_options")});
+    if (action === "order_finance_report" || action === "order_finance_export") return json({success:true,data:await rpc("finance_order_report",{p_filter:{
+      from:body.from||null,to:body.to||null,query:String(body.query||"").slice(0,200),category:body.category||null,state:body.state||null,status:body.status||"all",
+      currency:body.currency||"MYR",sort:body.sort||"newest",offset:Math.max(0,Math.trunc(Number(body.offset)||0)),
+      courier:body.courier||null,shop_id:body.shop_id||null,sku:body.sku||null,source:body.source||null,reason:body.reason||null,income_state:body.income_state||null,
+      metric:body.metric||"profit",min:body.min??null,max:body.max??null,date_basis:body.date_basis||"placed",
+    },p_export:action==="order_finance_export"})});
     if (action === "material_cost_settings") return json({ success: true, data: await rpc("finance_material_settings") });
     if (action === "order_profit_list") return json({ success: true, data: await rpc("finance_order_profit_list", { p_filter: {
       from: body.from || null, to: body.to || null, query: String(body.query || "").slice(0,200),
@@ -149,6 +156,9 @@ Deno.serve(async (req) => {
     }
     if (!admin.permissions.includes("manage_finance")) return json({ success: false, error: "Manage Finance permission required" }, 403);
 
+    if (action === "order_finance_import") return json({success:true,data:await rpc("finance_import_order_finance",{
+      p_orders:body.orders,p_shop_id:body.shop_id,p_currency:body.currency,p_actor:admin.username,p_commit:body.commit===true,p_expected_hash:body.hash||null,
+    })});
     if (action === "material_cost_settings_save") return json({ success:true,data:await rpc("finance_material_settings_save",{
       p_expected_version:body.version,p_rates:body.rates,p_sku_costs:body.sku_costs,p_actor:admin.username,
     }) });

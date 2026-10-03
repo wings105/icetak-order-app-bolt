@@ -11,10 +11,11 @@ export type OrderProfitRow={
   commission_fee:number|null;service_fee:number|null;transaction_fee:number|null;other_fees:number|null;shipping_fee:number|null;settlement_status:string;
   material_total:number|null;extra_total:number;cost_total:number|null;profit:number|null;margin:number|null;profit_state:string;cost_state:string;detail_changed:boolean;
   categories:MaterialCategory[];skus:string[];cost_version:number;settings_version:number;material_lines:MaterialLine[];extra_costs:Record<ExtraCostKey,{amount:number;mode:CostMode}>;
+  finance_fields?:Record<string,FinanceField>;finance_metrics?:FinanceMetrics;finance_history?:FinanceHistory[];finance_source?:string;finance_updated_at?:string;courier?:string;shop_id?:number;lifecycle_review?:boolean;
   reviewed:boolean;work_minutes:number|null;profit_per_hour:number|null;note:string;cost_updated_at:string|null;
 };
 export type MaterialSettings={version:number;rates:Record<MaterialCategory,number>;sku_costs:Record<string,{category:MaterialCategory;unit_cost:number}>;effective_at:string};
-export type ProfitList={rows:OrderProfitRow[];total:number;currency:string;summary:{orders:number;released_nett:number;escrow_nett:number;actual_profit:number;estimated_profit:number;actual_orders:number;estimated_orders:number;incomplete_orders:number;loss_orders:number;low_margin_orders:number}};
+export type ProfitList={rows:OrderProfitRow[];total:number;currency:string;summary:{orders:number;released_nett:number;escrow_nett:number;actual_profit:number;estimated_profit:number;actual_orders:number;estimated_orders:number;incomplete_orders:number;loss_orders:number;low_margin_orders:number;finance_orders?:number;shipping_loss?:number|null;return_shipping?:number|null;fees?:number|null;refunds?:number|null;platform_ads?:number|null;affiliate?:number|null;reconciliation_issues?:number}};
 export async function profitRequest<T>(body:Record<string,unknown>):Promise<T>{
   const {data,error}=await supabase.functions.invoke('finance-admin',{body});
   if(error){const context=(error as {context?:Response}).context;const payload=context&&typeof context.json==='function'?await context.json().catch(()=>null):null;throw new Error(payload?.error||error.message||'Finance gagal dimuatkan');}
@@ -24,3 +25,9 @@ export const profitMoney=(v:number|null|undefined,c='MYR')=>v==null?'—':new In
 export const profitDate=(v:string|null)=>v?new Date(v).toLocaleString('en-MY',{timeZone:'Asia/Kuala_Lumpur',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
 export const malaysiaDate=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 export const profitStateLabel=(r:OrderProfitRow)=>r.profit_state==='actual'?'Sebenar':r.profit_state==='estimated'?'Anggaran':r.profit_state==='lifecycle_review'?'Semak batal / refund':r.cost_state==='detail_changed'?'Item berubah':r.cost_state==='missing'?'Modal belum lengkap':'Menunggu finance';
+export type FinanceField={code:string;label:string;group:string;role:string;value:unknown;amount:number|null;source_path:string};
+export type FinanceMetrics={shipping_net:number|null;return_shipping:number|null;fee_total:number|null;refund_total:number|null;seller_promotion:number|null;platform_ads:number|null;affiliate:number|null;provider_nett:number|null;reconstructed_nett:number|null;reconciliation_delta:number|null;reconciliation:string;issues:string[];reasons:string[];field_count:number};
+export type FinanceHistory={id:number;source:string;captured_at:string;metrics:FinanceMetrics};
+export const financeReasonLabels:Record<string,string>={shipping_loss:'Shipping rugi',return_shipping:'Return / reverse shipping',refund:'Refund barang',seller_promotion:'Promo seller',platform_ads:'Ads / technical support',affiliate:'Affiliate AMS',negative_nett:'Nett negatif',reconciliation:'Pecahan perlu semak'};
+export type FinanceReport=ProfitList&{trend:{day:string;orders:number;known_orders:number;nett:number|null;profit:number|null}[];groups:{name:string;orders:number;known_orders:number;profit:number|null;shipping_net:number|null}[];truncated?:boolean};
+export type FinanceOptions={couriers:string[];shops:{shop_id:number;currency:string;orders:number}[]};

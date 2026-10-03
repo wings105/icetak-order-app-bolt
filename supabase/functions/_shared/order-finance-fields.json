@@ -1,0 +1,377 @@
+{
+  "buyer_paid_shipping_fee": {
+    "label": "Shipping pembeli",
+    "group": "shipping",
+    "role": "reference"
+  },
+  "estimated_shipping_fee": {
+    "label": "Shipping anggaran",
+    "group": "shipping",
+    "role": "reference"
+  },
+  "actual_shipping_fee": {
+    "label": "Shipping sebenar",
+    "group": "shipping",
+    "role": "reference"
+  },
+  "final_shipping_fee": {
+    "label": "Shipping final (alternatif)",
+    "group": "shipping",
+    "role": "reference"
+  },
+  "shopee_shipping_rebate": {
+    "label": "Rebat shipping Shopee",
+    "group": "shipping",
+    "role": "reference"
+  },
+  "shipping_fee_sst": {
+    "label": "SST shipping",
+    "group": "shipping",
+    "role": "reference"
+  },
+  "seller_shipping_discount": {
+    "label": "Diskaun shipping seller",
+    "group": "shipping",
+    "role": "reference"
+  },
+  "shipping_fee_discount_from_3pl": {
+    "label": "Diskaun courier",
+    "group": "shipping",
+    "role": "reference"
+  },
+  "reverse_shipping_fee": {
+    "label": "Reverse shipping",
+    "group": "returns",
+    "role": "deduction"
+  },
+  "reverse_shipping_fee_sst": {
+    "label": "SST reverse shipping",
+    "group": "returns",
+    "role": "deduction"
+  },
+  "final_return_to_seller_shipping_fee": {
+    "label": "Return to seller shipping",
+    "group": "returns",
+    "role": "deduction"
+  },
+  "return_to_seller_shipping_fee_sst": {
+    "label": "SST return to seller",
+    "group": "returns",
+    "role": "deduction"
+  },
+  "return_handling_fee": {
+    "label": "Return handling",
+    "group": "returns",
+    "role": "deduction"
+  },
+  "overseas_return_service_fee": {
+    "label": "Overseas return",
+    "group": "returns",
+    "role": "deduction"
+  },
+  "seller_return_refund": {
+    "label": "Refund / pembatalan barang",
+    "group": "returns",
+    "role": "signed"
+  },
+  "drc_adjustable_refund": {
+    "label": "Refund pelarasan",
+    "group": "returns",
+    "role": "signed"
+  },
+  "commission_fee": {
+    "label": "Commission",
+    "group": "fees",
+    "role": "deduction"
+  },
+  "service_fee": {
+    "label": "Service fee",
+    "group": "fees",
+    "role": "deduction"
+  },
+  "seller_transaction_fee": {
+    "label": "Transaction fee",
+    "group": "fees",
+    "role": "deduction"
+  },
+  "ads_escrow_top_up_fee_or_technical_support_fee": {
+    "label": "Ads Escrow Top Up / Technical Support",
+    "group": "fees",
+    "role": "deduction"
+  },
+  "order_ams_commission_fee": {
+    "label": "Affiliate AMS",
+    "group": "fees",
+    "role": "deduction"
+  },
+  "campaign_fee": {
+    "label": "Campaign fee",
+    "group": "fees",
+    "role": "deduction"
+  },
+  "seller_order_processing_fee": {
+    "label": "Order processing",
+    "group": "fees",
+    "role": "deduction"
+  },
+  "fbs_fee": {
+    "label": "FBS",
+    "group": "fees",
+    "role": "deduction"
+  },
+  "sspl_fee": {
+    "label": "SSPL",
+    "group": "fees",
+    "role": "deduction"
+  },
+  "pay_per_sale": {
+    "label": "Pay per sale",
+    "group": "fees",
+    "role": "deduction"
+  },
+  "shipping_seller_protection_fee_amount": {
+    "label": "Shipping protection",
+    "group": "fees",
+    "role": "deduction"
+  },
+  "lff_seller_protection_fee_amount": {
+    "label": "Seller protection",
+    "group": "fees",
+    "role": "deduction"
+  },
+  "delivery_seller_protection_fee_premium_amount": {
+    "label": "Delivery protection",
+    "group": "fees",
+    "role": "deduction"
+  },
+  "credit_card_transaction_fee": {
+    "label": "Credit card transaction (alternatif)",
+    "group": "fees",
+    "role": "alternative"
+  },
+  "seller_discount": {
+    "label": "Diskaun seller dalam harga",
+    "group": "discounts",
+    "role": "seller"
+  },
+  "order_seller_discount": {
+    "label": "Diskaun order seller",
+    "group": "discounts",
+    "role": "seller"
+  },
+  "voucher_from_seller": {
+    "label": "Voucher seller",
+    "group": "discounts",
+    "role": "seller"
+  },
+  "seller_coin_cash_back": {
+    "label": "Coin cashback seller",
+    "group": "discounts",
+    "role": "seller"
+  },
+  "seller_bundle_discount": {
+    "label": "Bundle seller",
+    "group": "discounts",
+    "role": "seller"
+  },
+  "seller_rebate": {
+    "label": "Rebat seller",
+    "group": "discounts",
+    "role": "seller"
+  },
+  "shopee_discount": {
+    "label": "Diskaun Shopee",
+    "group": "discounts",
+    "role": "platform"
+  },
+  "original_shopee_discount": {
+    "label": "Diskaun Shopee asal",
+    "group": "discounts",
+    "role": "platform"
+  },
+  "voucher_from_shopee": {
+    "label": "Voucher Shopee",
+    "group": "discounts",
+    "role": "platform"
+  },
+  "coins": {
+    "label": "Shopee coins",
+    "group": "discounts",
+    "role": "platform"
+  },
+  "shopee_coin_cash_back": {
+    "label": "Coin cashback Shopee",
+    "group": "discounts",
+    "role": "platform"
+  },
+  "voucher_from_external_party": {
+    "label": "Voucher pihak luar",
+    "group": "discounts",
+    "role": "platform"
+  },
+  "shopee_bundle_discount": {
+    "label": "Bundle Shopee",
+    "group": "discounts",
+    "role": "platform"
+  },
+  "payment_promotion": {
+    "label": "Payment promotion",
+    "group": "discounts",
+    "role": "platform"
+  },
+  "credit_card_promotion": {
+    "label": "Credit card promotion",
+    "group": "discounts",
+    "role": "platform"
+  },
+  "original_cost_of_goods_sold": {
+    "label": "Nilai barang asal",
+    "group": "goods",
+    "role": "reference"
+  },
+  "cost_of_goods_sold": {
+    "label": "Nilai barang",
+    "group": "goods",
+    "role": "reference"
+  },
+  "original_price": {
+    "label": "Harga asal",
+    "group": "goods",
+    "role": "reference"
+  },
+  "order_original_price": {
+    "label": "Harga asal order",
+    "group": "goods",
+    "role": "reference"
+  },
+  "order_selling_price": {
+    "label": "Harga jual order",
+    "group": "goods",
+    "role": "reference"
+  },
+  "order_discounted_price": {
+    "label": "Harga selepas diskaun",
+    "group": "goods",
+    "role": "reference"
+  },
+  "returned_quantity": {
+    "label": "Kuantiti dipulangkan",
+    "group": "goods",
+    "role": "reference"
+  },
+  "escrow_amount": {
+    "label": "Escrow nett",
+    "group": "settlement",
+    "role": "reference"
+  },
+  "escrow_amount_after_adjustment": {
+    "label": "Escrow selepas pelarasan",
+    "group": "settlement",
+    "role": "reference"
+  },
+  "released_amount": {
+    "label": "Nett dilepaskan",
+    "group": "settlement",
+    "role": "reference"
+  },
+  "total_adjustment_amount": {
+    "label": "Jumlah pelarasan",
+    "group": "settlement",
+    "role": "reference"
+  },
+  "seller_lost_compensation": {
+    "label": "Pampasan hilang",
+    "group": "adjustments",
+    "role": "credit"
+  },
+  "fsf_seller_protection_fee_claim_amount": {
+    "label": "Tuntutan perlindungan shipping",
+    "group": "adjustments",
+    "role": "credit"
+  },
+  "rsf_seller_protection_fee_claim_amount": {
+    "label": "Tuntutan perlindungan return",
+    "group": "adjustments",
+    "role": "credit"
+  },
+  "escrow_tax": {
+    "label": "Escrow Tax",
+    "group": "taxes",
+    "role": "reference"
+  },
+  "escrow_import_tax": {
+    "label": "Escrow Import Tax",
+    "group": "taxes",
+    "role": "reference"
+  },
+  "withholding_tax": {
+    "label": "Withholding Tax",
+    "group": "taxes",
+    "role": "reference"
+  },
+  "cross_border_tax": {
+    "label": "Cross Border Tax",
+    "group": "taxes",
+    "role": "reference"
+  },
+  "sales_tax_on_lvg": {
+    "label": "Sales Tax On Lvg",
+    "group": "taxes",
+    "role": "reference"
+  },
+  "withholding_cit_tax": {
+    "label": "Withholding Cit Tax",
+    "group": "taxes",
+    "role": "reference"
+  },
+  "withholding_pit_tax": {
+    "label": "Withholding Pit Tax",
+    "group": "taxes",
+    "role": "reference"
+  },
+  "withholding_vat_tax": {
+    "label": "Withholding Vat Tax",
+    "group": "taxes",
+    "role": "reference"
+  },
+  "final_product_vat_tax": {
+    "label": "Final Product Vat Tax",
+    "group": "taxes",
+    "role": "reference"
+  },
+  "vat_on_imported_goods": {
+    "label": "Vat On Imported Goods",
+    "group": "taxes",
+    "role": "reference"
+  },
+  "final_shipping_vat_tax": {
+    "label": "Final Shipping Vat Tax",
+    "group": "taxes",
+    "role": "reference"
+  },
+  "final_escrow_product_gst": {
+    "label": "Final Escrow Product Gst",
+    "group": "taxes",
+    "role": "reference"
+  },
+  "final_escrow_shipping_gst": {
+    "label": "Final Escrow Shipping Gst",
+    "group": "taxes",
+    "role": "reference"
+  },
+  "th_import_duty": {
+    "label": "Th Import Duty",
+    "group": "taxes",
+    "role": "reference"
+  },
+  "buyer_total_amount": {
+    "label": "Jumlah pembeli bayar",
+    "group": "buyer",
+    "role": "reference"
+  },
+  "total_amount": {
+    "label": "Jumlah order laporan",
+    "group": "buyer",
+    "role": "reference"
+  }
+}
