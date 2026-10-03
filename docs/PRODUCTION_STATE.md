@@ -161,3 +161,8 @@ Order System migrations ai_order_work_lifecycle and ai_order_work_safety applied
 
 
 AI order work release evidence: f0214c0 and 71e35c0 both passed Cloudflare Workers Builds and guard. Four operational migrations applied; exact-status/conflict rollback tests passed, QA cache rows zero. Secure cloud-browser login returned Failed to fetch; authenticated visual verification remains blocked. This is a concrete login/network failure, not a customer-message/order mutation or proof of a broken dashboard. See AI_ACTION_DASHBOARD.md for continuation.
+
+
+## 2026-10-03 — Shopee order contribution
+
+Backend and controlled frontend VERIFIED. Private material-cost history and per-order snapshots in Order System; finance-admin v28 retains JWT and existing owner permissions. Finance → Untung Order, Marketplace Nett/Untung and separate Settings → Modal Bahan are added to Admin V2. Service-role rollback/trigger tests, Edge auth tests, desktop/mobile rendered workflows, TypeScript and full storefront+Inbox build pass. No retained QA orders, changed production cost rates, journal entries or historical order backfill. Hosted authenticated owner UI remains unverified. See ORDER_PROFIT.md.

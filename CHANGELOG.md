@@ -1,5 +1,9 @@
 - [PRODUCTION] Admin prepaid/chat draft review notifications now use the idempotent WhatsApp notification queue instead of an unlogged direct WasapFlow call. Provider failures are persisted with bounded retries, a minute scheduler dispatches delayed retries, successful delivery updates `admin_link_sent_at`, and an audit event is recorded. Production smoke recovered all four missed evening drafts exactly once: four queue rows sent, four draft timestamps set and four audit events recorded.\n\n# Changelog
 
+## 2026-10-03 — Shopee order contribution and material settings
+
+- [VERIFIED] Finance → Untung Order separates released/escrow income and actual/estimated contribution, exposes per-item material and extra order costs, flags incomplete data, and shows owner-only Nett/Untung in Marketplace Orders. Separate Settings → Modal Bahan holds four initial percentages and optional SKU/unit costs with frozen historical versions. Live service-role rollback tests prove release/zero/fee/currency/cost/version/trigger/permission behavior; gateway auth tests and rendered desktop/mobile workflows pass, with no app runtime errors. finance-admin v28 is deployed with JWT verification preserved. Production frontend publication and authenticated hosted-owner smoke are separate checks; see `docs/ORDER_PROFIT.md`.
+
 ## 2026-10-02 — Unified Inbox on shop Cloudflare hosting
 
 - [PRODUCTION] Unified Inbox is served at `shop.decocake.my/inbox/` with isolated assets, dependencies, PWA scope/cache and its existing Inbox Supabase backend. Release `9b35249` passed Workers Builds/guard; production browser verified the staff login page, `/inbox` redirect and storefront catalogue-to-product navigation. All 79 original storefront build files remained byte-identical except the intentional service-worker isolation change. Authenticated Inbox workflows remain untested; no messages, orders or backend data were changed. See `docs/UNIFIED_INBOX_HOSTING.md`.

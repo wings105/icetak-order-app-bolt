@@ -157,3 +157,10 @@ Use a private derived ClickUp projection rather than force legacy marketplace ta
 ## 2026-10-01 — Automation exports use the existing Canvas engine
 
 Use the same native Canvas code in server Chromium rather than reproducing curve/text layout or capturing the editor UI. Authenticate automation with render-only hashed keys or a short signed grant bound to exact fields and template version. Validate before accessing the PNG cache. Combining placeholders in one layer preserves a continuous curve; old full-wording links are supported only through an explicit template compatibility flag. ClickUp task attachment plus a linked comment is the adapter contract; inline comment attachments and live AP installation are not implied by renderer deployment.
+
+
+## 2026-10-03 — Freeze order material versions and separate contribution from P&L
+
+Status: Active. Use append-only effective material settings, selecting the version at order first_seen_at and capturing per-order item-cost snapshots. Defaults apply to future orders; existing actual costs cannot be silently recalculated. Changed item facts require cost re-review. Existing orders have a reproducible original-version preview without bulk history backfill.
+
+Use canonical released/escrow income, retain explicit actual versus estimated/allocated costs, and subtract platform deductions only once. Order contribution is before business overhead and does not write journal entries. Reason: dependable order decisions without false settlement/profit confirmation or double-posting costs to the business ledger. Owner-only gateway and cost/version audit preserve accountability. See ORDER_PROFIT.md.

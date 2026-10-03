@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {createServer} from 'vite';
+const root=fileURLToPath(new URL('../',import.meta.url));
+const playwright=await import(process.env.FINANCE_PLAYWRIGHT_MODULE||'playwright');
+const server=await createServer({root,configFile:path.join(root,'vite.config.ts'),server:{host:'127.0.0.1',port:5175,strictPort:true}});
+await server.listen();
+const browser=await playwright.chromium.launch({headless:true,...(process.env.FINANCE_CHROMIUM_EXECUTABLE?{executablePath:process.env.FINANCE_CHROMIUM_EXECUTABLE}:{}),args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--no-zygote']});
+const errors=[],out=process.env.FINANCE_QA_OUTPUT||'/tmp/finance-order-profit-qa';fs.mkdirSync(out,{recursive:true});
+const context=await browser.newContext({viewport:{width:1440,height:1000}});
+// Google Fonts is blocked by this test environment; use the existing CSS fallback font.
+await context.route('https://fonts.googleapis.com/**',route=>route.fulfill({status:200,contentType:'text/css',body:''}));
+const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message));p.on('console',e=>{if(e.type()==='error')errors.push(e.text())});
+const url='http://127.0.0.1:5175/tests/order-profit.html';
+try{
+  await p.goto(`${url}?view=finance`);await p.getByRole('button',{name:'QA-ORDER-001',exact:true}).waitFor();
+  assert.match(await p.locator('.op-table tbody tr').first().innerText(),/5\.87/);assert.match(await p.locator('.op-table tbody tr').nth(1).innerText(),/Menunggu finance/);
+  await p.screenshot({path:path.join(out,'desktop-finance.png'),fullPage:true});
+  await p.getByRole('button',{name:'QA-ORDER-001',exact:true}).click();await p.getByLabel('Kos bahan item 1',{exact:true}).waitFor();
+  await p.getByLabel('Kos bahan item 1',{exact:true}).fill('2');await p.getByLabel('Ads di luar potongan Shopee',{exact:true}).fill('1');
+  assert.match(await p.locator('.op-detail-metrics').innerText(),/4\.14/);
+  const checkbox=p.getByRole('checkbox');assert.equal(await checkbox.isDisabled(),true);
+  for(const label of ['Packaging','Bahan rosak / pembaziran','Reprint','Upah kerja','Pos tambahan','Ads di luar potongan Shopee','Affiliate di luar potongan Shopee'])await p.getByLabel(`Jenis ${label}`,{exact:true}).selectOption('actual');
+  assert.equal(await checkbox.isEnabled(),true);await checkbox.check();await p.getByRole('button',{name:'Simpan kos order',exact:true}).click();await p.getByRole('status').filter({hasText:'Kos order disimpan.'}).waitFor();
+  assert.equal(await p.evaluate(()=>window.__profitQA.rows[0].reviewed),true);assert.equal(await p.evaluate(()=>window.__profitQA.rows[0].profit_state),'estimated');
+  await p.screenshot({path:path.join(out,'desktop-detail.png')});await p.keyboard.press('Escape');assert.equal(await p.getByRole('dialog').count(),0);
+  await p.getByRole('button',{name:'Setting Modal Bahan',exact:true}).click();await p.getByLabel('Peratus modal Topper',{exact:true}).waitFor();assert.equal(await p.getByLabel('Peratus modal Topper').inputValue(),'12.7');
+  await p.getByLabel('Peratus modal Topper').fill('101');await p.getByRole('button',{name:'Simpan setting modal',exact:true}).click();await p.getByRole('alert').filter({hasText:'antara 0 hingga 100'}).waitFor();
+  await p.getByLabel('Peratus modal Topper').fill('15');await p.getByRole('button',{name:'+ Tambah SKU',exact:true}).click();await p.getByLabel('SKU 1',{exact:true}).fill('CN0546');await p.getByLabel('Kos unit SKU 1',{exact:true}).fill('1.5');await p.getByRole('button',{name:'Simpan setting modal',exact:true}).click();await p.getByRole('status').filter({hasText:'Setting modal disimpan'}).waitFor();
+  assert.equal(await p.evaluate(()=>window.__profitQA.settings.version),2);assert.equal(await p.evaluate(()=>window.__profitQA.rows[0].settings_version),1);await p.screenshot({path:path.join(out,'desktop-settings.png'),fullPage:true});
+  await p.goto(`${url}?view=marketplace-orders`);await p.locator('.op-mp-finance').first().waitFor();await p.waitForFunction(()=>document.querySelector('.op-mp-finance')?.textContent.includes('5.87'));assert.match(await p.locator('.op-mp-finance').first().innerText(),/Nett.*7\.14/);
+  await p.locator('.op-mp-finance button').first().click();await p.getByRole('dialog').waitFor();await p.keyboard.press('Escape');
+  await p.goto(`${url}?view=marketplace-orders&qa_role=staff`);await p.getByText('QA-ORDER-001',{exact:true}).waitFor();assert.equal(await p.locator('.op-mp-finance').count(),0);assert.equal(await p.evaluate(()=>window.__profitQA.calls.some(c=>c.body?.action?.startsWith('order_profit'))),false);
+  await p.goto(`${url}?view=finance&qa_role=reader`);await p.getByRole('button',{name:'QA-ORDER-001',exact:true}).waitFor();await p.getByRole('button',{name:'QA-ORDER-001',exact:true}).click();await p.getByLabel('Kos bahan item 1').waitFor();assert.equal(await p.getByLabel('Kos bahan item 1').isDisabled(),true);assert.equal(await p.getByRole('button',{name:'Simpan kos order',exact:true}).isDisabled(),true);await p.keyboard.press('Escape');
+  await p.setViewportSize({width:390,height:844});await p.goto(`${url}?view=finance`);await p.getByRole('button',{name:'QA-ORDER-001',exact:true}).waitFor();assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'mobile page has no document overflow');await p.screenshot({path:path.join(out,'mobile-finance.png'),fullPage:true});
+  await p.getByRole('button',{name:'QA-ORDER-001',exact:true}).click();await p.getByLabel('Kos bahan item 1').waitFor();const bounds=await p.getByRole('button',{name:'Simpan kos order',exact:true}).boundingBox();assert(bounds&&bounds.y+bounds.height<=844&&bounds.x>=0,'save action visible on mobile');await p.getByLabel('Kos bahan item 1').fill('1.4');await p.getByRole('button',{name:'Simpan kos order',exact:true}).click();await p.getByRole('status').filter({hasText:'Kos order disimpan.'}).waitFor();await p.screenshot({path:path.join(out,'mobile-detail.png')});await p.keyboard.press('Escape');
+  await p.getByRole('button',{name:'Setting Modal Bahan',exact:true}).click();await p.getByLabel('Peratus modal Edible').waitFor();assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'mobile settings has no document overflow');await p.screenshot({path:path.join(out,'mobile-settings.png'),fullPage:true});
+  assert.deepEqual(errors,[],'no browser runtime/console errors');console.log(JSON.stringify({passed:true,checks:'desktop/mobile Finance, missing data, cost editing/save/review, escrow status, settings validation/version/SKU, marketplace batch, staff hiding, read-only permissions',screenshots:out,consoleErrors:errors}));
+}finally{await context.close();await browser.close();await server.close();}

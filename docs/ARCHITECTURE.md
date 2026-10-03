@@ -188,3 +188,8 @@ Order System owns private ai_clickup_work_snapshots, ai_order_work_source and se
 ## 2026-10-01 — SKU renderer native PNG automation
 
 The existing Cloudflare asset Worker owns `/render-test/output.png` and `/render-test/automation`, using managed Browser Run to execute the same Canvas renderer. Other customer/admin routes remain static assets. Order System render-template owns template snapshots, owner-authorized API-key management, service-only key hashes/rate counters and 30-minute signed output grants. AP may download and upload the PNG to an explicit ClickUp task; the renderer itself does not send comments/messages or mutate orders. See RENDER_AUTOMATION_AP.md for verified output and integration limitations.
+
+
+## 2026-10-03 — Order contribution is a private managerial read model
+
+Order System owns versioned raw-material defaults and per-marketplace-order cost snapshots in private finance tables. Existing finance-admin owner auth mediates read/write RPCs; browser clients cannot query those tables/functions directly. Nett continues to come from canonical marketplace_order_financials. Order contribution does not create ledger/journal entries or replace business P&L. Snapshot/version/audit behavior and Admin V2 surfaces: ORDER_PROFIT.md.

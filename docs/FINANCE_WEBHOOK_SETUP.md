@@ -75,3 +75,8 @@ Providers may safely retry the same event. The idempotency key is based on the p
 ## QRPay compatibility
 
 The QRPay route first calls the existing `icetak_payment_webhook` matcher. It therefore preserves the current Payment Session and Order status flow, then records the same receipt in Finance. This bridge avoids choosing between the old Payments Center and the new accounting ledger.
+
+
+## Per-order Shopee contribution
+
+The existing Shopee financial enrichment feeds Finance → Untung Order and Marketplace order costing through the owner-authenticated finance-admin gateway. Escrow remains estimated until explicit release evidence arrives. Material rates live separately under Settings → Modal Bahan; order snapshots retain their original version. These managerial calculations do not post bank/ledger entries or alter webhook dispatch. See ORDER_PROFIT.md.
