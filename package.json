@@ -14,12 +14,13 @@
     "build:inbox": "npm --prefix apps/inbox ci --include=dev && npm --prefix apps/inbox run build"
   },
   "dependencies": {
+    "@cloudflare/puppeteer": "1.4.0",
     "@supabase/supabase-js": "^2.51.0",
+    "exceljs": "4.4.0",
     "lucide": "^0.469.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "three": "^0.180.0",
-    "@cloudflare/puppeteer": "1.4.0"
+    "three": "^0.180.0"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.0.0"
