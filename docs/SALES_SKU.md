@@ -20,3 +20,7 @@ Live seven-period reports reconcile ranking-unit sums, trend-unit sums and overv
 Rendered actual Admin V2 fixture tests prove periods/custom range, net/return display, ranking changes, incomplete profit, search, downloaded CSV, selected SKU and existing order detail, desktop/mobile layout and no runtime errors. Existing order-profit desktop/mobile regression passes. TypeScript/admin and complete storefront+Inbox builds pass. These controlled tests do not establish authenticated hosted-owner behavior.
 
 Run `node supabase/tests/finance-admin-order-profit.test.mjs` and `node icetak-admin/tests/playwright-sales-sku.mjs` (optional FINANCE_PLAYWRIGHT_MODULE / FINANCE_CHROMIUM_EXECUTABLE overrides). Fixtures are isolated from the production entry.
+
+## Publication checkpoint
+
+Source release `b524c9132d2c4f67c72b58858daf511d4a4ed0e8` and rebuild trigger `6c1e6a55c55c835302e6590e806f9c38cd0634b7` are on production; GitHub Public Domain Guard passed for both. The published source tree equals the locally verified tree. At the 2026-10-03 06:38 UTC checkpoint, six cache-bypassed live polls still served `main-CUC30-YA.js` → `App-B6wbDnZB.js`, without `sales_sku_report` or the Sales SKU tab. Direct Worker origin also served the old release. Therefore hosting publication and authenticated hosted-owner behavior are pending, not PRODUCTION. Current session has no Cloudflare deployment credential or signed-in dashboard session; deployment logs/retry need the connected Cloudflare account. Do not treat the rebuild trigger or GitHub guard as hosting success.
