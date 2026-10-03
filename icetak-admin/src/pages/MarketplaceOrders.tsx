@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import './MarketplaceOrders.css';
+import OrderProfitDetail from '../components/OrderProfitDetail';
+import {profitMoney,profitRequest,profitStateLabel} from '../lib/orderProfit';
+import type {OrderProfitRow} from '../lib/orderProfit';
 
 type Item={title?:string;sku?:string;variation?:string;qty?:number;imageUrl?:string};
 type Row={
@@ -10,14 +13,14 @@ type Row={
   paymentMethod?:string;tracking?:string;shipmentStatus?:string;itemCount?:number;items?:Item[];
 };
 type Payload={ok?:boolean;total?:number;rows?:Row[];summary?:{all?:number;toShip?:number;toProcess?:number;processed?:number;readyToShip?:number;shipped?:number;completed?:number;cancelled?:number;shipByToday?:number;shipByTomorrow?:number}};
-type Props={initialSearch?:string;onOpenCustomer?:(id:string)=>void};
+type Props={initialSearch?:string;onOpenCustomer?:(id:string)=>void;canViewFinance?:boolean;canManageFinance?:boolean};
 
 const fmtDate=(v?:string)=>v?new Date(v).toLocaleString('en-MY',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'-';
 const money=(n?:number,c='MYR')=>new Intl.NumberFormat('en-MY',{style:'currency',currency:c||'MYR'}).format(Number(n||0));
 const statusLabel=(s:string)=>s.replaceAll('_',' ');
 const badgeClass=(s:string)=>{const x=s.toLowerCase();return x.includes('cancel')?'danger':x.includes('complete')?'success':x.includes('ship')?'info':x.includes('ready')?'warn':'neutral'};
 
-export default function MarketplaceOrders({initialSearch='',onOpenCustomer}:Props){
+export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canViewFinance=false,canManageFinance=false}:Props){
   const [search,setSearch]=useState(initialSearch);
   const [status,setStatus]=useState(()=>{const value=new URLSearchParams(window.location.search).get('mp_status')||'all';return ['all','TO_SHIP','READY_TO_SHIP','PROCESSED','SHIPPED','COMPLETED','CANCELLED'].includes(value)?value:'all';});
   const [provider,setProvider]=useState('all');
@@ -25,6 +28,9 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer}:Prop
   const [payload,setPayload]=useState<Payload>({rows:[],summary:{}});
   const [loading,setLoading]=useState(false);
   const [offset,setOffset]=useState(0);
+  const [profits,setProfits]=useState<Record<string,OrderProfitRow>>({});
+  const [profitError,setProfitError]=useState('');
+  const [selectedFinance,setSelectedFinance]=useState<string|null>(null);
   const limit=50;
 
   const load=async(nextOffset=0)=>{
@@ -39,6 +45,12 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer}:Prop
 
   useEffect(()=>{const t=window.setTimeout(()=>void load(0),220);return()=>window.clearTimeout(t)},[search,status,provider,shipBy]);
   const rows=payload.rows||[];
+  useEffect(()=>{
+    if(!canViewFinance)return;let active=true;setProfits({});setProfitError('');
+    const ids=(payload.rows||[]).map(r=>r.id);
+    if(ids.length)void profitRequest<OrderProfitRow[]>({action:'order_profit_summaries',order_ids:ids}).then(data=>{if(active)setProfits(Object.fromEntries(data.map(r=>[r.order_id,r])))}).catch(e=>{if(active)setProfitError(e.message)});
+    return()=>{active=false};
+  },[payload,canViewFinance]);
   const total=Number(payload.total||0);
   const summary=payload.summary||{};
   const tabs=useMemo(()=>[
@@ -85,6 +97,7 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer}:Prop
     </div>
 
     <div className="mp-table-wrap">
+      {canViewFinance&&profitError&&<div className="op-alert error" role="alert">Finance: {profitError}</div>}
       <table className="mp-table">
         <thead><tr><th>ORDER</th><th>PLACED / SHIP BY</th><th>BUYER</th><th>ITEMS</th><th>PAID</th><th>COURIER / TRACKING</th><th>STATUS</th></tr></thead>
         <tbody>
@@ -104,7 +117,7 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer}:Prop
             <td><div className="mp-items">{(r.items||[]).slice(0,2).map((i,idx)=><div key={idx}>
               {i.imageUrl&&<img src={i.imageUrl} alt="" />}<span><b>{i.qty||1}×</b> {i.title||i.sku||'Item'}<small>{i.variation||i.sku||''}</small></span>
             </div>)}{Number(r.itemCount||0)>2&&<small>+{Number(r.itemCount||0)-2} more</small>}</div></td>
-            <td><b>{money(r.buyerPaid,r.currency)}</b><small>{r.paymentMethod||r.paymentStatus||''}</small></td>
+            <td><b>{money(r.buyerPaid,r.currency)}</b><small>{r.paymentMethod||r.paymentStatus||''}</small>{canViewFinance&&<div className="op-mp-finance"><button onClick={()=>setSelectedFinance(r.id)}>Nett {profitMoney(profits[r.id]?.nett,r.currency)}<br/><span className={(profits[r.id]?.profit??0)<0?'op-negative':''}>Untung {profitMoney(profits[r.id]?.profit,r.currency)}</span></button><small>{profits[r.id]?profitStateLabel(profits[r.id]):profitError?'Finance gagal dimuatkan':'Memuatkan finance…'}</small></div>}</td>
             <td><div>{r.courier||'-'}</div><small>{r.tracking||r.shipmentStatus||'-'}</small></td>
             <td><span className={'mp-status '+badgeClass(r.status)}>{statusLabel(r.status||'UNKNOWN')}</span></td>
           </tr>)}
@@ -116,5 +129,6 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer}:Prop
       <span>{total?offset+1:0}-{Math.min(offset+limit,total)} of {total}</span>
       <div><button disabled={offset===0||loading} onClick={()=>void load(Math.max(0,offset-limit))}>Previous</button><button disabled={offset+limit>=total||loading} onClick={()=>void load(offset+limit)}>Next</button></div>
     </div>
+    {selectedFinance&&<OrderProfitDetail key={selectedFinance} orderId={selectedFinance} canManage={canManageFinance} onClose={()=>setSelectedFinance(null)} onSaved={r=>setProfits(prev=>({...prev,[r.order_id]:r}))}/>}
   </div>
 }

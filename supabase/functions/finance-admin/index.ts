@@ -74,6 +74,23 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({})) as JsonObject;
     const action = String(body.action || "snapshot");
 
+    if (action === "material_cost_settings") return json({ success: true, data: await rpc("finance_material_settings") });
+    if (action === "order_profit_list") return json({ success: true, data: await rpc("finance_order_profit_list", { p_filter: {
+      from: body.from || null, to: body.to || null, query: String(body.query || "").slice(0,200),
+      category: body.category || null, state: body.state || null, status: body.status || "active",
+      currency: body.currency || "MYR", sort: body.sort || "newest", limit: 50, offset: Math.max(0,Math.trunc(Number(body.offset)||0)),
+    } }) });
+    if (action === "order_profit_detail") {
+      const orderId = String(body.order_id || "");
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) return json({ success: false, error: "Valid marketplace order required" },400);
+      return json({ success: true, data: await rpc("finance_order_profit_detail", { p_order_id: orderId }) });
+    }
+    if (action === "order_profit_summaries") {
+      const ids = Array.isArray(body.order_ids) ? body.order_ids : [];
+      if (ids.length>100 || ids.some(id=>!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id)))) return json({ success:false,error:"Valid marketplace orders required" },400);
+      return json({ success:true,data:await rpc("finance_order_profit_summaries",{p_order_ids:ids}) });
+    }
+
     if (action === "snapshot") return json({ success: true, data: await rpc("finance_admin_snapshot") });
     if (action === "transactions") return json({ success: true, data: await rpc("finance_admin_transactions", {
       p_limit: Math.min(Math.max(Number(body.limit) || 100, 1), 500), p_offset: Math.max(Number(body.offset) || 0, 0),
@@ -131,6 +148,18 @@ Deno.serve(async (req) => {
       return json({ success: true, data: await rpc("finance_admin_report", { p_from: from, p_to: to }) });
     }
     if (!admin.permissions.includes("manage_finance")) return json({ success: false, error: "Manage Finance permission required" }, 403);
+
+    if (action === "material_cost_settings_save") return json({ success:true,data:await rpc("finance_material_settings_save",{
+      p_expected_version:body.version,p_rates:body.rates,p_sku_costs:body.sku_costs,p_actor:admin.username,
+    }) });
+    if (action === "order_costs_save") {
+      const orderId = String(body.order_id || "");
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) return json({ success:false,error:"Valid marketplace order required" },400);
+      return json({ success:true,data:await rpc("finance_order_costs_save",{
+        p_order_id:orderId,p_expected_version:body.version,p_lines:body.lines,p_extras:body.extras,
+        p_work_minutes:body.work_minutes??null,p_reviewed:body.reviewed===true,p_note:String(body.note||""),p_actor:admin.username,
+      }) });
+    }
 
     if (action === "qrpay_review_action") {
       const transactionId = String(body.transaction_id || "").trim();
