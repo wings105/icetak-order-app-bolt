@@ -9,6 +9,15 @@ assert.equal(orderDetails({...order,order_note:topperNote.order_note},{} ,now).s
 assert.equal(orderDetails({...topperNote,items:[...order.items,{...order.items[0],id:'line1',sku:'CN0271'}],production_tasks:[]},{},now).status,'missing','generic wording note still cannot allocate multi-item details');
 assert.equal(orderDetails({...topperNote,state:{data:{detail_check:{signature:itemSignature(order.items),items:{line0:{rule:'name_age',values:{}}}}}}},{},now).status,'missing','explicit staff requirement must not be downgraded by inferred wording');
 assert.equal(orderDetails({...topperNote,production_tasks:[{...topperNote.production_tasks[0],detail:{sku:'CN0270',customize_name:'wording on topper: Happy Birthday Someone Else'}}]},{} ,now).status,'review');
+for(const wording of ['MOHAMMAD ARYAN (6 TAHUN)', "Olivia's 2nd Birthday", 'Captain TIYEN turns 9', 'Custom final message']){
+ const completed={...order,order_note:wording,production_tasks:[{id:'task1',progress_stage:7,detail:{sku:'CN0270',customize_name:wording,confirmed:true}}]};
+ const result=orderDetails(completed,{},now);assert.equal(result.status,'complete',wording);assert.equal(result.items[0].values.wording,wording);assert.equal(result.locked,true);
+ assert.equal(orderDetails({...completed,state:{data:{detail_check:{signature:itemSignature(order.items),items:{line0:{rule:'name_age',values:{}}}}}}},{},now).status,wording.startsWith('MOHAMMAD')?'complete':'missing','explicit name/age requirement remains authoritative');
+}
+assert.equal(orderDetails({...order,order_note:'MOHAMMAD ARYAN (6 TAHUN)'},{},now).status,'complete');
+assert.equal(orderDetails({...order,production_tasks:[{id:'task1',progress_stage:7,detail:{sku:'CN0270',confirmed:true}}]},{},now).status,'missing','task complete alone cannot supply absent detail');
+assert.equal(orderDetails({...order,production_tasks:[{id:'task1',progress_stage:2,detail:{sku:'CN0270',customize_name:'Aina',confirmed:false}}]},{},now).status,'missing','unconfirmed bare name still needs age');
+assert.equal(orderDetails({...order,items:[{...order.items[0],quantity:2}],production_tasks:[{id:'task1',progress_stage:7,detail:{sku:'CN0270',customize_name:'Captain TIYEN turns 9',confirmed:true}}]},{},now).status,'review','quantity guard retained');
 for(const v of [true,'true',1,'1'])assert.equal(clickupConfirmed(v),true);for(const v of [false,'false',0,'0'])assert.equal(clickupConfirmed(v),false);assert.equal(clickupConfirmed(null),null);assert.equal(clickupConfirmed('yes'),null);
 let d=orderDetails(order,ctx,now);assert.equal(d.status,'complete');assert.equal(d.items[0].values.name,'Adzril Rafif');assert.equal(d.items[0].values.age,'6');assert.equal(d.stage,'ready');
 assert.equal(orderDetails(order,{messages:[message]},now).status,'missing','unbound chat must never fill an order');

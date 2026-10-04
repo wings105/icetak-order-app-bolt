@@ -27,6 +27,10 @@ function extract(v:string){
  // An isolated name + age is accepted only after the caller has established an order session.
  const bare=v.match(/^([\p{L}][\p{L}\s.'’&-]{1,100})\s*\n\s*(\d{1,3})\s*(?:tahun|years?(?:\s*old)?|y\/?o)\s*$/iu);
  if(bare){values.name=bare[1].trim();values.age=bare[2];}
+ const inline=v.match(/^([\p{L}][\p{L}\s.'’&-]{1,100}?)\s*\(?\s*(\d{1,3})\s*(?:tahun|years?(?:\s*old)?|y\/?o)\s*\)?\s*$/iu);
+ if(inline){values.name=inline[1].trim();values.age=inline[2];}
+ // Recognizable full birthday wording is already a complete design instruction.
+ if(!values.wording&&!v.includes('\n')&&/^(?:happy\s+(?:\d{1,3}(?:st|nd|rd|th)\s+)?birthday\s+\S.+|[\p{L}][\p{L}\s.'’&-]{1,100}\s+turns\s+\d{1,3}|[\p{L}][\p{L}\s.'’&-]{1,100}\s+\d{1,3}(?:st|nd|rd|th)\s+birthday)$/iu.test(v.trim()))values.wording=v.trim();
  return values;
 }
 export function orderDetails(o:Data,context:Data={},now=Date.now()){
@@ -53,7 +57,9 @@ export function orderDetails(o:Data,context:Data={},now=Date.now()){
   }
   const matching=tasks.filter(t=>t.detail?.sku&&text(t.detail.sku)===text(i.sku));
   const assigned=matching.length===1?matching:items.length===1&&tasks.length===1?tasks:[];
-  for(const t of assigned){if(t.detail?.customize_name){const raw=text(t.detail.customize_name),parsed=extract(raw);if(['name','name_age'].includes(rule)&&!parsed.name&&/^[\p{L}][\p{L}\s.'’&-]{1,100}$/u.test(raw)&&!raw.includes('\n'))parsed.name=raw;add({...parsed,...(!['name','name_age'].includes(rule)&&!parsed.wording?{wording:raw}:{})},`ClickUp ${t.id}`,t.source_updated_at);}}
+  for(const t of assigned){if(t.detail?.customize_name){const raw=text(t.detail.customize_name),parsed=extract(raw);if(['name','name_age'].includes(rule)&&!parsed.name&&/^[\p{L}][\p{L}\s.'’&-]{1,100}$/u.test(raw)&&!raw.includes('\n'))parsed.name=raw;
+   const approvedText=rule==='name_age'&&(clickupConfirmed(t.detail.confirmed)===true||Number(t.progress_stage||0)>=5);
+   add({...parsed,...((!['name','name_age'].includes(rule)||approvedText)&&!parsed.wording?{wording:raw}:{})},`ClickUp ${t.id}`,t.source_updated_at);}}
   // Complete wording supplied for a topper supersedes title-only name/age inference.
   // Explicit staff requirements, image requirements and multi-item allocation remain intact.
   if(!detailRules.includes(config.rule)&&rule==='name_age'&&values.wording)rule='wording';

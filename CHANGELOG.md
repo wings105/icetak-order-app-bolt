@@ -1,3 +1,7 @@
+## 2026-10-04 — [VERIFIED] Recognize complete ClickUp custom wording
+
+Corrects false missing name/age for completed topper tasks with supplied Customize Name. Recognizes inline name/age and full birthday wording; exact assigned confirmed/production task text can satisfy inferred wording without overriding explicit staff requirements. Regression and rendered real gateway/list/panel checks pass for MOHAMMAD ARYAN (6 TAHUN), Olivia's 2nd Birthday and Captain TIYEN turns 9. Empty fields, quantities, conflicts and production locks retain their guards. admin-ai-dashboard v15 source readback matches and retains JWT; no task/provider writes. See docs/ORDER_DETAIL_COLLECTION.md.
+
 ## 2026-10-04 — [VERIFIED] Recognize checkout topper wording and ClickUp checkbox values
 
 Fixes a user-reported false missing-detail case: explicit wording on topper notes now populate wording and supersede title-only name/age inference; matching ClickUp text is normalized without false conflict. String/boolean confirmed values render accurately as ClickUp facts. Exact live order data and real desktop/mobile panel confirm complete 1/1 without age, confirmed Ya and retained production lock; ambiguity/explicit-rule guards remain. admin-ai-dashboard v14 retains JWT; no task/provider writes. Hosted authenticated owner refresh pending. See docs/ORDER_DETAIL_COLLECTION.md.
