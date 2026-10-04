@@ -57,3 +57,5 @@ Order System project `buivecgahhmrhlmfujgt`, private `finance.contribution_targe
 - Finance v32 is ACTIVE, JWT true, source readback exact; unauthenticated live POST returns 401. Signed-in owner production interaction is not claimed as verified.
 
 Run UI checks with `FINANCE_PLAYWRIGHT_MODULE` and optional `FINANCE_CHROMIUM_EXECUTABLE`. Browser plugin was unavailable; regular Playwright used an isolated npm-packaged Chromium after the default browser download failed.
+
+Production publication: feature commit `fbfa3bc` passed Workers Builds (`471ad30c-7b5e-40a0-aabc-f6f5f198fe8f`) and Public Domain Guard. Public index links `main-CaDkA1_G.js` → `admin-v2-route-rNJqfjvd.js` → `App-Dy00HLE8.js` with the target and direct-cost actions. The cloud-browser deep link resolves to the Admin Login; no authenticated owner interaction was performed. A follow-up backend review-flag guard requires fresh actual-cost checks after source changes; its rollback test passes.

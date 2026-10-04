@@ -20,7 +20,7 @@ begin
  begin perform public.finance_direct_costs_save(oid,v-1,sig,'{"material":10,"courier":5,"extras":0}','qa');raise exception 'stale version accepted';exception when others then if sqlerrm='stale version accepted' then raise;end if;end;
  begin perform public.finance_direct_costs_save(oid,v,'wrong-signature','{"material":10,"courier":5,"extras":0}','qa');raise exception 'stale signature accepted';exception when others then if sqlerrm='stale signature accepted' then raise;end if;end;
  update public.order_items set title='Changed Edible Image' where id=iid;
- r:=finance.direct_margin_row(oid);if r->>'contribution' is not null then raise exception 'Title changed without cost review';end if;
+ r:=finance.direct_margin_row(oid);if r->>'contribution' is not null or r->>'material_actual'='true' or r->>'extras_actual'='true' then raise exception 'Title changed without fresh cost review';end if;
  update public.order_items set qty=2 where id=iid;
  r:=finance.direct_margin_row(oid);
  if r->>'contribution' is not null or r->>'state'<>'incomplete' then raise exception 'Changed order retained reviewed contribution';end if;
