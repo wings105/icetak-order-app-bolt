@@ -1,3 +1,7 @@
+## 2026-10-04 — [VERIFIED] Paid sales and cancelled follow-up view
+
+Command Center GMV and Sales Channel sales exclude unpaid, partial and cancelled orders. Receipt evidence takes precedence over recorded Paid status; refund/void safeguards remain. Pending balances and original cancelled records are retained. Dashboard links to the date-scoped cancelled Finance view for manual follow-up; no messages or duplicate orders are created. Live rollback tests and actual App desktop/mobile with live read-only reports pass without runtime errors. Hosted owner interaction remains pending.
+
 ## 2026-10-04 — [VERIFIED] Finance card sales, fee and cost breakdowns
 
 Target month/today/channel and Untung Order cards show server-aggregated sales, fees, courier, adjustments, nett and material/extra costs. Gross GMV and eligible contribution have explicit labels; remainder/daily goal show formulas. Same headline cohorts, missing-data handling and private grants checked live; real read-only reports rendered in desktop/mobile Admin App with no runtime errors. Hosted owner confirmation pending.

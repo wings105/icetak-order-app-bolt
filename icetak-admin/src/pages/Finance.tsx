@@ -52,7 +52,7 @@ async function financeInvoke<T>(body:Record<string,unknown>):Promise<T>{
 }
 
 export default function Finance({canManage,onOpenOrder,onOpenSettings}:Props){
-  const [tab,setTab]=useState<Tab>(new URLSearchParams(window.location.search).get('finance_tab')==='target-margin'?'target-margin':'order-profit');
+  const [tab,setTab]=useState<Tab>(()=>tabs.find(t=>t.key===new URLSearchParams(window.location.search).get('finance_tab'))?.key||'order-profit');
   const [snapshot,setSnapshot]=useState<Snapshot|null>(null);
   const [rows,setRows]=useState<Transaction[]>([]);
   const [report,setReport]=useState<Report|null>(null);
