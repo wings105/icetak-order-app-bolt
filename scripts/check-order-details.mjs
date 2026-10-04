@@ -43,3 +43,23 @@ assert.throws(()=>validateDetailCheck({...fake,bindings:[{conversation_id:bindin
 assert.throws(()=>validateDetailCheck({...fake,items:{[id]:{rule:'image',values:{image:'javascript:alert(1)'}}}},order),/HTTPS/);
 const sources={orders:[{...order,production_tasks:[{id:'task'}]}]};attachDetailSources(sources,{tasks:{task:{customize_name:'Aina'}},links:{['shopee:'+order.id]:{internal_order_id:null}}});assert.equal(sources.orders[0].production_tasks[0].detail.customize_name,'Aina');assert.equal(sources.orders[0].internal_order_id,null);
 console.log('PASS: session-bound name/age, no historical/unbound/multi-item/media guess, notes, quantities, per-item production locks, changed items/new corrections, manual follow-up revision, stale/identity/boundary/HTTPS guards and independent iCetak/ClickUp linking.');
+// Explicit attached-artwork instructions across the two linked sources.
+const wa='44444444-4444-4444-8444-444444444444',sp=binding.id;
+const twoSources={bindings:[{...binding,id:sp},{...binding,id:wa,source:'exact_order_id',channel:'whatsapp',usable:true}],messages:[
+ {id:'order-shot',conversation_id:wa,channel:'whatsapp',direction:'inbound',message_type:'image',text_content:'done order id: 261004R0RYQ2R7',media_url:'wasapflow-media://111',created_at:'2026-10-04T01:10:00Z'},
+ {id:'selected-image',conversation_id:wa,channel:'whatsapp',direction:'inbound',message_type:'image',text_content:'gambar ini size 7.5inch x 7.5inch',media_url:'wasapflow-media://222',created_at:'2026-10-04T01:11:00Z'}]};
+let linkedImage=orderDetails(image,twoSources,now);assert.equal(linkedImage.status,'complete');assert.equal(linkedImage.stage,'ready');assert.equal(linkedImage.items[0].values.image,'wasapflow-media://222');assert.match(linkedImage.items[0].sources.image.source,/whatsapp/);assert.equal(linkedImage.evidence.length,1);assert.ok(linkedImage.warnings.some(w=>w.includes('QC')));
+assert.equal(orderDetails(image,{...twoSources,messages:[twoSources.messages[0]]},now).status,'missing','checkout screenshot is not artwork');
+assert.equal(orderDetails(image,{...twoSources,bindings:[{...binding,id:wa,usable:false}]},now).status,'missing');
+assert.equal(orderDetails(image,{...twoSources,messages:twoSources.messages.map(m=>({...m,is_history:true}))},now).status,'missing');
+assert.equal(orderDetails(image,{...twoSources,truncated:true},now).status,'missing');
+assert.equal(orderDetails({...image,items:[...image.items,{...image.items[0],id:'line1'}]},twoSources,now).status,'missing');
+assert.equal(orderDetails(image,{...twoSources,messages:[...twoSources.messages,{...twoSources.messages[1],id:'different-image',media_url:'https://example.test/different.png',channel:'shopee',conversation_id:sp}]},now).status,'review','conflicting artwork between sources requires review');
+const imageSave={signature:itemSignature(image.items),items:{[id]:{rule:'image',values:{image:'wasapflow-media://222'}}},bindings:[]};
+assert.equal(validateDetailCheck(imageSave,{...image,detail_collection:linkedImage}).items[id].values.image,'wasapflow-media://222');
+assert.throws(()=>validateDetailCheck({...imageSave,items:{[id]:{rule:'image',values:{image:'wasapflow-media://999'}}}},{...image,detail_collection:linkedImage}),/media sah/);
+console.log('PASS: two-source exact-order artwork completeness, receipt exclusion, unusable/history/truncated/multi-item rejection, cross-source conflict review and selected provider-media save validation.');
+const confirmedImage={...image,state:{data:{detail_check:{signature:itemSignature(image.items),items:{[id]:{rule:'image',values:{image:'wasapflow-media://222'}}},chat_revision:'old',checked_at:'2026-10-04T01:20:00Z'}}}};
+const receiptAfter={...twoSources.messages[1],id:'receipt-after',text_content:'gambar ini resit payment',media_url:'wasapflow-media://333',created_at:'2026-10-04T01:30:00Z'};
+assert.equal(orderDetails(confirmedImage,{...twoSources,messages:[...twoSources.messages,receiptAfter]},now).status,'complete','new receipt cannot replace confirmed artwork');
+assert.equal(orderDetails(confirmedImage,{...twoSources,messages:[...twoSources.messages,{...receiptAfter,text_content:'guna gambar ini'}]},now).status,'review','new explicit artwork reopens review');

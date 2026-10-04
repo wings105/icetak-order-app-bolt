@@ -70,3 +70,9 @@ manualSnap.states[designBase.key]={version:1,data:validateFocusUpdate({expected_
 manualChat.inbound_revision='r4';marked=focusRows(manualSnap,[manualChat],manualIds,now);assert.equal(marked.find(r=>r.kind==='shopee').category,'production','new chat needs reply, not automatic redesign');assert.equal(marked.find(r=>r.kind==='shopee').chat.reply,true);
 manualOrder.production_tasks[0].source_updated_at='2026-10-04T00:00:00Z';marked=focusRows(manualSnap,[manualChat],manualIds,now);assert.equal(marked.find(r=>r.kind==='shopee').manual_expired,true,'actual task change invalidates earlier work observation');
 console.log('PASS: new design markers survive chat-only changes and reopen on actual task changes.');
+// Exact customer order references are per-order evidence, independent of an unmerged CRM identity.
+const refOrder={...manualOrder,id:'77777777-7777-4777-8777-777777777777',reference:'261004R0RYQ2R7',status:'READY_TO_SHIP',master_id:'separate-master',production_tasks:[]};
+const refChat={...manualChat,id:'88888888-8888-4888-8888-888888888888',channel:'whatsapp',messages:[{direction:'inbound',message_type:'text',text_content:'gambar ini',created_at:new Date(now).toISOString()}],order_links:[{reference:refOrder.reference,source:'exact_order_id'}]};
+const exactRows=focusRows({orders:[refOrder],states:{},reviews:{}},[refChat],{[refChat.id]:{identity_status:'unmatched'}},now);
+const exactOrder=exactRows.find(r=>r.kind==='shopee');assert.equal(exactOrder.chat.id,refChat.id);assert.equal(exactOrder.chat.order_confirmed,true);assert.ok(exactOrder.conversations.some(c=>c.id===refChat.id));
+console.log('PASS: persisted exact order reference joins WhatsApp to Focus even when the recent message no longer repeats the ID and CRM has not merged.');

@@ -33,6 +33,12 @@ function extract(v:string){
  if(!values.wording&&!v.includes('\n')&&/^(?:happy\s+(?:\d{1,3}(?:st|nd|rd|th)\s+)?birthday\s+\S.+|[\p{L}][\p{L}\s.'’&-]{1,100}\s+turns\s+\d{1,3}|[\p{L}][\p{L}\s.'’&-]{1,100}\s+\d{1,3}(?:st|nd|rd|th)\s+birthday)$/iu.test(v.trim()))values.wording=v.trim();
  return values;
 }
+function selectedCustomerImage(m:Data){
+ const caption=text(m.text_content||m.caption);
+ return m.message_type==='image'&&text(m.media_url)&&
+  /gambar\s+(?:ini|ni|nih)|(?:print|cetak|guna|use)\s+(?:gambar|image|photo)|(?:this|final)\s+(?:image|photo|artwork)/i.test(caption)&&
+  !/\d{6}[a-z0-9]{8}|order\s*(?:id|no)|resit|receipt|payment|bayar|screenshot|contoh|reference/i.test(caption)?text(m.media_url):null;
+}
 export function orderDetails(o:Data,context:Data={},now=Date.now()){
  const items:Data[]=o.items||[], saved=o.state?.data?.detail_check||{}, signature=itemSignature(items);
  const stale=!!saved.signature&&saved.signature!==signature;
@@ -40,7 +46,7 @@ export function orderDetails(o:Data,context:Data={},now=Date.now()){
  const closed=/^(shipped|completed|cancelled|canceled|customer_collected)$/i.test(o.status||'');
  const locked=(tasks.length>0&&tasks.every(t=>Number(t.progress_stage||0)>=5))||closed;
  const bindings:Data[]=context.bindings||[];
- const messages:Data[]=(context.messages||[]).filter((m:Data)=>m.direction==='inbound'&&!m.is_history);
+ const messages:Data[]=(context.messages||[]).filter((m:Data)=>m.direction==='inbound'&&!m.is_history&&(!m.conversation_id||bindings.some(b=>b.id===m.conversation_id&&b.usable===true)));
  const sessionKnown=bindings.some(b=>b.usable===true), truncated=context.truncated===true;
  const evidence:Data[]=[],warnings:string[]=[];
  if(stale)warnings.push('Item order berubah; semak dan sahkan semula detail.');
@@ -53,7 +59,14 @@ export function orderDetails(o:Data,context:Data={},now=Date.now()){
   if(text(i.wording))add({wording:i.wording},'Order iCetak');
   // Never allocate a generic multi-item note or chat by array position.
   if(items.length===1){add(extract(text(o.order_note)),'Note to seller');
-   if(sessionKnown&&!context.ambiguous&&!truncated)for(const m of messages){const data=extract(text(m.text_content||m.caption));add(data,`${m.channel||'Chat'} · ${m.id}`,m.created_at);if(Object.keys(data).length)evidence.push({id:m.id,text:m.text_content||m.caption,at:m.created_at});}
+   if(sessionKnown&&!context.ambiguous&&!truncated)for(const m of messages){
+    const caption=text(m.text_content||m.caption),data=extract(caption);
+    // Explicit artwork instruction is required; checkout/payment screenshots do not supply artwork.
+    if(['image','image_wording'].includes(rule)&&selectedCustomerImage(m)){
+     data.image=m.media_url;warnings.push('Gambar pilihan customer diterima; kualiti dan kesesuaian cetakan masih perlu QC.');
+    }
+    add(data,`${m.channel||'Chat'} · ${m.id}`,m.created_at);if(Object.keys(data).length)evidence.push({id:m.id,text:caption,at:m.created_at});
+   }
   }
   const matching=tasks.filter(t=>t.detail?.sku&&text(t.detail.sku)===text(i.sku));
   const assigned=matching.length===1?matching:items.length===1&&tasks.length===1?tasks:[];
@@ -66,7 +79,7 @@ export function orderDetails(o:Data,context:Data={},now=Date.now()){
   // Explicit admin correction supersedes extracted candidates, with item signature protection.
   const changedReply=!!saved.chat_revision&&saved.chat_revision!==JSON.stringify(bindings.map(b=>[b.id,b.revision]));
   for(const f of ['name','age','wording','image'])if(text(config.values?.[f])){
-   const fresh=changedReply&&sessionKnown&&!context.ambiguous&&!truncated&&items.length===1?messages.filter(m=>!saved.checked_at||time(m.created_at)>time(saved.checked_at)).map(m=>extract(text(m.text_content||m.caption))[f]).filter(v=>v&&v!==text(config.values[f])):[];
+   const fresh=changedReply&&sessionKnown&&!context.ambiguous&&!truncated&&items.length===1?messages.filter(m=>!saved.checked_at||time(m.created_at)>time(saved.checked_at)).map(m=>f==='image'?selectedCustomerImage(m):extract(text(m.text_content||m.caption))[f]).filter(v=>v&&v!==text(config.values[f])):[];
    delete candidates[f];
    if(fresh.length)candidates[f]=fresh.map(value=>({value,source:'Balasan baru; semak perubahan'}));
    values[f]=text(config.values[f]);sources[f]={source:'Disahkan admin',at:saved.checked_at};
@@ -94,7 +107,7 @@ export function validateDetailCheck(input:Data,o:Data,context:Data={}){
  if(input.signature!==out.signature)throw Error('SOURCE_CHANGED: Item order berubah. Muat semula.');
  const allowed=new Map((o.items||[]).map((i:Data,n:number)=>[text(i.id||i.line_no||n),i]));
  for(const [id,x] of Object.entries(input.items||{}) as [string,Data][]){if(!allowed.has(id)||!detailRules.includes(x.rule))throw Error('Invalid item / detail rule');
-  const values:Data={};for(const f of ['name','age','wording','image']){const v=text(x.values?.[f]);if(v.length>2000)throw Error('Detail terlalu panjang');if(f==='age'&&v&&!/^\d{1,3}$/.test(v))throw Error('Umur mesti nombor');if(f==='image'&&v&&!/^https:\/\//i.test(v))throw Error('URL gambar mesti HTTPS');if(v)values[f]=v;}
+  const values:Data={};for(const f of ['name','age','wording','image']){const v=text(x.values?.[f]);if(v.length>2000)throw Error('Detail terlalu panjang');if(f==='age'&&v&&!/^\d{1,3}$/.test(v))throw Error('Umur mesti nombor');if(f==='image'&&v&&!/^https:\/\//i.test(v)&&!(v===o.detail_collection?.items?.find((i:Data)=>i.id===id)?.values?.image&&/^wasapflow-media:\/\/\d+$/.test(v)))throw Error('URL gambar mesti HTTPS atau media sah daripada chat dipautkan');if(v)values[f]=v;}
   out.items[id]={rule:x.rule,values,same_design:x.same_design===true};
   const current=o.detail_collection?.items?.find((i:Data)=>i.id===id);
   if(current?.locked&&(x.rule!==current.rule||['name','age','wording','image'].some(f=>text(values[f])!==text(current.values[f]))||out.items[id].same_design!==current.same_design))throw Error('Item ini sudah production; perubahan perlu disemak melalui task asal.');

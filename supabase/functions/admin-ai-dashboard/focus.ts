@@ -21,11 +21,16 @@ export function focusRows(snapshot:Data,chats:Data[],identities:Data,now=Date.no
   const text=a.evidence.map((e:Data)=>e.text).join('\n').toUpperCase();
   const candidates=id.identity_status==='ambiguous'?[]:id.master_id?masterOrders.get(id.master_id)||[]:c.channel==='shopee'?uidOrders.get(c.external_customer_id)||[]:[];
   // Current customer text plus exact canonical identity; never bind by name or simply newest order.
-  const exact=candidates.filter(o=>text.includes(String(o.reference).toUpperCase())&&refs.has(String(o.reference).toUpperCase()));
-  const item={...c,identity:id,analysis:a,related_references:candidates.filter(o=>orderOperation(o,now).active).map(o=>o.reference)};
+  const linkedRefs=(c.order_links||[]).filter((l:Data)=>l.source==='exact_order_id').map((l:Data)=>String(l.reference).toUpperCase());
+  const linkedOrders=linkedRefs.map((ref:string)=>refs.get(ref)).filter((o):o is Data=>!!o);
+  const exact=[...new Map([...candidates.filter(o=>text.includes(String(o.reference).toUpperCase())&&refs.has(String(o.reference).toUpperCase())),...linkedOrders].map(o=>[`${o.kind}:${o.id}`,o])).values()];
+  const related=[...new Map([...candidates,...linkedOrders].map(o=>[`${o.kind}:${o.id}`,o])).values()];
+  const item={...c,identity:id,analysis:a,related_references:related.filter(o=>orderOperation(o,now).active).map(o=>o.reference)};
   chatItems.set(c.id,item);
-  for(const o of candidates.filter(o=>orderOperation(o,now).active)){const key=`${o.kind}:${o.id}`;const a=byCustomerOrder.get(key)||[];a.push(item);byCustomerOrder.set(key,a);}
-  if(exact.length===1){const key=`${exact[0].kind}:${exact[0].id}`;const a=byOrder.get(key)||[];a.push(item);byOrder.set(key,a);}else unbound.push(item);
+  for(const o of related.filter(o=>orderOperation(o,now).active)){const key=`${o.kind}:${o.id}`;const a=byCustomerOrder.get(key)||[];a.push(item);byCustomerOrder.set(key,a);}
+  const currentExact=exact.filter(o=>text.includes(String(o.reference).toUpperCase()));
+  const bound=currentExact.length===1?currentExact:exact.length===1?exact:[];
+  if(bound.length===1){const key=`${bound[0].kind}:${bound[0].id}`;const a=byOrder.get(key)||[];a.push(item);byOrder.set(key,a);}else unbound.push(item);
  }
  const result:Data[]=[];
  const decision=(key:string)=>states[key]||{version:0,data:{}};
@@ -56,8 +61,9 @@ export function focusRows(snapshot:Data,chats:Data[],identities:Data,now=Date.no
   const d=s.data||{},current=['design_done','production_done'].includes(d.work_state)&&d.work_source_fingerprint?d.work_source_fingerprint===work.fingerprint:d.observation_fingerprint?d.observation_fingerprint===row.observation_fingerprint:d.source_fingerprint===row.source_fingerprint;
   row.state=s;row.detail_collection=orderDetails(row,row.detail_context||{},now);
   delete row.detail_context;
-  row.detail_status=d.detail_check?row.detail_collection.status==='review'?'unknown':row.detail_collection.status:d.detail_status&&d.detail_status!=='unknown'?d.detail_status:row.detail_collection.status==='review'?'unknown':row.detail_collection.status;
-  row.missing_details=d.detail_check?row.detail_collection.missing.join(', '):d.missing_details||row.detail_collection.missing.join(', ');row.note=d.note||'';
+  const detailCurrent=!row.detail_collection.session_linked||(d.observation_fingerprint?d.observation_fingerprint===row.observation_fingerprint:d.source_fingerprint===row.source_fingerprint);
+  row.detail_status=d.detail_check?row.detail_collection.status==='review'?'unknown':row.detail_collection.status:detailCurrent&&d.detail_status&&d.detail_status!=='unknown'?d.detail_status:row.detail_collection.status==='review'?'unknown':row.detail_collection.status;
+  row.missing_details=d.detail_check?row.detail_collection.missing.join(', '):(detailCurrent?d.missing_details:'')||row.detail_collection.missing.join(', ');row.note=d.note||'';
   row.customer_needed=d.customer_needed||row.customer_needed||null;row.dispatch_by=d.dispatch_by||null;row.design_by=d.design_by||null;
   row.urgent=!!d.urgent||row.chat.urgent||row.chat.complaint;row.snoozed_until=d.snoozed_until||null;
   row.manual_work=current?d.work_state||'': '';row.manual_expired=!!d.work_state&&!current;
