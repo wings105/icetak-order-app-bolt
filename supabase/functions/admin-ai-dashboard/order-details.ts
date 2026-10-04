@@ -3,11 +3,13 @@ type Data=Record<string,any>;
 export const detailRules=['review','standard','name','name_age','wording','image','image_wording'];
 const fields:Data={review:[],standard:[],name:['name'],name_age:['name','age'],wording:['wording'],image:['image'],image_wording:['image','wording']};
 export const detailLabels:Data={name:'Nama',age:'Umur',wording:'Wording',image:'Gambar'};
+// ClickUp checkbox values arrive as either a JSON boolean or a string.
+export function clickupConfirmed(v:unknown){if(v===true||v===1||v==='true'||v==='1')return true;if(v===false||v===0||v==='false'||v==='0')return false;return null;}
 const text=(v:unknown)=>String(v??'').trim();
 const time=(v:unknown)=>Date.parse(text(v));
 export function itemSignature(items:Data[]){return JSON.stringify(items.map(i=>[i.id||i.line_no||'',i.sku||'',i.title||'',i.size||'',i.quantity||1]));}
 export function attachDetailSources(snapshot:Data,sources:Data){
- for(const o of snapshot.orders||[]){Object.assign(o,sources.links?.[`${o.kind}:${o.id}`]||{});for(const t of [...(o.production_tasks||[]),...(o.dated_tasks||[])])t.detail=sources.tasks?.[t.id]||{};}
+ for(const o of snapshot.orders||[]){Object.assign(o,sources.links?.[`${o.kind}:${o.id}`]||{});for(const t of [...(o.production_tasks||[]),...(o.dated_tasks||[])]){const d=sources.tasks?.[t.id]||{};t.detail={...d,confirmed:clickupConfirmed(d.confirmed)};}}
 }
 function inferRule(i:Data){
  const t=`${i.title||''} ${i.size||''}`.toLowerCase();
@@ -20,7 +22,7 @@ function extract(v:string){
  const values:Data={};
  const name=v.match(/(?:^|\n)\s*(?:nama|name)\s*[:=\-]\s*([^\n]+)/i);
  const age=v.match(/(?:^|\n)\s*(?:(?:umur|age)\s*[:=\-]?\s*)?(\d{1,3})\s*(?:tahun|years?(?:\s*old)?|y\/?o)\b/i);
- const wording=v.match(/(?:^|\n)\s*(?:wording|tulisan|text)\s*[:=\-]\s*([\s\S]+)/i);
+ const wording=v.match(/(?:^|\n)\s*(?:wording(?:\s+(?:on|for)\s+(?:the\s+)?(?:cake\s+)?topper)?|tulisan(?:\s+(?:pada|atas)\s+topper)?|text(?:\s+on\s+topper)?)\s*[:=\-]\s*([\s\S]+)/i);
  if(name)values.name=name[1].trim();if(age)values.age=age[1];if(wording)values.wording=wording[1].trim();
  // An isolated name + age is accepted only after the caller has established an order session.
  const bare=v.match(/^([\p{L}][\p{L}\s.'’&-]{1,100})\s*\n\s*(\d{1,3})\s*(?:tahun|years?(?:\s*old)?|y\/?o)\s*$/iu);
@@ -41,9 +43,9 @@ export function orderDetails(o:Data,context:Data={},now=Date.now()){
  if(context.ambiguous)warnings.push('Ada beberapa order aktif dalam chat; pilih session yang betul.');
  if(truncated)warnings.push('Mesej session melebihi had bacaan; semak sejarah sebelum sahkan.');
  const result=items.map((i,n)=>{
-  const id=text(i.id||i.line_no||n),config=stale?{}:saved.items?.[id]||{},rule=detailRules.includes(config.rule)?config.rule:inferRule(i);
+  const id=text(i.id||i.line_no||n),config=stale?{}:saved.items?.[id]||{};let rule=detailRules.includes(config.rule)?config.rule:inferRule(i);
   const values:Data={},sources:Data={},candidates:Data={};
-  const add=(data:Data,source:string,at?:string)=>{for(const f of ['name','age','wording','image'])if(text(data[f])&&!/^(-|–|—|none|null|n\/a)$/i.test(text(data[f]))){if(values[f]&&values[f]!==text(data[f])){(candidates[f] ||= []).push({value:text(data[f]),source,at});}else{values[f]=text(data[f]);sources[f]={source,at};}}};
+  const add=(data:Data,source:string,at?:string)=>{for(const f of ['name','age','wording','image'])if(text(data[f])&&!/^(-|–|—|none|null|n\/a)$/i.test(text(data[f]))){if(values[f]&&values[f]!==text(data[f])){(candidates[f] ||= []).push({value:text(data[f]),source,at});}else if(!values[f]){values[f]=text(data[f]);sources[f]={source,at};}}};
   if(text(i.wording))add({wording:i.wording},'Order iCetak');
   // Never allocate a generic multi-item note or chat by array position.
   if(items.length===1){add(extract(text(o.order_note)),'Note to seller');
@@ -51,7 +53,10 @@ export function orderDetails(o:Data,context:Data={},now=Date.now()){
   }
   const matching=tasks.filter(t=>t.detail?.sku&&text(t.detail.sku)===text(i.sku));
   const assigned=matching.length===1?matching:items.length===1&&tasks.length===1?tasks:[];
-  for(const t of assigned){if(t.detail?.customize_name){const raw=text(t.detail.customize_name),parsed=extract(raw);if(['name','name_age'].includes(rule)&&!parsed.name&&/^[\p{L}][\p{L}\s.'’&-]{1,100}$/u.test(raw)&&!raw.includes('\n'))parsed.name=raw;add({...parsed,...(!['name','name_age'].includes(rule)?{wording:raw}:{})},`ClickUp ${t.id}`,t.source_updated_at);}}
+  for(const t of assigned){if(t.detail?.customize_name){const raw=text(t.detail.customize_name),parsed=extract(raw);if(['name','name_age'].includes(rule)&&!parsed.name&&/^[\p{L}][\p{L}\s.'’&-]{1,100}$/u.test(raw)&&!raw.includes('\n'))parsed.name=raw;add({...parsed,...(!['name','name_age'].includes(rule)&&!parsed.wording?{wording:raw}:{})},`ClickUp ${t.id}`,t.source_updated_at);}}
+  // Complete wording supplied for a topper supersedes title-only name/age inference.
+  // Explicit staff requirements, image requirements and multi-item allocation remain intact.
+  if(!detailRules.includes(config.rule)&&rule==='name_age'&&values.wording)rule='wording';
   // Explicit admin correction supersedes extracted candidates, with item signature protection.
   const changedReply=!!saved.chat_revision&&saved.chat_revision!==JSON.stringify(bindings.map(b=>[b.id,b.revision]));
   for(const f of ['name','age','wording','image'])if(text(config.values?.[f])){
@@ -72,7 +77,7 @@ export function orderDetails(o:Data,context:Data={},now=Date.now()){
  const deadline=saved.deadline||null,deadlineTime=time(deadline),placed=time(o.created_at||o.placed_at);
  const firstAt=Number.isFinite(placed)?new Date(placed+30*60000).toISOString():null;
  const follow=saved.followup||{},waiting=!!follow.sent_at&&follow.revision===JSON.stringify(bindings.map(b=>[b.id,b.revision]));
- const stage=status==='complete'?'ready':locked?'locked':Number.isFinite(deadlineTime)&&now>=deadlineTime?'deadline':waiting?'waiting':firstAt&&now>=time(firstAt)?'followup_due':'grace';
+ const stage=locked?'locked':status==='complete'?'ready':Number.isFinite(deadlineTime)&&now>=deadlineTime?'deadline':waiting?'waiting':firstAt&&now>=time(firstAt)?'followup_due':'grace';
  return {status,label:status==='complete'?'Detail lengkap':status==='missing'?'Belum lengkap':'Perlu semakan',complete,total:result.length,items:result,missing,warnings,
   signature,locked,stage,deadline,first_followup_at:firstAt,followup:follow,bindings,evidence,media:context.media||[],truncated,
   revision:JSON.stringify(bindings.map(b=>[b.id,b.revision])),checked_at:new Date(now).toISOString(),internal_order_id:o.internal_order_id||null,

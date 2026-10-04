@@ -1,8 +1,15 @@
 import assert from 'node:assert/strict';
-import {orderDetails,itemSignature,validateDetailCheck,attachDetailSources} from '../supabase/functions/admin-ai-dashboard/order-details.ts';
+import {orderDetails,itemSignature,validateDetailCheck,attachDetailSources,clickupConfirmed} from '../supabase/functions/admin-ai-dashboard/order-details.ts';
 const now=Date.parse('2026-10-04T02:00:00Z'),id='line0',order={kind:'shopee',id:'11111111-1111-4111-8111-111111111111',reference:'QA-ORDER',status:'READY_TO_SHIP',created_at:'2026-10-04T01:00:00Z',items:[{id,title:'[CUSTOM NAME] Happy Birthday Cake Topper',sku:'CN0270',quantity:1}],production_tasks:[],state:{data:{}}};
 const binding={id:'22222222-2222-4222-8222-222222222222',usable:true,revision:'r1'},message={id:'m1',channel:'shopee',direction:'inbound',text_content:'Adzril Rafif\n6 tahun',created_at:'2026-10-04T01:40:00Z'};
 const ctx={bindings:[binding],messages:[message]};
+const topperNote={...order,order_note:'wording on topper: Happy Birthday Thines Baby ',production_tasks:[{id:'task1',progress_stage:5,detail:{sku:'CN0270',customize_name:'wording on topper: Happy Birthday Thines Baby ',confirmed:true}}]};
+let noteDetails=orderDetails(topperNote,{},now);assert.equal(noteDetails.status,'complete');assert.equal(noteDetails.items[0].rule,'wording');assert.equal(noteDetails.items[0].values.wording,'Happy Birthday Thines Baby');assert.deepEqual(noteDetails.missing,[]);assert.equal(noteDetails.locked,true);assert.equal(noteDetails.stage,'locked');assert.equal(noteDetails.items[0].sources.wording.source,'Note to seller');assert.deepEqual(noteDetails.items[0].candidates,{},'same normalized note and ClickUp wording cannot conflict');
+assert.equal(orderDetails({...order,order_note:topperNote.order_note},{} ,now).status,'complete','checkout note alone must be sufficient without chat or ClickUp task');
+assert.equal(orderDetails({...topperNote,items:[...order.items,{...order.items[0],id:'line1',sku:'CN0271'}],production_tasks:[]},{},now).status,'missing','generic wording note still cannot allocate multi-item details');
+assert.equal(orderDetails({...topperNote,state:{data:{detail_check:{signature:itemSignature(order.items),items:{line0:{rule:'name_age',values:{}}}}}}},{},now).status,'missing','explicit staff requirement must not be downgraded by inferred wording');
+assert.equal(orderDetails({...topperNote,production_tasks:[{...topperNote.production_tasks[0],detail:{sku:'CN0270',customize_name:'wording on topper: Happy Birthday Someone Else'}}]},{} ,now).status,'review');
+for(const v of [true,'true',1,'1'])assert.equal(clickupConfirmed(v),true);for(const v of [false,'false',0,'0'])assert.equal(clickupConfirmed(v),false);assert.equal(clickupConfirmed(null),null);assert.equal(clickupConfirmed('yes'),null);
 let d=orderDetails(order,ctx,now);assert.equal(d.status,'complete');assert.equal(d.items[0].values.name,'Adzril Rafif');assert.equal(d.items[0].values.age,'6');assert.equal(d.stage,'ready');
 assert.equal(orderDetails(order,{messages:[message]},now).status,'missing','unbound chat must never fill an order');
 assert.equal(orderDetails(order,{...ctx,ambiguous:true},now).status,'missing');assert.equal(orderDetails(order,{...ctx,truncated:true},now).status,'missing');
