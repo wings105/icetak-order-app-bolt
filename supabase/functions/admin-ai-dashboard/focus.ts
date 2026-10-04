@@ -1,5 +1,6 @@
 import { analyze, identity } from './analysis.ts';
 import { orderOperation } from './operations.ts';
+import { orderDetails } from './order-details.ts';
 type Data = Record<string, any>;
 const norm=(v:unknown)=>String(v||'').toLowerCase().trim().replace(/\s+/g,'_');
 const time=(v:unknown)=>{const n=Date.parse(String(v||''));return Number.isFinite(n)&&n>Date.parse('2020-01-01')?n:null;};
@@ -52,7 +53,10 @@ export function focusRows(snapshot:Data,chats:Data[],identities:Data,now=Date.no
  };
  function decorate(row:Data,s:Data,work:Data){
   const d=s.data||{},current=['design_done','production_done'].includes(d.work_state)&&d.work_source_fingerprint?d.work_source_fingerprint===work.fingerprint:d.observation_fingerprint?d.observation_fingerprint===row.observation_fingerprint:d.source_fingerprint===row.source_fingerprint;
-  row.state=s;row.detail_status=d.detail_status||'unknown';row.missing_details=d.missing_details||'';row.note=d.note||'';
+  row.state=s;row.detail_collection=orderDetails(row,row.detail_context||{},now);
+  delete row.detail_context;
+  row.detail_status=d.detail_check?row.detail_collection.status==='review'?'unknown':row.detail_collection.status:d.detail_status&&d.detail_status!=='unknown'?d.detail_status:row.detail_collection.status==='review'?'unknown':row.detail_collection.status;
+  row.missing_details=d.detail_check?row.detail_collection.missing.join(', '):d.missing_details||row.detail_collection.missing.join(', ');row.note=d.note||'';
   row.customer_needed=d.customer_needed||row.customer_needed||null;row.dispatch_by=d.dispatch_by||null;row.design_by=d.design_by||null;
   row.urgent=!!d.urgent||row.chat.urgent||row.chat.complaint;row.snoozed_until=d.snoozed_until||null;
   row.manual_work=current?d.work_state||'': '';row.manual_expired=!!d.work_state&&!current;
@@ -162,5 +166,7 @@ export function validateFocusUpdate(b:Data,row:Data){
  for(const k of ['customer_needed','dispatch_by','design_by','snoozed_until']){out[k]=d[k]||null;if(out[k]&&(time(out[k])==null||time(out[k])!>Date.parse('2100-01-01')))throw Error('Semak tarikh');}
  out.urgent=d.urgent===true;out.source_fingerprint=row.source_fingerprint;out.chat_revision=row.chat.revision||null;
  out.observation_fingerprint=row.observation_fingerprint||null;out.work_source_fingerprint=row.work?.fingerprint||null;
+ // The dedicated detail workflow owns validated item/session data. Ordinary panel marks preserve it.
+ if(row.state?.data?.detail_check)out.detail_check=row.state.data.detail_check;
  return out;
 }

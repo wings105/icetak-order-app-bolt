@@ -1,0 +1,45 @@
+# Order detail collection and chat sessions
+
+2026-10-04. Status: VERIFIED in the real gateway and rendered components with controlled saves and actual read snapshots. Backend deployed; authenticated hosted-owner save confirmation remains pending.
+
+## Staff surface
+
+Marketplace Orders retains its list and platform statuses. CRM-authorized staff see Detail Order, Follow-up / Deadline and ClickUp / Production columns. Customer Focus uses the same evaluator and opens the same Detail / session panel. Separate indicators describe the internal iCetak order link, ClickUp task link and usable chat-session link. Marketplace `internal_order_id` being null does not imply no ClickUp task.
+
+Each item has an explicit requirement: standard, name, name + age, wording, image, image + wording, or review. Conservative title inference is a starting point; unknown products need staff review. Completeness follows required fields, multiple-unit same-design confirmation and current item facts. Multi-item generic chat is not allocated by array position. Reference images require an explicit final image selection. Known notes, canonical wording and exact ClickUp SKU/task matches are shown with provenance. Conflicting new customer details reopen review; acknowledgements do not invalidate an explicit staff correction.
+
+The panel preserves existing task/payment/shipping ownership. Saving its detail state does not change order items, payment status, ClickUp task fields or production status. Task stage >= 5 locks the corresponding item; fully started or closed orders lock the panel. New item facts invalidate older confirmations. The platform's READY_TO_SHIP badge remains separate from detail/design readiness.
+
+## Session boundaries
+
+Reuse existing Inbox Shopee order sessions by exact order reference. Only usable open scopes supply automatic text extraction; history, ambiguous scopes and truncated reads cannot fill fields automatically. Staff may bind up to four exact-identity WhatsApp/Shopee conversations and specify a start/end window, including relevant pre-order text. The Order System checks prior canonical order-session closure; Inbox clamps messages against Shopee session cutoffs and previous closed-order boundaries. Closed order sources cannot become usable through a manual binding.
+
+Draft-first `order_sessions` remain canonical draft/payment creation sessions and close on conversion. Post-order detail collection belongs to private Customer Focus state; it never reopens those draft sessions. Same customer identity alone does not automatically allocate every chat to every order.
+
+## Contracts and access
+
+Order System service-only `icetak_order_detail_sources(jsonb)` returns latest exact-linked ClickUp Customize Name / confirmed / SKU facts and marketplace internal-order links. It does not alter mappings or backfill historical events. Inbox service-only `icetak_order_detail_context(jsonb)` reads at most 50 requested orders and the last 120 messages per scope, exposing truncation and scope provenance. Neither RPC grants anon/authenticated access.
+
+JWT-protected `admin-ai-dashboard` offers:
+
+- `order_details`: 1–50 exact `icetak:UUID` / `shopee:UUID` keys; returns only requested order rows, scoped evidence, same-identity candidate conversations and read/manage capabilities.
+- `order_detail_save`: current source fingerprint, item signature, expected private-state version, UUID request ID and detail check. Existing versioned `icetak_customer_focus_save` stores private state and audit. A repeated identical request returns the original result; reused IDs with different payload/actor/order conflict. Server revisions and actor replace browser claims.
+
+Inbox `ai-dashboard-bridge` retains custom server token authentication. Existing CRM view/manage permission checks apply to the frontend and gateway. All changes are in Admin V2; customer/storefront ownership is preserved.
+
+## Follow-up scope and missing adapters
+
+The evaluator identifies an incomplete order after 30 minutes, an observed manual follow-up waiting for its next inbound revision, and an explicitly configured detail deadline. The deadline takes priority over waiting. Staff can copy the detail request and record "Saya sudah follow-up"; this is an external action observation, not a provider delivery claim. No deadline/SLA is silently inferred from shipping time.
+
+Automatic Shopee sends, deadline/default-item messages and ClickUp Customize Name/confirmed writeback are NOT enabled in this release. On inspection, Inbox private runtime settings had no `shopee_chat_send_endpoint`/token. The existing Shopee send adapter therefore has no connected destination. No direct ClickUp credential/writeback adapter was available either. The detail gateway reports `shopee_send: false`; frontend copy explains manual follow-up.
+
+To enable those integrations next, connect the actual AP/Shopee send adapter and the ClickUp writeback route. Then verify one controlled order end to end: 30-minute request sent once, inbound scoped to its order, confirmed item values written once to the exact task, and a due-default send only for an eligible product with no intervening reply or started production. Durable scheduling, provider receipts, retries and exact task mapping must be proven before claiming autonomous operation.
+
+## Verification evidence
+
+- `scripts/check-order-details.mjs`: session-bound extraction, old/history/unbound/ambiguous/multi-item/media exclusions, quantity confirmation, item signatures, fresh corrections vs acknowledgements, per-item/whole-order locks, deadline/waiting order and binding guards.
+- `scripts/check-order-details-gateway.mjs`: actual handler; requested-order isolation, save/reload, trusted actor, one-event retry, conflicting retry, source/version/identity/reader guards and production deletion rejection; no provider/order/payment writes.
+- Existing Customer Focus model/gateway and AI Dashboard regressions pass.
+- Real Customer Focus and Marketplace list/panel rendered against full actual order snapshot plus isolated QA order and controlled actual gateway saves. 1440×1000 and 390×844: save/reload, other-channel binding, deadline/manual follow-up, lost-response retry and reader capability checks pass; no page runtime errors or document overflow.
+- Live save/audit assertions ran inside rollback: one identical retry result/event, private detail persisted, zero retained QA states/events. Live Inbox checked ten open source sessions with `closed=true`: zero usable scopes. Service-only grants and backend exact source/auth-mode readback verified. No-auth calls rejected with 401.
+- Admin TypeScript 6 check, source ownership guard and full storefront + isolated Inbox build pass. Run Admin typecheck with its own package's compiler, not the root TypeScript 5 compiler.

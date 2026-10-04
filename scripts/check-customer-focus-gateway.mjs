@@ -31,6 +31,7 @@ try{
   else if(path.includes('/rpc/icetak_customer_focus_snapshot'))data=structuredClone(snapshot);
   else if(path.includes('/rpc/icetak_customer_focus_drafts'))data={rows:[],total:0};
   else if(path.includes('/rpc/icetak_customer_focus_identities'))data=identities;
+  else if(path.includes('/rpc/icetak_order_detail_sources'))data={tasks:{},links:{}};
   else if(path.includes('/rpc/icetak_customer_focus_save')){
    if(body.p_key===failSave)return Response.json({message:'fixture save unavailable'},{status:503});
    const old=events.get(body.p_request),input=JSON.stringify(body);

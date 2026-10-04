@@ -1,3 +1,4 @@
+import { attachDetailSources, orderDetails, validateDetailCheck } from './order-details.ts';
 import { enrichContexts } from './enrich.ts';
 import { focusRows, validateFocusUpdate } from './focus.ts';
 import { orderOperation } from './operations.ts';
@@ -78,7 +79,19 @@ async function enabled(){
  const value=rows?.[0]?.text_value||rows?.[0]?.value;
  return value===true||value==='true'||value==='1'||value==='on';
 }
+async function detailContexts(rows:any[],source:any,identities:any){
+ const requests=rows.map(r=>{
+  const approved=new Set((r.conversations||[]).filter((x:any)=>identities[x.id]?.identity_status!=='ambiguous').map((x:any)=>x.id));
+  const saved=r.state?.data?.detail_check?.bindings||[];
+  return {key:r.key,reference:r.reference,closed:r.work?.shipped||r.work?.closed||false,bindings:saved.filter((x:any)=>approved.has(x.conversation_id)),binding_invalid:saved.some((x:any)=>!approved.has(x.conversation_id))};
+ });
+ const contexts:any={};
+ for(let i=0;i<requests.length;i+=250){const batch=requests.slice(i,i+250);const results=await Promise.all(Array.from({length:Math.ceil(batch.length/50)},(_,j)=>inbox({action:'order_details',orders:batch.slice(j*50,j*50+50)})));for(const r of results)Object.assign(contexts,r.contexts||{});}
+ for(const r of requests){const c=contexts[r.key]||{};if(r.binding_invalid){c.ambiguous=true;c.bindings=[];c.messages=[];}c.media=(c.messages||[]).filter((m:any)=>m.direction==='inbound'&&m.media_url).map((m:any)=>({url:m.media_url,caption:m.caption,id:m.id,at:m.created_at}));contexts[r.key]=c;}
+ return contexts;
+}
 const isUuid=(v:unknown)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v||''));
+const stable=(v:any):string=>JSON.stringify(v&&typeof v==='object'?Array.isArray(v)?v.map(x=>JSON.parse(stable(x))):Object.fromEntries(Object.keys(v).sort().map(k=>[k,JSON.parse(stable(v[k]))])):v);
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});
  if(req.method!=='POST')return json({ok:false,error:'POST required'},405);
@@ -90,14 +103,69 @@ Deno.serve(async req=>{
   const canManage=owner||admin.permissions.includes('manage_customers');
   if(!canRead)return json({ok:false,error:'Akses CRM diperlukan.'},403);
   const b=await req.json();const action=String(b.action||'list');
-  if(!['focus','focus_save','focus_bulk_save','list','work','detail','review','send','training','training_list','case_order'].includes(action))return json({ok:false,error:'Invalid action'},400);
-  if(!['focus','focus_save','focus_bulk_save','list','work','training_list'].includes(action)&&!isUuid(b.conversation_id))return json({ok:false,error:'Invalid conversation ID'},400);
+  if(!['order_details','order_detail_save','focus','focus_save','focus_bulk_save','list','work','detail','review','send','training','training_list','case_order'].includes(action))return json({ok:false,error:'Invalid action'},400);
+  if(!['order_details','order_detail_save','focus','focus_save','focus_bulk_save','list','work','training_list'].includes(action)&&!isUuid(b.conversation_id))return json({ok:false,error:'Invalid conversation ID'},400);
   if(['review','send','training','case_order'].includes(action)&&!canManage)return json({ok:false,error:'Manage Customers permission required'},403);
+  if(action==='order_details'||action==='order_detail_save'){
+   if(action==='order_detail_save'&&!canManage)return json({ok:false,error:'Manage Customers permission required'},403);
+   if(action==='order_detail_save'){
+    if(!isUuid(b.request_id))return json({ok:false,error:'Invalid request ID'},400);
+    const previous=await rest(`customer_focus_events?request_id=eq.${b.request_id}&select=row_key,actor,input,result&limit=1`);
+    if(previous[0]){const e=previous[0],payload={row_key:b.row_key,expected_version:b.expected_version,source_fingerprint:b.source_fingerprint,detail_check:b.detail_check};
+     if(e.row_key!==b.row_key||e.actor!==admin.username||!e.input.detail_request||stable(e.input.detail_request)!==stable(payload))return json({ok:false,error:'REQUEST_CONFLICT'},409);
+     return json({ok:true,state:e.result,duplicate:true});
+    }
+   }
+   const keys=action==='order_detail_save'?[b.row_key]:b.keys;
+   if(!Array.isArray(keys)||!keys.length||keys.length>50||keys.some(k=>!/^((icetak|shopee):[0-9a-f-]{36})$/.test(String(k))))return json({ok:false,error:'Pilih 1 hingga 50 order'},400);
+   const [snapshot,source,details]=await Promise.all([rpc('icetak_customer_focus_snapshot',{}),inbox({action:'focus'}),rpc('icetak_order_detail_sources',{p_keys:keys})]);
+   snapshot.orders=snapshot.orders.filter((o:any)=>keys.includes(`${o.kind}:${o.id}`));attachDetailSources(snapshot,details);
+   const identities=await rpc('icetak_customer_focus_identities',{p_identities:source.rows.map(identity)});
+   let rows=focusRows(snapshot,source.rows,identities).filter((r:any)=>keys.includes(r.key));
+   const candidates=(row:any)=>source.rows.filter((c:any)=>row.conversations.some((x:any)=>x.id===c.id)).map((c:any)=>({id:c.id,name:c.name,channel:c.channel,ambiguous:identities[c.id]?.identity_status==='ambiguous',last_inbound_at:c.last_inbound_at,boundary_at:'2020-01-01T00:00:00Z'}));
+   if(action==='order_detail_save'){
+    const row=rows.find((r:any)=>r.key===b.row_key);if(!row||!isUuid(b.request_id)||!Number.isInteger(b.expected_version)||b.expected_version<0)return json({ok:false,error:'Order / request tidak sah'},400);
+    if(row.source_fingerprint!==b.source_fingerprint)return json({ok:false,error:'SOURCE_CHANGED: Muat semula order'},409);
+    const eligible=candidates(row);
+    for(const binding of b.detail_check?.bindings||[]){
+     if(!isUuid(binding.conversation_id))return json({ok:false,error:'Invalid conversation ID'},400);
+     const candidate=eligible.find((c:any)=>c.id===binding.conversation_id);if(!candidate)continue;
+     const previous=await rest(`order_sessions?conversation_id=eq.${binding.conversation_id}&closed_at=lt.${encodeURIComponent(row.created_at)}&select=closed_at,order_id&order=closed_at.desc&limit=5`);
+     const boundary=previous.find((s:any)=>s.order_id!==row.id&&s.order_id!==row.internal_order_id);
+     if(boundary)candidate.boundary_at=boundary.closed_at;
+    }
+    const context={candidates:eligible,revision:b.revision};
+    // Lock decision comes from actual task state, never the browser.
+    const existingContexts=await detailContexts([row],source,identities);
+    row.detail_collection=orderDetails(row,existingContexts[row.key]||{});
+    let detailCheck:any;
+    try{detailCheck=validateDetailCheck(b.detail_check||{},row,context);}catch(error){const message=error instanceof Error?error.message:String(error);return json({ok:false,error:message},message.includes('SOURCE_CHANGED')?409:400);}
+    // Never let an arbitrary browser revision masquerade as a recorded customer response.
+    const checked=await inbox({action:'order_details',orders:[{key:row.key,reference:row.reference,closed:row.work?.shipped||row.work?.closed||false,bindings:detailCheck.bindings}]});
+    const actualContext=checked.contexts?.[row.key]||{};
+    detailCheck.chat_revision=JSON.stringify((actualContext.bindings||[]).map((x:any)=>[x.id,x.revision]));
+    if(b.detail_check?.mark_followup===true)detailCheck.followup.revision=JSON.stringify((actualContext.bindings||[]).map((x:any)=>[x.id,x.revision]));
+    row.state={...row.state,data:{...row.state.data,detail_check:detailCheck}};
+    const result=orderDetails(row,actualContext);
+    const panel=validateFocusUpdate({...b,data:{...row.state.data,detail_status:result.status==='review'?'unknown':result.status,missing_details:result.missing.join(', ')}},row);
+    panel.detail_request={row_key:b.row_key,expected_version:b.expected_version,source_fingerprint:b.source_fingerprint,detail_check:b.detail_check};
+    const state=await rpc('icetak_customer_focus_save',{p_key:row.key,p_actor:admin.username,p_version:b.expected_version,p_request:b.request_id,p_data:panel});
+    return json({ok:true,state,detail_collection:result});
+   }
+   const contexts=await detailContexts(rows,source,identities);
+   rows=rows.map((r:any)=>{const ctx=contexts[r.key]||{};
+    return {...r,detail_collection:orderDetails(r,ctx),detail_candidates:candidates(r)};});
+   return json({ok:true,rows,capabilities:{can_manage:canManage,shopee_send:false},fetched_at:new Date().toISOString()});
+  }
   if(action==='focus'||action==='focus_save'||action==='focus_bulk_save'){
    if(action!=='focus'&&!canManage)return json({ok:false,error:'Manage Customers permission required'},403);
    if(action==='focus_bulk_save'&&(!Array.isArray(b.updates)||b.updates.length<1||b.updates.length>50||new Set(b.updates.map((u:any)=>u?.row_key)).size!==b.updates.length))return json({ok:false,error:'Pilih 1 hingga 50 rekod unik.'},400);
    const [snapshot,source,drafts]=await Promise.all([rpc('icetak_customer_focus_snapshot',{}),inbox({action:'focus'}),rpc('icetak_customer_focus_drafts',{})]);snapshot.drafts=drafts.rows||[];
-   const identities=await rpc('icetak_customer_focus_identities',{p_identities:source.rows.map(identity)});
+   const [identities,detailSources]=await Promise.all([rpc('icetak_customer_focus_identities',{p_identities:source.rows.map(identity)}),rpc('icetak_order_detail_sources',{p_keys:[]})]);attachDetailSources(snapshot,detailSources);
+   const initialRows=focusRows(snapshot,source.rows,identities);
+   const current=initialRows.filter((r:any)=>['icetak','shopee'].includes(r.kind)&&!r.history&&r.work.active);
+   const contexts=await detailContexts(current,source,identities);
+   for(const o of snapshot.orders||[])o.detail_context=contexts[`${o.kind}:${o.id}`]||{};
    const rows=focusRows(snapshot,source.rows,identities).filter((r:any)=>r.kind==='chat'||r.work.active||r.chat.reply||(r.history&&r.chat.id&&r.chat.order_confirmed));
    if(action==='focus_bulk_save'){
     const targets=new Map<string,any>(rows.map((r:any)=>[r.key,r]));

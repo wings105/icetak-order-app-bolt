@@ -24,6 +24,10 @@ Deno.serve(async req=>{
   if(!expected||!supplied||supplied!==expected)return out({ok:false,error:'Unauthorized'},401);
   const b=await req.json();const action=t(b.action)||'list';
   if(action==='capabilities')return out({ok:true,...await capability()});
+  if(action==='order_details'){
+   if(!Array.isArray(b.orders)||b.orders.length>50)return out({ok:false,error:'Maksimum 50 order'},400);
+   return out({ok:true,contexts:await db('rpc/icetak_order_detail_context',{p_orders:b.orders})});
+  }
   if(action==='focus')return out({ok:true,...await db('rpc/icetak_customer_focus_chats',{})});
   if(action==='list'||action==='detail'){
    if(action==='detail'&&!uuid(b.conversation_id))return out({ok:false,error:'Invalid conversation ID'},400);
