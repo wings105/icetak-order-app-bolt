@@ -1,3 +1,4 @@
+import DirectContribution from '../components/DirectContribution';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import './OrdersEnterprise.css';
@@ -770,6 +771,7 @@ function OrderDrawer({ detail, loading, permissions, busyId, onClose, onReload, 
             <KV k="Status" v={order.payment || '—'} /><KV k="Method" v={order.paymentMethod || '—'} /><KV k="Shipping Fee" v={money(order.deliveryFee)} /><KV k="Total" v={money(order.total)} /><KV k="Paid At" v={formatDateTime(order.paidAt)} /><KV k="Verified By" v={order.paymentVerifiedBy || '—'} />
             <div className="erp-card-actions">{norm(order.delivery).includes('pickup') && order.isUnpaid && canEdit && !order.isCash && <button className="btn btn-outline btn-sm" onClick={() => onAction(order, 'set_pay_at_pickup')}>Set Pay at Pickup</button>}{norm(order.delivery).includes('pickup') && order.isUnpaid && order.isCash && canVerify && <button className="btn btn-primary btn-sm" onClick={() => onAction(order, 'confirm_cash_paid')}>Confirm Cash Paid</button>}</div>
           </DrawerCard>
+          {permissions.includes('view_finance')&&<DrawerCard title="Target & Margin"><DirectContribution key={order.dbId} orderId={order.dbId} canManage={permissions.includes('manage_finance')}/></DrawerCard>}
           <DrawerCard title="Transactions">
             {detail.payments.length ? detail.payments.map((p) => <div className="erp-history-row" key={p.id}>
               <div><b>{money(p.amount)}</b><span>{p.provider || 'payment'} · {p.senderName || '—'}</span>{p.transactionId && <span>{p.transactionId}</span>}{canVerify && canUndoSyntheticManualPayment(p) && <button className="btn btn-danger btn-sm" disabled={undoPaymentId !== null} onClick={() => void undoManualPayment(p)}>{undoPaymentId === p.id ? 'Undoing…' : 'Undo Manual Payment'}</button>}</div>

@@ -186,3 +186,7 @@ Use one shared per-item evaluator/session panel in the existing Marketplace and 
 ## 2026-10-04 — Trusted webhook phone joins WhatsApp and Shopee CRM identity
 
 Owner explicitly authorized merging customer masters from authenticated webhook phone evidence. For an existing exact Shopee order/customer, use normalized phone plus verified inbound WhatsApp phone identifiers; retain that WhatsApp owner to preserve Inbox identity references. Use the existing CRM merge contract and remap legacy staging references atomically in a service-only RPC. Names, generic chat text, CSV and reference-free mappings cannot trigger auto-merge. Conflicting verified phones or competing owners remain review cases. This changes CRM identity ownership, not per-order chat boundaries: bind only the specific order's message interval; final artwork still requires selection.
+
+## 2026-10-04 — Contribution targets
+
+Admin V2 now has a VERIFIED contribution-target read model and direct-order cost review. The Order System privately owns goal/workday settings and direct cost overrides; existing Shopee nett/cost and sales-channel identity/date rules remain authoritative. Dashboard and Finance distinguish known actual/estimated totals, missing orders and overhead goals. finance-admin v32 deployed with unchanged owner/JWT gates; no accounting journal, payment/provider or historical cost backfill. Hosted owner UI interaction remains pending. See [CONTRIBUTION_TARGETS.md](CONTRIBUTION_TARGETS.md) for formulas, cohort limits and evidence.

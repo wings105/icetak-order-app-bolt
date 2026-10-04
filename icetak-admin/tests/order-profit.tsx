@@ -11,10 +11,36 @@ first['finance_source' as keyof typeof first]='webhook' as any;
 first['finance_history' as keyof typeof first]=[{id:1,source:'webhook',captured_at:new Date().toISOString(),metrics:(first as any).finance_metrics}] as any;
 let rows:any[]=[first,{...structuredClone(first),order_id:'00000000-0000-4000-8000-000000000002',order_sn:'QA-MISSING-002',nett:null,escrow_amount:null,income_state:'missing',profit:null,margin:null,profit_state:'incomplete'},{...structuredClone(first),order_id:'00000000-0000-4000-8000-000000000003',order_sn:'QA-RELEASED-003',nett:7,released_amount:7,income_state:'released',released_at:new Date().toISOString(),profit:5.73,margin:57.3}];
 let settings={version:1,rates:{topper:12.7,edible:42.5,wafer:23.33,acrylic:15.83},sku_costs:{},effective_at:'1970-01-01T00:00:00Z'};
+
+let targetSettings={version:1,overhead:5000,owner_income:0,workdays:[0,1,2,3,4,6],holidays:[] as string[]};
+const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur'}).format(new Date());
+let direct:any={order_id:'00000000-0000-4000-8000-000000000099',reference:'QA-DIRECT-024',channel:'deco',day:date,status:'Ready to Process',sales:24,customer_paid:28.5,shipping_charged:4.5,courier:4.5,courier_state:'estimated',fee:0,nett:24,material:10.2,extras:0,contribution:13.8,margin:57.5,state:'estimated',income_state:'transaction',included:true,reasons:[],version:0,signature:'qa-direct-sig',material_override:null,courier_override:null,material_actual:false,courier_actual:false,extras_actual:false,note:'',lines:[{title:'Edible Image',qty:1,category:'edible',goods:24,material:10.2}]};
+let targetFailed=false;(window as any).__targetQA={setFailed:(b:boolean)=>{targetFailed=b},get settings(){return targetSettings},get direct(){return direct}};
+
 const calls:any[]=[];(window as any).__profitQA={calls,get rows(){return rows},get settings(){return settings}};
 const ok=(data:any)=>({data:{success:true,data},error:null});
 const client={auth:{signOut:async()=>({error:null})},rpc:async(name:string)=>({data:name==='icetak_admin_marketplace_orders'?{rows:rows.map(r=>({id:r.order_id,provider:r.provider,orderSn:r.order_sn,buyerUsername:r.buyer,status:r.status,paymentStatus:'paid',fulfillmentStatus:'shipped',courier:'SPX',buyerPaid:r.buyer_paid,currency:r.currency,placedAt:r.placed_at,items:r.material_lines.map((l:any)=>({title:l.title,sku:l.sku,qty:l.quantity})),itemCount:r.material_lines.length})),total:rows.length,summary:{all:rows.length,completed:rows.length}}:{attention:0},error:null}),functions:{invoke:async(name:string,{body}:{body:any})=>{
-  calls.push({name,body});if(name!=='finance-admin')return {data:{ok:true,url:''},error:null};
+  calls.push({name,body});if(name==='admin-command-center')return {data:{ok:true,fetched_at:new Date().toISOString(),warnings:[],capabilities:{finance:false,chat:false,manage_sales:false},order:{period:{},backlog:{},trend:[],pipeline:[],production:[],products:[],couriers:[],shipping_status:[],shipping_aging:[],returns:[],focus:[],opportunities:[],sales_funnel:[],staff_activity:[],ai_training:[],health:{},limitations:[]},inbox:null},error:null};if(name!=='finance-admin')return {data:{ok:true,url:''},error:null};
+
+  if(body.action==='contribution_report'){
+    if((window as any).__targetLive)return ok(structuredClone((window as any).__targetLive));
+    if(targetFailed)return {data:{success:false,error:'QA finance connection failed'},error:null};
+    const shoe={...direct,order_id:first.order_id,reference:first.order_sn,channel:'shopee',sales:10,customer_paid:10,fee:2.86,courier:null,courier_state:'in_nett',nett:7.14,material:1.27,contribution:5.87,margin:58.7};
+    const miss={...shoe,order_id:rows[1].order_id,reference:'QA-MISSING-002',state:'incomplete',contribution:null,margin:null,nett:null,reasons:['Nett belum lengkap']};
+    const loss={...shoe,order_id:'00000000-0000-4000-8000-000000000004',reference:'QA-LOSS-004',nett:0,contribution:-1.27,margin:-12.7};
+    const known=direct.contribution+5.87-1.27,goal=targetSettings.overhead+targetSettings.owner_income;
+    const all=body.month==='2000-01-01'?[]:[direct,shoe,miss,loss];
+    let list=all.filter(o=>(!body.channel||body.channel==='all'||body.channel===o.channel)&&(!body.state||body.state==='all'||body.state===o.state||body.state==='loss'&&o.contribution<0)&&(!body.query||o.reference.includes(body.query)));
+    if(body.sort==='contribution_asc')list.sort((a,b)=>(a.contribution??Infinity)-(b.contribution??Infinity));if(body.sort==='contribution_desc')list.sort((a,b)=>(b.contribution??-Infinity)-(a.contribution??-Infinity));
+    return ok({month:body.month||date.slice(0,7)+'-01',today:date,fetched_at:new Date().toISOString(),settings:targetSettings,total:list.length,rows:list,channels:all.length?[{channel:'deco',orders:1,missing:0,contribution:direct.contribution,sales:24,margin:direct.margin},{channel:'shopee',orders:3,missing:1,contribution:4.60,sales:30,margin:null}]:[],summary:{goal,known:all.length?known:0,actual:direct.state==='actual'?direct.contribution:0,estimated:known-(direct.state==='actual'?direct.contribution:0),today:known,missing:all.length?1:0,included_orders:all.length,excluded_orders:0,remaining:goal-known,after_overhead:known-targetSettings.overhead,workdays:26,remaining_days:24,is_workday:true,daily_base:goal/26,daily_target:208.34,daily_gap:208.34-known}});
+  }
+  if(body.action==='contribution_detail')return ok(structuredClone(direct));
+  if(body.action==='direct_costs_save'){
+    const c=body.costs;direct={...direct,...c,material_override:c.material,courier_override:c.courier,material:c.material??10.2,courier:c.courier??4.5,version:direct.version+1,courier_state:c.courier_actual?'actual':'estimated'};
+    direct.nett=28.5-direct.courier;direct.contribution=direct.nett-direct.material-direct.extras;direct.margin=direct.contribution/24*100;direct.state=c.material_actual&&c.courier_actual&&c.extras_actual?'actual':'estimated';return ok(structuredClone(direct));
+  }
+  if(body.action==='contribution_settings_save'){targetSettings={...body.settings,version:targetSettings.version+1};return ok(targetSettings)}
+
   if(body.action==='sales_channel_report'){
     const r:any=structuredClone(channelFixture);
     const own={...r.rows[0],channel:'deco',reference:'QA-DECO-001',order_id:'00000000-0000-4000-8000-000000000099',profit:null,profit_state:'incomplete',payment_evidence:'transaction',pending:12,included:true,repeat_customer:true};

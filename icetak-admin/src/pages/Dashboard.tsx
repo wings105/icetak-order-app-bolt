@@ -9,7 +9,8 @@ import DeliveryIcon from '../components/command-center/DeliveryIcon';
 import { adminHref, dateTime, money, number, stages } from '../components/command-center/contracts';
 import type { Breakdown, Snapshot } from '../components/command-center/contracts';
 import './Dashboard.css';
-type Props={onOpenFocus?:()=>void;adminOrders?:unknown[];onQuickOrder?:()=>void;onOpenOrder?:(reference:string)=>void};
+import ContributionTarget from '../components/ContributionTarget';
+type Props={canViewFinance?:boolean;onOpenTarget?:()=>void;onOpenFocus?:()=>void;adminOrders?:unknown[];onQuickOrder?:()=>void;onOpenOrder?:(reference:string)=>void};
 type Tab='overview'|'sales'|'orders'|'shipping'|'finance';
 const tabs:[Tab,string][]=[['overview','Ringkasan'],['sales','Sales & Chat'],['orders','Orders & Production'],['shipping','Shipping'],['finance','Finance & Health']];
 const day=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -18,7 +19,7 @@ function Copy({value}:{value:string}){const [notice,setNotice]=useState('');retu
 function Panel({title,hint,children,full=false,action}:{title:string;hint?:string;children:ReactNode;full?:boolean;action?:ReactNode}){return <section className={`cc-panel ${full?'cc-full':''}`}><div className="cc-panel-head"><div><h2>{title}</h2>{hint&&<p>{hint}</p>}</div>{action}</div>{children}</section>;}
 function Metric({label,value,hint,href,accent=false}:{label:string;value:ReactNode;hint:string;href?:string;accent?:boolean}){const content=<><span>{label}</span><strong>{value}</strong><small>{hint}</small></>;return href?<a className={`cc-metric ${accent?'accent':''}`} href={href}>{content}</a>:<div className={`cc-metric ${accent?'accent':''}`}>{content}</div>;}
 function BreakdownPanel({title,hint,rows,color,onSelect}:{title:string;hint:string;rows:Breakdown[];color?:string;onSelect?:(r:Breakdown)=>void}){return <Panel title={title} hint={hint}><Bars rows={rows} color={color} onSelect={onSelect}/></Panel>;}
-export default function Dashboard({onQuickOrder,onOpenOrder,onOpenFocus}:Props){
+export default function Dashboard({onQuickOrder,onOpenOrder,onOpenFocus,canViewFinance,onOpenTarget}:Props){
  const [tab,setTab]=useState<Tab>('overview'),[preset,setPreset]=useState('today'),[from,setFrom]=useState(day),[to,setTo]=useState(day),[source,setSource]=useState('all');
  const [data,setData]=useState<Snapshot|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[auto,setAuto]=useState(false);
  const [focusType,setFocusType]=useState('all'),[detail,setDetail]=useState<{title:string;rows:Breakdown[]}|null>(null);
@@ -49,6 +50,7 @@ export default function Dashboard({onQuickOrder,onOpenOrder,onOpenFocus}:Props){
  const periodHint=`${from} → ${to} · MYT`;
  return <div className="cc fade-in">
   <div className="cc-heading"><div><h1>Business Command Center</h1><p>Seluruh operasi iCetak dalam satu pandangan</p></div><div className="cc-heading-actions"><button className="btn" onClick={()=>void load(true)} disabled={loading}>{loading?'Memuatkan…':'↻ Muat semula'}</button>{onQuickOrder&&<button className="btn btn-primary" onClick={onQuickOrder}><IconPlus size={14}/> Create Order</button>}</div></div>
+  {canViewFinance&&onOpenTarget&&<ContributionTarget onOpen={onOpenTarget} refreshKey={data?.fetched_at}/>}
   <div className="cc-toolbar"><div className="cc-presets">{[['today','Today'],['yesterday','Semalam'],['7','7 hari'],['30','30 hari'],['custom','Custom']].map(([v,label])=><button key={v} className={preset===v?'active':''} onClick={()=>selectPreset(v)}>{label}</button>)}</div><label className="cc-source">Sumber<select aria-label="Sumber data" value={source} onChange={e=>setSource(e.target.value)}><option value="all">Semua sumber</option><option value="icetak">iCetak / WhatsApp</option><option value="shopee">Shopee</option></select></label><label className="cc-auto"><input type="checkbox" checked={auto} onChange={e=>setAuto(e.target.checked)}/> Auto refresh 60s</label></div>
   {preset==='custom'&&<div className="cc-date-range"><label>Dari<input type="date" value={from} max={to} onChange={e=>setFrom(e.target.value)}/></label><label>Hingga<input type="date" value={to} min={from} onChange={e=>setTo(e.target.value)}/></label><small>Maksimum 93 hari</small></div>}
   <nav className="cc-tabs" aria-label="Dashboard views">{tabs.map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)} aria-current={tab===key?'page':undefined}>{label}</button>)}</nav>

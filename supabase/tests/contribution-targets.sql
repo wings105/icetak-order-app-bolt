@@ -1,0 +1,52 @@
+-- Transactional finance QA: no retained orders, costs, payments, parcels, events or settings.
+begin;
+do $test$
+declare oid uuid:=gen_random_uuid();iid uuid;sid uuid;pid uuid;r jsonb;s jsonb;v int;sig text;row_count int;known numeric;channel_sum numeric;
+begin
+ insert into public.orders(id,source,order_no,total,delivery_fee,delivery_method,payment_status,payment,status,production_approved,customer_confirmed,whatsapp_opt_in,pickup_payment_whatsapp_enabled,created_at)
+ values(oid,'contribution-qa','QA-CONTRIBUTION',28.50,4.50,'courier','paid','Paid','Ready to Process',false,false,false,false,now());
+ insert into public.order_items(order_id,k,product_type,title,price,qty) values(oid,'edible','edible','Edible Image',24,1) returning id into iid;
+ r:=finance.direct_margin_row(oid);
+ if (r->>'material')::numeric<>10.20 or (r->>'contribution')::numeric<>13.80 or r->>'state'<>'estimated' or r->>'income_state'<>'paid_status_only' then raise exception '24 + 4.5 - courier - material calculation failed: %',r;end if;
+ insert into public.payment_transactions(order_id,provider,amount,transaction_id) values(oid,'contribution_qa',28.50,'QA-'||oid) returning id into pid;
+ insert into public.shipments(order_id,provider,status,quoted_amount,currency) values(oid,'contribution_qa','draft',5.50,'MYR') returning id into sid;
+ r:=finance.direct_margin_row(oid);
+ if (r->>'contribution')::numeric<>12.80 or r->>'courier_state'<>'estimated' then raise exception 'Quoted parcel cost not used';end if;
+ r:=public.finance_direct_costs_save(oid,0,r->>'signature','{"material":10.2,"courier":4.5,"extras":0,"material_actual":true,"courier_actual":false,"extras_actual":true}','qa');
+ update public.shipments set charged_amount=6.00 where id=sid;
+ r:=finance.direct_margin_row(oid);
+ if (r->>'courier')::numeric<>6 or (r->>'contribution')::numeric<>12.30 or r->>'state'<>'actual' then raise exception 'Actual AWB must replace manual estimate: %',r;end if;
+ sig:=r->>'signature';v:=(r->>'version')::int;
+ begin perform public.finance_direct_costs_save(oid,v-1,sig,'{"material":10,"courier":5,"extras":0}','qa');raise exception 'stale version accepted';exception when others then if sqlerrm='stale version accepted' then raise;end if;end;
+ begin perform public.finance_direct_costs_save(oid,v,'wrong-signature','{"material":10,"courier":5,"extras":0}','qa');raise exception 'stale signature accepted';exception when others then if sqlerrm='stale signature accepted' then raise;end if;end;
+ update public.order_items set title='Changed Edible Image' where id=iid;
+ r:=finance.direct_margin_row(oid);if r->>'contribution' is not null then raise exception 'Title changed without cost review';end if;
+ update public.order_items set qty=2 where id=iid;
+ r:=finance.direct_margin_row(oid);
+ if r->>'contribution' is not null or r->>'state'<>'incomplete' then raise exception 'Changed order retained reviewed contribution';end if;
+ update public.shipments set charged_amount=null,quoted_amount=null where id=sid;
+ r:=finance.direct_margin_row(oid);
+ if (r->>'courier')::numeric<>4.5 or r->>'courier_state'<>'estimated' then raise exception 'Single unpriced parcel lost postage estimate';end if;
+ insert into public.shipments(order_id,provider,status,currency) values(oid,'contribution_qa','draft','MYR');r:=finance.direct_margin_row(oid);if r->>'courier' is not null then raise exception 'Multiple unpriced parcels guessed as one postage';end if;
+ update public.shipments set charged_amount=4.5,currency='SGD' where id=sid;
+ r:=finance.direct_margin_row(oid);
+ if r->>'courier' is not null then raise exception 'Foreign currency mixed into MYR';end if;
+ update public.payment_transactions set amount=20 where id=pid;
+ r:=finance.direct_margin_row(oid);
+ if r->>'included'<>'false' or r->>'contribution' is not null then raise exception 'Partial payment contributed to target';end if;
+ s:=public.finance_contribution_report('{"month":"2026-10-01"}');
+ select sum((x->>'contribution')::numeric) into channel_sum from jsonb_array_elements(s->'channels')x;
+ if abs(channel_sum-(s#>>'{summary,known}')::numeric)>0.01 or abs((s#>>'{summary,actual}')::numeric+(s#>>'{summary,estimated}')::numeric-(s#>>'{summary,known}')::numeric)>0.01 then raise exception 'summary mismatch';end if;
+ if exists(select 1 from finance.contribution_rows('2026-10-01','2026-10-31')x where x->>'channel'='shopee' and x->>'contribution' is not null and abs((x->>'nett')::numeric-(x->>'material')::numeric-(x->>'extras')::numeric-(x->>'contribution')::numeric)>0.01) then raise exception 'Shopee fee deducted twice';end if;
+ if exists(select 1 from finance.contribution_rows('2026-10-01','2026-10-31')x join public.marketplace_orders m on m.internal_order_id=(x->>'order_id')::uuid where x->>'channel'='deco') then raise exception 'Marketplace mirror duplicated';end if;
+ select version into v from finance.contribution_target_settings where id;
+ s:=public.finance_contribution_settings_save(v,'{"overhead":5000,"owner_income":0,"workdays":[0,1,2,3,4,6],"holidays":["2026-10-04"]}','qa');
+ r:=public.finance_contribution_report('{"month":"2026-10-01"}');
+ if (r#>>'{summary,workdays}')::int<>25 or r#>>'{summary,is_workday}'<>'false' then raise exception 'Working days / holiday calculation failed';end if;
+ if not exists(select 1 from finance.audit_log where actor='qa' and action='save_contribution_target') or not exists(select 1 from finance.audit_log where actor='qa' and entity_id=oid::text and action='save_direct_costs') then raise exception 'Audit missing';end if;
+ r:=public.finance_contribution_report('{"month":"2000-01-01"}');
+ if r->>'total'<>'0' or (r#>>'{summary,known}')::numeric<>0 or r#>>'{summary,daily_target}' is not null then raise exception 'Empty past month failed';end if;
+ if has_function_privilege('anon','public.finance_contribution_report(jsonb)','execute') or has_function_privilege('authenticated','public.finance_direct_costs_save(uuid,integer,text,jsonb,text)','execute') or has_table_privilege('authenticated','finance.direct_order_costs','select') then raise exception 'Direct client privileges exposed';end if;
+end $test$;
+select 'PASS: direct 28.50 example, AWB estimate/actual replacement, paid evidence, optimistic locking, item change, unknown/foreign courier, partial payment, Shopee fee arithmetic, no mirror duplication, aggregate sums, workdays/holidays, empty history, audit, private grants' result;
+rollback;

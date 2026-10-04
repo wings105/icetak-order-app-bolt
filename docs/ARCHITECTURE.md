@@ -193,3 +193,7 @@ The existing Cloudflare asset Worker owns `/render-test/output.png` and `/render
 ## 2026-10-03 — Order contribution is a private managerial read model
 
 Order System owns versioned raw-material defaults and per-marketplace-order cost snapshots in private finance tables. Existing finance-admin owner auth mediates read/write RPCs; browser clients cannot query those tables/functions directly. Nett continues to come from canonical marketplace_order_financials. Order contribution does not create ledger/journal entries or replace business P&L. Snapshot/version/audit behavior and Admin V2 surfaces: ORDER_PROFIT.md.
+
+## 2026-10-04 — Contribution targets
+
+Admin V2 now has a VERIFIED contribution-target read model and direct-order cost review. The Order System privately owns goal/workday settings and direct cost overrides; existing Shopee nett/cost and sales-channel identity/date rules remain authoritative. Dashboard and Finance distinguish known actual/estimated totals, missing orders and overhead goals. finance-admin v32 deployed with unchanged owner/JWT gates; no accounting journal, payment/provider or historical cost backfill. Hosted owner UI interaction remains pending. See [CONTRIBUTION_TARGETS.md](CONTRIBUTION_TARGETS.md) for formulas, cohort limits and evidence.

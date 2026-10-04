@@ -74,6 +74,12 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({})) as JsonObject;
     const action = String(body.action || "snapshot");
 
+    if (action === "contribution_report") return json({success:true,data:await rpc("finance_contribution_report",{p_filter:{month:body.month||null,channel:body.channel||"all",state:body.state||"all",query:String(body.query||"").slice(0,200),from:body.from||null,to:body.to||null,sort:body.sort||"day_desc",offset:Math.max(0,Math.trunc(Number(body.offset)||0))}})});
+    if (action === "contribution_detail") {
+      const orderId=String(body.order_id||"");
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) return json({success:false,error:"Valid direct order required"},400);
+      return json({success:true,data:await rpc("finance_contribution_detail",{p_order_id:orderId})});
+    }
     if (action === "sales_channel_report") return json({success:true,data:await rpc("finance_sales_channel_report",{p_filter:{from:body.from||null,to:body.to||null,channel:body.channel||"all",kind:body.kind||"all",query:String(body.query||"").slice(0,200),offset:Math.max(0,Math.trunc(Number(body.offset)||0)),limit:Math.min(5000,Math.max(1,Math.trunc(Number(body.limit)||50)))}})});
     if (action === "sales_sku_report") return json({success:true,data:await rpc("finance_sales_sku_report",{p_filter:{from:body.from||null,to:body.to||null,currency:body.currency||"MYR",shop_id:body.shop_id||null,query:String(body.query||"").slice(0,200),sku_key:body.sku_key||null}})});
     if (action === "order_finance_options") return json({success:true,data:await rpc("finance_order_finance_options")});
@@ -158,6 +164,12 @@ Deno.serve(async (req) => {
     }
     if (!admin.permissions.includes("manage_finance")) return json({ success: false, error: "Manage Finance permission required" }, 403);
 
+    if (action === "contribution_settings_save") return json({success:true,data:await rpc("finance_contribution_settings_save",{p_version:body.version,p_settings:body.settings,p_actor:admin.username})});
+    if (action === "direct_costs_save") {
+      const orderId=String(body.order_id||"");
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) return json({success:false,error:"Valid direct order required"},400);
+      return json({success:true,data:await rpc("finance_direct_costs_save",{p_order_id:orderId,p_version:body.version,p_signature:body.signature,p_costs:body.costs,p_actor:admin.username})});
+    }
     if (action === "order_finance_import") return json({success:true,data:await rpc("finance_import_order_finance",{
       p_orders:body.orders,p_shop_id:body.shop_id,p_currency:body.currency,p_actor:admin.username,p_commit:body.commit===true,p_expected_hash:body.hash||null,
     })});
