@@ -1,7 +1,7 @@
 import {DetailSummary} from '../components/OrderDetailSession';
-import {detailRequest,detailDate,detailStage,type DetailData} from '../lib/orderDetails';
+import {detailRequest,detailDate,detailStage,detailFilters,matchesDetailFilter,type DetailData} from '../lib/orderDetails';
 const OrderDetailSession=lazy(()=>import('../components/OrderDetailSession'));
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import './MarketplaceOrders.css';
 import OrderProfitDetail from '../components/OrderProfitDetail';
@@ -35,19 +35,42 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canVi
   const [profitError,setProfitError]=useState('');
   const [selectedFinance,setSelectedFinance]=useState<string|null>(null);
   const [details,setDetails]=useState<Record<string,DetailData>>({}),[detailError,setDetailError]=useState(''),[detailKey,setDetailKey]=useState<string|null>(null),[detailVersion,setDetailVersion]=useState(0);
+  const [detailFilter,setDetailFilter]=useState('all'),[scanProgress,setScanProgress]=useState('');
+  const loadSequence=useRef(0),scanBusy=useRef(false),filteredRows=useRef<Row[]>([]);
   const limit=50;
+  const activeDetailFilter=canViewDetails?detailFilter:'all';
 
-  const load=async(nextOffset=0)=>{
-    setLoading(true);
-    const {data,error}=await supabase.rpc('icetak_admin_marketplace_orders',{
-      p_search:search,p_status:status,p_provider:provider,p_ship_by:shipBy,p_limit:limit,p_offset:nextOffset
-    });
-    if(error){ console.error(error); setPayload({rows:[],summary:{}}); }
-    else { setPayload((data||{}) as Payload); setOffset(nextOffset); }
-    setLoading(false);
-  };
-
-  useEffect(()=>{const t=window.setTimeout(()=>void load(0),220);return()=>window.clearTimeout(t)},[search,status,provider,shipBy]);
+  const load=useCallback(async(nextOffset=0)=>{
+    const request=++loadSequence.current;scanBusy.current=true;setLoading(true);setDetailError('');setScanProgress('');
+    const params={p_search:search,p_status:status,p_provider:provider,p_ship_by:shipBy};
+    try{
+      if(activeDetailFilter==='all'){
+        const {data,error}=await supabase.rpc('icetak_admin_marketplace_orders',{...params,p_limit:limit,p_offset:nextOffset});
+        if(error)throw error;
+        if(request===loadSequence.current){setPayload((data||{}) as Payload);setOffset(nextOffset);}
+      }else{
+        // Evaluate every matching source page before paginating detail results.
+        const matched:Row[]=[],collected:Record<string,DetailData>={};let first:Payload={},scanned=0;
+        for(let sourceOffset=0;;sourceOffset+=100){
+          const {data,error}=await supabase.rpc('icetak_admin_marketplace_orders',{...params,p_limit:100,p_offset:sourceOffset});
+          if(request!==loadSequence.current)return;if(error)throw error;
+          const page=(data||{}) as Payload;if(sourceOffset===0)first=page;
+          const sourceRows=page.rows||[];
+          const responses=await Promise.all(Array.from({length:Math.ceil(sourceRows.length/50)},(_,n)=>detailRequest({action:'order_details',keys:sourceRows.slice(n*50,n*50+50).map(r=>'shopee:'+r.id)})));
+          if(request!==loadSequence.current)return;
+          for(const response of responses)for(const r of response.rows)collected[r.id]=r;
+          for(const r of sourceRows){if(!collected[r.id]?.detail_collection)throw Error('Detail order belum tersedia. Cuba semula.');if(matchesDetailFilter(collected[r.id].detail_collection,activeDetailFilter))matched.push(r);}
+          scanned+=sourceRows.length;setScanProgress(`Menyemak detail ${scanned} / ${Number(first.total||0)} order…`);
+          if(!sourceRows.length||scanned>=Number(first.total||0))break;
+        }
+        if(request===loadSequence.current){filteredRows.current=matched;setDetails(collected);setPayload({...first,rows:matched.slice(0,limit),total:matched.length});setOffset(0);}
+      }
+    }catch(e){if(request===loadSequence.current){setDetailError(e instanceof Error?e.message:String(e));setPayload({rows:[],summary:{}});setOffset(0);}}
+    finally{if(request===loadSequence.current){scanBusy.current=false;setLoading(false);setScanProgress('');}}
+  },[search,status,provider,shipBy,activeDetailFilter]);
+  useEffect(()=>{const t=window.setTimeout(()=>void load(0),220);return()=>{window.clearTimeout(t);loadSequence.current++;}},[load]);
+  const changePage=(next:number)=>{if(activeDetailFilter==='all')void load(next);else{setOffset(next);setPayload(p=>({...p,rows:filteredRows.current.slice(next,next+limit)}));}};
+  useEffect(()=>{if(activeDetailFilter==='all')return;const timer=window.setInterval(()=>{if(!scanBusy.current)void load(0);},60000);return()=>window.clearInterval(timer);},[activeDetailFilter,load,detailVersion]);
   const rows=payload.rows||[];
   useEffect(()=>{
     if(!canViewFinance)return;let active=true;setProfits({});setProfitError('');
@@ -55,11 +78,11 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canVi
     if(ids.length)void profitRequest<OrderProfitRow[]>({action:'order_profit_summaries',order_ids:ids}).then(data=>{if(active)setProfits(Object.fromEntries(data.map(r=>[r.order_id,r])))}).catch(e=>{if(active)setProfitError(e.message)});
     return()=>{active=false};
   },[payload,canViewFinance]);
-  useEffect(()=>{if(!canViewDetails)return;let active=true;setDetails({});setDetailError('');const keys=(payload.rows||[]).map(r=>'shopee:'+r.id);
+  useEffect(()=>{if(!canViewDetails||activeDetailFilter!=='all')return;let active=true;setDetails({});setDetailError('');const keys=(payload.rows||[]).map(r=>'shopee:'+r.id);
     let pending=false;
     const refresh=async()=>{if(!keys.length||pending)return;pending=true;try{const d=await detailRequest({action:'order_details',keys});if(active){setDetails(Object.fromEntries(d.rows.map((r:DetailData)=>[r.id,r])));setDetailError('');}}catch(e){if(active)setDetailError(e instanceof Error?e.message:String(e));}finally{pending=false;}};
     void refresh();const timer=window.setInterval(()=>void refresh(),60000);return()=>{active=false;window.clearInterval(timer)};
-  },[payload,canViewDetails,detailVersion]);
+  },[payload,canViewDetails,detailVersion,activeDetailFilter]);
   const total=Number(payload.total||0);
   const summary=payload.summary||{};
   const tabs=useMemo(()=>[
@@ -99,15 +122,17 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canVi
     </>}
 
     <div className="mp-toolbar">
-      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search order SN, buyer username, customer, phone, SKU, item, tracking, courier..." />
+      <input aria-label="Cari marketplace order" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search order SN, buyer username, customer, phone, SKU, item, tracking, courier..." />
       <select value={provider} onChange={e=>setProvider(e.target.value)}>
         <option value="all">All marketplaces</option><option value="shopee">Shopee</option>
       </select>
+      {canViewDetails?<select aria-label="Filter detail order" value={detailFilter} onChange={e=>setDetailFilter(e.target.value)}>{detailFilters.map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>:null}
     </div>
+    {canViewDetails&&activeDetailFilter!=='all'?<p className="mp-filter-meta" role="status">{loading?(scanProgress||'Menyemak detail semua order yang sepadan…'):`${total} order · ${detailFilters.find(([key])=>key===activeDetailFilter)?.[1]}`}</p>:null}
 
     <div className="mp-table-wrap">
       {canViewFinance&&profitError&&<div className="op-alert error" role="alert">Finance: {profitError}</div>}
-      {canViewDetails&&detailError?<div className="op-alert error" role="alert">Detail / session: {detailError} <button onClick={()=>setDetailVersion(v=>v+1)}>Cuba semula</button></div>:null}
+      {canViewDetails&&detailError?<div className="op-alert error" role="alert">Detail / session: {detailError} <button onClick={()=>{if(activeDetailFilter!=='all')void load(0);else setDetailVersion(v=>v+1);}}>Cuba semula</button></div>:null}
       <table className={'mp-table'+(canViewDetails?' mp-table-details':'')}>
         <thead><tr><th>ORDER</th><th>PLACED / SHIP BY</th><th>BUYER</th><th>ITEMS</th>{canViewDetails?<><th>DETAIL ORDER</th><th>FOLLOW-UP / DEADLINE</th><th>CLICKUP / PRODUCTION</th></>:null}<th>PAID</th><th>COURIER / TRACKING</th><th>STATUS</th></tr></thead>
         <tbody>
@@ -138,9 +163,9 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canVi
 
     <div className="mp-pager">
       <span>{total?offset+1:0}-{Math.min(offset+limit,total)} of {total}</span>
-      <div><button disabled={offset===0||loading} onClick={()=>void load(Math.max(0,offset-limit))}>Previous</button><button disabled={offset+limit>=total||loading} onClick={()=>void load(offset+limit)}>Next</button></div>
+      <div><button disabled={offset===0||loading} onClick={()=>changePage(Math.max(0,offset-limit))}>Previous</button><button disabled={offset+limit>=total||loading} onClick={()=>changePage(offset+limit)}>Next</button></div>
     </div>
-    {detailKey?<Suspense fallback={<p>Memuatkan detail…</p>}><OrderDetailSession rowKey={detailKey} onClose={()=>setDetailKey(null)} onSaved={()=>setDetailVersion(v=>v+1)} onOpenChat={onOpenChat}/></Suspense>:null}
+    {detailKey?<Suspense fallback={<p>Memuatkan detail…</p>}><OrderDetailSession rowKey={detailKey} onClose={()=>setDetailKey(null)} onSaved={()=>{setDetailVersion(v=>v+1);if(activeDetailFilter!=='all')void load(0);}} onOpenChat={onOpenChat}/></Suspense>:null}
     {selectedFinance&&<OrderProfitDetail key={selectedFinance} orderId={selectedFinance} canManage={canManageFinance} onClose={()=>setSelectedFinance(null)} onSaved={r=>setProfits(prev=>({...prev,[r.order_id]:r}))}/>}
   </div>
 }

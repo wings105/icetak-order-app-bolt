@@ -1,3 +1,7 @@
+## 2026-10-04 — [VERIFIED] Marketplace order detail filters
+
+Adds a detail filter beside Marketplace search: complete, missing, review, follow-up due, waiting, detail deadline, ready design and production lock. Intersects existing search/platform/shipping filters, evaluates every matching source page before 50-row result pagination and shows scan progress/exact matched total. Uses existing authenticated reads, sequence guards and nonoverlapping refresh; failures have retry and are never classified as missing. Real rendered 123-order/three-source-batch checks prove late-page matches, pagination, search/status intersection, empty/retry and desktop/mobile without runtime errors. Admin typecheck and production build pass. Hosted owner interaction remains pending. See ORDER_DETAIL_COLLECTION.md.
+
 ## 2026-10-04 — [VERIFIED] Recognize complete ClickUp custom wording
 
 Corrects false missing name/age for completed topper tasks with supplied Customize Name. Recognizes inline name/age and full birthday wording; exact assigned confirmed/production task text can satisfy inferred wording without overriding explicit staff requirements. Regression and rendered real gateway/list/panel checks pass for MOHAMMAD ARYAN (6 TAHUN), Olivia's 2nd Birthday and Captain TIYEN turns 9. Empty fields, quantities, conflicts and production locks retain their guards. admin-ai-dashboard v15 source readback matches and retains JWT; no task/provider writes. See docs/ORDER_DETAIL_COLLECTION.md.
