@@ -27,3 +27,9 @@ Open `/functions/v1/crm-identity-ingest/import?token=<private-token>` and upload
 Imported addresses are stored as ClickUp sources, never marked default or verified. If a username lacks a Shopee user ID and is not yet recognized by Order System, it is staged in `crm_clickup_import_rows` with a master CRM profile; it is not automatically considered a verified Shopee account. Review conflicts shown in the import report.
 
 The current function source and migration live in this repo. Never put a service role key in the CSV or request.
+
+## Verified webhook phone merge (2026-10-04)
+
+A token-authenticated live Make/AP mapping containing an existing Shopee order may reconcile its matched marketplace master with the canonical exact phone owner. The service-only `icetak_reconcile_webhook_phone` reads both primary phones and verified inbound WhatsApp phone identifiers. It prefers the verified WhatsApp owner even when that profile has no primary phone yet, and uses the existing CRM merge function while remapping legacy ClickUp staging rows. Locks and source/master checks make retries idempotent. Existing different verified phones, competing owners, order/customer mismatch and invalid mobile numbers return review/conflict; CSV, username-only and user-ID-only imports cannot auto-merge. Phone is taken from the authenticated structured mapping, never arbitrary chat text.
+
+The RPC validates the exact order/customer relationship and is unavailable to anon/authenticated roles. `crm-identity-ingest` v5 retains its existing hashed private token auth and verify_jwt=false. Existing v4 live webhook behavior was used as the baseline; this corrects its primary-phone-only lookup and partial staging remap. No new provider messages or task/order/payment status changes.

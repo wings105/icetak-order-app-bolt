@@ -25,6 +25,16 @@ async function db(table: string, params = "", method = "GET", body?: Row) {
   if (!res.ok) throw new Error(`Database ${res.status}: ${JSON.stringify(value).slice(0, 300)}`);
   return value as Row[];
 }
+async function rpc(name: string, body: Row) {
+  const res = await fetch(`${BASE}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const value = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(`RPC ${res.status}: ${JSON.stringify(value).slice(0, 300)}`);
+  return value;
+}
 function field(row: Row, ...keys: string[]) {
   for (const key of keys) {
     const value = row[key];
@@ -88,15 +98,29 @@ async function ingest(input: Row, source: "make" | "clickup_csv") {
     return { status: "identity_conflict", reason: "clickup_and_shopee_different_profiles", order_sn: orderSn };
   if (staged?.phone && staged.phone !== phone) return { status: "identity_conflict", reason: "clickup_source_phone_changed", order_sn: orderSn };
 
-  const owner = await db("customer_master", `?primary_phone_normalized=eq.${query(phone)}&status=eq.active&select=id&limit=2`);
-  if (owner.length > 1 || (masterId && owner.length && owner[0].id !== masterId))
-    return { status: "identity_conflict", reason: "phone_belongs_to_another_customer", order_sn: orderSn };
-  if (!masterId && owner.length) {
-    // A phone alone does not prove the marketplace account belongs to this person.
-    return { status: "manual_review", reason: "existing_phone_without_verified_shopee_link", order_sn: orderSn };
-  }
-  if (source === "make" && !mc && !staged) return { status: "unmatched_customer", order_sn: orderSn, username: resolvedUsername };
   let result = "unchanged";
+  // Only the authenticated live webhook with an exact order may reconcile masters.
+  // CSV/username-only imports retain their conservative existing rules.
+  if (source === "make" && order && mc && orderSn) {
+    const reconciled = await rpc("icetak_reconcile_webhook_phone", {
+      p_order_sn: orderSn, p_phone: phone, p_marketplace_customer_id: mc.id,
+    });
+    if (["identity_conflict", "manual_review"].includes(reconciled.status))
+      return { ...reconciled, order_sn: orderSn };
+    if (reconciled.customer_master_id) {
+      masterId = String(reconciled.customer_master_id);
+      mc.customer_master_id = masterId;
+      result = String(reconciled.status);
+    }
+  } else {
+    const owner = await db("customer_master", `?primary_phone_normalized=eq.${query(phone)}&status=eq.active&select=id&limit=2`);
+    if (owner.length > 1 || (masterId && owner.length && String(owner[0].id) !== masterId))
+      return { status: "identity_conflict", reason: "phone_belongs_to_another_customer", order_sn: orderSn };
+    if (!masterId && owner.length)
+      return { status: "manual_review", reason: "existing_phone_without_verified_shopee_link", order_sn: orderSn };
+  }
+
+  if (source === "make" && !mc && !staged) return { status: "unmatched_customer", order_sn: orderSn, username: resolvedUsername };
   if (!masterId) {
     const created = await db("customer_master", "", "POST", { display_name: resolvedUsername || phone, primary_phone_normalized: phone, metadata: { source: "clickup_identity_ingest" } });
     masterId = String(created[0].id);
@@ -108,7 +132,7 @@ async function ingest(input: Row, source: "make" | "clickup_csv") {
       return { status: "identity_conflict", reason: "customer_has_different_phone", order_sn: orderSn };
     if (!current.primary_phone_normalized) {
       await db("customer_master", `?id=eq.${query(masterId)}`, "PATCH", { primary_phone_normalized: phone });
-      result = "updated";
+      if (result === "unchanged") result = "updated";
     }
   }
   if (mc && !mc.customer_master_id) await db("marketplace_customers", `?id=eq.${query(String(mc.id))}`, "PATCH", { customer_master_id: masterId });
