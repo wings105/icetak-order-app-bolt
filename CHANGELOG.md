@@ -1,3 +1,7 @@
+## 2026-10-04 — [VERIFIED] Customer Focus daily scope
+
+Corrects the owner's reported ranking failure: July COMPLETED orders and old chat/deadline combinations no longer dominate daily focus. Full actual-data comparison reduces 1,813 to 126 daily rows with zero July focus rows; current chat/paid, future work, pickup and historical filters remain accessible. Real desktop/mobile component tests, regressions, Admin type/build checks pass; admin-ai-dashboard v10 source/auth readback verified. Hosted authenticated owner confirmation remains pending. See docs/CUSTOMER_FOCUS.md.
+
 ## 2026-10-04 — [VERIFIED] Shopee / Deco Sales Channel comparison
 
 Finance → Sales Channel compares known MYR goods sales, percentage, trend, average order, contribution completeness, receipt/pending evidence, fees/refunds/shipping losses, repeat customers, fulfillment timing and top products. Scoped order filters/CSV and existing detail routes retain owner Finance access. Live SQL and controlled desktop/mobile checks pass; hosting smoke pending. See docs/SALES_CHANNEL.md.

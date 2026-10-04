@@ -97,7 +97,7 @@ Deno.serve(async req=>{
    if(action==='focus_save'&&!canManage)return json({ok:false,error:'Manage Customers permission required'},403);
    const [snapshot,source,drafts]=await Promise.all([rpc('icetak_customer_focus_snapshot',{}),inbox({action:'focus'}),rpc('icetak_customer_focus_drafts',{})]);snapshot.drafts=drafts.rows||[];
    const identities=await rpc('icetak_customer_focus_identities',{p_identities:source.rows.map(identity)});
-   const rows=focusRows(snapshot,source.rows,identities).filter((r:any)=>r.kind==='chat'||r.work.active||r.chat.reply);
+   const rows=focusRows(snapshot,source.rows,identities).filter((r:any)=>r.kind==='chat'||r.work.active||r.chat.reply||(r.history&&r.chat.id&&r.chat.order_confirmed));
    if(action==='focus_save'){
     if(!isUuid(b.request_id)||!/^((icetak|shopee|draft|chat):[0-9a-f-]{36})$/.test(String(b.row_key||'')))return json({ok:false,error:'Invalid focus identity'},400);
     const row=rows.find((r:any)=>r.key===b.row_key);if(!row)return json({ok:false,error:'Row changed or unavailable. Muat semula.'},409);
