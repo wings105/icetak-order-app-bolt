@@ -41,3 +41,32 @@ answered.messages[1].source='api';rows=focusRows({orders:[]},[answered],identiti
 const fresh={...chat(c.id),archived:true};rows=focusRows({orders:[]},[fresh],identities,now);assert.equal(rows[0].actionable,false);
 const unpaidDraft={id:'draft',kind:'draft',created_at:'2026-10-03T00:00:00Z',status:'ready_customer',payment_status:'unpaid',next_followup_at:'2026-10-03T12:00:00Z',followup_enabled:true};rows=focusRows({orders:[],drafts:[unpaidDraft]},[],{},now);assert.equal(rows[0].actionable,false);assert.equal(rows[0].category,'waiting');
 console.log('PASS: July closed/stale open exclusion, fresh after-sales reopening without obsolete deadlines, manual urgent restoration, future work, routine pickup, 24h/7d chat windows, acknowledgements, recorded human vs API reply, archived chat and unpaid draft waiting.');
+
+// Manual reply completion is conversation-scoped and cannot retire unfinished order design.
+const manualOrder=order('55555555-5555-4555-8555-555555555555',{platform_deadline:null});
+const manualChat=chat('66666666-6666-4666-8666-666666666666','Nama untuk '+manualOrder.reference+' ialah Aina');
+const manualIds={[manualChat.id]:{master_id:master,identity_status:'matched'}};
+const manualSnap={orders:[manualOrder],states:{['chat:'+manualChat.id]:{version:1,data:{source_fingerprint:'r1',chat_revision:'r1',work_state:'handled',note:'Replied on Shopee'}}},reviews:{}};
+let marked=focusRows(manualSnap,[manualChat],manualIds,now);
+assert.equal(marked.find(r=>r.kind==='shopee').category,'design');
+assert.equal(marked.find(r=>r.kind==='shopee').chat.reply,false);
+assert.equal(marked.find(r=>r.kind==='shopee').actionable,true,'manual reply must keep design focus');
+assert.equal(marked.find(r=>r.kind==='chat').manual_work,'handled','bound completed chat remains undoable');
+assert.equal(marked.find(r=>r.kind==='chat').actionable,false);
+manualChat.inbound_revision='r2';marked=focusRows(manualSnap,[manualChat],manualIds,now);
+assert.equal(marked.find(r=>r.kind==='shopee').chat.reply,true,'new message reopens manual reply');
+assert.equal(marked.some(r=>r.kind==='chat'&&r.manual_work==='handled'),false);
+const baseRow=marked.find(r=>r.kind==='shopee');manualSnap.states[baseRow.key]={version:1,data:{source_fingerprint:baseRow.source_fingerprint,work_state:'handled'}};
+marked=focusRows(manualSnap,[manualChat],manualIds,now);assert.equal(marked.find(r=>r.kind==='shopee').actionable,false);assert.equal(marked.find(r=>r.kind==='shopee').priority_label,'Selesai manual');
+manualSnap.states[baseRow.key].data.work_state='design_done';marked=focusRows(manualSnap,[manualChat],manualIds,now);assert.equal(marked.find(r=>r.kind==='shopee').category,'production');
+manualSnap.states[baseRow.key].data.work_state='';marked=focusRows(manualSnap,[manualChat],manualIds,now);assert.equal(marked.find(r=>r.kind==='shopee').category,'design');
+manualOrder.status='COMPLETED';marked=focusRows(manualSnap,[manualChat],manualIds,now);const closedReply=marked.find(r=>r.kind==='shopee');manualSnap.states[baseRow.key].data={source_fingerprint:closedReply.source_fingerprint,work_state:'handled'};marked=focusRows(manualSnap,[manualChat],manualIds,now);assert.equal(marked.find(r=>r.kind==='shopee').manual_work,'handled');assert.equal(marked.find(r=>r.kind==='shopee').actionable,false);
+assert.equal(validateFocusUpdate({expected_version:0,source_fingerprint:'r2',data:{detail_status:'unknown',work_state:'reply'}},{kind:'chat',source_fingerprint:'r2',chat:{revision:'r2'}}).work_state,'reply');
+assert.throws(()=>validateFocusUpdate({expected_version:0,source_fingerprint:baseRow.source_fingerprint,data:{detail_status:'unknown',work_state:'reply'}},baseRow),/Reply marker requires a chat/);
+console.log('PASS: manual chat completion preserves design, bound chat completion stays visible, new inbound reopens, whole work completion hides priority, design marker/reset and closed after-sales manual completion.');
+// New design markers follow actual work changes, not merely a fresh chat revision.
+manualOrder.status='READY_TO_SHIP';manualSnap.states={};manualChat.inbound_revision='r3';marked=focusRows(manualSnap,[manualChat],manualIds,now);const designBase=marked.find(r=>r.kind==='shopee');
+manualSnap.states[designBase.key]={version:1,data:validateFocusUpdate({expected_version:0,source_fingerprint:designBase.source_fingerprint,data:{detail_status:'complete',work_state:'design_done'}},designBase)};
+manualChat.inbound_revision='r4';marked=focusRows(manualSnap,[manualChat],manualIds,now);assert.equal(marked.find(r=>r.kind==='shopee').category,'production','new chat needs reply, not automatic redesign');assert.equal(marked.find(r=>r.kind==='shopee').chat.reply,true);
+manualOrder.production_tasks[0].source_updated_at='2026-10-04T00:00:00Z';marked=focusRows(manualSnap,[manualChat],manualIds,now);assert.equal(marked.find(r=>r.kind==='shopee').manual_expired,true,'actual task change invalidates earlier work observation');
+console.log('PASS: new design markers survive chat-only changes and reopen on actual task changes.');

@@ -1,3 +1,7 @@
+## 2026-10-04 — [VERIFIED] Customer Focus manual and bulk actions
+
+Adds Dah balas, ✓ Selesai, Design siap and checkbox bulk actions with optional remarks, completed review, Undo/reopen and explicit partial failure/retry. External-reply marks are conversation-scoped; they preserve unfinished design. New chat reopens reply work, while actual task changes invalidate design observations. Real gateway/model/component desktop/mobile checks, auth/stale/idempotency guards and live rolled-back save/audit tests pass; no retained QA state or business mutation. admin-ai-dashboard v11 keeps JWT/admin gates and the existing private save RPC. Hosted authenticated-owner save confirmation remains pending. See docs/CUSTOMER_FOCUS.md.
+
 ## 2026-10-04 — [VERIFIED] Customer Focus inline shortcuts
 
 Adds WhatsApp app / wa.me buttons, source Shopee username and small copy controls for order IDs, phone, related references and tracking. Compact source and Pos/Pickup badges stay in the pinned customer column. Real desktop/mobile component, clipboard, link, search and navigation checks pass; Admin type/build checks pass. Hosted authenticated-owner interaction remains pending. No backend or priority changes. See docs/CUSTOMER_FOCUS.md.

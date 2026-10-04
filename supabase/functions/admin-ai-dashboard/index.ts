@@ -90,14 +90,35 @@ Deno.serve(async req=>{
   const canManage=owner||admin.permissions.includes('manage_customers');
   if(!canRead)return json({ok:false,error:'Akses CRM diperlukan.'},403);
   const b=await req.json();const action=String(b.action||'list');
-  if(!['focus','focus_save','list','work','detail','review','send','training','training_list','case_order'].includes(action))return json({ok:false,error:'Invalid action'},400);
-  if(!['focus','focus_save','list','work','training_list'].includes(action)&&!isUuid(b.conversation_id))return json({ok:false,error:'Invalid conversation ID'},400);
+  if(!['focus','focus_save','focus_bulk_save','list','work','detail','review','send','training','training_list','case_order'].includes(action))return json({ok:false,error:'Invalid action'},400);
+  if(!['focus','focus_save','focus_bulk_save','list','work','training_list'].includes(action)&&!isUuid(b.conversation_id))return json({ok:false,error:'Invalid conversation ID'},400);
   if(['review','send','training','case_order'].includes(action)&&!canManage)return json({ok:false,error:'Manage Customers permission required'},403);
-  if(action==='focus'||action==='focus_save'){
-   if(action==='focus_save'&&!canManage)return json({ok:false,error:'Manage Customers permission required'},403);
+  if(action==='focus'||action==='focus_save'||action==='focus_bulk_save'){
+   if(action!=='focus'&&!canManage)return json({ok:false,error:'Manage Customers permission required'},403);
+   if(action==='focus_bulk_save'&&(!Array.isArray(b.updates)||b.updates.length<1||b.updates.length>50||new Set(b.updates.map((u:any)=>u?.row_key)).size!==b.updates.length))return json({ok:false,error:'Pilih 1 hingga 50 rekod unik.'},400);
    const [snapshot,source,drafts]=await Promise.all([rpc('icetak_customer_focus_snapshot',{}),inbox({action:'focus'}),rpc('icetak_customer_focus_drafts',{})]);snapshot.drafts=drafts.rows||[];
    const identities=await rpc('icetak_customer_focus_identities',{p_identities:source.rows.map(identity)});
    const rows=focusRows(snapshot,source.rows,identities).filter((r:any)=>r.kind==='chat'||r.work.active||r.chat.reply||(r.history&&r.chat.id&&r.chat.order_confirmed));
+   if(action==='focus_bulk_save'){
+    const targets=new Map<string,any>(rows.map((r:any)=>[r.key,r]));
+    // Exact source conversation permits marking a bound chat without completing its order.
+    for(const c of source.rows){const key=`chat:${c.id}`;if(!targets.has(key))targets.set(key,{key,kind:'chat',source_fingerprint:c.inbound_revision,chat:{revision:c.inbound_revision}});}
+    const requests=b.updates.map((u:any)=>{
+     try{
+      if(!u||!isUuid(u.request_id)||!/^((icetak|shopee|draft|chat):[0-9a-f-]{36})$/.test(String(u.row_key||'')))throw Error('Invalid focus identity');
+      const row=targets.get(u.row_key);if(!row)throw Error('SOURCE_CHANGED: Rekod tiada lagi. Muat semula.');
+      return {update:u,data:validateFocusUpdate(u,row)};
+     }catch(e){return {update:u,error:e instanceof Error?e.message:String(e)};}
+    });
+    const results:any[]=[];
+    // Independent audited saves; bounded concurrency, explicit partial results, no false all-success.
+    for(let i=0;i<requests.length;i+=5){results.push(...await Promise.all(requests.slice(i,i+5).map(async (p:any)=>{
+     if(p.error)return {row_key:p.update?.row_key,ok:false,error:p.error};
+     try{const state=await rpc('icetak_customer_focus_save',{p_key:p.update.row_key,p_actor:admin.username,p_version:p.update.expected_version,p_request:p.update.request_id,p_data:p.data});return {row_key:p.update.row_key,ok:true,state};}
+     catch(e){return {row_key:p.update.row_key,ok:false,error:e instanceof Error?e.message:String(e)};}
+    })));}
+    return json({ok:true,results});
+   }
    if(action==='focus_save'){
     if(!isUuid(b.request_id)||!/^((icetak|shopee|draft|chat):[0-9a-f-]{36})$/.test(String(b.row_key||'')))return json({ok:false,error:'Invalid focus identity'},400);
     const row=rows.find((r:any)=>r.key===b.row_key);if(!row)return json({ok:false,error:'Row changed or unavailable. Muat semula.'},409);

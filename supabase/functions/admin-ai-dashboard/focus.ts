@@ -41,17 +41,17 @@ export function focusRows(snapshot:Data,chats:Data[],identities:Data,now=Date.no
   // API/provider/system automation and the provider needs_reply flag cannot resolve a request.
   const answered=messages.some((m:Data)=>m.direction==='outbound'&&m.source==='business_app'&&m.sender_type==='seller'&&(time(m.created_at)||0)>(time(c.last_inbound_at)||Infinity));
   const scheduled=current&&!!s.snoozed_until&&time(s.snoozed_until)!=null&&time(s.snoozed_until)!<=now&&state==='reply';
-  const override=s.urgent===true||scheduled;
+  const override=s.urgent===true||scheduled||(current&&s.work_state==='reply');
   const reply=!!c.last_inbound_at&&state==='reply'&&(!c.archived||override)&&(!c.analysis.acknowledgement||override)&&(!answered||override);
   const inWindow=age<=7||override;
   const daily=reply&&(age<=1||override||(age<=7&&c.analysis.intent==='complaint')||(age<=2&&c.analysis.urgent));
-  return {id:c.id,channel:c.channel,state:reply?'Semak / balas':state==='waiting'?'Menunggu customer':state==='snoozed'?'Ditangguhkan':answered?'Sudah dibalas':c.analysis.acknowledgement?'Penutup ringkas':c.archived?'Chat diarkibkan':'Selesai chat',
+  return {id:c.id,channel:c.channel,panel_state:decision(`chat:${c.id}`),manual_work:current?s.work_state||'':'',state:reply?'Semak / balas':state==='handled'?'Dibalas manual':state==='waiting'?'Menunggu customer':state==='snoozed'?'Ditangguhkan':answered?'Sudah dibalas':c.analysis.acknowledgement?'Penutup ringkas':c.archived?'Chat diarkibkan':'Selesai chat',
    reply,preview:latest?.text_content||latest?.caption||c.analysis.summary,at:c.last_inbound_at,
    daily, recent:inWindow, urgent:reply&&age<=2&&c.analysis.urgent,complaint:reply&&inWindow&&c.analysis.intent==='complaint',backlog:!inWindow,acknowledgement:c.analysis.acknowledgement,
    revision:c.inbound_revision,name:c.name,identity_status:c.identity.identity_status,related_references:c.related_references};
  };
  function decorate(row:Data,s:Data,work:Data){
-  const d=s.data||{},current=d.source_fingerprint===row.source_fingerprint;
+  const d=s.data||{},current=['design_done','production_done'].includes(d.work_state)&&d.work_source_fingerprint?d.work_source_fingerprint===work.fingerprint:d.observation_fingerprint?d.observation_fingerprint===row.observation_fingerprint:d.source_fingerprint===row.source_fingerprint;
   row.state=s;row.detail_status=d.detail_status||'unknown';row.missing_details=d.missing_details||'';row.note=d.note||'';
   row.customer_needed=d.customer_needed||row.customer_needed||null;row.dispatch_by=d.dispatch_by||null;row.design_by=d.design_by||null;
   row.urgent=!!d.urgent||row.chat.urgent||row.chat.complaint;row.snoozed_until=d.snoozed_until||null;
@@ -117,6 +117,7 @@ export function focusRows(snapshot:Data,chats:Data[],identities:Data,now=Date.no
   row.priority=row.schedule_risk&&day(needed!)<=day(now)?0:row.schedule_risk?1:row.urgent&&row.actionable?0:row.overdue?0:row.due_today?1:row.actionable&&open&&work.paid&&row.category!=='unknown'?2:row.actionable?3:4;
   row.priority_label=row.history?'Rekod lama':row.priority===0?'Segera':row.priority===1?'Hari ini':row.priority===2?'Dah bayar':row.priority===3?'Perlu tindakan':row.category==='done'?'Selesai':row.needs_action?'Kemudian':'Menunggu';
   row.priority_reason=row.schedule_risk?'Tarikh customer dekat; sasaran pos / pickup belum ditetapkan':row.urgent?'Urgent customer / admin':row.overdue?'Tarikh kerja sudah lewat':row.due_today?'Tarikh kerja hari ini':row.actionable&&open&&work.paid?'Bayaran disahkan; tindakan belum selesai':row.actionable?'Tindakan customer belum selesai':row.reason;
+  if(row.manual_work==='handled'){row.category='done';row.action='Tindakan panel selesai';row.reason=row.note||'Ditanda selesai secara manual oleh admin.';row.actionable=false;row.needs_action=false;row.overdue=false;row.due_today=false;row.schedule_risk=false;row.focus_due=null;row.due_source=null;row.priority=4;row.priority_label='Selesai manual';row.priority_reason='Tindakan semasa ditanda selesai; perubahan sumber boleh membuka semula.';}
   row.work_label=roles[row.category]||({details:'Minta detail',reply:'Perlu balas',waiting:'Menunggu customer',snoozed:'Ditangguhkan'} as Data)[row.category]||row.category;
   row.payment_label=work.paid?'Dah bayar':work.cod?'COD / tunai · semak penerimaan':row.kind==='draft'?'Bayaran draft · '+(row.payment_status||'perlu semak'):row.payment_status||'Belum dipadankan';
   result.push(row);
@@ -133,9 +134,12 @@ export function focusRows(snapshot:Data,chats:Data[],identities:Data,now=Date.no
   const c=o.kind==='draft'&&o.conversation_id?chatItems.get(o.conversation_id)||null:linked.find(c=>chatInfo(c).reply)||linked[0]||customerChats[0]||null;
   const info=chatInfo(c),confirmed=linked.some(x=>x.id===c?.id);
   // Unbound customer context is visible, but its inquiry row owns the reply priority.
-  decorate({...o,key,chat:{...info,reply:info.reply&&info.recent&&confirmed,daily:info.daily&&confirmed,urgent:info.urgent&&confirmed,complaint:info.complaint&&confirmed,order_confirmed:confirmed},conversations:customerChats.map(c=>({id:c.id,name:c.name,channel:c.channel})),source_fingerprint:JSON.stringify([work.fingerprint,c?[c.id,c.inbound_revision]:null]),work},decision(key),work);
+  decorate({...o,key,chat:{...info,reply:info.reply&&info.recent&&confirmed,daily:info.daily&&confirmed,urgent:info.urgent&&confirmed,complaint:info.complaint&&confirmed,order_confirmed:confirmed},conversations:customerChats.map(c=>({id:c.id,name:c.name,channel:c.channel})),source_fingerprint:JSON.stringify([work.fingerprint,c?[c.id,c.inbound_revision]:null]),observation_fingerprint:JSON.stringify([work.fingerprint,[...new Map([...linked,...customerChats].map(c=>[c.id,c.inbound_revision])).entries()].sort((a,b)=>a[0].localeCompare(b[0]))]),work},decision(key),work);
  }
- for(const c of unbound){
+ // A manually handled bound chat stays reviewable/undoable in completed actions.
+ const unboundIds=new Set(unbound.map(c=>c.id));
+ const visibleChats=[...unbound,...[...chatItems.values()].filter(c=>!unboundIds.has(c.id)&&chatInfo(c).manual_work==='handled')];
+ for(const c of visibleChats){
   const key=`chat:${c.id}`,chat=chatInfo(c);
   if(!c.last_inbound_at)continue;
   decorate({key,id:c.id,kind:'chat',reference:'Pertanyaan',customer_name:c.identity.name||c.name,phone:c.identity.phone||identity(c).phone,
@@ -151,10 +155,12 @@ export function validateFocusUpdate(b:Data,row:Data){
  if(b.source_fingerprint!==row.source_fingerprint)throw Error('SOURCE_CHANGED: Status berubah. Muat semula sebelum simpan.');
  const d=b.data||{},out:Data={};
  if(!['unknown','missing','complete'].includes(d.detail_status))throw Error('Invalid detail status');out.detail_status=d.detail_status;
- if(!['','waiting','design_done','production_done','handled'].includes(d.work_state||''))throw Error('Invalid work state');out.work_state=d.work_state||'';
+ if(!['','reply','waiting','design_done','production_done','handled'].includes(d.work_state||''))throw Error('Invalid work state');out.work_state=d.work_state||'';
+ if(out.work_state==='reply'&&row.kind!=='chat')throw Error('Reply marker requires a chat');
  if(['chat','draft'].includes(row.kind)&&['design_done','production_done'].includes(out.work_state))throw Error('Order diperlukan untuk status production');
  for(const k of ['missing_details','note']){out[k]=String(d[k]||'').trim();if(out[k].length>2000)throw Error('Nota terlalu panjang');}
  for(const k of ['customer_needed','dispatch_by','design_by','snoozed_until']){out[k]=d[k]||null;if(out[k]&&(time(out[k])==null||time(out[k])!>Date.parse('2100-01-01')))throw Error('Semak tarikh');}
  out.urgent=d.urgent===true;out.source_fingerprint=row.source_fingerprint;out.chat_revision=row.chat.revision||null;
+ out.observation_fingerprint=row.observation_fingerprint||null;out.work_source_fingerprint=row.work?.fingerprint||null;
  return out;
 }
