@@ -75,3 +75,7 @@ Command Center GMV/trend and Sales Channel sales now require paid eligibility. D
 Unpaid pending balances remain visible. Original cancelled records remain in Finance → Sales Channel → Cancelled, accessible from the dashboard with the selected date range. Review cancellation reasons before manual contact; no messages, CRM duplicates or new orders are created automatically.
 
 `supabase/tests/paid-sales-only.sql` passes live with rollback: paid/unpaid/partial/cancelled, receipt completion, refunds, GMV/trend/channel reconciliation, retained pending and cancelled records, and private grants. Live read-only snapshot GMV RM604.57 excludes four unpaid and five cancelled orders; values change with new data. Actual App desktop/mobile verifies paid labels, selected date-scoped cancelled route, all five original records, no horizontal overflow and no runtime errors. Hosted authenticated-owner interaction remains pending.
+
+## Read performance
+
+Same-scope refresh retains the prior report with an explicit old-reading warning on failure. Initial dashboard snapshot arrival avoids a duplicate contribution request; later snapshots still refresh it. See [Admin read performance](ADMIN_READ_PERFORMANCE.md).

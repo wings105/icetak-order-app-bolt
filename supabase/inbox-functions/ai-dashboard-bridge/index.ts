@@ -28,7 +28,17 @@ Deno.serve(async req=>{
    if(!Array.isArray(b.orders)||b.orders.length>50)return out({ok:false,error:'Maksimum 50 order'},400);
    return out({ok:true,contexts:await db('rpc/icetak_order_detail_context',{p_orders:b.orders})});
   }
-  if(action==='focus')return out({ok:true,...await db('rpc/icetak_customer_focus_chats',{})});
+  if(action==='focus'){
+   // Freeze membership before batching so new arrivals cannot shift offset pages.
+   const selected=await db('rpc/icetak_customer_focus_chat_ids',{}),rows:any[]=[];
+   for(let start=0;start<selected.ids.length;start+=1500){
+    const pages=await Promise.all([0,500,1000].filter(n=>start+n<selected.ids.length).map(n=>db('rpc/icetak_customer_focus_chat_page',{p_ids:selected.ids.slice(start+n,start+n+500)})));
+    for(const page of pages)rows.push(...page.rows);
+   }
+   const byId=new Map(rows.map(row=>[row.id,row]));
+   if(byId.size!==selected.ids.length)throw new Error('Chat berubah semasa semakan. Cuba Muat semula.');
+   return out({ok:true,rows:selected.ids.map((id:string)=>byId.get(id)),total:selected.total,truncated:selected.truncated,fetched_at:selected.fetched_at});
+  }
   if(action==='list'||action==='detail'){
    if(action==='detail'&&!uuid(b.conversation_id))return out({ok:false,error:'Invalid conversation ID'},400);
    return out({ok:true,...await read(action==='detail'?b.conversation_id:null,b),capabilities:await capability()});
@@ -86,5 +96,5 @@ Deno.serve(async req=>{
    recipient_phone:p||null,recipient_bsuid:bs,message_type:'text',text_content:t(b.text),status:'sent',sent_at:new Date().toISOString()});}
   catch{return out({ok:true,status:'sent',provider_message_id:pid,warning:'Mesej dihantar; salinan inbox belum disahkan.'});}
   return out({ok:true,status:'sent',provider_message_id:pid});
- }catch(error){const message=error instanceof Error?error.message:String(error);return out({ok:false,error:message},/CHAT_CHANGED|Request ID conflict|belum disahkan/.test(message)?409:500);}
+ }catch(error){const message=error instanceof Error?error.message:String(error);console.error(JSON.stringify({event:'ai_bridge_error',message}));return out({ok:false,error:message},/CHAT_CHANGED|Request ID conflict|belum disahkan/.test(message)?409:500);}
 });

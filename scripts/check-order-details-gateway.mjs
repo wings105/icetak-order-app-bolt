@@ -30,7 +30,7 @@ try{
   else if(path.includes('/ai-dashboard-bridge'))data=body.action==='order_details'?{contexts:Object.fromEntries(body.orders.map(o=>[o.key,{bindings:[{id:chat.id,usable:true,revision:chat.inbound_revision,start_at:now}],messages:chat.messages}]))}:{rows:chats,total:chats.length};
   else if(path.includes('order_sessions?'))data=[];
   else if(path.includes('customer_focus_events?')){const id=path.match(/request_id=eq\.([^&]+)/)[1],e=events.get(id);data=e?[{row_key:e.state.row_key,actor:e.state.updated_by,input:e.state.data,result:e.state}]:[];}
-  else if(path.includes('/rpc/icetak_customer_focus_snapshot'))data=structuredClone(snapshot);
+  else if(path.includes('/rpc/icetak_customer_focus_orders'))data=structuredClone(snapshot);
   else if(path.includes('/rpc/icetak_customer_focus_drafts'))data={rows:[],total:0};
   else if(path.includes('/rpc/icetak_customer_focus_identities'))data=identities;
   else if(path.includes('/rpc/icetak_order_detail_sources'))data={tasks:{},links:{}};

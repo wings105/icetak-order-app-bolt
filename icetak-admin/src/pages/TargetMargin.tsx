@@ -27,8 +27,9 @@ function DirectDialog({row,canManage,onClose,onSaved,onOpenOrder}:{row:Contribut
 }
 export default function TargetMargin({canManage,onOpenOrder,onOpenSettings}:{canManage:boolean;onOpenOrder?:(reference:string)=>void;onOpenSettings?:()=>void}){
  const [month,setMonth]=useState(malaysiaDate().slice(0,7)),[channel,setChannel]=useState('all'),[state,setState]=useState('all'),[query,setQuery]=useState(''),[sort,setSort]=useState('day_desc'),[offset,setOffset]=useState(0),[from,setFrom]=useState(''),[to,setTo]=useState('');
+ const reportScope=useRef('');
  const [data,setData]=useState<ContributionReport|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true),[tick,setTick]=useState(0),[selected,setSelected]=useState<ContributionRow|null>(null),[settingsOpen,setSettingsOpen]=useState(false),[notice,setNotice]=useState('');
- useEffect(()=>{let active=true;setLoading(true);setError('');setData(null);const timer=window.setTimeout(()=>{
+ useEffect(()=>{let active=true;setLoading(true);setError('');const scope=JSON.stringify([month,channel,state,query,sort,offset,from,to]);if(reportScope.current!==scope)setData(null);reportScope.current=scope;const timer=window.setTimeout(()=>{
   if(!/^\d{4}-\d{2}$/.test(month)||month>malaysiaDate().slice(0,7)||(from&&from.slice(0,7)!==month)||(to&&to.slice(0,7)!==month)||(from&&to&&from>to)){setError('Semak bulan dan tarikh filter. Tarikh mesti dalam bulan pilihan.');setLoading(false);return;}
   void request<ContributionReport>({action:'contribution_report',month:`${month}-01`,channel,state,query,sort,offset,from,to}).then(r=>{if(active)setData(r)}).catch(e=>{if(active)setError(e.message)}).finally(()=>{if(active)setLoading(false)});
  },200);return()=>{active=false;window.clearTimeout(timer)}},[month,channel,state,query,sort,offset,from,to,tick]);
@@ -37,7 +38,7 @@ export default function TargetMargin({canManage,onOpenOrder,onOpenSettings}:{can
  return <div className="ct-page">
   <section className="ct-panel"><div className="ct-heading"><div><h2>Target & Margin</h2><p>Sumbangan selepas kos, sebelum overhead. Semua angka dalam MYR.</p></div><div><button className="btn btn-outline btn-sm" disabled={loading} onClick={refresh}>Muat semula margin</button>{canManage&&<button className="btn btn-outline btn-sm" onClick={()=>setSettingsOpen(v=>!v)}>{settingsOpen?'Tutup tetapan':'Tetapan target'}</button>}{onOpenSettings&&<button className="btn btn-outline btn-sm" onClick={onOpenSettings}>Tetapan modal</button>}</div></div>
    <label className="ct-month">Bulan target<input type="month" max={malaysiaDate().slice(0,7)} value={month} onChange={e=>filter(()=>{setMonth(e.target.value);setFrom('');setTo('')})}/></label>
-   {error&&<p className="ct-warning" role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}
+   {error&&<p className="ct-warning" role="alert">{error}{data&&' · Bacaan lama masih dipaparkan; muat semula untuk angka terkini.'}</p>}{notice&&<p role="status">{notice}</p>}
    {loading&&<p className="ct-muted" role="status">Memuatkan margin…</p>}{data&&<TargetNumbers data={data}/>}
    {settingsOpen&&canManage&&data&&<TargetSettingsForm key={data.settings.version} settings={data.settings} onSaved={()=>{setSettingsOpen(false);setNotice('Target disimpan.');refresh()}}/>}
   </section>

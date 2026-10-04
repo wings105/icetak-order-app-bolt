@@ -4,7 +4,8 @@ import { orderDetails } from './order-details.ts';
 type Data = Record<string, any>;
 const norm=(v:unknown)=>String(v||'').toLowerCase().trim().replace(/\s+/g,'_');
 const time=(v:unknown)=>{const n=Date.parse(String(v||''));return Number.isFinite(n)&&n>Date.parse('2020-01-01')?n:null;};
-const day=(n:number)=>new Date(n).toLocaleDateString('en-CA',{timeZone:'Asia/Kuala_Lumpur'});
+const dayFormatter=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur'});
+const day=(n:number)=>dayFormatter.format(n);
 const recent=(v:unknown,days:number,now:number)=>{const n=time(v);return n!=null&&n<=now+300000&&now-n<=days*86400000;};
 const roles:Data={design:'Design',production:'Printing / production',review:'Review artwork',ready:'Packing / pos',pickup:'Pickup',payment:'Semak bayaran',issue:'Masalah courier',unknown:'Semak status',done:'Selesai'};
 export function focusRows(snapshot:Data,chats:Data[],identities:Data,now=Date.now()) {

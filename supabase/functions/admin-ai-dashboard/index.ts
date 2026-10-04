@@ -58,6 +58,12 @@ async function privateSetting(key: string) {
 }
 
 
+// Share only overlapping read calls. Nothing survives completion; saves always read fresh.
+const pendingReads=new Map<string,Promise<any>>();
+async function sharedRead(key:string,read:()=>Promise<any>){
+ let pending=pendingReads.get(key);if(!pending){pending=read();pendingReads.set(key,pending);void pending.finally(()=>{if(pendingReads.get(key)===pending)pendingReads.delete(key)}).catch(()=>{});}
+ return structuredClone(await pending);
+}
 async function rpc(name:string,body:unknown) {
  const response=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{
  method:'POST',headers:{apikey:SERVICE_ROLE_KEY,authorization:`Bearer ${SERVICE_ROLE_KEY}`,'content-type':'application/json'},
@@ -118,9 +124,10 @@ Deno.serve(async req=>{
    }
    const keys=action==='order_detail_save'?[b.row_key]:b.keys;
    if(!Array.isArray(keys)||!keys.length||keys.length>50||keys.some(k=>!/^((icetak|shopee):[0-9a-f-]{36})$/.test(String(k))))return json({ok:false,error:'Pilih 1 hingga 50 order'},400);
-   const [snapshot,source,details]=await Promise.all([rpc('icetak_customer_focus_snapshot',{}),inbox({action:'focus'}),rpc('icetak_order_detail_sources',{p_keys:keys})]);
+   const [snapshot,source,details]=await Promise.all([rpc('icetak_customer_focus_orders',{p_keys:keys}),action==='order_details'?sharedRead('focus-chats',()=>inbox({action:'focus'})):inbox({action:'focus'}),rpc('icetak_order_detail_sources',{p_keys:keys})]);
    snapshot.orders=snapshot.orders.filter((o:any)=>keys.includes(`${o.kind}:${o.id}`));attachDetailSources(snapshot,details);
-   const identities=await rpc('icetak_customer_focus_identities',{p_identities:source.rows.map(identity)});
+   const identityInput={p_identities:source.rows.map(identity)};
+   const identities=action==='order_details'?await sharedRead('identities:'+JSON.stringify(identityInput),()=>rpc('icetak_customer_focus_identities',identityInput)):await rpc('icetak_customer_focus_identities',identityInput);
    let rows=focusRows(snapshot,source.rows,identities).filter((r:any)=>keys.includes(r.key));
    const candidates=(row:any)=>source.rows.filter((c:any)=>row.conversations.some((x:any)=>x.id===c.id)).map((c:any)=>({id:c.id,name:c.name,channel:c.channel,ambiguous:identities[c.id]?.identity_status==='ambiguous',last_inbound_at:c.last_inbound_at,boundary_at:'2020-01-01T00:00:00Z'}));
    if(action==='order_detail_save'){
@@ -293,5 +300,6 @@ Deno.serve(async req=>{
    p_snoozed_until:b.review_action==='snooze'?new Date(Date.now()+24*3600000).toISOString():null});
   return json({ok:true,...result});
  }catch(error){const message=error instanceof Error?error.message:String(error);
+  console.error(JSON.stringify({event:'admin_dashboard_error',message}));
   return json({ok:false,error:message},/FOCUS_CHANGED|SOURCE_CHANGED|REQUEST_CONFLICT|CHAT_CHANGED|REVIEW_CHANGED|TRAINING_CHANGED|CASE_CHANGED|Request ID conflict/.test(message)?409:500);}
 });

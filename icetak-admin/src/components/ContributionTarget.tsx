@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { malaysiaDate, money, request, type ContributionReport } from '../lib/contribution';
 import './Contribution.css';
 import MoneyBreakdown from './MoneyBreakdown';
@@ -19,8 +19,10 @@ export function TargetNumbers({data}:{data:ContributionReport}){
  </>;
 }
 export default function ContributionTarget({onOpen,refreshKey}:{onOpen:()=>void;refreshKey?:string}){
+ const lastSnapshot=useRef(refreshKey);
  const [data,setData]=useState<ContributionReport|null>(null),[error,setError]=useState(''),[tick,setTick]=useState(0),[loading,setLoading]=useState(true);
- useEffect(()=>{let active=true;setLoading(true);setError('');void request<ContributionReport>({action:'contribution_report',month:`${malaysiaDate().slice(0,7)}-01`}).then(r=>{if(active)setData(r)}).catch(e=>{if(active)setError(e.message)}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[tick,refreshKey]);
+ useEffect(()=>{let active=true;setLoading(true);setError('');void request<ContributionReport>({action:'contribution_report',month:`${malaysiaDate().slice(0,7)}-01`}).then(r=>{if(active)setData(r)}).catch(e=>{if(active)setError(e.message)}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[tick]);
+ useEffect(()=>{if(lastSnapshot.current===refreshKey)return;const hadSnapshot=!!lastSnapshot.current;lastSnapshot.current=refreshKey;if(hadSnapshot)setTick(t=>t+1)},[refreshKey]);
  return <section className="ct-panel" aria-label="Target dan baki bulanan"><div className="ct-heading"><div><h2>Target & Baki</h2><p>Selepas fee, courier dan modal · seluruh bulan ini. Jualan dibayar dalam Ringkasan belum menolak kos; unpaid dan cancelled dikecualikan.</p></div><div><button className="btn btn-outline btn-sm" disabled={loading} onClick={()=>setTick(t=>t+1)}>{loading?'Memuatkan…':'↻'}</button><button className="btn btn-primary btn-sm" onClick={onOpen}>Detail target & margin</button></div></div>
  {error&&<p className="ct-warning" role="alert">Gagal muat target: {error}{data?' · Angka di bawah daripada bacaan sebelumnya.':''}</p>}
  {data?<TargetNumbers data={data}/>:!error&&<p className="ct-muted">Memuatkan data margin…</p>}

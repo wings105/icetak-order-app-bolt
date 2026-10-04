@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import {malaysiaDate,profitMoney,profitRequest} from '../lib/orderProfit';
 import {skuRange} from './SalesSku';
 import OrderProfitDetail from '../components/OrderProfitDetail';
@@ -17,13 +17,14 @@ const cell=(v:unknown)=>'"'+String(v??'').replace(/^[=+@-]/,"'$&").replaceAll('"
 const evidence=(v:string)=>({released:'Release disahkan',escrow:'Escrow anggaran',report_estimate:'Nett anggaran Excel',missing:'Finance belum lengkap',transaction:'Transaksi direkodkan',paid_status_only:'Status paid; amaun transaksi belum ada',unpaid:'Belum bayar'}[v]||v);
 function Amount({value,missing=0,known=false}:{value:number|null;missing?:number;known?:boolean}){return <><b>{profitMoney(value)}</b>{(known||missing>0)&&<small>{missing>0?`${missing} order belum lengkap`:'Jumlah diketahui'}</small>}</>}
 export default function SalesChannel({canManage=false,onOpenOrder}:{canManage?:boolean;onOpenOrder?:(reference:string)=>void}){
+ const reportScope=useRef('');
  const today=malaysiaDate();
  const params=new URLSearchParams(window.location.search),followup=params.get('channel_kind')==='cancelled';
  const linkedFrom=params.get('sales_from')||'',linkedTo=params.get('sales_to')||'';
  const linkedRange=/^\d{4}-\d{2}-\d{2}$/.test(linkedFrom)&&/^\d{4}-\d{2}-\d{2}$/.test(linkedTo)&&linkedFrom<=linkedTo&&linkedTo<=today;
  const [period,setPeriod]=useState(linkedRange?'custom':'month'),[range,setRange]=useState(()=>linkedRange?{from:linkedFrom,to:linkedTo}:skuRange('month',today)),[channel,setChannel]=useState('all'),[kind,setKind]=useState(followup?'cancelled':'all'),[query,setQuery]=useState(''),[search,setSearch]=useState(''),[page,setPage]=useState(0),[metric,setMetric]=useState<'sales'|'orders'|'profit'>('sales'),[refresh,setRefresh]=useState(0),[report,setReport]=useState<Report|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[exporting,setExporting]=useState(false),[order,setOrder]=useState<string|null>(null);
  useEffect(()=>{const id=setTimeout(()=>{setSearch(query);setPage(0)},350);return()=>clearTimeout(id)},[query]);
- useEffect(()=>{let active=true;setBusy(true);setError('');setReport(null);
+ useEffect(()=>{let active=true;setBusy(true);setError('');const scope=JSON.stringify([range.from,range.to,channel,kind,search,page]);if(reportScope.current!==scope)setReport(null);reportScope.current=scope;
   if(!range.to||(range.from&&range.from>range.to)||range.to>today){setError('Semak tarikh: julat mesti berakhir selewat-lewatnya hari ini.');setBusy(false);return;}
   profitRequest<Report>({action:'sales_channel_report',from:range.from||null,to:range.to,channel,kind,query:search,offset:page*50}).then(v=>{if(active)setReport(v)}).catch(e=>{if(active)setError(e.message)}).finally(()=>{if(active)setBusy(false)});return()=>{active=false};
  },[range.from,range.to,channel,kind,search,page,refresh,today]);
@@ -38,7 +39,7 @@ export default function SalesChannel({canManage=false,onOpenOrder}:{canManage?:b
   <header className="channel-heading"><div><h2>Sales Channel</h2><p>Shopee vs Deco sendiri • MYR • tarikh order, waktu Malaysia</p></div><div><button disabled={busy} onClick={()=>setRefresh(v=>v+1)}>Muat semula</button><button disabled={exporting||!report?.total} onClick={()=>void exportCsv()}>{exporting?'Mengeksport…':'Eksport order CSV'}</button></div></header>
   <div className="channel-periods">{periods.map(([key,label])=><button key={key} aria-pressed={period===key} onClick={()=>{setPeriod(key);setPage(0);if(key!=='custom')setRange(skuRange(key,today))}}>{label}</button>)}</div>
   <div className="channel-filters"><label>Dari<input type="date" value={range.from} max={range.to} onChange={e=>{setPeriod('custom');setPage(0);setRange({...range,from:e.target.value})}}/></label><label>Hingga<input type="date" value={range.to} max={today} onChange={e=>{setPeriod('custom');setPage(0);setRange({...range,to:e.target.value})}}/></label></div>
-  {error&&<p role="alert" className="channel-error">{error} <button onClick={()=>setRefresh(v=>v+1)}>Cuba semula</button></p>}{busy&&<p role="status">Memuatkan laporan kedua-dua channel…</p>}
+  {error&&<p role="alert" className="channel-error">{error}{report&&' · Bacaan lama masih dipaparkan; muat semula untuk angka terkini.'} <button onClick={()=>setRefresh(v=>v+1)}>Cuba semula</button></p>}{busy&&<p role="status">Memuatkan laporan kedua-dua channel…</p>}
   {kind==='cancelled'&&<p className="channel-note">Calon follow-up cancelled: rekod asal dikekalkan dan tidak masuk sales. Semak sebab pembatalan dan detail order sebelum hubungi customer. Order baru hanya direkod bila customer confirm semula.</p>}
   {report&&<>
    <div className="channel-total"><span>Sales barang sebelum refund</span><strong>{profitMoney(report.summary.sales??report.summary.known_sales)}</strong><span>{report.summary.orders.toLocaleString('en-MY')} order jualan{report.summary.missing_sales>0?` • jumlah diketahui; ${report.summary.missing_sales} order tiada nilai`:''}</span></div>

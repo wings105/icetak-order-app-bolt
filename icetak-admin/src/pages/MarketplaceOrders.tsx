@@ -36,11 +36,12 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canVi
   const [selectedFinance,setSelectedFinance]=useState<string|null>(null);
   const [details,setDetails]=useState<Record<string,DetailData>>({}),[detailError,setDetailError]=useState(''),[detailKey,setDetailKey]=useState<string|null>(null),[detailVersion,setDetailVersion]=useState(0);
   const [detailFilter,setDetailFilter]=useState('all'),[scanProgress,setScanProgress]=useState('');
+  const detailScan=useRef<{key:string;at:number;source:Row[];details:Record<string,DetailData>;payload:Payload}|null>(null);
   const loadSequence=useRef(0),scanBusy=useRef(false),filteredRows=useRef<Row[]>([]);
   const limit=50;
   const activeDetailFilter=canViewDetails?detailFilter:'all';
 
-  const load=useCallback(async(nextOffset=0)=>{
+  const load=useCallback(async(nextOffset=0,force=false)=>{
     const request=++loadSequence.current;scanBusy.current=true;setLoading(true);setDetailError('');setScanProgress('');
     const params={p_search:search,p_status:status,p_provider:provider,p_ship_by:shipBy};
     try{
@@ -49,13 +50,20 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canVi
         if(error)throw error;
         if(request===loadSequence.current){setPayload((data||{}) as Payload);setOffset(nextOffset);}
       }else{
+        // Reuse a completed scan briefly when only the detail filter changes.
+        // Source filters, explicit refresh, saved detail and the 60s poll invalidate it.
+        const key=JSON.stringify(params),cached=detailScan.current;
+        if(!force&&cached?.key===key&&Date.now()-cached.at<30000){
+          const matched=cached.source.filter(r=>matchesDetailFilter(cached.details[r.id]?.detail_collection,activeDetailFilter));
+          filteredRows.current=matched;setDetails(cached.details);setPayload({...cached.payload,rows:matched.slice(0,limit),total:matched.length});setOffset(0);return;
+        }
         // Evaluate every matching source page before paginating detail results.
-        const matched:Row[]=[],collected:Record<string,DetailData>={};let first:Payload={},scanned=0;
+        const allSource:Row[]=[],matched:Row[]=[],collected:Record<string,DetailData>={};let first:Payload={},scanned=0;
         for(let sourceOffset=0;;sourceOffset+=100){
           const {data,error}=await supabase.rpc('icetak_admin_marketplace_orders',{...params,p_limit:100,p_offset:sourceOffset});
           if(request!==loadSequence.current)return;if(error)throw error;
           const page=(data||{}) as Payload;if(sourceOffset===0)first=page;
-          const sourceRows=page.rows||[];
+          const sourceRows=page.rows||[];allSource.push(...sourceRows);
           const responses=await Promise.all(Array.from({length:Math.ceil(sourceRows.length/50)},(_,n)=>detailRequest({action:'order_details',keys:sourceRows.slice(n*50,n*50+50).map(r=>'shopee:'+r.id)})));
           if(request!==loadSequence.current)return;
           for(const response of responses)for(const r of response.rows)collected[r.id]=r;
@@ -63,14 +71,14 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canVi
           scanned+=sourceRows.length;setScanProgress(`Menyemak detail ${scanned} / ${Number(first.total||0)} order…`);
           if(!sourceRows.length||scanned>=Number(first.total||0))break;
         }
-        if(request===loadSequence.current){filteredRows.current=matched;setDetails(collected);setPayload({...first,rows:matched.slice(0,limit),total:matched.length});setOffset(0);}
+        if(request===loadSequence.current){detailScan.current={key,at:Date.now(),source:allSource,details:collected,payload:first};filteredRows.current=matched;setDetails(collected);setPayload({...first,rows:matched.slice(0,limit),total:matched.length});setOffset(0);}
       }
     }catch(e){if(request===loadSequence.current){setDetailError(e instanceof Error?e.message:String(e));setPayload({rows:[],summary:{}});setOffset(0);}}
     finally{if(request===loadSequence.current){scanBusy.current=false;setLoading(false);setScanProgress('');}}
   },[search,status,provider,shipBy,activeDetailFilter]);
   useEffect(()=>{const t=window.setTimeout(()=>void load(0),220);return()=>{window.clearTimeout(t);loadSequence.current++;}},[load]);
   const changePage=(next:number)=>{if(activeDetailFilter==='all')void load(next);else{setOffset(next);setPayload(p=>({...p,rows:filteredRows.current.slice(next,next+limit)}));}};
-  useEffect(()=>{if(activeDetailFilter==='all')return;const timer=window.setInterval(()=>{if(!scanBusy.current)void load(0);},60000);return()=>window.clearInterval(timer);},[activeDetailFilter,load,detailVersion]);
+  useEffect(()=>{if(activeDetailFilter==='all')return;const timer=window.setInterval(()=>{if(document.visibilityState==='visible'&&!scanBusy.current)void load(0,true);},60000);return()=>window.clearInterval(timer);},[activeDetailFilter,load,detailVersion]);
   const rows=payload.rows||[];
   useEffect(()=>{
     if(!canViewFinance)return;let active=true;setProfits({});setProfitError('');
@@ -80,7 +88,7 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canVi
   },[payload,canViewFinance]);
   useEffect(()=>{if(!canViewDetails||activeDetailFilter!=='all')return;let active=true;setDetails({});setDetailError('');const keys=(payload.rows||[]).map(r=>'shopee:'+r.id);
     let pending=false;
-    const refresh=async()=>{if(!keys.length||pending)return;pending=true;try{const d=await detailRequest({action:'order_details',keys});if(active){setDetails(Object.fromEntries(d.rows.map((r:DetailData)=>[r.id,r])));setDetailError('');}}catch(e){if(active)setDetailError(e instanceof Error?e.message:String(e));}finally{pending=false;}};
+    const refresh=async()=>{if(!keys.length||pending||document.visibilityState!=='visible')return;pending=true;try{const d=await detailRequest({action:'order_details',keys});if(active){setDetails(Object.fromEntries(d.rows.map((r:DetailData)=>[r.id,r])));setDetailError('');}}catch(e){if(active)setDetailError(e instanceof Error?e.message:String(e));}finally{pending=false;}};
     void refresh();const timer=window.setInterval(()=>void refresh(),60000);return()=>{active=false;window.clearInterval(timer)};
   },[payload,canViewDetails,detailVersion,activeDetailFilter]);
   const total=Number(payload.total||0);
@@ -98,7 +106,7 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canVi
   return <div className="mp-page">
     <div className="mp-head">
       <div><h2>Marketplace Orders</h2><p>Shopee order database — separate from iCetak internal orders.</p></div>
-      <button className="mp-refresh" onClick={()=>void load(offset)}>Refresh</button>
+      <button className="mp-refresh" onClick={()=>void load(offset,true)}>Refresh</button>
     </div>
 
     <div className="mp-summary">
@@ -132,7 +140,7 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canVi
 
     <div className="mp-table-wrap">
       {canViewFinance&&profitError&&<div className="op-alert error" role="alert">Finance: {profitError}</div>}
-      {canViewDetails&&detailError?<div className="op-alert error" role="alert">Detail / session: {detailError} <button onClick={()=>{if(activeDetailFilter!=='all')void load(0);else setDetailVersion(v=>v+1);}}>Cuba semula</button></div>:null}
+      {canViewDetails&&detailError?<div className="op-alert error" role="alert">Detail / session: {detailError} <button onClick={()=>{if(activeDetailFilter!=='all')void load(0,true);else setDetailVersion(v=>v+1);}}>Cuba semula</button></div>:null}
       <table className={'mp-table'+(canViewDetails?' mp-table-details':'')}>
         <thead><tr><th>ORDER</th><th>PLACED / SHIP BY</th><th>BUYER</th><th>ITEMS</th>{canViewDetails?<><th>DETAIL ORDER</th><th>FOLLOW-UP / DEADLINE</th><th>CLICKUP / PRODUCTION</th></>:null}<th>PAID</th><th>COURIER / TRACKING</th><th>STATUS</th></tr></thead>
         <tbody>
@@ -165,7 +173,7 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canVi
       <span>{total?offset+1:0}-{Math.min(offset+limit,total)} of {total}</span>
       <div><button disabled={offset===0||loading} onClick={()=>changePage(Math.max(0,offset-limit))}>Previous</button><button disabled={offset+limit>=total||loading} onClick={()=>changePage(offset+limit)}>Next</button></div>
     </div>
-    {detailKey?<Suspense fallback={<p>Memuatkan detail…</p>}><OrderDetailSession rowKey={detailKey} onClose={()=>setDetailKey(null)} onSaved={()=>{setDetailVersion(v=>v+1);if(activeDetailFilter!=='all')void load(0);}} onOpenChat={onOpenChat}/></Suspense>:null}
+    {detailKey?<Suspense fallback={<p>Memuatkan detail…</p>}><OrderDetailSession rowKey={detailKey} onClose={()=>setDetailKey(null)} onSaved={()=>{detailScan.current=null;setDetailVersion(v=>v+1);if(activeDetailFilter!=='all')void load(0,true);}} onOpenChat={onOpenChat}/></Suspense>:null}
     {selectedFinance&&<OrderProfitDetail key={selectedFinance} orderId={selectedFinance} canManage={canManageFinance} onClose={()=>setSelectedFinance(null)} onSaved={r=>setProfits(prev=>({...prev,[r.order_id]:r}))}/>}
   </div>
 }

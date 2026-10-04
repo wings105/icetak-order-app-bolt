@@ -1,6 +1,7 @@
 type Data = Record<string, any>;
 const norm = (v: unknown) => String(v || '').trim().toLowerCase().replace(/\s+/g, '_');
-const day = (v: number) => new Date(v).toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
+const dayFormatter=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur'});
+const day = (v: number) => dayFormatter.format(v);
 export function orderOperation(o: Data, now = Date.now()) {
  const status = norm(o.current_status || o.status), stage = norm(o.fulfillment_stage || o.fulfillment_status);
  const tasks: Data[] = o.production_tasks || [];

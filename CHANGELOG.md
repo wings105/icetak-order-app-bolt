@@ -1,3 +1,7 @@
+## 2026-10-04 — [VERIFIED] Admin loading and Customer Focus timeout
+
+Fixes the observed Inbox statement timeout with bounded indexed chat batches, exact-key order-detail snapshots and shared overlapping gateway reads. Preserves full coverage, ordering, revisions and private auth; incomplete batches fail explicitly. Marketplace reuses completed detail scans for detail-only filters and skips hidden-tab polling. Focus prevents overlapping refresh and shows backend reasons. Finance keeps same-scope values during refresh with stale-error labels; Dashboard avoids its duplicate initial margin read. Live equivalent-result/private-grant tests, deployed full-coverage smoke and real desktop/mobile Admin tests pass; one authenticated focus read took 4.649 seconds versus earlier 8–18 seconds. Hosted owner interaction remains pending. See docs/ADMIN_READ_PERFORMANCE.md.
+
 ## 2026-10-04 — [VERIFIED] Paid sales and cancelled follow-up view
 
 Command Center GMV and Sales Channel sales exclude unpaid, partial and cancelled orders. Receipt evidence takes precedence over recorded Paid status; refund/void safeguards remain. Pending balances and original cancelled records are retained. Dashboard links to the date-scoped cancelled Finance view for manual follow-up; no messages or duplicate orders are created. Live rollback tests and actual App desktop/mobile with live read-only reports pass without runtime errors. Hosted owner interaction remains pending.
