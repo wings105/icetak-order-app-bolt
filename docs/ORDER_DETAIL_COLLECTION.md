@@ -4,7 +4,7 @@
 
 ## Staff surface
 
-Marketplace Orders retains its list and platform statuses. CRM-authorized staff see Detail Order, Follow-up / Deadline and ClickUp / Production columns. Customer Focus uses the same evaluator and opens the same Detail / session panel. Separate indicators describe the internal iCetak order link, ClickUp task link and usable chat-session link. Marketplace `internal_order_id` being null does not imply no ClickUp task.
+Marketplace Orders retains its list and platform statuses. CRM-authorized staff see Detail Order, Follow-up / Deadline and ClickUp / Production columns. Customer Focus uses the same evaluator and opens the same Detail / session panel. Marketplace refreshes its scoped detail/task read model every 60 seconds, with overlap prevention and cleanup when the page/filter changes. Separate indicators describe the internal iCetak order link, ClickUp task link and usable chat-session link. Marketplace `internal_order_id` being null does not imply no ClickUp task.
 
 Each item has an explicit requirement: standard, name, name + age, wording, image, image + wording, or review. Conservative title inference is a starting point; unknown products need staff review. Completeness follows required fields, multiple-unit same-design confirmation and current item facts. Multi-item generic chat is not allocated by array position. Reference images require an explicit final image selection. Known notes, canonical wording and exact ClickUp SKU/task matches are shown with provenance. Conflicting new customer details reopen review; acknowledgements do not invalidate an explicit staff correction.
 
@@ -43,3 +43,7 @@ To enable those integrations next, connect the actual AP/Shopee send adapter and
 - Real Customer Focus and Marketplace list/panel rendered against full actual order snapshot plus isolated QA order and controlled actual gateway saves. 1440×1000 and 390×844: save/reload, other-channel binding, deadline/manual follow-up, lost-response retry and reader capability checks pass; no page runtime errors or document overflow.
 - Live save/audit assertions ran inside rollback: one identical retry result/event, private detail persisted, zero retained QA states/events. Live Inbox checked ten open source sessions with `closed=true`: zero usable scopes. Service-only grants and backend exact source/auth-mode readback verified. No-auth calls rejected with 401.
 - Admin TypeScript 6 check, source ownership guard and full storefront + isolated Inbox build pass. Run Admin typecheck with its own package's compiler, not the root TypeScript 5 compiler.
+
+## Hosting release
+
+Initial release `9ebd080e1413776a4762dc05a453ed4296a0cf5c` passed Cloudflare Workers Builds and the source guard. Public production asset-chain smoke found the expected order detail actions, panel, manual follow-up disclosure and Marketplace columns in `App-DfOh9wbW.js`. This confirms served code, not an authenticated owner save. The additional 60-second Marketplace polling behavior was verified with the real rendered list/handler and a controlled fresh task change; overlap and unmount guards remain local to the scoped list.

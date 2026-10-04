@@ -56,7 +56,9 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canVi
     return()=>{active=false};
   },[payload,canViewFinance]);
   useEffect(()=>{if(!canViewDetails)return;let active=true;setDetails({});setDetailError('');const keys=(payload.rows||[]).map(r=>'shopee:'+r.id);
-    if(keys.length)void detailRequest({action:'order_details',keys}).then(d=>{if(active)setDetails(Object.fromEntries(d.rows.map((r:DetailData)=>[r.id,r])))}).catch(e=>{if(active)setDetailError(e.message)});return()=>{active=false};
+    let pending=false;
+    const refresh=async()=>{if(!keys.length||pending)return;pending=true;try{const d=await detailRequest({action:'order_details',keys});if(active){setDetails(Object.fromEntries(d.rows.map((r:DetailData)=>[r.id,r])));setDetailError('');}}catch(e){if(active)setDetailError(e instanceof Error?e.message:String(e));}finally{pending=false;}};
+    void refresh();const timer=window.setInterval(()=>void refresh(),60000);return()=>{active=false;window.clearInterval(timer)};
   },[payload,canViewDetails,detailVersion]);
   const total=Number(payload.total||0);
   const summary=payload.summary||{};
