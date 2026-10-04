@@ -1,3 +1,7 @@
+## 2026-10-04 — [VERIFIED] Customer Focus inline shortcuts
+
+Adds WhatsApp app / wa.me buttons, source Shopee username and small copy controls for order IDs, phone, related references and tracking. Compact source and Pos/Pickup badges stay in the pinned customer column. Real desktop/mobile component, clipboard, link, search and navigation checks pass; Admin type/build checks pass. Hosted authenticated-owner interaction remains pending. No backend or priority changes. See docs/CUSTOMER_FOCUS.md.
+
 ## 2026-10-04 — [VERIFIED] Customer Focus daily scope
 
 Corrects the owner's reported ranking failure: July COMPLETED orders and old chat/deadline combinations no longer dominate daily focus. Full actual-data comparison reduces 1,813 to 126 daily rows with zero July focus rows; current chat/paid, future work, pickup and historical filters remain accessible. Real desktop/mobile component tests, regressions, Admin type/build checks pass; admin-ai-dashboard v10 source/auth readback verified. Hosted authenticated owner confirmation remains pending. See docs/CUSTOMER_FOCUS.md.
