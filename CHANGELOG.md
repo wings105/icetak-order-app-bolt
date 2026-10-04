@@ -1,5 +1,7 @@
 ## 2026-10-04 — [VERIFIED] Real order contribution targets
 
+- [VERIFIED] Marketplace Orders opens with To Ship by default; explicit valid status links and manual All selection remain available. Rendered initial RPC/tab, invalid-link fallback and All/To Ship interactions pass; Admin build passes.
+
 Adds Target & Baki to Admin V2 Dashboard and Finance → Target & Margin. Shopee uses net release/escrow after fees; direct uses customer receipt less courier, material and extra costs. Actual AWB charges replace courier estimates; missing data, receipt evidence and actual/estimated costs remain explicit. Includes overhead/owner-income goals, Saturday–Thursday workdays/holidays, dynamic remaining daily target, per-order direct cost review, filters and existing Shopee detail. Live rollback financial/audit/access tests, gateway auth tests, rendered real App desktop/mobile and live-report checks pass; existing profit/channel regressions pass. Finance v32 keeps JWT and owner gates. Hosted authenticated-owner interaction remains pending. See docs/CONTRIBUTION_TARGETS.md.
 
 ## 2026-10-04 — [VERIFIED] Trusted webhook phone reconciles Shopee/WhatsApp CRM masters
