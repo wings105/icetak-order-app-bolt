@@ -60,7 +60,7 @@ export default function Dashboard({onQuickOrder,onOpenOrder,onOpenFocus,canViewF
    <div className="cc-context"><span>{periodHint}</span><span>Snapshot: {dateTime(data.fetched_at)} {loading?'· Memuat semula…':''}</span></div>
    <div className="cc-metrics">
     <Metric label="Order masuk" value={number(p.orders)} hint={`${number(p.icetak_orders)} iCetak · ${number(p.shopee_orders)} Shopee`} href={source==='shopee'?mpLink():ordersLink('all',true)}/>
-    {caps?.finance&&<><Metric label="Jualan / GMV" value={money(p.gmv)} hint={`MYR · ${number(p.cancelled)} order batal dikecualikan`} href={adminHref('finance')}/><Metric label="Bayaran diterima" value={money(p.payments_received)} hint="Transaksi iCetak · bukan Shopee payout" href={adminHref('qrpay-summary',{date:to})}/></>}
+    {caps?.finance&&<><Metric label="Jualan kasar / GMV" value={money(p.gmv)} hint={`Sebelum fee & kos · termasuk belum bayar · ${number(p.cancelled)} batal dikecualikan`} href={adminHref('finance')}/><Metric label="Bayaran diterima" value={money(p.payments_received)} hint="Transaksi iCetak · bukan Shopee payout" href={adminHref('qrpay-summary',{date:to})}/></>}
     {caps?.chat&&<><Metric label="Lead baru" value={number(p.new_leads)} hint="Lead rasmi direkodkan"/><Metric label="Chat masuk" value={number(i?.period.inbound)} hint={i?`${number(i.period.new_conversations)} conversation baru`:'Inbox belum tersedia'} href={chatLink()}/><Metric label="Quotation dihantar" value={number(p.quotes)} hint="Event penghantaran yang disahkan admin"/></>}
    </div>
    <section className="cc-attention"><div className="cc-attention-title"><b>Perlu perhatian</b><small>Backlog semasa · klik untuk tindakan</small></div><div className="cc-attention-items">

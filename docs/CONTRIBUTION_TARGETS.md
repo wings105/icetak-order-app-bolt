@@ -59,3 +59,11 @@ Order System project `buivecgahhmrhlmfujgt`, private `finance.contribution_targe
 Run UI checks with `FINANCE_PLAYWRIGHT_MODULE` and optional `FINANCE_CHROMIUM_EXECUTABLE`. Browser plugin was unavailable; regular Playwright used an isolated npm-packaged Chromium after the default browser download failed.
 
 Production publication: feature commit `fbfa3bc` passed Workers Builds (`471ad30c-7b5e-40a0-aabc-f6f5f198fe8f`) and Public Domain Guard. Public index links `main-CaDkA1_G.js` → `admin-v2-route-rNJqfjvd.js` → `App-Dy00HLE8.js` with the target and direct-cost actions. The cloud-browser deep link resolves to the Admin Login; no authenticated owner interaction was performed. A follow-up backend review-flag guard requires fresh actual-cost checks after source changes; its rollback test passes.
+
+## 2026-10-04 — Visible card arithmetic (VERIFIED)
+
+Target month/today/channel cards and all four Untung Order cards now show server-aggregated goods sales, platform fee, direct courier, postage/settlement adjustment, nett, material and extra costs. Target remainder and daily goal show their own formulas. GMV is explicitly gross/before costs and can include unpaid orders; target contribution includes only eligible orders with known contribution. Each breakdown uses the same full cohort as its headline, independent of table pagination. Escrow/released nett cards keep their nett headline and explain material has not been subtracted. Missing components remain unknown (—), with incomplete counts. No fee is deducted twice; adjustments reconcile goods value to provider nett rather than assuming buyer-paid equals seller goods revenue.
+
+Live read-only SQL checked report/cohort arithmetic and private grants. On 4 Oct, sample daily known sales RM529 + postage RM9 − fees RM114.82 − courier RM9 − material RM105.74 = RM308.44 across 32 eligible known orders. GMV RM602.66 includes unpaid orders and buyer-payment differences. Values change as new source data arrives.
+
+Actual Admin App rendered with separately fetched live read-only reports: desktop 1440px/mobile 390px, Target & Margin → Untung Order, all card values, missing fields and horizontal overflow checked; no page/console errors. Browser plugin unavailable, existing Playwright/Chromium used. Admin build/type and storefront/Inbox build checked. Authenticated hosted owner interaction remains pending.

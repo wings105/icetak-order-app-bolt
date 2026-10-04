@@ -1,3 +1,4 @@
+import type { MoneyBreakdown } from './contribution';
 import { supabase } from './supabase';
 export const materialCategories={topper:'Topper',edible:'Edible',wafer:'Wafer',acrylic:'Acrylic'} as const;
 export type MaterialCategory=keyof typeof materialCategories;
@@ -29,5 +30,5 @@ export type FinanceField={code:string;label:string;group:string;role:string;valu
 export type FinanceMetrics={shipping_net:number|null;return_shipping:number|null;fee_total:number|null;refund_total:number|null;seller_promotion:number|null;platform_ads:number|null;affiliate:number|null;provider_nett:number|null;reconstructed_nett:number|null;reconciliation_delta:number|null;reconciliation:string;issues:string[];reasons:string[];field_count:number};
 export type FinanceHistory={id:number;source:string;captured_at:string;fields?:Record<string,FinanceField>;metrics:FinanceMetrics};
 export const financeReasonLabels:Record<string,string>={shipping_loss:'Shipping rugi',return_shipping:'Return / reverse shipping',refund:'Refund barang',seller_promotion:'Promo seller',platform_ads:'Ads / technical support',affiliate:'Affiliate AMS',negative_nett:'Nett negatif',reconciliation:'Pecahan perlu semak'};
-export type FinanceReport=ProfitList&{trend:{day:string;orders:number;known_orders:number;nett:number|null;profit:number|null}[];groups:{name:string;orders:number;known_orders:number;profit:number|null;shipping_net:number|null}[];truncated?:boolean};
+export type FinanceReport=ProfitList&{breakdowns?:{released:MoneyBreakdown;escrow:MoneyBreakdown;actual:MoneyBreakdown;estimated:MoneyBreakdown};trend:{day:string;orders:number;known_orders:number;nett:number|null;profit:number|null}[];groups:{name:string;orders:number;known_orders:number;profit:number|null;shipping_net:number|null}[];truncated?:boolean};
 export type FinanceOptions={couriers:string[];shops:{shop_id:number;currency:string;orders:number}[]};

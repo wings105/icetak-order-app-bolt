@@ -10,10 +10,12 @@ export type ContributionRow = {
  lines?:{title:string;qty:number;category:string|null;goods:number|null;material:number|null}[];
 };
 export type TargetSettings = {version:number;overhead:number;owner_income:number;workdays:number[];holidays:string[]};
+export type MoneyBreakdown = {orders:number;missing:number;sales:number|null;fee:number|null;courier:number|null;adjustment:number|null;nett:number|null;material:number|null;extras:number|null;contribution:number|null};
 export type ContributionReport = {
+ breakdowns?:{month:MoneyBreakdown;today:MoneyBreakdown;actual:MoneyBreakdown};
  month:string;today:string;fetched_at:string;settings:TargetSettings;rows:ContributionRow[];total:number;
  summary:{goal:number;known:number;actual:number;estimated:number;today:number;missing:number;included_orders:number;excluded_orders:number;remaining:number;after_overhead:number;workdays:number;remaining_days:number;is_workday:boolean;daily_base:number|null;daily_target:number|null;daily_gap:number|null};
- channels:{channel:string;orders:number;missing:number;contribution:number;sales:number|null;margin:number|null}[];
+ channels:{channel:string;orders:number;missing:number;contribution:number;sales:number|null;margin:number|null;breakdown?:MoneyBreakdown}[];
 };
 export const request = profitRequest;
 export const stateLabels={actual:'Sebenar',estimated:'Anggaran',incomplete:'Belum lengkap',excluded:'Tidak dikira'};

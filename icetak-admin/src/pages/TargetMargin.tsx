@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { costNumber, malaysiaDate, money, request, stateLabels, type ContributionReport, type ContributionRow, type TargetSettings } from '../lib/contribution';
 import { TargetNumbers } from '../components/ContributionTarget';
+import MoneyBreakdown from '../components/MoneyBreakdown';
 import DirectContribution from '../components/DirectContribution';
 import OrderProfitDetail from '../components/OrderProfitDetail';
 import '../components/Contribution.css';
@@ -40,7 +41,7 @@ export default function TargetMargin({canManage,onOpenOrder,onOpenSettings}:{can
    {loading&&<p className="ct-muted" role="status">Memuatkan margin…</p>}{data&&<TargetNumbers data={data}/>}
    {settingsOpen&&canManage&&data&&<TargetSettingsForm key={data.settings.version} settings={data.settings} onSaved={()=>{setSettingsOpen(false);setNotice('Target disimpan.');refresh()}}/>}
   </section>
-  {data&&<div className="ct-channel-grid">{['shopee','deco'].map(key=>{const c=data.channels.find(c=>c.channel===key);return <article className="ct-panel" key={key}><h3>{key==='shopee'?'Shopee':'Direct / Decoshop'}</h3><strong>{money(c?.contribution??0)}</strong><p>{c?.orders??0} order · Margin {c?.margin==null?'belum lengkap':`${c.margin.toFixed(2)}%`}</p><small>{key==='shopee'?'Nett release / escrow − modal − kos tambahan':'Bayaran − courier − modal − kos tambahan'}</small>{!!c?.missing&&<p className="ct-warning">{c.missing} order belum cukup data</p>}</article>})}</div>}
+  {data&&<div className="ct-channel-grid">{['shopee','deco'].map(key=>{const c=data.channels.find(c=>c.channel===key);return <article className="ct-panel" key={key}><h3>{key==='shopee'?'Shopee':'Direct / Decoshop'}</h3><strong>{money(c?.contribution??0)}</strong><p>{c?.orders??0} order · Margin {c?.margin==null?'belum lengkap':`${c.margin.toFixed(2)}%`}</p><small>{key==='shopee'?'Nett release / escrow − modal − kos tambahan':'Bayaran − courier − modal − kos tambahan'}</small><MoneyBreakdown data={c?.breakdown}/>{!!c?.missing&&<p className="ct-warning">{c.missing} order belum cukup data</p>}</article>})}</div>}
   <p className="ct-muted ct-explanation">Shopee: nett sudah mengambil kira fees dan shipping platform. Direct: postage customer termasuk dalam bayaran; courier ditolak dahulu, modal atas barang sahaja. Margin % = sumbangan ÷ nilai barang. Ringkasan target sentiasa untuk seluruh bulan; filter di bawah hanya menapis senarai order.</p>
   <section className="ct-panel"><div className="ct-filters">
    <label>Channel<select aria-label="Channel" value={channel} onChange={e=>filter(()=>setChannel(e.target.value))}><option value="all">Semua channel</option><option value="shopee">Shopee</option><option value="deco">Direct / Decoshop</option></select></label>

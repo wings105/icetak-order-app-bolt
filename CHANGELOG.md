@@ -1,3 +1,7 @@
+## 2026-10-04 — [VERIFIED] Finance card sales, fee and cost breakdowns
+
+Target month/today/channel and Untung Order cards show server-aggregated sales, fees, courier, adjustments, nett and material/extra costs. Gross GMV and eligible contribution have explicit labels; remainder/daily goal show formulas. Same headline cohorts, missing-data handling and private grants checked live; real read-only reports rendered in desktop/mobile Admin App with no runtime errors. Hosted owner confirmation pending.
+
 ## 2026-10-04 — [VERIFIED] Real order contribution targets
 
 - [VERIFIED] Marketplace Orders opens with To Ship by default; explicit valid status links and manual All selection remain available. Rendered initial RPC/tab, invalid-link fallback and All/To Ship interactions pass; Admin build passes.
