@@ -1,5 +1,5 @@
 import './awb-preview.css';
-type Item={task_id:string;title:string;customize_name?:string;set:number|null;images:{url:string;name:string}[]};
+type Item={task_id:string;title:string;customize_name?:string;awb_url?:string;set:number|null;images:{url:string;name:string}[]};
 type Preview={order_id:string;items:Item[];updated_at:string};
 const root=document.getElementById('app')!;
 const orderId=(new URLSearchParams(location.search).get('awbpreview')||'').trim();
@@ -10,11 +10,18 @@ document.body.classList.add('awb-preview-page');
 document.title=`Reference Order ${orderId}`;
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 function toolbar(message:string){
- root.innerHTML=`<div class="awb-toolbar"><div><strong>Reference Order · ${escape(orderId)}</strong><small>A4 · 4 × 4 · 16 task setiap halaman</small><small id="awb-status" role="status">${escape(message)}</small></div><div class="awb-actions"><button id="awb-refresh" type="button">Refresh</button><button id="awb-print" type="button" disabled>Print / Save PDF</button></div></div><div id="awb-content"></div>`;
+ root.innerHTML=`<div class="awb-toolbar"><div><strong>Reference Order · ${escape(orderId)}</strong><small>A4 · 4 × 4 · 16 task setiap halaman</small><small id="awb-status" role="status">${escape(message)}</small><small id="awb-link-status">Memuat AWB…</small></div><div class="awb-actions"><button id="awb-refresh" type="button">Refresh</button><span id="awb-links"></span><button id="awb-print" type="button" disabled>Print / Save PDF</button></div></div><div id="awb-content"></div>`;
  root.querySelector('#awb-refresh')!.addEventListener('click',()=>void load());
  root.querySelector('#awb-print')!.addEventListener('click',()=>window.print());
 }
 function safeImageUrl(url:string){try{const u=new URL(url);return u.protocol==='https:'&&(u.hostname.endsWith('.clickup-attachments.com')||u.hostname==='attachments.clickup.com')?u.href:''}catch{return ''}}
+function renderAwbLinks(items:Item[]){
+ const urls=Array.from(new Set(items.flatMap(item=>{
+  try{const u=new URL(item.awb_url||'');return u.protocol==='https:'&&!u.username&&!u.password?[u.href]:[]}catch{return []}
+ })));
+ root.querySelector('#awb-links')!.innerHTML=urls.map((url,i)=>`<a class="awb-link" href="${escape(url)}" target="_blank" rel="noopener noreferrer" title="Buka PDF AWB untuk cetak">Print AWB${urls.length>1?` ${i+1}`:''}</a>`).join('');
+ root.querySelector('#awb-link-status')!.textContent=urls.length?'Print AWB: buka PDF dalam tab baharu, kemudian tekan Print.':'AWB link belum tersedia dalam task.';
+}
 async function load(){
  const current=++generation; toolbar('Memuat preview…');
  const content=root.querySelector<HTMLElement>('#awb-content')!;
@@ -24,6 +31,7 @@ async function load(){
   if(current!==generation)return;
   if(!response.ok)throw new Error(data.error||'Preview gagal dimuat.');
   if(!Array.isArray(data.items)||!data.items.length)throw new Error('Tiada item untuk order ini.');
+  renderAwbLinks(data.items);
   const pages:string[]=[];
   for(let offset=0;offset<data.items.length;offset+=16){
    pages.push(`<main class="awb-sheet" aria-label="Halaman ${pages.length+1}">${data.items.slice(offset,offset+16).map(item=>{
@@ -48,6 +56,7 @@ async function load(){
  }catch(error){
   if(current!==generation)return;
   root.querySelector('#awb-status')!.textContent='Preview belum tersedia';
+  root.querySelector('#awb-link-status')!.textContent='';
   content.innerHTML=`<div class="awb-message" role="alert">${escape(error instanceof Error?error.message:'Preview gagal dimuat. Cuba Refresh.')}</div>`;
  }
 }
