@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {fetchAwbPdf,safeAwbPdfUrl} from '../supabase/functions/awb-preview/pdf.ts';
+const url='https://icetak-awb.s3.us-east-1.amazonaws.com/awb/test.pdf';
+assert.equal(safeAwbPdfUrl(url),url);
+for(const invalid of ['https://127.0.0.1/a.pdf','https://example.com/a.pdf','https://icetak-awb.s3.us-east-1.amazonaws.com.evil.test/a.pdf','http://icetak-awb.s3.us-east-1.amazonaws.com/a.pdf','https://user:secret@icetak-awb.s3.us-east-1.amazonaws.com/a.pdf'])assert.equal(safeAwbPdfUrl(invalid),'');
+const bytes=new TextEncoder().encode('%PDF-1.7\nTest');
+assert.deepEqual(await fetchAwbPdf(url,async(_,options)=>{assert.equal(options.redirect,'error');return new Response(bytes);}),bytes);
+await assert.rejects(fetchAwbPdf(url,async()=>new Response('<html>Not a PDF</html>')),/not a PDF/);
+await assert.rejects(fetchAwbPdf(url,async()=>new Response(bytes,{headers:{'content-length':String(11*1024*1024)}})),/exceeds/);
+await assert.rejects(fetchAwbPdf(url,async()=>new Response(new Uint8Array(11*1024*1024))),/exceeds/);
+await assert.rejects(fetchAwbPdf(url,async()=>new Response('',{status:404})),/unavailable/);
+let fetched=false;await assert.rejects(fetchAwbPdf('https://127.0.0.1',async()=>{fetched=true;return new Response(bytes);}));assert.equal(fetched,false);
+console.log('PASS: PDF source boundary, response bytes, redirects disabled, invalid PDF, response limit, failures.');
