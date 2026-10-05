@@ -1,4 +1,5 @@
 import './awb-preview.css';
+import {printAwbPdf} from './awb-pdf-print';
 type Item={task_id:string;title:string;customize_name?:string;awb_url?:string;set:number|null;images:{url:string;name:string}[]};
 type Preview={order_id:string;items:Item[];updated_at:string};
 const root=document.getElementById('app')!;
@@ -6,6 +7,7 @@ const orderId=(new URLSearchParams(location.search).get('awbpreview')||'').trim(
 const env=(import.meta as any).env||{};
 const base=env.VITE_SUPABASE_URL||'https://buivecgahhmrhlmfujgt.supabase.co';
 let generation=0;
+let printingAwb=false;
 document.body.classList.add('awb-preview-page');
 document.title=`Reference Order ${orderId}`;
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
@@ -16,11 +18,22 @@ function toolbar(message:string){
 }
 function safeImageUrl(url:string){try{const u=new URL(url);return u.protocol==='https:'&&(u.hostname.endsWith('.clickup-attachments.com')||u.hostname==='attachments.clickup.com')?u.href:''}catch{return ''}}
 function renderAwbLinks(items:Item[]){
- const urls=Array.from(new Set(items.flatMap(item=>{
-  try{const u=new URL(item.awb_url||'');return u.protocol==='https:'&&!u.username&&!u.password?[u.href]:[]}catch{return []}
- })));
- root.querySelector('#awb-links')!.innerHTML=urls.map((url,i)=>`<a class="awb-link" href="${escape(url)}" target="_blank" rel="noopener noreferrer" title="Buka PDF AWB untuk cetak">Print AWB${urls.length>1?` ${i+1}`:''}</a>`).join('');
- root.querySelector('#awb-link-status')!.textContent=urls.length?'Print AWB: buka PDF dalam tab baharu, kemudian tekan Print.':'AWB link belum tersedia dalam task.';
+ const unique=new Map<string,Item>();
+ for(const item of items){try{const u=new URL(item.awb_url||'');if(u.protocol==='https:'&&!u.username&&!u.password&&!unique.has(u.href))unique.set(u.href,item);}catch{}}
+ const awbs=Array.from(unique.values());
+ root.querySelector('#awb-links')!.innerHTML=awbs.map((_,i)=>`<button class="awb-link" data-awb-index="${i}" type="button">Print AWB${awbs.length>1?` ${i+1}`:''}</button>`).join('');
+ root.querySelector('#awb-link-status')!.textContent=awbs.length?'Print AWB: terus buka popup print untuk AWB.':'AWB link belum tersedia dalam task.';
+ for(const button of root.querySelectorAll<HTMLButtonElement>('[data-awb-index]'))button.addEventListener('click',()=>void printAwb(awbs[Number(button.dataset.awbIndex)],button));
+}
+async function printAwb(item:Item,button:HTMLButtonElement){
+ if(printingAwb)return;printingAwb=true;
+ const current=generation,label=button.textContent;
+ const controls=Array.from(root.querySelectorAll<HTMLButtonElement>('[data-awb-index],#awb-refresh'));
+ controls.forEach(control=>control.disabled=true);button.textContent='Memuat AWB…';
+ const status=root.querySelector<HTMLElement>('#awb-link-status')!;status.textContent='Memuat PDF AWB untuk cetak…';
+ try{await printAwbPdf(base,orderId,item.task_id);if(current===generation)status.textContent='Popup print AWB dibuka.';}
+ catch(error){if(current===generation){status.textContent=error instanceof Error?error.message:'Print AWB gagal. Cuba semula.';const link=document.createElement('a');link.href=item.awb_url!;link.target='_blank';link.rel='noopener noreferrer';link.textContent=' Buka PDF';status.append(link);}}
+ finally{printingAwb=false;if(current===generation){controls.forEach(control=>control.disabled=false);button.textContent=label;}}
 }
 async function load(){
  const current=++generation; toolbar('Memuat preview…');

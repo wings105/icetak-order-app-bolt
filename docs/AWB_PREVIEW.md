@@ -22,7 +22,11 @@ One task per cell, 4x4 grid, up to 16 tasks per A4 sheet. More tasks produce ano
 
 Print/Save PDF waits for all images to load, is disabled on image loading failure, and excludes toolbar/status. Missing preview items remain visible and are counted in the toolbar. This is a dynamic HTML page, not a stored PDF or automatic PDF attachment.
 
-Print AWB opens the existing AWB document in a new tab for the browser PDF viewer's Print action. It is independent of reference-image loading. If no link exists, show `AWB link belum tersedia dalam task.`; Refresh reloads links and designs together. Toolbar controls are excluded from the reference-page printout. Cross-origin PDF print dialogs cannot be forced reliably from the storefront.
+Print AWB fetches the matched task PDF, loads a local PDF blob in an offscreen iframe and calls that frame's print action directly. No new PDF tab is opened for the normal flow. The controls show loading and prevent duplicate clicks. Failure restores retry and offers an explicit Buka PDF fallback. A frame is retained until afterprint or the next print request; its object URL is revoked on cleanup. The existing reference Print / Save PDF still prints the current reference page.
+
+The `awb-preview` v4 GET endpoint accepts `awb_task_id` only for a task already matched to the exact `order_id`. PDF retrieval uses the stored field, never a client-supplied URL. Only the existing iCetak S3 bucket or HTTPS ClickUp attachment domains are allowed; credentials, nonstandard ports and redirects are rejected. Bytes are limited to 10 MB, verified as PDF and returned with no-store and existing CORS headers. This avoids the S3 cross-origin restriction while preserving the original PDF bytes, pages and dimensions. No database or business writes.
+
+Direct-print implementation checks: source/PDF failure and byte-limit regression checks; live proxy output byte-equals the original 57,843-byte task PDF and rejects an unrelated task. Controlled real-entry tests with a viewer stand-in cover print target, no new tabs, loading/retry, reference printing and mobile overflow. Native PDF print dialog remains ATTEMPTED until the hosted browser check.
 
 ## Verification
 
