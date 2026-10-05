@@ -26,7 +26,7 @@ Print AWB opens the existing AWB document in a new tab for the browser PDF viewe
 
 ## Verification
 
-2026-10-05 Print AWB: VERIFIED in the real standalone entry with the live response for `261005SQ0C3Y1F` / `14zbjdpktr8` and controlled duplicate/multiple/missing/unsafe-link cases. Desktop/mobile popup destination, Refresh, reference print exclusion and console checks passed. Private RPC grants and request bounds verified live; the one-task lookup took approximately 12ms. `awb-preview` v3 is active and returns the existing AWB PDF. Frontend production deployment/smoke pending at this record.
+2026-10-05 Print AWB: VERIFIED in the real standalone entry with the live response for `261005SQ0C3Y1F` / `14zbjdpktr8` and controlled duplicate/multiple/missing/unsafe-link cases. Desktop/mobile popup destination, Refresh, reference print exclusion and console checks passed. Private RPC grants and request bounds verified live; the one-task lookup took approximately 12ms. `awb-preview` v3 is active and returns the existing AWB PDF. PRODUCTION: PR #74 release `d1b697d` passed Cloudflare Workers Builds and GitHub guard. Worker version `1892364c-bc12-4628-b7d4-5d5a8312f6ce`. Production browser shows Print AWB, one task/design and a separate reference print control; clicking opens `awb_order_14zbjdpktr8.pdf` on the existing S3 URL. No relevant app console errors (only browser-extension metadata errors). Physical printer output was not exercised.
 
 - `node --experimental-strip-types scripts/check-awb-preview.mjs`
 - `npm run build`
