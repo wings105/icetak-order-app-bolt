@@ -2,7 +2,7 @@
 
 Route: `https://shop.decocake.my/?awbpreview=<ORDER ID / customer name>`.
 
-Owner-approved public internal print reference. Exact custom-field order ID lookup; no login, AI, generation job, or Activepieces round trip on page open. The page returns only task ID, title, Customize Name, set and image URLs. Raw payloads, contact details, prices and credentials are not exposed.
+Owner-approved public internal print reference. Exact custom-field order ID lookup; no login, AI, generation job, or Activepieces round trip on page open. The page returns task ID, title, Customize Name, set, image URLs and the task's AWB PDF link. Raw payloads, prices and credentials are not exposed. The AWB document itself contains delivery details and is accessed through its existing link.
 
 ## Data
 
@@ -14,13 +14,19 @@ Image rule: every image in the latest image-bearing comment, preserving comment 
 
 The upstream Get Task snapshot is required to include custom_fields and attachments. Updates are visible after the existing ingestion flow receives them and the page is opened/refreshed.
 
+AWB links come from `AWB link` (field ID `8a8589f6-5a80-493c-902b-0ed8da4584be`) in each matched task's latest complete webhook snapshot. The service-only `get_clickup_awb_links(text[])` RPC performs at most 200 indexed per-task lookups using the existing full-snapshot index. It performs no history scan, backfill or business-record writes. Empty/removed fields remain empty; HTTPS URLs without embedded credentials only are returned. Duplicate links across tasks are shown once. Different links get numbered Print AWB controls.
+
 ## Layout
 
 One task per cell, 4x4 grid, up to 16 tasks per A4 sheet. More tasks produce another A4. Multiple images share the task quadrant. Wrapped task title followed by the Customize Name value (omitted when empty), image contain sizing, 10mm sheet padding and 3mm grid gaps. Empty set is accepted; numeric sets sort first. Missing images show `Preview belum ada`.
 
 Print/Save PDF waits for all images to load, is disabled on image loading failure, and excludes toolbar/status. Missing preview items remain visible and are counted in the toolbar. This is a dynamic HTML page, not a stored PDF or automatic PDF attachment.
 
+Print AWB opens the existing AWB document in a new tab for the browser PDF viewer's Print action. It is independent of reference-image loading. If no link exists, show `AWB link belum tersedia dalam task.`; Refresh reloads links and designs together. Toolbar controls are excluded from the reference-page printout. Cross-origin PDF print dialogs cannot be forced reliably from the storefront.
+
 ## Verification
+
+2026-10-05 Print AWB: VERIFIED in the real standalone entry with the live response for `261005SQ0C3Y1F` / `14zbjdpktr8` and controlled duplicate/multiple/missing/unsafe-link cases. Desktop/mobile popup destination, Refresh, reference print exclusion and console checks passed. Private RPC grants and request bounds verified live; the one-task lookup took approximately 12ms. `awb-preview` v3 is active and returns the existing AWB PDF. Frontend production deployment/smoke pending at this record.
 
 - `node --experimental-strip-types scripts/check-awb-preview.mjs`
 - `npm run build`

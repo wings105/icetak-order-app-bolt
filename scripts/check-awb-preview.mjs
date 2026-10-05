@@ -11,4 +11,6 @@ assert.equal(previewItem({...row,attachments:[colored]}).images.length,1);
 assert.equal(previewItem({...row,comment_images:[colored,colored]}).images.length,1);
 assert.equal(previewItem({...row,attachments:[{url:'javascript:alert(1)',extension:'png'}],comment_images:[]}).images.length,0);
 assert.equal(previewItem({...row,set_position:999}).set,null);
+assert.equal(previewItem({...row,awb_url:pdf.url}).awb_url,pdf.url);
+for(const awb_url of ['javascript:alert(1)','data:text/html,test','http://example.com/awb.pdf','https://user:password@example.com/awb.pdf'])assert.equal(previewItem({...row,awb_url}).awb_url,'');
 console.log('PASS: multiple images, comment order, PDF exclusion, missing/deleted images, deduplication, safe URL, empty set');
