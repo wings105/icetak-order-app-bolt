@@ -215,3 +215,5 @@ Grouped raw finance fields/source/history, refund shipping-loss contribution ret
 # 2026-10-05
 
 - [PRODUCTION] AWB reference page adds Print AWB from the matched ClickUp tasks' latest AWB link fields, deduplicates shared PDFs and opens each document in a new tab for printing. Actual-order controlled desktop/mobile interaction and private indexed RPC checks pass; awb-preview v3 is active. PR #74 release d1b697d passed Workers Builds and source guard; production browser shows Print AWB and opens the existing PDF for task 14zbjdpktr8. See docs/AWB_PREVIEW.md.
+
+- [PRODUCTION button/PDF flow; native popup ATTEMPTED] Print AWB now fetches the exact matched task PDF through awb-preview v4 and invokes the local PDF frame's print action without a new tab. PR #75 release 506dcf7 passed Workers Builds/guard; live hosted click verifies loading, frame/returned print call and no new tab. Original PDF bytes, task membership and bounded source retrieval checked; controlled desktop/mobile failure/retry/reference-print checks pass. The cloud browser does not expose native print dialogs, so popup contents and physical output remain unverified. See docs/AWB_PREVIEW.md.

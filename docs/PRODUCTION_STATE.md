@@ -211,3 +211,8 @@ Frontend release `5548f1e` passed Workers Builds and source guard; Cloudflare ve
 ## 2026-10-05 — AWB reference Print AWB
 
 [PRODUCTION] PR #74 release `d1b697d` passed Workers Builds and GitHub guard; Cloudflare version `1892364c-bc12-4628-b7d4-5d5a8312f6ce`. Public reference toolbar reads matched task AWB link fields through service-only bounded indexed RPC and awb-preview v3. Actual production browser for `261005SQ0C3Y1F` shows the control and clicking opens the existing `14zbjdpktr8` AWB PDF. Duplicate/multiple/missing/unsafe links and desktop/mobile behavior VERIFIED in controlled tests. No historical backfill or business writes. Physical printing not exercised. See [AWB_PREVIEW.md](AWB_PREVIEW.md).
+
+
+## 2026-10-05 — AWB direct-print correction
+
+[PRODUCTION button/PDF flow; native popup ATTEMPTED] PR #75 release `506dcf7ae72a122e878636906cb453043fa45ae3` passed Workers Builds and guard; Cloudflare version `87e8e039-530a-4cd1-9933-7d97a9b36d1b`. awb-preview v4 proxies only the stored PDF for a task belonging to the requested exact order, with allowed hosts/redirect and byte limits, unchanged PDF bytes and no business writes. Hosted Chrome observes the new Print AWB button, loading and PDF-frame print return without a new tab. Native print UI is not exposed for either print action in this cloud browser; popup contents and physical printing remain unverified. See [AWB_PREVIEW.md](AWB_PREVIEW.md).
