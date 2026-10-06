@@ -65,10 +65,10 @@
       </div>
 
       <div id="custom-size-section" class="hidden mb-5 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-        <p class="text-xs font-bold mb-2">Masukkan saiz sendiri (inci)</p>
+        <div class="flex items-center justify-between mb-2 gap-2"><p class="text-xs font-bold">Masukkan saiz sendiri</p><label class="text-xs">Unit <select id="custom-unit" class="border rounded-lg p-1 bg-white"><option value="inch" selected>Inci (default)</option value="cm">cm</option></select></label></div>
         <div class="grid grid-cols-2 gap-2">
-          <label class="text-xs">Panjang<input id="custom-width" type="number" min="0.01" step="0.1" inputmode="decimal" placeholder="Contoh: 11" class="mt-1 w-full p-2 border rounded-lg"></label>
-          <label class="text-xs">Lebar<input id="custom-height" type="number" min="0.01" step="0.1" inputmode="decimal" placeholder="Contoh: 6" class="mt-1 w-full p-2 border rounded-lg"></label>
+          <label class="text-xs">Panjang (<span class="custom-unit-label">inci</span>)<input id="custom-width" type="number" min="0.01" step="any" inputmode="decimal" placeholder="Contoh: 11" class="mt-1 w-full p-2 border rounded-lg"></label>
+          <label class="text-xs">Lebar (<span class="custom-unit-label">inci</span>)<input id="custom-height" type="number" min="0.01" step="any" inputmode="decimal" placeholder="Contoh: 6" class="mt-1 w-full p-2 border rounded-lg"></label>
         </div>
         <p id="custom-result" role="status" class="text-xs mt-2">Maksimum cetakan 11 × 7.5 inci. Saiz boleh dipusing.</p>
       </div>
@@ -202,12 +202,26 @@ function priceCart(items){
   const total=totalCents/100;
   return {sheets,rate,total};
 }
+let customUnit="inch";
+const formatMeasure=n=>Number(n.toFixed(4)).toString();
+function centimetres(sz){const [w,h]=dimensions(sz);return sz.maxSize||sz.width?formatMeasure(w*2.54)+" × "+formatMeasure(h*2.54)+" cm":formatMeasure(w*2.54)+" cm"}
+function changeCustomUnit(){
+  const next=$("custom-unit").value;
+  const factor=next==="cm"?2.54:1/2.54;
+  if(next!==customUnit)for(const id of ["custom-width","custom-height"]){const input=$(id);if(input.value&&Number.isFinite(Number(input.value)))input.value=String(Number(input.value)*factor)}
+  customUnit=next;
+  document.querySelectorAll(".custom-unit-label").forEach(el=>el.textContent=next==="cm"?"cm":"inci");
+  $("custom-width").placeholder=next==="cm"?"Contoh: 27.94":"Contoh: 11";
+  $("custom-height").placeholder=next==="cm"?"Contoh: 15.24":"Contoh: 6";
+  updateCustomSize();
+}
 function updateCustomSize(){
-  const w=Number($("custom-width").value),h=Number($("custom-height").value);
+  const divisor=customUnit==="cm"?2.54:1;
+  const w=Number($("custom-width").value)/divisor,h=Number($("custom-height").value)/divisor;
   selectedSizeObj=null;priceBadge.classList.add("hidden");
-  if(!Number.isFinite(w)||!Number.isFinite(h)||w<0.1||h<0.1){$("custom-result").textContent="Isi panjang dan lebar (minimum 0.1 inci)."}
-  else if(!fits(w,h,11,7.5)){$("custom-result").textContent="Saiz melebihi A4 (11 × 7.5 inci). Hubungi admin."}
-  else{const tier=fits(w,h,5.5,3.7)?["A6",6]:fits(w,h,7.5,5.5)?["A5",12]:["A4",24];selectedSizeObj={width:w,height:h,size:w+'" × '+h+'"',price:tier[1]};$("custom-result").textContent="Julat "+tier[0]+" · RM "+tier[1].toFixed(2)+" / keping";priceBadge.textContent="RM "+tier[1].toFixed(2)+" / keping";priceBadge.classList.remove("hidden")}
+  if(!Number.isFinite(w)||!Number.isFinite(h)||w<0.1||h<0.1){$("custom-result").textContent="Isi panjang dan lebar (minimum 0.1 inci / 0.254 cm)."}
+  else if(!fits(w,h,11,7.5)){$("custom-result").textContent="Saiz melebihi A4 (11 × 7.5 inci / 27.94 × 19.05 cm). Hubungi admin."}
+  else{const tier=fits(w,h,5.5,3.7)?["A6",6]:fits(w,h,7.5,5.5)?["A5",12]:["A4",24];selectedSizeObj={width:w,height:h,size:formatMeasure(w)+'" × '+formatMeasure(h)+'" ('+formatMeasure(w*2.54)+' × '+formatMeasure(h*2.54)+' cm)',price:tier[1]};$("custom-result").textContent=formatMeasure(w)+" × "+formatMeasure(h)+" inci ("+formatMeasure(w*2.54)+" × "+formatMeasure(h*2.54)+" cm) · Julat "+tier[0]+" · RM "+tier[1].toFixed(2)+" / keping";priceBadge.textContent="RM "+tier[1].toFixed(2)+" / keping";priceBadge.classList.remove("hidden")}
   updateAddToCartButton();updatePricePreview();
 }
 function updatePricePreview(){
@@ -259,7 +273,7 @@ function renderSizeOptions(shapeId){
   (sizesData[shapeId]||[]).forEach(sz=>{
     const btn=document.createElement("button");
     btn.type="button";btn.className="size-btn flex flex-col justify-between p-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 text-left hover:border-emerald-500 transition-all";
-    btn.innerHTML='<div class="font-bold text-xs text-slate-800">'+sz.size+(sz.maxSize?'<span class="block text-slate-500 font-normal mt-1">'+sz.maxSize+'</span>':'')+(sz.qtyPerA4?'<span class="block text-slate-500 font-normal mt-1">'+sz.qtyPerA4+' keping/A4</span>':'')+'</div><div class="text-[11px] font-semibold text-emerald-600 mt-1">RM '+sz.price.toFixed(2)+"</div>";
+    btn.innerHTML='<div class="font-bold text-xs text-slate-800">'+sz.size.split(' (')[0]+'<span class="block text-[10px] text-slate-400 font-normal mt-1">('+centimetres(sz)+')</span>'+(sz.maxSize?'<span class="block text-slate-500 font-normal mt-1">'+sz.maxSize+'</span>':'')+(sz.qtyPerA4?'<span class="block text-slate-500 font-normal mt-1">'+sz.qtyPerA4+' keping/A4</span>':'')+'</div><div class="text-[11px] font-semibold text-emerald-600 mt-1">RM '+sz.price.toFixed(2)+"</div>";
     btn.onclick=()=>selectSize(sz,btn);sizeContainer.appendChild(btn);
   });
 }
@@ -274,6 +288,7 @@ function setupEventListeners(){
   btnPlus.onclick=()=>{quantity++;qtyInput.value=quantity;updatePricePreview()};
   qtyInput.oninput=()=>{quantity=Number(qtyInput.value);updateAddToCartButton();updatePricePreview()};
   qtyInput.onchange=()=>{if(!Number.isSafeInteger(quantity)||quantity<1){quantity=1;qtyInput.value=1}updateAddToCartButton();updatePricePreview()};
+  $("custom-unit").onchange=changeCustomUnit;
   $("custom-width").oninput=updateCustomSize;$("custom-height").oninput=updateCustomSize;
   orientLandscapeBtn.onclick=()=>setOrientation("Landscape");orientPortraitBtn.onclick=()=>setOrientation("Portrait");
   addToCartBtn.onclick=addItemToCart;btnCopyWa.onclick=copyCartToWhatsApp;btnClearCart.onclick=clearCart;
