@@ -58,28 +58,36 @@
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" id="size-options">
           <div class="col-span-full text-center py-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">Sila pilih bentuk terlebih dahulu</div>
         </div>
-        <div id="mini-notice" class="hidden mt-2 space-y-2">
-          <div class="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs flex items-start space-x-2">
-            <i class="fa-solid fa-circle-info text-amber-500 mt-0.5"></i>
-            <span>Semua variasi Mini / Cupcake dikira 1 set A4 penuh pada harga RM24.00/A4.</span>
-          </div>
-          <div class="p-2.5 bg-rose-50 border border-rose-300 rounded-lg text-rose-700 text-xs font-semibold">
-            <div>* Printed only, no pre-cut.</div>
-            <div>* Pre-cut contact first.</div>
-          </div>
+        <div id="mini-notice" class="hidden mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs flex items-start space-x-2">
+          <i class="fa-solid fa-circle-info text-amber-500 mt-0.5"></i>
+          <span>Mini / Cupcake dikira dalam set A4 mengikut kapasiti saiz yang dipilih. Harga print sahaja RM24/A4 sebelum wholesale. Print + cut: hubungi admin.</span>
         </div>
       </div>
 
+      <div id="custom-size-section" class="hidden mb-5 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+        <p class="text-xs font-bold mb-2">Masukkan saiz sendiri (inci)</p>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="text-xs">Panjang<input id="custom-width" type="number" min="0.01" step="0.1" inputmode="decimal" placeholder="Contoh: 11" class="mt-1 w-full p-2 border rounded-lg"></label>
+          <label class="text-xs">Lebar<input id="custom-height" type="number" min="0.01" step="0.1" inputmode="decimal" placeholder="Contoh: 6" class="mt-1 w-full p-2 border rounded-lg"></label>
+        </div>
+        <p id="custom-result" role="status" class="text-xs mt-2">Maksimum cetakan 11 × 7.5 inci. Saiz boleh dipusing.</p>
+      </div>
       <div class="mb-5">
         <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">3. Kuantiti / Bilangan Lapis</label>
         <div class="flex items-center space-x-3">
           <button type="button" id="btn-minus" class="w-10 h-10 rounded-xl border border-slate-300 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-50 active:scale-95 transition-all"><i class="fa-solid fa-minus"></i></button>
-          <input type="number" id="qty-input" min="1" value="1" readonly class="w-20 h-10 text-center font-extrabold text-lg border border-slate-300 rounded-xl bg-slate-50 text-slate-800">
+          <input type="number" id="qty-input" min="1" value="1" step="1" inputmode="numeric" class="w-20 h-10 text-center font-extrabold text-lg border border-slate-300 rounded-xl bg-slate-50 text-slate-800">
           <button type="button" id="btn-plus" class="w-10 h-10 rounded-xl border border-slate-300 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-50 active:scale-95 transition-all"><i class="fa-solid fa-plus"></i></button>
-          <span id="qty-unit-label" class="text-xs text-slate-500 font-semibold">pcs</span>
+          <span id="qty-unit-label" class="text-xs text-slate-500 font-semibold">keping</span>
         </div>
       </div>
 
+      <p id="price-preview" role="status" class="text-xs text-emerald-800 mb-3"></p>
+      <div class="text-xs text-slate-600 p-3 bg-slate-50 rounded-xl mb-3">
+        <strong>Harga print sahaja.</strong> Print + cut: hubungi admin.<br>
+        Wholesale ikut jumlah A4: 1–4 RM24 · 5–9 RM22.90 · 10–19 RM21.90 · 20+ RM20.90 / A4.<br>
+        Kuantiti dikira ikut kapasiti saiz atas A4. Pos tidak termasuk.
+      </div>
       <button id="add-to-cart-btn" disabled class="w-full bg-slate-200 text-slate-400 font-bold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 transition-all cursor-not-allowed">
         <i class="fa-solid fa-cart-plus"></i><span>Tambah ke Troli</span>
       </button>
@@ -100,7 +108,7 @@
         </div>
       </div>
 
-      <div class="border-t border-slate-100 pt-3 mt-3">
+      <div class="border-t border-slate-100 pt-3 mt-3"><p id="wholesale-summary" class="text-xs text-emerald-800 mb-3" role="status"></p>
         <div class="flex justify-between items-center mb-3 bg-emerald-50/60 p-3 rounded-xl border border-emerald-100">
           <span class="text-xs sm:text-sm font-bold text-slate-700">Jumlah Keseluruhan:</span>
           <span id="grand-total" class="text-2xl font-black text-emerald-600">RM 0.00</span>
@@ -129,8 +137,8 @@ const WA_NUMBER="60179860656";
 const shapesData=[
   {id:"round",name:"Bulat (Round)",icon:"fa-circle"},
   {id:"square",name:"Petak (Square)",icon:"fa-square"},
-  {id:"rectangular",name:"Segi 4 Tepat (Full)",icon:"fa-vector-square",hasOrientation:true},
-  {id:"custom",name:"Custom Size",icon:"fa-ruler-combined",hasOrientation:true},
+  {id:"rectangular",name:"Segi 4 Tepat",icon:"fa-vector-square",hasOrientation:true},
+  {id:"custom",name:"Saiz Sendiri",icon:"fa-ruler-combined"},
   {id:"love",name:"Bentuk Hati",icon:"fa-heart"},
   {id:"mini",name:"Mini / Cupcake",icon:"fa-grip"}
 ];
@@ -141,11 +149,6 @@ const sizesData={
     {size:'A6 Full',maxSize:'Max 3.7" × 5.5"',price:6},
     {size:'A5 Full',maxSize:'Max 5.5" × 7.5"',price:12},
     {size:'A4 Full',maxSize:'Max 7.5" × 11"',price:24}
-  ],
-  custom:[
-    {size:'Custom A6',maxSize:'Max 3.7" × 5.5"',price:6},
-    {size:'Custom A5',maxSize:'Max 5.5" × 7.5"',price:12},
-    {size:'Custom A4',maxSize:'Max 7.5" × 11"',price:24}
   ],
   love:[{size:'2"',price:6},{size:'3"',price:6},{size:'3.5"',price:6},{size:'4"',price:6},{size:'4.5"',price:12},{size:'5"',price:12},{size:'5.5"',price:12},{size:'6"',price:24},{size:'6.5"',price:24},{size:'7"',price:24},{size:'7.5"',price:24}],
   mini:[
@@ -168,6 +171,52 @@ const shapeContainer=$("shape-options"),sizeContainer=$("size-options"),orientat
 
 window.onload=()=>{renderShapeOptions();setupEventListeners()};
 
+function fits(w,h,W,H){return (w<=W+1e-9&&h<=H+1e-9)||(h<=W+1e-9&&w<=H+1e-9)}
+function dimensions(sz){if(sz.width)return [sz.width,sz.height];if(sz.isMiniPack){const d=Number(sz.size.match(/\d+(?:\.\d+)?/)[0]);return [d,d]}if(sz.maxSize){const ns=sz.maxSize.match(/\d+(?:\.\d+)?/g).map(Number);return ns}const ns=sz.size.match(/\d+(?:\.\d+)?/g).map(Number);return [ns[0],ns[1]||ns[0]]}
+function capacity(w,h){
+  if(!fits(w,h,11,7.5))return 0;
+  // Try rotated rows and columns, including mixed orientations, with no overlap.
+  let best=0;
+  for(const [W,H] of [[11,7.5],[7.5,11]]){
+    for(let a=0;a<=Math.floor((H+1e-9)/h);a++)best=Math.max(best,a*Math.floor((W+1e-9)/w)+Math.floor((H-a*h+1e-9)/w)*Math.floor((W+1e-9)/h));
+  }
+  return best;
+}
+function wholesaleRate(n){return n>=20?20.9:n>=10?21.9:n>=5?22.9:24}
+function priceCart(items){
+  const groups=new Map();
+  for(const i of items){i.capacity=i.qtyPerA4||capacity(i.width,i.height);const key=i.shapeId+":"+Math.min(i.width,i.height)+":"+Math.max(i.width,i.height);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(i)}
+  let sheets=0;
+  for(const group of groups.values()){
+    const pcs=group.reduce((n,i)=>n+(i.isMini?i.quantity*i.capacity:i.quantity),0);
+    const n=Math.ceil(pcs/group[0].capacity);sheets+=n;
+    for(const i of group){i.sheets=n;i.share=(i.isMini?i.quantity*i.capacity:i.quantity)/pcs}
+  }
+  const rate=wholesaleRate(sheets);let totalCents=0;
+  for(const group of groups.values()){
+    const retail=group.reduce((n,i)=>n+i.unitPrice*i.quantity,0);
+    const cents=Math.round((Math.min(retail,group[0].sheets*rate))*100);
+    let allocated=0;
+    group.forEach((i,idx)=>{const part=idx===group.length-1?cents-allocated:Math.round(cents*i.share);allocated+=part;i.rate=rate;i.totalPrice=part/100});totalCents+=cents;
+  }
+  const total=totalCents/100;
+  return {sheets,rate,total};
+}
+function updateCustomSize(){
+  const w=Number($("custom-width").value),h=Number($("custom-height").value);
+  selectedSizeObj=null;priceBadge.classList.add("hidden");
+  if(!Number.isFinite(w)||!Number.isFinite(h)||w<0.1||h<0.1){$("custom-result").textContent="Isi panjang dan lebar (minimum 0.1 inci)."}
+  else if(!fits(w,h,11,7.5)){$("custom-result").textContent="Saiz melebihi A4 (11 × 7.5 inci). Hubungi admin."}
+  else{const tier=fits(w,h,5.5,3.7)?["A6",6]:fits(w,h,7.5,5.5)?["A5",12]:["A4",24];selectedSizeObj={width:w,height:h,size:w+'" × '+h+'"',price:tier[1]};$("custom-result").textContent="Julat "+tier[0]+" · RM "+tier[1].toFixed(2)+" / keping";priceBadge.textContent="RM "+tier[1].toFixed(2)+" / keping";priceBadge.classList.remove("hidden")}
+  updateAddToCartButton();updatePricePreview();
+}
+function updatePricePreview(){
+  if(!selectedSizeObj||!Number.isSafeInteger(quantity)||quantity<1){$("price-preview").textContent="";return}
+  const [width,height]=dimensions(selectedSizeObj);
+  const item={shapeId:selectedShape,width,height,unitPrice:selectedSizeObj.price,quantity,isMini:selectedShape==="mini",qtyPerA4:selectedSizeObj.qtyPerA4};
+  const q=priceCart([...cart.map(i=>({...i})),item]);
+  $("price-preview").textContent=(selectedSizeObj.qtyPerA4||capacity(width,height))+" keping/A4 · Jumlah troli selepas tambah: "+q.sheets+" A4 · RM "+q.total.toFixed(2)+(q.sheets>=5?" (wholesale)":"");
+}
 function renderShapeOptions(){
   shapeContainer.innerHTML="";
   shapesData.forEach(shape=>{
@@ -189,10 +238,12 @@ function selectShape(shapeId,el){
   el.classList.remove("border-slate-200","bg-white","text-slate-700");
   el.classList.add("border-emerald-600","bg-emerald-50","text-emerald-700","ring-2","ring-emerald-500/20");
   const ai=el.querySelector("i");if(ai){ai.classList.remove("text-slate-400");ai.classList.add("text-emerald-600")}
-  const shapeObj=shapesData.find(s=>s.id===shapeId);
-  if(shapeObj?.hasOrientation){orientationSection.classList.remove("hidden");setOrientation("Landscape")}else orientationSection.classList.add("hidden");
-  if(shapeId==="mini"){miniNotice.classList.remove("hidden");qtyUnitLabel.textContent="Set A4"}else{miniNotice.classList.add("hidden");qtyUnitLabel.textContent="pcs"}
+  if(shapeId==="rectangular"){orientationSection.classList.remove("hidden");setOrientation("Landscape")}else orientationSection.classList.add("hidden");
+  if(shapeId==="mini"){miniNotice.classList.remove("hidden");qtyUnitLabel.textContent="Set A4"}else{miniNotice.classList.add("hidden");qtyUnitLabel.textContent="keping"}
   renderSizeOptions(shapeId);
+  $("custom-size-section").classList.toggle("hidden",shapeId!=="custom");
+  if(shapeId==="custom")updateCustomSize();
+  updatePricePreview();
 }
 function setOrientation(o){
   selectedOrientation=o;
@@ -208,7 +259,7 @@ function renderSizeOptions(shapeId){
   (sizesData[shapeId]||[]).forEach(sz=>{
     const btn=document.createElement("button");
     btn.type="button";btn.className="size-btn flex flex-col justify-between p-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 text-left hover:border-emerald-500 transition-all";
-    btn.innerHTML='<div><div class="font-bold text-xs text-slate-800">'+sz.size+'</div>'+(sz.maxSize ? '<div class="text-[10px] text-slate-500 mt-1 font-medium">'+sz.maxSize+'</div>' : '')+(sz.qtyPerA4 ? '<div class="text-[10px] text-slate-500 mt-1">Kuantiti: <span class="font-bold text-slate-700">'+sz.qtyPerA4+' pcs/A4</span></div>' : '')+'</div><div class="text-[11px] font-semibold text-emerald-600 mt-1.5">RM '+sz.price.toFixed(2)+"</div>";
+    btn.innerHTML='<div class="font-bold text-xs text-slate-800">'+sz.size+(sz.maxSize?'<span class="block text-slate-500 font-normal mt-1">'+sz.maxSize+'</span>':'')+(sz.qtyPerA4?'<span class="block text-slate-500 font-normal mt-1">'+sz.qtyPerA4+' keping/A4</span>':'')+'</div><div class="text-[11px] font-semibold text-emerald-600 mt-1">RM '+sz.price.toFixed(2)+"</div>";
     btn.onclick=()=>selectSize(sz,btn);sizeContainer.appendChild(btn);
   });
 }
@@ -216,61 +267,57 @@ function selectSize(sz,el){
   selectedSizeObj=sz;
   document.querySelectorAll(".size-btn").forEach(b=>{b.classList.remove("border-emerald-600","bg-emerald-50","ring-2","ring-emerald-500/20");b.classList.add("border-slate-200","bg-white")});
   el.classList.remove("border-slate-200","bg-white");el.classList.add("border-emerald-600","bg-emerald-50","ring-2","ring-emerald-500/20");
-  priceBadge.textContent="RM "+sz.price.toFixed(2)+" / unit";priceBadge.classList.remove("hidden");updateAddToCartButton();
+  priceBadge.textContent="RM "+sz.price.toFixed(2)+" / unit";priceBadge.classList.remove("hidden");updateAddToCartButton();updatePricePreview();
 }
 function setupEventListeners(){
-  btnMinus.onclick=()=>{if(quantity>1){quantity--;qtyInput.value=quantity}};
-  btnPlus.onclick=()=>{quantity++;qtyInput.value=quantity};
+  btnMinus.onclick=()=>{if(quantity>1){quantity--;qtyInput.value=quantity;updatePricePreview()}};
+  btnPlus.onclick=()=>{quantity++;qtyInput.value=quantity;updatePricePreview()};
+  qtyInput.oninput=()=>{quantity=Number(qtyInput.value);updateAddToCartButton();updatePricePreview()};
+  qtyInput.onchange=()=>{if(!Number.isSafeInteger(quantity)||quantity<1){quantity=1;qtyInput.value=1}updateAddToCartButton();updatePricePreview()};
+  $("custom-width").oninput=updateCustomSize;$("custom-height").oninput=updateCustomSize;
   orientLandscapeBtn.onclick=()=>setOrientation("Landscape");orientPortraitBtn.onclick=()=>setOrientation("Portrait");
   addToCartBtn.onclick=addItemToCart;btnCopyWa.onclick=copyCartToWhatsApp;btnClearCart.onclick=clearCart;
 }
 function updateAddToCartButton(){
-  if(selectedShape&&selectedSizeObj){addToCartBtn.disabled=false;addToCartBtn.classList.remove("bg-slate-200","text-slate-400","cursor-not-allowed");addToCartBtn.classList.add("bg-emerald-600","hover:bg-emerald-700","text-white","shadow-sm","active:scale-[0.99]")}
+  if(selectedShape&&selectedSizeObj&&Number.isSafeInteger(quantity)&&quantity>0){addToCartBtn.disabled=false;addToCartBtn.classList.remove("bg-slate-200","text-slate-400","cursor-not-allowed");addToCartBtn.classList.add("bg-emerald-600","hover:bg-emerald-700","text-white","shadow-sm","active:scale-[0.99]")}
   else{addToCartBtn.disabled=true;addToCartBtn.classList.add("bg-slate-200","text-slate-400","cursor-not-allowed");addToCartBtn.classList.remove("bg-emerald-600","hover:bg-emerald-700","text-white","shadow-sm","active:scale-[0.99]")}
 }
 function addItemToCart(){
-  if(!selectedShape||!selectedSizeObj)return;
+  if(!selectedShape||!selectedSizeObj||!Number.isSafeInteger(quantity)||quantity<1)return;
   const shapeObj=shapesData.find(s=>s.id===selectedShape);
-  cart.push({id:Date.now(),shapeId:selectedShape,shapeName:shapeObj.name,orientation:shapeObj.hasOrientation?selectedOrientation:null,size:selectedSizeObj.size,maxSize:selectedSizeObj.maxSize||null,qtyPerA4:selectedSizeObj.qtyPerA4||null,unitPrice:selectedSizeObj.price,quantity,totalPrice:selectedSizeObj.price*quantity,isMini:selectedShape==="mini"});
-  renderCart();showToast("Item ditambah ke dalam troli!");quantity=1;qtyInput.value=1;
+  const dims=dimensions(selectedSizeObj);
+  cart.push({width:dims[0],height:dims[1],id:Date.now()+Math.random(),shapeId:selectedShape,shapeName:shapeObj.name,orientation:selectedShape==="rectangular"?selectedOrientation:null,size:selectedSizeObj.size,maxSize:selectedSizeObj.maxSize||null,unitPrice:selectedSizeObj.price,quantity,totalPrice:selectedSizeObj.price*quantity,isMini:selectedShape==="mini",qtyPerA4:selectedSizeObj.qtyPerA4});
+  renderCart();showToast("Item ditambah ke dalam troli!");quantity=1;qtyInput.value=1;updatePricePreview();
 }
-function removeFromCart(id){cart=cart.filter(i=>i.id!==id);renderCart()}
-function clearCart(){cart=[];renderCart();showToast("Troli telah dikosongkan.")}
+function removeFromCart(id){cart=cart.filter(i=>i.id!==id);renderCart();updatePricePreview()}
+function clearCart(){cart=[];renderCart();updatePricePreview();showToast("Troli telah dikosongkan.")}
 function renderCart(){
+  const quote=priceCart(cart);
+  $("wholesale-summary").textContent=cart.length?quote.sheets+" A4 · RM "+quote.rate.toFixed(2)+" / A4 · "+(quote.sheets>=5?"Harga wholesale print sahaja":"Harga biasa print sahaja"):"";
   cartItemsContainer.innerHTML="";
   if(cart.length===0){
     cartItemsContainer.innerHTML='<div id="empty-cart-msg" class="text-center py-8 text-slate-400 text-xs"><i class="fa-solid fa-basket-shopping text-3xl mb-2 opacity-30 text-emerald-600"></i><p>Troli anda masih kosong.</p></div>';
     grandTotalEl.textContent="RM 0.00";cartCountEl.textContent="0 item";btnSendWa.classList.add("pointer-events-none","opacity-50");btnSendWa.removeAttribute("href");btnCopyWa.disabled=true;btnClearCart.disabled=true;return;
   }
   btnCopyWa.disabled=false;btnClearCart.disabled=false;
-  let total=0,count=0;
+  let total=quote.total,count=0;
   cart.forEach(item=>{
-    total+=item.totalPrice;count+=item.quantity;
+    count+=item.quantity;
     const div=document.createElement("div");div.className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs";
     const orient=item.orientation?" ("+item.orientation+")":"";
-    div.innerHTML='<div class="pr-2"><div class="font-bold text-slate-800">'+item.shapeName+orient+'</div><div class="text-slate-500 font-medium">Saiz: <span class="text-slate-700 font-semibold">'+item.size+'</span></div>'+(item.maxSize ? '<div class="text-slate-500 font-medium">'+item.maxSize+'</div>' : '')+(item.qtyPerA4 ? '<div class="text-slate-500 font-medium">Kuantiti: <span class="text-slate-700 font-semibold">'+item.qtyPerA4+' pcs/A4</span></div>' : '')+'<div class="text-slate-500 font-medium mt-0.5">RM '+item.unitPrice.toFixed(2)+" × "+item.quantity+" "+(item.isMini?"Set A4":"pcs")+'</div></div><div class="flex items-center space-x-3"><span class="font-extrabold text-emerald-700 text-sm">RM '+item.totalPrice.toFixed(2)+'</span><button type="button" onclick="removeFromCart('+item.id+')" class="text-slate-400 hover:text-rose-500 transition-colors p-1"><i class="fa-solid fa-xmark text-sm"></i></button></div>';
+    div.innerHTML='<div class="pr-2"><div class="font-bold text-slate-800">'+item.shapeName+orient+'</div><div class="text-slate-500 font-medium">Saiz: <span class="text-slate-700 font-semibold">'+item.size+'</span></div><div class="text-slate-500 font-medium mt-0.5">'+item.quantity+" "+(item.isMini?"Set A4":"keping")+" · "+item.capacity+" keping/A4 · "+item.sheets+" A4 untuk saiz ini · RM "+item.rate.toFixed(2)+"/A4"+'</div></div><div class="flex items-center space-x-3"><span class="font-extrabold text-emerald-700 text-sm">RM '+item.totalPrice.toFixed(2)+'</span><button type="button" onclick="removeFromCart('+item.id+')" class="text-slate-400 hover:text-rose-500 transition-colors p-1"><i class="fa-solid fa-xmark text-sm"></i></button></div>';
     cartItemsContainer.appendChild(div);
   });
   grandTotalEl.textContent="RM "+total.toFixed(2);cartCountEl.textContent=count+" item";
   btnSendWa.href="https://wa.me/"+WA_NUMBER+"?text="+encodeURIComponent(buildWhatsAppText(total));btnSendWa.classList.remove("pointer-events-none","opacity-50");
 }
 function buildWhatsAppText(total){
-  let text="Berminat dengan pilihan:\n\n";
+  let text="Salam, saya nak buat tempahan Edible Image:\n-----------------------------------\n";
   cart.forEach((item,idx)=>{
     const o=item.orientation?" ("+item.orientation+")":"";
-    text+="*"+item.shapeName+o+"*\n";
-    text+="• Saiz: "+item.size+"\n";
-    if(item.maxSize) text+="• "+item.maxSize+"\n";
-    if(item.qtyPerA4) text+="• Kuantiti per A4: "+item.qtyPerA4+" pcs\n";
-    text+="• Kuantiti: "+item.quantity+"\n";
-    text+="• Anggaran: RM"+item.totalPrice.toFixed(2)+"\n";
-    if(idx<cart.length-1) text+="\n";
+    text+=(idx+1)+". *"+item.shapeName+o+"*\n   • Saiz: "+item.size+"\n"+(item.maxSize?"   • "+item.maxSize+"\n":"")+"   • Kuantiti: "+item.quantity+" "+(item.isMini?"Set A4":"keping")+"\n   • Subtotal: RM "+item.totalPrice.toFixed(2)+"\n\n";
   });
-  text+="\nTarikh perlu: __ / __ / 2026\n\n";
-  text+="Pilihan delivery:\n";
-  text+="Postage\n";
-  text+="Pickup — Pasir Puteh, Kelantan\n\n";
-  return text+"Boleh check availability dan cara nak proceed? Terima kasih.";
+  return text+"Print sahaja. Print + cut: hubungi admin. Pos tidak termasuk.\n"+$("wholesale-summary").textContent+"\n-----------------------------------\n*JUMLAH ANGGARAN: RM "+total.toFixed(2)+"*\n\nTarikh perlu: __ / __ / 2026\n\nPilihan delivery:\nPostage\nPickup — Pasir Puteh, Kelantan\n\nBoleh check availability dan cara nak proceed? Terima kasih.";
 }
 function copyCartToWhatsApp(){
   if(!cart.length)return;const text=buildWhatsAppText(cart.reduce((a,i)=>a+i.totalPrice,0));
