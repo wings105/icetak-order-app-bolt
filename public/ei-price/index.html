@@ -65,7 +65,7 @@
       </div>
 
       <div id="custom-size-section" class="hidden mb-5 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-        <div class="flex items-center justify-between mb-2 gap-2"><p class="text-xs font-bold">Masukkan saiz sendiri</p><label class="text-xs">Unit <select id="custom-unit" class="border rounded-lg p-1 bg-white"><option value="inch" selected>Inci (default)</option value="cm">cm</option></select></label></div>
+        <div class="flex items-center justify-between mb-2 gap-2"><p class="text-xs font-bold">Masukkan saiz sendiri</p><fieldset class="flex gap-2 text-xs"><legend class="sr-only">Unit ukuran</legend><label class="flex items-center gap-1 border rounded-lg px-2 py-2 bg-white cursor-pointer"><input type="radio" name="size-unit" id="unit-inch" value="inch" checked> Inci</label><label class="flex items-center gap-1 border rounded-lg px-2 py-2 bg-white cursor-pointer"><input type="radio" name="size-unit" id="unit-cm" value="cm"> cm</label></fieldset><input type="hidden" id="custom-unit" value="inch"></div>
         <div class="grid grid-cols-2 gap-2">
           <label class="text-xs">Panjang (<span class="custom-unit-label">inci</span>)<input id="custom-width" type="number" min="0.01" step="any" inputmode="decimal" placeholder="Contoh: 11" class="mt-1 w-full p-2 border rounded-lg"></label>
           <label class="text-xs">Lebar (<span class="custom-unit-label">inci</span>)<input id="custom-height" type="number" min="0.01" step="any" inputmode="decimal" placeholder="Contoh: 6" class="mt-1 w-full p-2 border rounded-lg"></label>
@@ -288,7 +288,7 @@ function setupEventListeners(){
   btnPlus.onclick=()=>{quantity++;qtyInput.value=quantity;updatePricePreview()};
   qtyInput.oninput=()=>{quantity=Number(qtyInput.value);updateAddToCartButton();updatePricePreview()};
   qtyInput.onchange=()=>{if(!Number.isSafeInteger(quantity)||quantity<1){quantity=1;qtyInput.value=1}updateAddToCartButton();updatePricePreview()};
-  $("custom-unit").onchange=changeCustomUnit;
+  for(const unit of ["inch","cm"])$("unit-"+unit).onchange=()=>{$("custom-unit").value=unit;changeCustomUnit()};
   $("custom-width").oninput=updateCustomSize;$("custom-height").oninput=updateCustomSize;
   orientLandscapeBtn.onclick=()=>setOrientation("Landscape");orientPortraitBtn.onclick=()=>setOrientation("Portrait");
   addToCartBtn.onclick=addItemToCart;btnCopyWa.onclick=copyCartToWhatsApp;btnClearCart.onclick=clearCart;
