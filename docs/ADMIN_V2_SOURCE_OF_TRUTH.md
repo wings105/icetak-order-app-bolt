@@ -69,3 +69,7 @@ All admin WhatsApp connection settings, production health, notification rules, t
 - required V2 source files disappear.
 
 When changing admin behavior, start in `icetak-admin/`. Only touch `src/admin-v2-route.tsx` for authentication/mount/routing concerns and only touch `supabase/` for backend behavior.
+
+## AWB Preview Actions setting (2026-10-07)
+
+Settings mounts `AwbPreviewWebhookSettings` for `manage_admins`, alongside existing webhook settings. **AWB Preview Action Webhook URL** uses `webhook-forward-settings` kind `awb_preview`; the endpoint verifies an active owner/manage_admins account and stores only `private_runtime_settings.awb_preview_action_webhook_url`. Blank disables actions; saving never sends a task. Loading failures keep Save disabled and offer retry. After Save, refresh the standalone preview. The other raw/WhatsApp Order ID webhook contracts remain separate. Controlled actual Settings component and actual Edge handler get/save/clear, permission and failure tests pass. The authenticated hosted Settings session is not exercised. See `AWB_PREVIEW.md`.

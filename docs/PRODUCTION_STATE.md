@@ -1,5 +1,9 @@
 # iCetak Production State
 
+## 2026-10-07 — AWB preview task actions (unconfigured)
+
+PRODUCTION: PR #78 release `efa3db327f32ac08ef87cb3fbf880c31e5c15d5d` / Worker `7ace457e-084e-4f65-a160-adce5a14ff62`. Header Address/Complete actions cover all current preview tasks; Finished below each task covers only that task. Admin V2 Settings owns the private AWB Preview Action Webhook URL through `webhook-forward-settings` v3 (JWT true). `awb-preview` v5 retains public exact-order reads and implements signed, task-scoped POST dispatch with private receipt RPCs. URL remains blank, visible action buttons inactive, no live destination POST sent. Hosted public preview, deployed source readback, unsigned/auth rejection and private DB state smoke checks pass; configured action/Settings behavior verified in controlled tests. See `AWB_PREVIEW.md` for payload, retry limits and unexercised real destination/authenticated hosted Settings flow.
+
 ## 2026-10-07 — Direct checkout WhatsApp consent
 
 Backend queue generation PRODUCTION: migration `20261007052454_direct_checkout_whatsapp_consent` persists checkout consent during the initial order INSERT for customer/customer_portal sources. Live RPC/trigger rollback tests confirm one order-created and one payment-received queue entry, opt-out and retry behavior, correct recipient and unchanged non-customer flow. No historical replay or provider send; authenticated browser checkout/provider delivery remain unexercised. See [DIRECT_CHECKOUT_WHATSAPP.md](DIRECT_CHECKOUT_WHATSAPP.md).
