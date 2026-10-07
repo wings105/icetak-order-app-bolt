@@ -11,6 +11,13 @@ const out='/tmp/finance-sales-sku-qa';fs.mkdirSync(out,{recursive:true});const p
 await p.route('https://fonts.googleapis.com/**',r=>r.fulfill({status:200,contentType:'text/css',body:''}));
 try{
  await p.goto('http://127.0.0.1:5175/tests/order-profit.html?view=finance');await p.getByRole('button',{name:'Sales SKU',exact:true}).click();await p.getByRole('button',{name:'Butiran QA-A'}).waitFor();
+ const filters=p.getByRole('group',{name:'Kategori produk'});
+ await filters.getByRole('button',{name:'Topper',exact:true}).click();await p.getByRole('button',{name:'Butiran QA-A'}).waitFor();
+ assert.equal(await p.locator('.sku-bars button').count(),1);assert.match(await p.locator('.sku-kpis').innerText(),/120/);assert.match(await p.locator('.sku-panel h3').last().innerText(),/Trend Topper/);
+ await p.getByRole('button',{name:'Butiran QA-A'}).click();await p.getByText('Order untuk QA-A',{exact:true}).waitFor();
+ await filters.getByRole('button',{name:'Edible',exact:true}).click();await p.getByRole('button',{name:'Butiran QA-B'}).waitFor();assert.equal(await p.locator('.sku-bars button').count(),1);assert.match(await p.locator('.sku-kpis').innerText(),/200/);assert.equal(await p.getByText('Order untuk QA-A',{exact:true}).count(),0);
+ for(const label of ['Wafer','Acrylic','Lain-lain']){await filters.getByRole('button',{name:label,exact:true}).click();await p.getByText('Tiada SKU untuk pilihan ini.').waitFor();assert.equal(await filters.getByRole('button',{name:label,exact:true}).getAttribute('aria-pressed'),'true');assert.match(await p.locator('.sku-kpis').innerText(),/RM\s0\.00/);}
+ await filters.getByRole('button',{name:'Semua',exact:true}).click();await p.getByRole('button',{name:'Butiran QA-A'}).waitFor();
  assert.match(await p.locator('.sku-kpis').innerText(),/320/);assert.match(await p.locator('.sku-table-wrap tbody tr').first().innerText(),/12\s+2\s+10\s+8/);
  for(const label of ['1 hari','1 minggu','1 bulan','3 bulan','6 bulan','1 tahun','Keseluruhan']){await p.getByRole('button',{name:label,exact:true}).click();await p.getByRole('button',{name:'Butiran QA-A'}).waitFor();assert.equal(await p.getByRole('button',{name:label,exact:true}).getAttribute('aria-pressed'),'true');}
  assert.equal(await p.getByLabel('Dari',{exact:true}).inputValue(),'');await p.getByRole('button',{name:'1 minggu',exact:true}).click();await p.getByRole('button',{name:'Butiran QA-A'}).waitFor();const to=await p.getByLabel('Hingga').inputValue(),from=await p.getByLabel('Dari',{exact:true}).inputValue();assert.equal((Date.parse(to)-Date.parse(from))/86400000,6);
@@ -21,6 +28,6 @@ try{
  await p.getByLabel('Susun mengikut').selectOption('net_units');await p.evaluate(()=>document.querySelector('.content-area').scrollTop=0);await p.screenshot({path:path.join(out,'desktop.png'),fullPage:true});
  await p.getByLabel('Cari SKU / produk').fill('not-found');await p.getByText('Tiada SKU untuk pilihan ini.').waitFor();await p.getByLabel('Cari SKU / produk').fill('');
  await p.setViewportSize({width:390,height:844});await p.waitForFunction(()=>document.querySelector('.sidebar').getBoundingClientRect().right<=1);await p.evaluate(()=>document.querySelector('.content-area').scrollTop=0);assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await p.screenshot({path:path.join(out,'mobile.png'),fullPage:true});
- await p.getByLabel('Dari',{exact:true}).fill('2026-10-01');await p.getByRole('button',{name:'Butiran QA-A'}).waitFor();assert.equal(await p.getByRole('button',{name:'Tarikh sendiri',exact:true}).getAttribute('aria-pressed'),'true');
+ await p.getByLabel('Dari',{exact:true}).fill(to);await p.getByRole('button',{name:'Butiran QA-A'}).waitFor();assert.equal(await p.getByRole('button',{name:'Tarikh sendiri',exact:true}).getAttribute('aria-pressed'),'true');
  assert.deepEqual(errors,[]);console.log('PASS: all periods, net units/returns, metric ranking, incomplete profit, search, CSV, SKU/order drilldown, custom dates, desktop/mobile, no runtime errors');
 }finally{await browser.close();await server.close()}

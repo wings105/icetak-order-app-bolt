@@ -29,3 +29,12 @@ Source release `b524c9132d2c4f67c72b58858daf511d4a4ed0e8` and rebuild trigger `6
 ## 2026-10-04 — Publication confirmed
 
 Workers Builds recovered and production release d3532961 published. Live root/admin asset chain contains sales_sku_report and the Sales SKU periods/tab; owner supplied the authenticated Finance → Sales SKU screenshot and confirmed the feature is visible. This supersedes the earlier pending-hosting checkpoint. Sales Channel is a separate comparison report; see SALES_CHANNEL.md.
+
+
+## 2026-10-07 — Category buttons
+
+[VERIFIED] Finance → Sales SKU offers Semua, Topper, Edible, Wafer, Acrylic and Lain-lain buttons. Date/shop/currency remain in effect. Ranking, distinct-order KPI, category trend, SKU drilldown and CSV use the selected category; switching clears the selected SKU. Search remains ranking-only.
+
+The existing finance.material_category mapping checks each parent/variant SKU against the catalogue before title fallback. Unrecognized or ambiguous items form Lain-lain; this does not persist AI labels or rewrite order/cost records. Classification runs on distinct SKU/title pairs. Filtering occurs after full-order contribution allocation so mixed-category orders keep their original allocation denominator.
+
+Order System migration 20261007014812_sales_sku_category_filter is applied; finance-admin v33 retains JWT/owner gates and source readback equals repository. Live Sep 1–Oct 7 reports reconcile ranking/trend net units with each category and unchanged all-category sales RM15,746.33 / 1,410 net units / 1,237 distinct orders. Topper SKU contribution values match unfiltered allocations (259 groups, zero differences). RPC remains service-role only. Gateway permission/filter tests, admin/full storefront+Inbox builds and real component desktop/mobile category/search/CSV/drilldown/date tests pass. Browser plugin unavailable; controlled Playwright uses an npm Chromium binary after the standard CDN download failed. Hosted authenticated owner check remains pending.

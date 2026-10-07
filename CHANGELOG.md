@@ -1,3 +1,7 @@
+## 2026-10-07
+
+- [VERIFIED] Sales SKU category buttons filter ranking, KPI totals, trends, SKU drilldown and CSV through the existing catalogue/title mapping; unclassified items use Lain-lain. Live category totals reconcile and full-order profit allocation is preserved. Desktop/mobile interaction, gateway permissions, admin and full production builds pass; hosted owner confirmation pending.
+
 ## 2026-10-05 — [VERIFIED] Shopee and WhatsApp order detail evidence
 
 Explicit known Order IDs now create idempotent WhatsApp evidence links and feed the shared scoped detail evaluator/Focus model alongside Shopee sessions. Selected artwork captions fill single-image item requirements; order screenshots/receipts/history and conflicting/multi-item evidence remain guarded. Real 261004R0RYQ2R7 source reads and actual handler replay resolve Detail lengkap 1/1 / Ready design. Backend deployed with private grants/auth retained; 55 recent active-order reference links recovered. Regression, rollback boundary/retry/trigger tests, source readback, component server render, typecheck and full build pass. Hosted owner/browser interaction remains unverified due to failed Chromium download. No outgoing messages or canonical order/task/payment mutations. See docs/ORDER_DETAIL_COLLECTION.md.
