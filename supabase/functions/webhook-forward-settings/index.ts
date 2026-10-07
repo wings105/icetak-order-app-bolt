@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import {safeActionWebhookUrl} from "../_shared/awb-action-url.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -9,7 +10,7 @@ const CORS = {
 };
 
 type JsonObject = Record<string, unknown>;
-type ForwardKind = "raw" | "order_id_phone";
+type ForwardKind = "raw" | "order_id_phone" | "awb_preview";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -70,7 +71,7 @@ async function savePrivateSetting(key: string, value: string) {
 
 function parseKind(value: unknown): ForwardKind | null {
   const kind = String(value || "raw").trim().toLowerCase();
-  return kind === "raw" || kind === "order_id_phone" ? kind : null;
+  return kind === "raw" || kind === "order_id_phone" || kind === "awb_preview" ? kind : null;
 }
 
 function validateWebhookUrl(url: string) {
@@ -119,17 +120,18 @@ Deno.serve(async (req: Request) => {
 
     if (action === "get") {
       if (kind === "raw") return json({ ...(await unifiedRequest("get")), kind });
-      const url = await privateSetting("whatsapp_order_id_phone_webhook_url");
+      const url = await privateSetting(kind === "awb_preview" ? "awb_preview_action_webhook_url" : "whatsapp_order_id_phone_webhook_url");
       return json({ ok: true, kind, url });
     }
     if (action !== "save") return json({ ok: false, error: "Valid action required" }, 400);
 
-    const url = String(body.url || "").trim();
+    let url = String(body.url || "").trim();
+    if(kind === "awb_preview"){try{url=safeActionWebhookUrl(url);}catch{return json({ok:false,error:"Gunakan URL webhook HTTPS dengan domain awam, tanpa login atau port khas."},400);}}
     const urlError = validateWebhookUrl(url);
     if (urlError) return json({ ok: false, error: urlError }, 400);
 
     if (kind === "raw") return json({ ...(await unifiedRequest("save", url)), kind });
-    await savePrivateSetting("whatsapp_order_id_phone_webhook_url", url);
+    await savePrivateSetting(kind === "awb_preview" ? "awb_preview_action_webhook_url" : "whatsapp_order_id_phone_webhook_url", url);
     return json({ ok: true, kind, url });
   } catch (error) {
     return json({ ok: false, error: error instanceof Error ? error.message : String(error) }, 500);

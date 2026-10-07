@@ -1,19 +1,22 @@
 import './awb-preview.css';
 import {printAwbPdf} from './awb-pdf-print';
+import {bindTaskActions,type ActionAvailability} from './awb-task-actions';
 type Item={task_id:string;title:string;customize_name?:string;awb_url?:string;set:number|null;images:{url:string;name:string}[]};
-type Preview={order_id:string;items:Item[];updated_at:string};
+type Preview={order_id:string;items:Item[];updated_at:string;actions?:ActionAvailability};
 const root=document.getElementById('app')!;
 const orderId=(new URLSearchParams(location.search).get('awbpreview')||'').trim();
 const env=(import.meta as any).env||{};
 const base=env.VITE_SUPABASE_URL||'https://buivecgahhmrhlmfujgt.supabase.co';
 let generation=0;
 let printingAwb=false;
+let sendingAction=false;
+let actionControls:ReturnType<typeof bindTaskActions>|undefined;
 let copyFeedbackTimer:ReturnType<typeof setTimeout>;
 document.body.classList.add('awb-preview-page');
 document.title=`Reference Order ${orderId}`;
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 function toolbar(message:string){
- root.innerHTML=`<div class="awb-toolbar"><div><strong>Reference Order · ${escape(orderId)}</strong><small>A4 · 4 × 4 · 16 task setiap halaman</small><small id="awb-status" role="status">${escape(message)}</small><small id="awb-link-status">Memuat AWB…</small></div><div class="awb-actions"><button id="awb-refresh" type="button">Refresh</button><span id="awb-links"></span><button id="awb-print" type="button" disabled>Print / Save PDF</button></div></div><div class="awb-copy-feedback" role="status" aria-live="polite" hidden></div><div id="awb-content"></div>`;
+ root.innerHTML=`<div class="awb-toolbar"><div><strong>Reference Order · ${escape(orderId)}</strong><small>A4 · 4 × 4 · 16 task setiap halaman</small><small id="awb-status" role="status">${escape(message)}</small><small id="awb-link-status">Memuat AWB…</small><small id="awb-action-status" role="status" aria-live="polite"></small></div><div class="awb-actions"><button class="awb-address-action" data-task-action="1" type="button" disabled>AWB/address printed</button><button class="awb-complete-action" data-task-action="3" type="button" disabled><span aria-hidden="true">✓</span> COMPLETE</button><button id="awb-refresh" type="button">Refresh</button><span id="awb-links"></span><button id="awb-print" type="button" disabled>Print / Save PDF</button></div></div><div class="awb-copy-feedback" role="status" aria-live="polite" hidden></div><div id="awb-content"></div>`;
  root.querySelector('#awb-refresh')!.addEventListener('click',()=>void load());
  root.querySelector('#awb-print')!.addEventListener('click',()=>window.print());
 }
@@ -42,16 +45,17 @@ function renderAwbLinks(items:Item[]){
  for(const button of root.querySelectorAll<HTMLButtonElement>('[data-awb-index]'))button.addEventListener('click',()=>void printAwb(awbs[Number(button.dataset.awbIndex)],button));
 }
 async function printAwb(item:Item,button:HTMLButtonElement){
- if(printingAwb)return;printingAwb=true;
+ if(printingAwb||sendingAction)return;printingAwb=true;actionControls?.setBusy(true);
  const current=generation,label=button.textContent;
  const controls=Array.from(root.querySelectorAll<HTMLButtonElement>('[data-awb-index],#awb-refresh'));
  controls.forEach(control=>control.disabled=true);button.textContent='Memuat AWB…';
  const status=root.querySelector<HTMLElement>('#awb-link-status')!;status.textContent='Memuat PDF AWB untuk cetak…';
  try{await printAwbPdf(base,orderId,item.task_id);if(current===generation)status.textContent='Popup print AWB dibuka.';}
  catch(error){if(current===generation){status.textContent=error instanceof Error?error.message:'Print AWB gagal. Cuba semula.';const link=document.createElement('a');link.href=item.awb_url!;link.target='_blank';link.rel='noopener noreferrer';link.textContent=' Buka PDF';status.append(link);}}
- finally{printingAwb=false;if(current===generation){controls.forEach(control=>control.disabled=false);button.textContent=label;}}
+ finally{printingAwb=false;actionControls?.setBusy(false);if(current===generation){controls.forEach(control=>control.disabled=false);button.textContent=label;}}
 }
 async function load(){
+ if(printingAwb||sendingAction)return;actionControls=undefined;
  const current=++generation; toolbar('Memuat preview…');
  const content=root.querySelector<HTMLElement>('#awb-content')!;
  try{
@@ -65,10 +69,11 @@ async function load(){
   for(let offset=0;offset<data.items.length;offset+=16){
    pages.push(`<main class="awb-sheet" aria-label="Halaman ${pages.length+1}">${data.items.slice(offset,offset+16).map((item,index)=>{
     const images=item.images.map(image=>({...image,url:safeImageUrl(image.url)})).filter(image=>image.url);
-    return `<section class="awb-item"><div class="awb-item-heading"><h1><button class="awb-copy-name" type="button" data-copy-index="${offset+index}" aria-label="Copy task name" title="Copy task name">${copyNameIcon}</button>${escape(item.title)}</h1>${item.customize_name?.trim()?`<p class="awb-customize-name">${escape(item.customize_name)}</p>`:''}</div><div class="awb-images ${images.length>1?'awb-multiple':''}" style="--image-rows:${Math.ceil(images.length/2)}">${images.length?images.map(image=>`<div class="awb-image-slot"><img src="${escape(image.url)}" alt="${escape(item.title)}" loading="eager"><span class="awb-image-failure" hidden>Gambar gagal dimuat.<br>Tekan Refresh.</span></div>`).join(''):'<span class="awb-missing">Preview belum ada</span>'}</div></section>`;
+    return `<section class="awb-item"><div class="awb-item-heading"><h1><button class="awb-copy-name" type="button" data-copy-index="${offset+index}" aria-label="Copy task name" title="Copy task name">${copyNameIcon}</button>${escape(item.title)}</h1>${item.customize_name?.trim()?`<p class="awb-customize-name">${escape(item.customize_name)}</p>`:''}</div><div class="awb-images ${images.length>1?'awb-multiple':''}" style="--image-rows:${Math.ceil(images.length/2)}">${images.length?images.map(image=>`<div class="awb-image-slot"><img src="${escape(image.url)}" alt="${escape(item.title)}" loading="eager"><span class="awb-image-failure" hidden>Gambar gagal dimuat.<br>Tekan Refresh.</span></div>`).join(''):'<span class="awb-missing">Preview belum ada</span>'}</div><div class="awb-task-action-area"><button class="awb-finished-action" data-task-action="2" data-task-index="${offset+index}" type="button" disabled>FINISHED product Printed</button><small role="status" aria-live="polite"></small></div></section>`;
    }).join('')}</main>`);
   }
   content.innerHTML=pages.join('');
+  actionControls=bindTaskActions(root,base,orderId,data.items.map(item=>item.task_id),data.actions,busy=>{sendingAction=busy;for(const control of root.querySelectorAll<HTMLButtonElement>('#awb-refresh,[data-awb-index]'))control.disabled=busy;});
   for(const button of content.querySelectorAll<HTMLButtonElement>('[data-copy-index]'))button.addEventListener('click',()=>void copyTaskName(data.items[Number(button.dataset.copyIndex)].title,button));
   const images=Array.from(content.querySelectorAll<HTMLImageElement>('img'));
   const statuses=await Promise.all(images.map(img=>new Promise<boolean>(resolve=>{
