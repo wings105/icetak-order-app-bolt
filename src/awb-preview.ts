@@ -8,13 +8,29 @@ const env=(import.meta as any).env||{};
 const base=env.VITE_SUPABASE_URL||'https://buivecgahhmrhlmfujgt.supabase.co';
 let generation=0;
 let printingAwb=false;
+let copyFeedbackTimer:ReturnType<typeof setTimeout>;
 document.body.classList.add('awb-preview-page');
 document.title=`Reference Order ${orderId}`;
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 function toolbar(message:string){
- root.innerHTML=`<div class="awb-toolbar"><div><strong>Reference Order · ${escape(orderId)}</strong><small>A4 · 4 × 4 · 16 task setiap halaman</small><small id="awb-status" role="status">${escape(message)}</small><small id="awb-link-status">Memuat AWB…</small></div><div class="awb-actions"><button id="awb-refresh" type="button">Refresh</button><span id="awb-links"></span><button id="awb-print" type="button" disabled>Print / Save PDF</button></div></div><div id="awb-content"></div>`;
+ root.innerHTML=`<div class="awb-toolbar"><div><strong>Reference Order · ${escape(orderId)}</strong><small>A4 · 4 × 4 · 16 task setiap halaman</small><small id="awb-status" role="status">${escape(message)}</small><small id="awb-link-status">Memuat AWB…</small></div><div class="awb-actions"><button id="awb-refresh" type="button">Refresh</button><span id="awb-links"></span><button id="awb-print" type="button" disabled>Print / Save PDF</button></div></div><div class="awb-copy-feedback" role="status" aria-live="polite" hidden></div><div id="awb-content"></div>`;
  root.querySelector('#awb-refresh')!.addEventListener('click',()=>void load());
  root.querySelector('#awb-print')!.addEventListener('click',()=>window.print());
+}
+const copyNameIcon='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M15 5V3H3v12h2"/></svg>';
+async function copyTaskName(title:string,button:HTMLButtonElement){
+ if(button.disabled)return;
+ button.disabled=true;
+ let message='Disalin ✓';
+ try{
+  if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');
+  await navigator.clipboard.writeText(title);
+ }catch{message='Copy gagal. Cuba semula atau salin nama secara manual.';}
+ finally{button.disabled=false;}
+ if(!button.isConnected)return;
+ const feedback=root.querySelector<HTMLElement>('.awb-copy-feedback')!;
+ clearTimeout(copyFeedbackTimer);feedback.textContent=message;feedback.hidden=false;
+ copyFeedbackTimer=setTimeout(()=>{feedback.hidden=true;},2200);
 }
 function safeImageUrl(url:string){try{const u=new URL(url);return u.protocol==='https:'&&(u.hostname.endsWith('.clickup-attachments.com')||u.hostname==='attachments.clickup.com')?u.href:''}catch{return ''}}
 function renderAwbLinks(items:Item[]){
@@ -47,12 +63,13 @@ async function load(){
   renderAwbLinks(data.items);
   const pages:string[]=[];
   for(let offset=0;offset<data.items.length;offset+=16){
-   pages.push(`<main class="awb-sheet" aria-label="Halaman ${pages.length+1}">${data.items.slice(offset,offset+16).map(item=>{
+   pages.push(`<main class="awb-sheet" aria-label="Halaman ${pages.length+1}">${data.items.slice(offset,offset+16).map((item,index)=>{
     const images=item.images.map(image=>({...image,url:safeImageUrl(image.url)})).filter(image=>image.url);
-    return `<section class="awb-item"><div class="awb-item-heading"><h1>${escape(item.title)}</h1>${item.customize_name?.trim()?`<p class="awb-customize-name">${escape(item.customize_name)}</p>`:''}</div><div class="awb-images ${images.length>1?'awb-multiple':''}" style="--image-rows:${Math.ceil(images.length/2)}">${images.length?images.map(image=>`<div class="awb-image-slot"><img src="${escape(image.url)}" alt="${escape(item.title)}" loading="eager"><span class="awb-image-failure" hidden>Gambar gagal dimuat.<br>Tekan Refresh.</span></div>`).join(''):'<span class="awb-missing">Preview belum ada</span>'}</div></section>`;
+    return `<section class="awb-item"><div class="awb-item-heading"><h1><button class="awb-copy-name" type="button" data-copy-index="${offset+index}" aria-label="Copy task name" title="Copy task name">${copyNameIcon}</button>${escape(item.title)}</h1>${item.customize_name?.trim()?`<p class="awb-customize-name">${escape(item.customize_name)}</p>`:''}</div><div class="awb-images ${images.length>1?'awb-multiple':''}" style="--image-rows:${Math.ceil(images.length/2)}">${images.length?images.map(image=>`<div class="awb-image-slot"><img src="${escape(image.url)}" alt="${escape(item.title)}" loading="eager"><span class="awb-image-failure" hidden>Gambar gagal dimuat.<br>Tekan Refresh.</span></div>`).join(''):'<span class="awb-missing">Preview belum ada</span>'}</div></section>`;
    }).join('')}</main>`);
   }
   content.innerHTML=pages.join('');
+  for(const button of content.querySelectorAll<HTMLButtonElement>('[data-copy-index]'))button.addEventListener('click',()=>void copyTaskName(data.items[Number(button.dataset.copyIndex)].title,button));
   const images=Array.from(content.querySelectorAll<HTMLImageElement>('img'));
   const statuses=await Promise.all(images.map(img=>new Promise<boolean>(resolve=>{
    let timer:ReturnType<typeof setTimeout>;
