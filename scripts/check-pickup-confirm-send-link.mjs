@@ -29,8 +29,9 @@ function from(table) {
   const filters = [];
   let mutation;
   let values;
+  let columns = '*';
   const query = {
-    select() { return this; },
+    select(value = '*') { columns = value; return this; },
     eq(key, value) { filters.push([key, value]); return this; },
     order() { return this; },
     limit() { return this; },
@@ -38,7 +39,9 @@ function from(table) {
     insert(value) { mutation = 'insert'; values = value; return this; },
     async maybeSingle() {
       const matches = records(table).filter((row) => filters.every(([key, value]) => row[key] === value));
-      return { data: clone(matches[0] || null), error: null };
+      const row = clone(matches[0] || null);
+      const data = row && columns !== '*' ? Object.fromEntries(columns.split(',').map(key => [key, row[key]])) : row;
+      return { data, error: null };
     },
     then(resolve, reject) {
       return Promise.resolve().then(() => {
@@ -73,6 +76,7 @@ async function rpc(name, args) {
     nextOrder += 1;
     const orderId = `00000000-0000-4000-8000-${String(nextOrder).padStart(12, '0')}`;
     draft.status = 'confirmed';
+    draft.confirmed_draft = clone(draft.working_draft);
     draft.customer_status = 'confirmed';
     draft.order_id = orderId;
     draft.order_no = `IC-PICKUP-${nextOrder}`;
@@ -83,9 +87,18 @@ async function rpc(name, args) {
       total: 24,
       payment_status: 'cash_counter',
       payment: 'Cash at Counter',
-      whatsapp_opt_in: false,
+      whatsapp_opt_in: draft.working_draft.notify_whatsapp === true,
     });
     return { data: { order_id: draft.order_no, order_db_id: orderId }, error: null };
+  }
+  if (name === 'icetak_set_cash_draft_whatsapp_choice') {
+    const draft = Array.from(drafts.values()).find((entry) => entry.review_token === args.p_review_token);
+    assert.ok(draft && draft.order_id, 'notification choice uses a converted draft');
+    assert.equal(draft.payment_mode, 'cash_counter');
+    draft.working_draft.notify_whatsapp = args.p_enabled;
+    draft.confirmed_draft.notify_whatsapp = args.p_enabled;
+    orders.get(draft.order_id).whatsapp_opt_in = args.p_enabled;
+    return { data: { ok: true }, error: null };
   }
   if (name === 'icetak_enqueue_whatsapp_event') {
     assert.equal(args.p_event_type, 'pickup_order_confirmed');
@@ -126,7 +139,7 @@ const executable = stripTypeScriptTypes(edgeSource.replace(/^import .*;\n/gm, ''
 new Function(executable)();
 assert.equal(typeof handler, 'function', 'edge handler registered');
 
-function makeDraft(number, { bsuidOnly = false, prepaid = false } = {}) {
+function makeDraft(number, { bsuidOnly = false, prepaid = false, inheritedNotify = true } = {}) {
   const token = `qrd_${String(number).padStart(32, '0')}`;
   const id = `10000000-0000-4000-8000-${String(number).padStart(12, '0')}`;
   const draft = {
@@ -139,6 +152,7 @@ function makeDraft(number, { bsuidOnly = false, prepaid = false } = {}) {
     customer_phone: bsuidOnly ? null : '60129554732',
     customer_status: 'not_sent',
     working_draft: {
+      notify_whatsapp: inheritedNotify,
       customer: { name: 'Customer Test', phone: bsuidOnly ? null : '60129554732' },
       whatsapp_identity: { phone: bsuidOnly ? null : '60129554732', bsuid: 'MY.2403797133469318' },
       delivery: 'pickup',
@@ -166,14 +180,16 @@ assert.equal(originalResult.status, 200);
 assert.equal(originalResult.body.ok, true);
 assert.equal(queues.size, 0, 'original Confirm Pickup Order stays silent');
 assert.equal(orders.get(original.order_id).whatsapp_opt_in, false);
+assert.equal(original.confirmed_draft.notify_whatsapp, false, 'silent confirm overrides inherited ON');
 
-const enhanced = makeDraft(2);
+const enhanced = makeDraft(2, { inheritedNotify: false });
 const enhancedResult = await action(enhanced, 'confirm_send_customer');
 assert.equal(enhancedResult.status, 200);
 assert.equal(enhancedResult.body.customer.sent, true);
 assert.equal(enhancedResult.body.customer.link, 'https://shop.decocake.my/?order=public-pickup-2');
 assert.equal(enhancedResult.body.customer.payment_link, 'https://shop.decocake.my/?order=public-pickup-2&page=payment');
 assert.equal(orders.get(enhanced.order_id).whatsapp_opt_in, true);
+assert.equal(enhanced.confirmed_draft.notify_whatsapp, true, 'send link overrides inherited OFF and persists for ready notifications');
 assert.ok(enhanced.customer_link_sent_at, 'pickup draft records customer link delivery');
 assert.equal(enhanced.customer_status, 'confirmed', 'sending the link does not regress confirmed status');
 assert.equal(events.filter((event) => event.event_type === 'pickup_order_link_sent').length, 1);
@@ -184,11 +200,17 @@ assert.equal(optedOutResult.status, 200);
 assert.equal(optedOutResult.body.customer.sent, false, 'unticked WhatsApp keeps confirmation silent');
 assert.equal(optedOutResult.body.customer.skipped, true);
 assert.equal(orders.get(optedOut.order_id).whatsapp_opt_in, false);
+assert.equal(optedOut.confirmed_draft.notify_whatsapp, false);
 
 const duplicate = await action(enhanced, 'confirm_send_customer');
 assert.equal(duplicate.body.duplicate, true);
 assert.equal(duplicate.body.customer.duplicate, true);
 assert.equal(dispatches.length, 1, 'retry does not send the same customer notification twice');
+await action(enhanced, 'confirm');
+assert.equal(orders.get(enhanced.order_id).whatsapp_opt_in, false, 'confirm-only on a converted draft disables future notifications');
+await action(enhanced, 'confirm_send_customer');
+assert.equal(orders.get(enhanced.order_id).whatsapp_opt_in, true, 'sending again restores future notifications before duplicate-message guard');
+assert.equal(dispatches.length, 1, 'restoring ON does not send an already delivered link again');
 
 const bsuidOnly = makeDraft(3, { bsuidOnly: true });
 const bsuidResult = await action(bsuidOnly, 'confirm_send_customer');
