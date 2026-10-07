@@ -19,6 +19,17 @@ const digits = (v) => {
   return d;
 };
 const wa = (v) => digits(v) ? `https://wa.me/${digits(v)}` : '';
+const isCashCounterReview = (order) => {
+  const paid = ['paid', 'matched', 'payment_received', 'success', 'completed'].includes(t(order?.payment_status).toLowerCase())
+    || t(order?.payment).toLowerCase() === 'paid';
+  const cash = t(order?.payment_status).toLowerCase() === 'cash_counter'
+    || ['cash at counter', 'cash counter', 'cash', 'counter', 'pay at pickup'].includes(t(order?.payment_method || order?.payment).toLowerCase());
+  return t(order?.source).toLowerCase() === 'customer' && Boolean(order?.customer_confirmed)
+    && !order?.production_approved && !paid && cash
+    && t(order?.delivery_method || order?.delivery).toLowerCase().includes('pickup')
+    && !['completed', 'delivered', 'customer collected'].includes(t(order?.status).toLowerCase())
+    && !['collected', 'delivered', 'completed'].includes(t(order?.fulfillment_stage).toLowerCase());
+};
 const isCancelled = (order) => `${order?.status || ''} ${order?.admin_status || ''} ${order?.fulfillment_stage || ''}`.toLowerCase().includes('cancel');
 
 async function fetchTimed(url, init = {}, timeoutMs = 15000) {
@@ -125,7 +136,8 @@ async function finalNotification(id) {
     return { sent: false, cancelled: true, reason: 'order_cancelled_before_admin_notification' };
   }
 
-  const { data: items } = await db.from('order_items').select('title,qty,price,size,style,wording,custom_text,customization').eq('order_id', o.id).order('created_at');
+  const { data: items, error: itemsError } = await db.from('order_items').select('title,qty,price,size,style,wording,custom_text,customization').eq('order_id', o.id).order('sort_index');
+  if (itemsError) throw itemsError;
   const { data: pay } = await db.from('payment_transactions').select('*').eq('order_id', o.id).order('paid_at', { ascending: false }).limit(1).maybeSingle();
   const { data: tasks } = await db.from('clickup_tasks').select('clickup_task_id,url').eq('order_id', o.id);
   const phone = digits(o.delivery_phone);
@@ -134,9 +146,10 @@ async function finalNotification(id) {
   for (const [i, x] of (items || []).entries()) if (!t(x.size)) missing.push(`Item ${i + 1} size/variation`);
 
   const auto = Boolean(o.production_approved);
-  const status = auto ? '🟢 ORDER AUTO CREATED' : '🟡 ORDER CREATED · CHECK NEEDED';
+  const cashReview = isCashCounterReview(o);
+  const status = cashReview ? '🟡 CASH AT COUNTER · PERLU KELULUSAN PRODUCTION' : auto ? '🟢 ORDER AUTO CREATED' : '🟡 ORDER CREATED · CHECK NEEDED';
   const base = await publicBase();
-  const orderLink = `${base}/?admin=v2&order=${encodeURIComponent(o.public_token)}`;
+  const orderLink = `${base}/?admin=v2&order=${encodeURIComponent(o.order_no || o.order_id || o.id)}`;
   const customerLink = `${base}/?order=${encodeURIComponent(o.public_token)}`;
   const itemText = (items || []).map((x, i) => [
     `${i + 1}. ${x.title}`,
@@ -155,20 +168,29 @@ async function finalNotification(id) {
     '',
     `Customer: ${o.delivery_name || 'Customer'}`,
     `Phone: ${phone || '-'}`,
-    `Payment: QRPay · RM${Number(pay?.amount ?? o.total ?? 0).toFixed(2)}`,
+    cashReview ? `Payment: Cash at Counter · BELUM BAYAR · RM${Number(o.total || 0).toFixed(2)}` : `Payment: ${o.payment_method || 'QRPay'} · RM${Number(pay?.amount ?? o.total ?? 0).toFixed(2)}`,
     `Delivery: ${String(o.delivery_method || o.delivery || '-').toUpperCase()}`,
     `Date: ${o.date_need || '⚠️ belum pasti'}`,
     '',
     'ORDER',
     itemText || '-',
     '',
-    'AI CHECK',
-    `Customer: ${cm ? `${cm[1]}%` : '-'}`,
-    `Order detail: ${cm ? `${cm[2]}%` : '-'}`,
-    `Payment: ${pay?.transaction_id ? 'Matched ✓' : 'Check'}`,
-    `Missing: ${missing.length ? missing.join(', ') : 'None'}`,
+    ...(cashReview ? [
+      'TINDAKAN ADMIN',
+      'Semak item, wording dan tarikh diperlukan.',
+      'Jika betul, tekan Confirm Production / Approve Production.',
+      'ClickUp Queue → Held → Confirm Production.',
+      'Production boleh mula sebelum bayaran diterima.',
+      'Confirm Cash Paid hanya selepas duit diterima.',
+    ] : [
+      'AI CHECK',
+      `Customer: ${cm ? `${cm[1]}%` : '-'}`,
+      `Order detail: ${cm ? `${cm[2]}%` : '-'}`,
+      `Payment: ${pay?.transaction_id ? 'Matched ✓' : 'Check'}`,
+      `Missing: ${missing.length ? missing.join(', ') : 'None'}`,
+    ]),
     '',
-    `Admin / Edit Order: ${orderLink}`,
+    `${cashReview ? 'Buka order untuk semakan' : 'Admin / Edit Order'}: ${orderLink}`,
     `Customer Order Link: ${customerLink}`,
     phone ? `WhatsApp Customer: ${wa(phone)}` : '',
     click.length ? `ClickUp: ${click.join('\n')}` : auto ? 'ClickUp: sedang dibuat' : 'Production: belum dilepaskan',
