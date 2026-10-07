@@ -1,5 +1,7 @@
 ## 2026-10-07
 
+- [PRODUCTION] Direct customer checkout now saves WhatsApp consent before notification processing. Existing order-created/payment-received queues generate once for opted-in orders; OFF, retries and non-customer flows remain guarded. Actual live RPC/trigger rollback tests pass; no historical replay or provider messages were sent by tests. See docs/DIRECT_CHECKOUT_WHATSAPP.md.
+
 - [VERIFIED] Sales SKU category buttons filter ranking, KPI totals, trends, SKU drilldown and CSV through the existing catalogue/title mapping; unclassified items use Lain-lain. Live category totals reconcile and full-order profit allocation is preserved. Desktop/mobile interaction, gateway permissions, admin and full production builds pass; hosted owner confirmation pending.
 
 ## 2026-10-05 — [VERIFIED] Shopee and WhatsApp order detail evidence

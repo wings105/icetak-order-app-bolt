@@ -1,5 +1,9 @@
 # iCetak Production State
 
+## 2026-10-07 — Direct checkout WhatsApp consent
+
+Backend queue generation PRODUCTION: migration `20261007052454_direct_checkout_whatsapp_consent` persists checkout consent during the initial order INSERT for customer/customer_portal sources. Live RPC/trigger rollback tests confirm one order-created and one payment-received queue entry, opt-out and retry behavior, correct recipient and unchanged non-customer flow. No historical replay or provider send; authenticated browser checkout/provider delivery remain unexercised. See [DIRECT_CHECKOUT_WHATSAPP.md](DIRECT_CHECKOUT_WHATSAPP.md).
+
 Snapshot date: 2026-08-29 MYT.
 
 This is a living production snapshot, not a substitute for checking live services before risky changes.
