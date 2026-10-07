@@ -220,3 +220,8 @@ Frontend release `5548f1e` passed Workers Builds and source guard; Cloudflare ve
 ## 2026-10-05 — AWB direct-print correction
 
 [PRODUCTION button/PDF flow; native popup ATTEMPTED] PR #75 release `506dcf7ae72a122e878636906cb453043fa45ae3` passed Workers Builds and guard; Cloudflare version `87e8e039-530a-4cd1-9933-7d97a9b36d1b`. awb-preview v4 proxies only the stored PDF for a task belonging to the requested exact order, with allowed hosts/redirect and byte limits, unchanged PDF bytes and no business writes. Hosted Chrome observes the new Print AWB button, loading and PDF-frame print return without a new tab. Native print UI is not exposed for either print action in this cloud browser; popup contents and physical printing remain unverified. See [AWB_PREVIEW.md](AWB_PREVIEW.md).
+
+
+## 2026-10-08 — AWB reference task name copy
+
+[PRODUCTION] PR #77 release `a1cc728dcdfa871473f6d2af72be58c2ea89d27c` passed Workers Builds/guard; Cloudflare version `ae7fde23-804c-4333-816f-2e8edf44bb9c`. Each task title has a one-click copy icon with Disalin ✓ feedback. Native clipboard bytes verified in local Chromium; hosted exact-order icon/click feedback verified. Copy controls/status are hidden in print/PDF. No backend or business writes. See [AWB_PREVIEW.md](AWB_PREVIEW.md).
