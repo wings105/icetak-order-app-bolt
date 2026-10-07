@@ -197,3 +197,7 @@ Order System owns versioned raw-material defaults and per-marketplace-order cost
 ## 2026-10-04 — Contribution targets
 
 Admin V2 now has a VERIFIED contribution-target read model and direct-order cost review. The Order System privately owns goal/workday settings and direct cost overrides; existing Shopee nett/cost and sales-channel identity/date rules remain authoritative. Dashboard and Finance distinguish known actual/estimated totals, missing orders and overhead goals. finance-admin v32 deployed with unchanged owner/JWT gates; no accounting journal, payment/provider or historical cost backfill. Hosted owner UI interaction remains pending. See [CONTRIBUTION_TARGETS.md](CONTRIBUTION_TARGETS.md) for formulas, cohort limits and evidence.
+
+## AWB reference task actions
+
+The standalone exact-order AWB preview reads Order System's private ClickUp projection. Owner-approved buttons POST scoped task actions to `awb-preview`; that function validates a signed page grant and current membership/configuration, claims a private delivery receipt and forwards one task to an admin-configured HTTPS webhook. Admin V2 Settings owns the private destination through authenticated `webhook-forward-settings` kind `awb_preview`. External automation owns resulting task updates. No direct order/payment/WhatsApp mutations or Unified Inbox changes. See `AWB_PREVIEW.md`.

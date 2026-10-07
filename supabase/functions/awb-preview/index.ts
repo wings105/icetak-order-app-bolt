@@ -1,10 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.51.0';
 import { previewItem } from './preview.ts';
 import { fetchAwbPdf } from './pdf.ts';
+import {actionAvailability,handleActionRequest} from './actions.ts';
 const headers = {
  'content-type': 'application/json; charset=utf-8',
  'access-control-allow-origin': '*',
- 'access-control-allow-methods': 'GET,OPTIONS',
+ 'access-control-allow-methods': 'GET,POST,OPTIONS',
  'access-control-allow-headers': 'authorization,apikey,content-type,x-client-info',
  'cache-control': 'no-store',
  'x-content-type-options': 'nosniff',
@@ -13,6 +14,10 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 // Public by owner request: exact order-reference lookup, print fields only.
 Deno.serve(async req => {
  if(req.method==='OPTIONS') return new Response(null,{status:204,headers});
+ if(req.method==='POST'){
+  try{const secret=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;const db=createClient(Deno.env.get('SUPABASE_URL')!,secret);const result=await handleActionRequest(req,db,secret);return json(result.body,result.status);}
+  catch(error){console.error('awb-preview action failed',error);return json({ok:false,error:'Penghantaran gagal disahkan. Cuba semula dengan request yang sama.'},500);}
+ }
  if(req.method!=='GET') return json({error:'method_not_allowed'},405);
  const params=new URL(req.url).searchParams;
  const orderId = (params.get('order_id') || '').trim();
@@ -38,6 +43,7 @@ Deno.serve(async req => {
     return new Response(bytes,{headers:{...headers,'content-type':'application/pdf','content-disposition':`inline; filename="AWB-${orderId}.pdf"`}});
    } catch {return json({error:'PDF AWB gagal dimuat. Cuba sekali lagi atau buka PDF.'},502);}
   }
-  return json({order_id:orderId,items:data.map(row=>previewItem({...row,awb_url:awbLinks.get(row.task_id)})),updated_at:data.reduce((a,r)=>a>r.received_at?a:r.received_at,'')});
+  const actions=await actionAvailability(db,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,orderId,data.map(row=>row.task_id));
+  return json({order_id:orderId,actions,items:data.map(row=>previewItem({...row,awb_url:awbLinks.get(row.task_id)})),updated_at:data.reduce((a,r)=>a>r.received_at?a:r.received_at,'')});
  } catch(error) { console.error('awb-preview lookup failed',error); return json({error:'Preview gagal dimuat. Cuba refresh.'},500); }
 });
