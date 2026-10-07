@@ -1,6 +1,6 @@
 ## 2026-10-07
 
-- [PRODUCTION backend / VERIFIED review UI] Cash at Counter draft actions now persist matching draft/order WhatsApp choices: Send Link defaults ON, including payment/ready pickup notifications; Confirm Pickup Order and explicit opt-out are OFF even when an old draft flag is ON. Installed production RPC rollback, Edge handler retry/queue regressions, source readback and desktop/mobile review interaction pass. Existing send guards remain; no historical replay or customer messages from QA. See docs/CASH_DRAFT_WHATSAPP.md.
+- [PRODUCTION] Cash at Counter draft actions now persist matching draft/order WhatsApp choices: Send Link defaults ON, including payment/ready pickup notifications; Confirm Pickup Order and explicit opt-out are OFF even when an old draft flag is ON. Installed production RPC rollback, Edge handler retry/queue regressions, source readback, hosted HTML equality and desktop/mobile hosted review interaction pass. Existing send guards remain; no historical replay or customer messages from QA. See docs/CASH_DRAFT_WHATSAPP.md.
 
 - [PRODUCTION] Direct customer checkout now saves WhatsApp consent before notification processing. Existing order-created/payment-received queues generate once for opted-in orders; OFF, retries and non-customer flows remain guarded. Actual live RPC/trigger rollback tests pass; no historical replay or provider messages were sent by tests. See docs/DIRECT_CHECKOUT_WHATSAPP.md.
 

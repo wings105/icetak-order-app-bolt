@@ -1,6 +1,6 @@
 # Cash at Counter draft notification choice
 
-2026-10-07: backend PRODUCTION; review-page interaction VERIFIED on desktop/mobile.
+2026-10-07: backend and hosted review page PRODUCTION.
 
 The admin action owns the per-order notification choice for `cash_counter` and
 `cash_at_counter` drafts:
@@ -47,6 +47,11 @@ Prepaid/QRPay actions keep their existing contracts.
   Playwright was used because the Browser plugin was unavailable; outbound app
   actions were intercepted, so no customer message was sent by QA.
 
+Release `a998ab2` is on `production`. The hosted `/qrpay-draft.html` redirects
+to `/qrpay-draft`; its fetched content exactly matches the committed HTML. Hosted
+desktop/mobile interaction also passes with intercepted QA data/actions. The QA
+browser uses the environment network proxy and ignores its certificate warning
+only in the test context; application transport/authentication is unchanged.
 Hosting of `public/qrpay-draft.html` follows the existing production-branch build.
 Backend behavior is already deployed independently; actual provider receipt is
 not part of these controlled tests.
