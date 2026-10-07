@@ -47,6 +47,7 @@ export default function App({ adminData }: Props) {
   const initialParams=new URLSearchParams(window.location.search);
   const linkedOrder = initialParams.get('order')?.trim() || '';
   const linkedView = initialParams.get('view')?.trim() || '';
+  const linkedQueueOrder = initialParams.get('queue_order')?.trim() || '';
   const initialPayment:LinkedQrPayment|null=initialParams.get('qrpay_tx')?{
     transactionId:initialParams.get('qrpay_tx')||'',
     amount:Number(initialParams.get('qrpay_amount')||0),
@@ -54,7 +55,7 @@ export default function App({ adminData }: Props) {
     customerName:initialParams.get('qrpay_name')||'',
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
-  const [page, setPage] = useState(linkedOrder ? 'orders' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : linkedView==='quick-order'&&initialPayment?'quick-order':'dashboard');
+  const [page, setPage] = useState(linkedView === 'clickup-queue' ? 'clickup-queue' : linkedOrder ? 'orders' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : linkedView==='quick-order'&&initialPayment?'quick-order':'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [linkedPayment,setLinkedPayment]=useState<LinkedQrPayment|null>(initialPayment);
   const permissions = adminData?.admin?.permissions || [];
@@ -63,7 +64,8 @@ export default function App({ adminData }: Props) {
     setLinkedPayment(null);
     const url = new URL(window.location.href);
     if (key !== 'orders') url.searchParams.delete('order');
-    if (key === 'qrpay-summary') url.searchParams.set('view','qrpay-summary');
+    if (key !== 'clickup-queue') url.searchParams.delete('queue_order');
+    if (key === 'qrpay-summary' || key === 'clickup-queue') url.searchParams.set('view',key);
     else { url.searchParams.delete('view'); url.searchParams.delete('date'); }
     ['qrpay_tx','qrpay_amount','qrpay_phone','qrpay_name','qrpay_paid_at'].forEach((param)=>url.searchParams.delete(param));
     window.history.replaceState({}, '', url);
@@ -84,6 +86,7 @@ export default function App({ adminData }: Props) {
     const url = new URL(window.location.href);
     url.searchParams.set('admin','v2');
     url.searchParams.set('order',orderNo);
+    url.searchParams.delete('queue_order');
     url.searchParams.delete('view');
     url.searchParams.delete('date');
     ['qrpay_tx','qrpay_amount','qrpay_phone','qrpay_name','qrpay_paid_at'].forEach((param)=>url.searchParams.delete(param));
@@ -109,7 +112,7 @@ export default function App({ adminData }: Props) {
       case 'finance': return permissions.includes('view_finance') ? <Finance canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'qrpay-summary': return permissions.includes('view_finance') ? <QrPayDailySummary canManage={permissions.includes('manage_finance')} onCreateOrder={permissions.includes('create_order')&&permissions.includes('verify_payments')?createOrderFromQrPay:undefined} onOpenOrder={openOrder} /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('quick-order')} onOpenOrder={openOrder} />;
       case 'shipping': return <Shipping />;
-      case 'clickup-queue': return <ClickUpQueue permissions={permissions} onOpenOrder={openOrder} />;
+      case 'clickup-queue': return <ClickUpQueue permissions={permissions} onOpenOrder={openOrder} initialOrder={linkedQueueOrder} />;
       case 'whatsapp-control': return <WhatsAppControl />;
       case 'whatsapp-templates': return <WhatsAppTemplates />;
       case 'whatsapp-outbox': return <WhatsAppOutbox />;

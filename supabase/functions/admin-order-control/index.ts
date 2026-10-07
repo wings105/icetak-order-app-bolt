@@ -150,6 +150,7 @@ async function finalNotification(id) {
   const status = cashReview ? '🟡 CASH AT COUNTER · PERLU KELULUSAN PRODUCTION' : auto ? '🟢 ORDER AUTO CREATED' : '🟡 ORDER CREATED · CHECK NEEDED';
   const base = await publicBase();
   const orderLink = `${base}/?admin=v2&order=${encodeURIComponent(o.order_no || o.order_id || o.id)}`;
+  const queueLink = `${base}/?admin=v2&view=clickup-queue&queue_order=${encodeURIComponent(o.order_no || o.order_id || o.id)}`;
   const customerLink = `${base}/?order=${encodeURIComponent(o.public_token)}`;
   const itemText = (items || []).map((x, i) => [
     `${i + 1}. ${x.title}`,
@@ -179,7 +180,7 @@ async function finalNotification(id) {
       'TINDAKAN ADMIN',
       'Semak item, wording dan tarikh diperlukan.',
       'Jika betul, tekan Confirm Production / Approve Production.',
-      'ClickUp Queue → Held → Confirm Production.',
+      'Tekan pautan queue di bawah → Confirm Production.',
       'Production boleh mula sebelum bayaran diterima.',
       'Confirm Cash Paid hanya selepas duit diterima.',
     ] : [
@@ -190,7 +191,8 @@ async function finalNotification(id) {
       `Missing: ${missing.length ? missing.join(', ') : 'None'}`,
     ]),
     '',
-    `${cashReview ? 'Buka order untuk semakan' : 'Admin / Edit Order'}: ${orderLink}`,
+    cashReview ? `✅ BUKA QUEUE UNTUK APPROVE: ${queueLink}` : '',
+    `${cashReview ? 'Detail / Edit Order' : 'Admin / Edit Order'}: ${orderLink}`,
     `Customer Order Link: ${customerLink}`,
     phone ? `WhatsApp Customer: ${wa(phone)}` : '',
     click.length ? `ClickUp: ${click.join('\n')}` : auto ? 'ClickUp: sedang dibuat' : 'Production: belum dilepaskan',

@@ -31,7 +31,7 @@ function setup(overrides={}, queueStatus='sending') {
 {
  const x=setup();assert.equal(x.api.isCashCounterReview(x.order),true);
  const r=await x.api.finalNotification('queue-1');assert.equal(r.sent,true);assert.equal(x.sent.length,1);
- const m=x.sent[0];assert.equal(m.to,'60111111111');assert.match(m.text,/CASH AT COUNTER/);assert.match(m.text,/BELUM BAYAR.*RM20.00/);assert.match(m.text,/Acrylic Cake Topper/);assert.match(m.text,/Wording: Hello/);assert.match(m.text,/Confirm Production/);assert.match(m.text,/admin=v2&order=IC261007-6196/);assert.equal(x.queue.status,'sent');
+ const m=x.sent[0];assert.equal(m.to,'60111111111');assert.match(m.text,/CASH AT COUNTER/);assert.match(m.text,/BELUM BAYAR.*RM20.00/);assert.match(m.text,/Acrylic Cake Topper/);assert.match(m.text,/Wording: Hello/);assert.match(m.text,/Confirm Production/);assert.match(m.text,/BUKA QUEUE UNTUK APPROVE: https:\/\/shop.decocake.my\/\?admin=v2&view=clickup-queue&queue_order=IC261007-6196/);assert.match(m.text,/admin=v2&order=IC261007-6196/);assert.equal(x.queue.status,'sent');
  assert.equal((await x.api.finalNotification('queue-1')).duplicate,true);assert.equal(x.sent.length,1);
 }
 for(const override of [{production_approved:true},{customer_confirmed:false},{source:'pickup_ai'},{source:'admin'},{delivery_method:'shipping'},{payment_status:'paid'},{payment:'Paid'},{fulfillment_stage:'completed'}]){
@@ -45,4 +45,3 @@ for(const override of [{production_approved:true},{customer_confirmed:false},{so
  await x.api.finalNotification('queue-1');assert.match(x.sent[0].text,/ORDER AUTO CREATED/);assert.doesNotMatch(x.sent[0].text,/PERLU KELULUSAN/);
 }
 console.log('PASS: cash review message, links, actual item ordering, duplicate guard, cancelled orders and paid/AI exclusions');
-

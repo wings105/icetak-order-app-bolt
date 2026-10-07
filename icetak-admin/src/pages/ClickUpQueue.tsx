@@ -21,7 +21,7 @@ type Detail = {
   canonicalPayload?: unknown;
 };
 
-type Props = { permissions?:string[]; onOpenOrder?:(orderNo:string)=>void };
+type Props = { permissions?:string[]; onOpenOrder?:(orderNo:string)=>void; initialOrder?:string };
 
 const FILTERS:Array<{key:QueueStatus;label:string;count?:keyof Summary}> = [
   {key:'attention',label:'Attention',count:'attention'}, {key:'waiting',label:'Waiting',count:'waiting'}, {key:'processing',label:'Processing',count:'processing'},
@@ -47,9 +47,9 @@ function statusMeta(status:string){
   return {label:'FAILED',tone:'danger'};
 }
 
-export default function ClickUpQueue({ permissions=[], onOpenOrder }:Props){
-  const [status,setStatus]=useState<QueueStatus>('attention');
-  const [query,setQuery]=useState('');
+export default function ClickUpQueue({ permissions=[], onOpenOrder, initialOrder='' }:Props){
+  const [status,setStatus]=useState<QueueStatus>(initialOrder ? 'held' : 'attention');
+  const [query,setQuery]=useState(initialOrder);
   const [page,setPage]=useState(1);
   const [pageSize,setPageSize]=useState(50);
   const [rows,setRows]=useState<QueueRow[]>([]);
@@ -58,7 +58,7 @@ export default function ClickUpQueue({ permissions=[], onOpenOrder }:Props){
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
-  const [detailRef,setDetailRef]=useState('');
+  const [detailRef,setDetailRef]=useState(initialOrder);
   const [detail,setDetail]=useState<Detail|null>(null);
   const [detailLoading,setDetailLoading]=useState(false);
   const [busy,setBusy]=useState('');
