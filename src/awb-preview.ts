@@ -1,7 +1,7 @@
 import './awb-preview.css';
 import {printAwbPdf} from './awb-pdf-print';
 import {bindTaskActions,type ActionAvailability} from './awb-task-actions';
-type Item={task_id:string;title:string;customize_name?:string;awb_url?:string;set:number|null;images:{url:string;name:string}[]};
+type Item={task_id:string;title:string;customize_name?:string;sku?:string;awb_url?:string;set:number|null;images:{url:string;name:string}[]};
 type Preview={order_id:string;items:Item[];updated_at:string;actions?:ActionAvailability};
 const root=document.getElementById('app')!;
 const orderId=(new URLSearchParams(location.search).get('awbpreview')||'').trim();
@@ -21,14 +21,14 @@ function toolbar(message:string){
  root.querySelector('#awb-print')!.addEventListener('click',()=>window.print());
 }
 const copyNameIcon='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M15 5V3H3v12h2"/></svg>';
-async function copyTaskName(title:string,button:HTMLButtonElement){
+async function copyText(value:string,button:HTMLButtonElement,kind:'nama'|'SKU'='nama'){
  if(button.disabled)return;
  button.disabled=true;
- let message='Disalin ✓';
+ let message=kind==='SKU'?'SKU disalin ✓':'Disalin ✓';
  try{
   if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');
-  await navigator.clipboard.writeText(title);
- }catch{message='Copy gagal. Cuba semula atau salin nama secara manual.';}
+  await navigator.clipboard.writeText(value);
+ }catch{message=`Copy gagal. Cuba semula atau salin ${kind} secara manual.`;}
  finally{button.disabled=false;}
  if(!button.isConnected)return;
  const feedback=root.querySelector<HTMLElement>('.awb-copy-feedback')!;
@@ -69,12 +69,13 @@ async function load(){
   for(let offset=0;offset<data.items.length;offset+=16){
    pages.push(`<main class="awb-sheet" aria-label="Halaman ${pages.length+1}">${data.items.slice(offset,offset+16).map((item,index)=>{
     const images=item.images.map(image=>({...image,url:safeImageUrl(image.url)})).filter(image=>image.url);
-    return `<section class="awb-item"><div class="awb-item-heading"><h1><button class="awb-copy-name" type="button" data-copy-index="${offset+index}" aria-label="Copy task name" title="Copy task name">${copyNameIcon}</button>${escape(item.title)}</h1>${item.customize_name?.trim()?`<p class="awb-customize-name">${escape(item.customize_name)}</p>`:''}</div><div class="awb-images ${images.length>1?'awb-multiple':''}" style="--image-rows:${Math.ceil(images.length/2)}">${images.length?images.map(image=>`<div class="awb-image-slot"><img src="${escape(image.url)}" alt="${escape(item.title)}" loading="eager"><span class="awb-image-failure" hidden>Gambar gagal dimuat.<br>Tekan Refresh.</span></div>`).join(''):'<span class="awb-missing">Preview belum ada</span>'}</div><div class="awb-task-action-area"><button class="awb-finished-action" data-task-action="2" data-task-index="${offset+index}" type="button" disabled>FINISHED product Printed</button><small role="status" aria-live="polite"></small></div></section>`;
+    return `<section class="awb-item"><div class="awb-item-heading"><h1><button class="awb-copy-name" type="button" data-copy-index="${offset+index}" aria-label="Copy task name" title="Copy task name">${copyNameIcon}</button>${escape(item.title)}</h1>${item.customize_name?.trim()?`<p class="awb-customize-name">${escape(item.customize_name)}</p>`:''}</div><div class="awb-images ${images.length>1?'awb-multiple':''}" style="--image-rows:${Math.ceil(images.length/2)}">${images.length?images.map(image=>`<div class="awb-image-slot"><img src="${escape(image.url)}" alt="${escape(item.title)}" loading="eager"><span class="awb-image-failure" hidden>Gambar gagal dimuat.<br>Tekan Refresh.</span></div>`).join(''):'<span class="awb-missing">Preview belum ada</span>'}</div><div class="awb-task-action-area"><button class="awb-finished-action" data-task-action="2" data-task-index="${offset+index}" type="button" disabled>FINISHED product Printed</button><small role="status" aria-live="polite"></small>${item.sku?.trim()?`<div class="awb-sku"><span class="awb-sku-value">SKU: ${escape(item.sku)}</span><button class="awb-copy-sku" type="button" data-sku-index="${offset+index}" aria-label="Copy SKU" title="Copy SKU">${copyNameIcon}</button></div>`:''}</div></section>`;
    }).join('')}</main>`);
   }
   content.innerHTML=pages.join('');
   actionControls=bindTaskActions(root,base,orderId,data.items.map(item=>item.task_id),data.actions,busy=>{sendingAction=busy;for(const control of root.querySelectorAll<HTMLButtonElement>('#awb-refresh,[data-awb-index]'))control.disabled=busy;});
-  for(const button of content.querySelectorAll<HTMLButtonElement>('[data-copy-index]'))button.addEventListener('click',()=>void copyTaskName(data.items[Number(button.dataset.copyIndex)].title,button));
+  for(const button of content.querySelectorAll<HTMLButtonElement>('[data-copy-index]'))button.addEventListener('click',()=>void copyText(data.items[Number(button.dataset.copyIndex)].title,button));
+  for(const button of content.querySelectorAll<HTMLButtonElement>('[data-sku-index]'))button.addEventListener('click',()=>void copyText(data.items[Number(button.dataset.skuIndex)].sku!,button,'SKU'));
   const images=Array.from(content.querySelectorAll<HTMLImageElement>('img'));
   const statuses=await Promise.all(images.map(img=>new Promise<boolean>(resolve=>{
    let timer:ReturnType<typeof setTimeout>;

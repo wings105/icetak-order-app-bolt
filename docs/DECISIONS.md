@@ -198,3 +198,7 @@ Owner authorizes a single explicit known Shopee Order ID in inbound WhatsApp as 
 ## 2026-10-07 — Owner-approved AWB preview task actions
 
 Extend the existing public exact-order internal print page with explicit one-click webhook actions. The owner approves header fan-out for Address/Complete and individual Finished actions beneath each task. This qualifies the 2026-09-27 read-only endpoint statement: GET remains a projection read; POST performs only validated external webhook dispatch and private delivery receipt writes, never direct business-record or ClickUp mutations. Admin V2 owns the private destination setting with existing owner/manage_admins authorization. Signed, short-lived page grants, current membership/config rechecks and stable request receipts restrict dispatch. Keep the exact user JSON field spelling `buton` and one task per POST; receiver automation owns downstream status mapping and must honor Idempotency-Key for exactly-once effects. See AWB_PREVIEW.md.
+
+## 2026-10-08 — SKU is a minimal AWB print reference field
+
+Owner approved exposing the task's text SKU in the exact-order reference preview and a copy control beneath Finished. Read SKU and AWB URL together via a new service-only bounded snapshot RPC; retain the previous AWB-link RPC's signature for compatibility. Preserve original SKU text for clipboard, omit empty values and keep controls/values hidden from print/PDF. No raw custom-field exposure, ingestion changes, history backfill or webhook dispatch on copy. See AWB_PREVIEW.md.
