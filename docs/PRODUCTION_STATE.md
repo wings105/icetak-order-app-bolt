@@ -1,5 +1,9 @@
 # iCetak Production State
 
+## 2026-10-08 — AWB preview SKU copy
+
+PRODUCTION: PR #79 release `818130dfbef0074d6db76a5b23505e8f5546abf7` / Worker `642b7957-460b-4b0e-806a-d6c8d1bf6d6f` passed Workers Builds/guard. Each task's ClickUp SKU appears below Finished with a copy icon; empty SKU is omitted and controls stay out of print/PDF. `awb-preview` v6 has exact five-file source readback, unchanged public JWT mode/signed POST boundary and safe live preview/PDF smoke. New service-role-only bounded print-fields RPC reads the latest stored snapshot and preserves the old AWB RPC. Local exact clipboard/Refresh/keyboard/error/mobile/print checks pass; hosted production displays melody cupcake and reports SKU disalin ✓. Copy sends no action POST. The owner-configured webhook is now enabled; no real task action was sent during this SKU QA. See `AWB_PREVIEW.md` for evidence and ingestion timing.
+
 ## 2026-10-07 — AWB preview task actions (unconfigured)
 
 PRODUCTION: PR #78 release `efa3db327f32ac08ef87cb3fbf880c31e5c15d5d` / Worker `7ace457e-084e-4f65-a160-adce5a14ff62`. Header Address/Complete actions cover all current preview tasks; Finished below each task covers only that task. Admin V2 Settings owns the private AWB Preview Action Webhook URL through `webhook-forward-settings` v3 (JWT true). `awb-preview` v5 retains public exact-order reads and implements signed, task-scoped POST dispatch with private receipt RPCs. URL remains blank, visible action buttons inactive, no live destination POST sent. Hosted public preview, deployed source readback, unsigned/auth rejection and private DB state smoke checks pass; configured action/Settings behavior verified in controlled tests. See `AWB_PREVIEW.md` for payload, retry limits and unexercised real destination/authenticated hosted Settings flow.
