@@ -19,5 +19,5 @@ export function previewItem(row: any) {
  });
  let awb_url='';
  try { const u=new URL(String(row.awb_url||'')); if(u.protocol==='https:'&&!u.username&&!u.password)awb_url=u.href; } catch {}
- return {task_id:row.task_id,title:row.title,customize_name:String(row.customize_name||''),set:row.set_position===999?null:row.set_position,images,awb_url};
+ return {task_id:row.task_id,title:row.title,customize_name:String(row.customize_name||''),sku:typeof row.sku==='string'?row.sku:'',set:row.set_position===999?null:row.set_position,images,awb_url};
 }

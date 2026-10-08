@@ -2,7 +2,7 @@
 
 Route: `https://shop.decocake.my/?awbpreview=<ORDER ID / customer name>`.
 
-Owner-approved public internal print reference. Exact custom-field order ID lookup; no login, AI, generation job, or Activepieces round trip on page open. The page returns task ID, title, Customize Name, set, image URLs and the task's AWB PDF link. Raw payloads, prices and credentials are not exposed. The AWB document itself contains delivery details and is accessed through its existing link.
+Owner-approved public internal print reference. Exact custom-field order ID lookup; no login, AI, generation job, or Activepieces round trip on page open. The page returns task ID, title, Customize Name, set, image URLs, SKU and the task's AWB PDF link. Raw payloads, prices and credentials are not exposed. The AWB document itself contains delivery details and is accessed through its existing link.
 
 ## Data
 
@@ -14,7 +14,7 @@ Image rule: every image in the latest image-bearing comment, preserving comment 
 
 The upstream Get Task snapshot is required to include custom_fields and attachments. Updates are visible after the existing ingestion flow receives them and the page is opened/refreshed.
 
-AWB links come from `AWB link` (field ID `8a8589f6-5a80-493c-902b-0ed8da4584be`) in each matched task's latest complete webhook snapshot. The service-only `get_clickup_awb_links(text[])` RPC performs at most 200 indexed per-task lookups using the existing full-snapshot index. It performs no history scan, backfill or business-record writes. Empty/removed fields remain empty; HTTPS URLs without embedded credentials only are returned. Duplicate links across tasks are shown once. Different links get numbered Print AWB controls.
+AWB links come from `AWB link` (field ID `8a8589f6-5a80-493c-902b-0ed8da4584be`) in each matched task's latest complete webhook snapshot. The service-only `get_clickup_awb_print_fields(text[])` RPC returns AWB URL and SKU from the same snapshot and performs at most 200 indexed per-task lookups using the existing full-snapshot index. It performs no history scan, backfill or business-record writes. Empty/removed fields remain empty; HTTPS URLs without embedded credentials only are returned. Duplicate links across tasks are shown once. Different links get numbered Print AWB controls.
 
 ## Layout
 
@@ -64,3 +64,11 @@ Rollback: clear the AWB Preview Action Webhook URL in Settings to disable action
 - Rendered production verification is recorded in CHANGELOG only after observed.
 
 Rollback: remove the index.html route branch to disable frontend access; disable/delete the awb-preview Edge Function for public access. Projection can remain private. Drop only the new trigger to stop derived updates; never alter existing ingest or production workflow triggers.
+
+## SKU below Finished (2026-10-08)
+
+User requested the ClickUp **SKU** custom field beneath each task's Finished button with a one-click copy icon. The field is `short_text`, known ID `34c62cbb-c174-42e8-9c50-8301f68269a8` (exact SKU name fallback for other lists). The private bounded `get_clickup_awb_print_fields(text[])` reads SKU and AWB link together from the latest complete snapshot, preserving the existing indexed per-task lookup and 200-task bound. `get_clickup_awb_links(text[])` is retained unchanged for compatibility. No projection/history backfill or business writes. Removed/missing/non-string SKU returns empty; valid strings preserve original whitespace and characters. Only SKU joins the existing minimal public preview response; raw custom fields remain private.
+
+The screen shows `SKU: <value>` plus Copy SKU below Finished, once per task. Copy writes only the original SKU value (without the label) and reports SKU disalin ✓; clipboard failure restores retry/manual-copy guidance. Blank/whitespace SKU hides the row. SKU/copy remain screen-only inside the existing print-hidden action area. Title copy and webhook actions are preserved; copying never sends a webhook.
+
+VERIFIED: actual standalone entry in local Chromium, desktop 1280×1000 and mobile 390×844, tested exact real clipboard bytes for melody cupcake and Unicode/HTML/newlines/whitespace, task 17 on sheet 2, blank SKU, keyboard, Refresh, denial/retry and original title copy. Print/PDF hides the entire SKU/action area and retains A4; no action POST or app error during copy QA. Browser plugin unavailable, regular Playwright used. Root/Inbox builds and preview/PDF/action regressions pass; changed preview helper passes Deno check. Live private RPC returns melody cupcake for task 14zbjdpktr8, preserves its old AWB URL, deduplicates task IDs, rejects >200 IDs, and has service_role-only execution (anon/authenticated denied). The one-task live query took 3.552 ms. No new security advisor finding for the RPC. Hosted release smoke pending.

@@ -31,8 +31,9 @@ Deno.serve(async req => {
   if(error) throw error;
   if(!data?.length) return json({error:'Order ID belum ditemui dalam data ClickUp.',order_id:orderId},404);
   if(data.length>200) return json({error:'Terlalu banyak item untuk satu preview.'},422);
-  const {data:links,error:linkError}=await db.rpc('get_clickup_awb_links',{p_task_ids:data.map(row=>row.task_id)});
+  const {data:links,error:linkError}=await db.rpc('get_clickup_awb_print_fields',{p_task_ids:data.map(row=>row.task_id)});
   if(linkError) throw linkError;
+  const skus=new Map((links||[]).map((row:any)=>[row.task_id,row.sku]));
   const awbLinks=new Map((links||[]).map((row:any)=>[row.task_id,row.awb_url]));
   if(params.has('awb_task_id')) {
    if(!data.some(row=>row.task_id===awbTaskId))return json({error:'Task AWB tidak berkaitan dengan order ini.'},404);
@@ -44,6 +45,6 @@ Deno.serve(async req => {
    } catch {return json({error:'PDF AWB gagal dimuat. Cuba sekali lagi atau buka PDF.'},502);}
   }
   const actions=await actionAvailability(db,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,orderId,data.map(row=>row.task_id));
-  return json({order_id:orderId,actions,items:data.map(row=>previewItem({...row,awb_url:awbLinks.get(row.task_id)})),updated_at:data.reduce((a,r)=>a>r.received_at?a:r.received_at,'')});
+  return json({order_id:orderId,actions,items:data.map(row=>previewItem({...row,awb_url:awbLinks.get(row.task_id),sku:skus.get(row.task_id)})),updated_at:data.reduce((a,r)=>a>r.received_at?a:r.received_at,'')});
  } catch(error) { console.error('awb-preview lookup failed',error); return json({error:'Preview gagal dimuat. Cuba refresh.'},500); }
 });
