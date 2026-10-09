@@ -1,6 +1,6 @@
 # 2026-10-09
 
-- [VERIFIED] Draft list/card exposes cancellation/Reopen history, auto system/manual admin/unknown source filter and current actor/time. Existing audit survives Reopen; service-only sanitized read RPC and finance-admin v35 verified with real rollback cancellation/reopen/recancel, privacy/paging/filter tests and desktop/mobile rendered workflows. Backend deployed; frontend publication pending. Authenticated hosted owner interaction remains unexercised.
+- [PRODUCTION] Draft list/card exposes cancellation/Reopen history, auto system/manual admin/unknown source filter and current actor/time. Existing audit survives Reopen; service-only sanitized read RPC and finance-admin v35 verified with real rollback cancellation/reopen/recancel, privacy/paging/filter tests and desktop/mobile rendered workflows. PR #82 release 9e55979 deployed; hosted asset history/filter/API/CSS checks and Workers Builds/guard pass. Authenticated hosted owner interaction remains unexercised.
 
 ## 2026-10-09
 

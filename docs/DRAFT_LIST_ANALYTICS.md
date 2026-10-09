@@ -48,7 +48,7 @@ PR #81 merged to production as `861f222000f4579a944c978cb0da2028a62cb632`. Worke
 
 ## Cancellation audit review — 2026-10-09
 
-Backend PRODUCTION; rendered desktop/mobile workflows VERIFIED; frontend publication pending.
+Backend and hosted frontend delivery PRODUCTION; rendered desktop/mobile workflows VERIFIED in controlled tests. Authenticated hosted owner interaction remains unexercised.
 
 List/card actions include **Sejarah pembatalan** on every draft, so earlier cancellations remain reviewable after Reopen or conversion. Cancelled draft rows show current source, actor and MYT timestamp. Filter tambahan → Jenis pembatalan supports Auto system (`automation`), Manual admin (`admin`) and Tidak direkodkan (`unknown`); it selects current cancelled outcomes and applies before all aggregates/pagination. Clearing the source retains the selected outcome filter; Reset filters clears both. Existing cohort date rules still apply, rather than filtering by cancellation event date.
 
@@ -57,3 +57,6 @@ Reuse the existing append-only `qrpay_order_draft_events`: `admin_rejected` is t
 New service-only invoker RPC `finance_admin_draft_cancellation_history(uuid,integer)` returns only sanitized cancellation/Reopen fields, newest first, 50 events per page with stable timestamp/ID ordering and total. It excludes raw metadata, snapshots, tokens and payment payloads. `finance-admin` v35 action `draft_cancellation_history` retains JWT and existing admin1/owner/view_finance checks; UUID validated and nonnegative offset forwarded. Read permission suffices for history; manual cancellation continues to require manage_finance and server-owned admin actor/source. Installed migration: `20261009100538_draft_cancellation_audit_view.sql`. Deployed Edge source readback matches exactly.
 
 Verification: production rollback tests exercise the real cancel RPC (automation), Reopen and manual re-cancel, preserving all three audit events; unknown legacy source, 54-event pagination, privacy/grants and nine independent month/source cohorts pass. Zero synthetic drafts remain and no provider requests/customer messages are sent. All 26 existing read-only cohort/pagination/chart tests pass after migration. Actual Edge handler controlled replay passes owner/read permission, unauthorized identities, invalid UUID, pagination, filter bounds and unspoofable manual cancellation actor/source. Live unauthenticated endpoint denies access. Actual React component passes source filters, reopened history, reason/actor/Shopee reference, history paging, error state, keyboard close and desktop/mobile overflow checks. Browser plugin unavailable; regular Playwright with external tool-only Chromium used. Authenticated hosted owner interaction remains unexercised.
+
+
+PR #82 merged as `9e55979fc67083bf3a348dd3efa8f13d83b035a8`; Workers Builds and public-domain guard pass. Worker `0565d39f-e6b7-46e6-bf23-94543fa4ff5d`. Hosted asset chain `main-TqrqKmc9.js` → `admin-v2-route-B3vE2tbL.js` → `App-CIyhdYdS.js` plus `App-Bd1cH7jW.css` contains history/source controls, private read action and timeline styling.
