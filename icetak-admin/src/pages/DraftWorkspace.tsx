@@ -15,7 +15,7 @@ export default function DraftWorkspace({canManage=false,onOpenOrder,onCreateOrde
     window.history.replaceState({},'',url);
   };
   return <div className="draft-workspace">
-    <div className="draft-workspace-head"><div><h1>Draft Orders</h1><p>Semua draft aktif dalam satu tempat. Follow-up ialah draft prepaid yang sudah dihantar kepada customer tetapi belum dibayar.</p></div></div>
+    <div className="draft-workspace-head"><div><h1>Draft Orders</h1><p>Draft aktif, converted dan cancelled dengan list serta analisis conversion. Follow-up ialah draft prepaid yang sudah dihantar kepada customer tetapi belum dibayar.</p></div></div>
     <div className="draft-workspace-tabs" role="tablist" aria-label="Draft workspace views">
       <button role="tab" aria-selected={tab==='all'} className={tab==='all'?'active':''} onClick={()=>selectTab('all')}><span>Semua Draft</span><small>Semak, edit dan payment</small></button>
       <button role="tab" aria-selected={tab==='followup'} className={tab==='followup'?'active':''} onClick={()=>selectTab('followup')}><span>Customer Follow-up</span><small>Prepaid · sudah dihantar · belum bayar</small></button>
