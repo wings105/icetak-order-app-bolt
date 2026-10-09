@@ -218,6 +218,7 @@ Deno.serve(async (request) => {
     if (request.method !== 'POST') return out({ ok: false, error: 'Method not allowed' }, 405);
 
     const draft = await load(token);
+    if (draft.status === 'rejected') return out({ ok: false, error: 'Quotation ini telah dibatalkan. Sila hubungi iCetak untuk bantuan.' }, 409);
     if (body.action === 'confirm') {
       if (!draft.admin_approved_at) return out({ ok: false, error: 'Draft belum diluluskan admin' }, 409);
       const delivery = text(body.delivery || draft.working_draft?.delivery).toLowerCase();
