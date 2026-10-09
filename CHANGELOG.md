@@ -1,3 +1,7 @@
+## 2026-10-09
+
+- [PRODUCTION] Paid Shopee exact-phone matches now cancel one recent unpaid customer-linked prepaid quotation with customer_order_shopee and its Shopee Order ID. Follow-ups/payment sessions stop; ambiguous matches require admin review; paid/receipt-linked drafts and stale checkout are protected. Sixteen real-trigger service_role production rollback tests and Edge source/auth readback pass. See docs/SHOPEE_DRAFT_AUTOCANCEL.md for frontend verification and release evidence.
+
 ## 2026-10-07
 
 - [PRODUCTION] Cash at Counter draft actions now persist matching draft/order WhatsApp choices: Send Link defaults ON, including payment/ready pickup notifications; Confirm Pickup Order and explicit opt-out are OFF even when an old draft flag is ON. Installed production RPC rollback, Edge handler retry/queue regressions, source readback, hosted HTML equality and desktop/mobile hosted review interaction pass. Existing send guards remain; no historical replay or customer messages from QA. See docs/CASH_DRAFT_WHATSAPP.md.

@@ -202,3 +202,8 @@ Extend the existing public exact-order internal print page with explicit one-cli
 ## 2026-10-08 — SKU is a minimal AWB print reference field
 
 Owner approved exposing the task's text SKU in the exact-order reference preview and a copy control beneath Finished. Read SKU and AWB URL together via a new service-only bounded snapshot RPC; retain the previous AWB-link RPC's signature for compatibility. Preserve original SKU text for clipboard, omit empty values and keep controls/values hidden from print/PDF. No raw custom-field exposure, ingestion changes, history backfill or webhook dispatch on copy. See AWB_PREVIEW.md.
+
+
+## 2026-10-09 — Paid Shopee purchase supersedes one recent unpaid quotation
+
+The owner authorizes exact-phone cancellation of a single customer-linked prepaid quotation within the prior 14 days. Use the existing cancellation reason/audit and pause follow-ups for ambiguous multi-draft/CRM matches. Defer matching to transaction end and retry when canonical phone mapping arrives; exclude historical captures, paid/receipt-linked/converted quotes and invalid Shopee orders. Customer links cannot resurrect rejected drafts; explicit admin Reopen owns recovery. No outgoing cancellation message is added. See SHOPEE_DRAFT_AUTOCANCEL.md.
