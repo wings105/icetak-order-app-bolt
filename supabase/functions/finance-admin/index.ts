@@ -144,6 +144,12 @@ Deno.serve(async (req) => {
       const orderCandidates = Array.isArray(orders?.candidates) ? orders.candidates : [];
       return json({ success: true, data: { ...orders, transaction: orders?.transaction || drafts?.transaction, candidates: [...draftCandidates, ...orderCandidates] } });
     }
+    if (action === "draft_report") return json({ success: true, data: await rpc("finance_admin_draft_report", {p_filter: {
+      period:body.period||"month",date:body.date||null,date_basis:body.date_basis||"created",
+      query:String(body.query||"").slice(0,200),state:body.state||"all",status:body.status||"all",
+      source:body.source||"all",payment_mode:body.payment_mode||"all",delivery:body.delivery||"all",reason:body.reason||"all",
+      sort:body.sort||"newest",offset:Math.max(0,Math.trunc(Number(body.offset)||0)),limit:50,
+    }} ) });
     if (action === "draft_orders") return json({ success: true, data: await rpc("finance_admin_draft_orders", {
       p_query: String(body.query || "").trim() || null,
       p_status: String(body.status || "").trim() || null,

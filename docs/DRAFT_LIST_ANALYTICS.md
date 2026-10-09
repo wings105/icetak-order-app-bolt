@@ -1,0 +1,46 @@
+# Draft Orders list and analysis
+
+Backend PRODUCTION; frontend VERIFIED in controlled desktop/mobile tests, hosted release tracked below.
+
+Admin V2 Draft Orders defaults to List view. Card view retains the existing draft actions; Graf view adds sent-outcome bars, cancelled-reason bars, a stacked time trend and source conversion comparison. A reason bar opens the filtered list. Details expands the existing card without changing draft lifecycle contracts. Converted rows link to their canonical order and do not expose draft payment/cancellation mutations.
+
+## Period and cohort contract
+
+Day, Week and Month accept a reference date, previous/next navigation and Semasa. All boundaries use Asia/Kuala_Lumpur. Weeks are Monday–Sunday; ranges include the first day and exclude midnight after the last day. Day trend has 24 hourly buckets; week/month use daily buckets including zero days.
+
+Asas tarikh defaults to Draft dibuat: select drafts by created_at in the period, then show their **current** outcome. Dihantar ke customer instead selects the stored customer_link_sent_at in the period. This is a cohort report, not a count of payments/cancellations occurring during the selected period. A recent cohort can still convert later. Resends use the current stored send timestamp; this report does not reconstruct earlier dispatch history.
+
+Each draft is counted once, including converted drafts previously absent from the active-draft endpoint. Sent means customer_link_sent_at is recorded; missing legacy send timestamps remain Belum dihantar, without inferred/backfilled delivery claims.
+
+| Metric | Definition / percentage denominator |
+|---|---|
+| Jumlah draft | Every draft matching the period and filters |
+| Dihantar | Recorded send timestamp; % of all matched drafts |
+| Closed sales | Sent draft linked to an existing noncancelled canonical order whose payment_status is paid; % of sent drafts |
+| Cancelled selepas hantar | Sent draft rejected, or linked to a cancelled/voided canonical order; % of sent drafts |
+| Belum closed | Sent draft with neither closed nor cancelled outcome; % of sent drafts |
+| Cancelled keseluruhan | Cancelled sent and unsent drafts; reason-bar % uses this total |
+| Order belum bayar | Converted order without paid status, reported separately and never counted as closed sales |
+
+Closed + cancelled + belum closed partitions the sent cohort. Display percentages round to one decimal, so independently rounded values may differ slightly from 100%. An empty denominator displays —. Cancelled canonical orders use the separate reason Order selepas conversion dibatalkan; missing draft reasons use Sebab tidak direkodkan. Shopee cancellations keep their existing reason and exact Order ID, rather than being counted as a direct paid sale.
+
+Search and source/status/payment-flow/delivery/reason/outcome filters apply to both views and all summary/chart totals. Sort/date controls and server pagination keep list pages bounded to 50 rows; aggregates run over the full filtered cohort before pagination. Filters reset the page, invalidate older requests and show loading immediately. Converted unpaid/paid/cancelled records remain distinguishable. Manual payment, cancellation, reopen and flow actions retain existing permission gates.
+
+## Ownership and security
+
+Order System owns service_role-only SECURITY INVOKER finance_admin_draft_report(jsonb), fixed search_path, no new table or RLS policy. finance-admin action draft_report keeps the existing admin1/owner/view_finance restriction and JWT verification. Legacy draft_orders/follow-up endpoints remain unchanged. Reporting has no order/payment/notification writes or historical backfill.
+
+Installed migration: 20261009080630. finance-admin v34 ACTIVE; source readback matches exactly, verify_jwt=true. No-auth live request returns 401. Security advisor categories/findings remain unchanged from baseline; new RPC denies anon/authenticated execution.
+
+## Verification
+
+- 26 read-only production cohorts reconcile against independent canonical SQL: day/week/month, created/sent dates, active/closed/cancelled/unpaid/pending/sent/unsent states, source/flow/delivery/status/reason/search filters, missing data and empty periods.
+- Every filtered ID is recovered exactly once across 17-row test pages, including cohorts beyond the old 200-row list limit. Full chart/source/reason counts and conversion percentages reconcile; MYT midnight, ISO week and leap-month/zero buckets are checked.
+- Actual Edge handler controlled replay verifies owner reads/filter forwarding, 50-row gateway bound and unauthenticated/staff/other-owner/missing-permission rejection without external requests.
+- Actual React component with synthetic 240-draft API responses: 50-row list, pagination, canonical order navigation, all-cohort graph totals, Day/Week/Month, reason drilldown, payment/sort/date-basis/search filters, empty state, stale response isolation, existing cancel modal and reader mutation hiding pass. Desktop 1440×1000 and mobile 390×844 have no page overflow, runtime errors or framework overlay. Screenshots visually inspected.
+- Browser plugin not available; regular Playwright uses tool-only npm Chromium outside the repository. No signed-in hosted owner interaction or real draft/customer mutation is exercised.
+- Full storefront/Inbox build, Admin V2 type/build, admin source boundary and git diff checks pass.
+
+## Hosted release
+
+Pending publication at this document's initial commit. Record production release/checks and public asset-chain smoke evidence after merging production. Controlled UI verification and private production SQL/API verification do not by themselves prove authenticated hosted owner interaction.

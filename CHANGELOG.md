@@ -1,5 +1,7 @@
 ## 2026-10-09
 
+- [VERIFIED] Draft Orders adds default list and graph views with MYT Day/Week/Month, complete server-filtered sent/paid-closed/cancelled percentages, cancelled-reason drilldown, time trend and source conversion. Converted unpaid orders remain separate. Migration 20261009080630 and finance-admin v34 installed; 26 read-only production cohorts/pagination, Edge auth/filter replay and desktop/mobile component interactions pass. Hosted publication pending; see docs/DRAFT_LIST_ANALYTICS.md.
+
 - [PRODUCTION] Paid Shopee exact-phone matches now cancel one recent unpaid customer-linked prepaid quotation with customer_order_shopee and its Shopee Order ID. Follow-ups/payment sessions stop; ambiguous matches require admin review; paid/receipt-linked drafts and stale checkout are protected. Sixteen real-trigger service_role production rollback tests and Edge source/auth readback pass. PR #80 release `a7fe77c` passed Workers Builds/guard; exact hosted cancellation HTML passes controlled desktop/mobile rendering without checkout or mutation POST. Admin V2 controlled interactions pass; authenticated hosted owner interaction remains unexercised. See docs/SHOPEE_DRAFT_AUTOCANCEL.md.
 
 ## 2026-10-07
