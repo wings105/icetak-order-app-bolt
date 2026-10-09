@@ -1,3 +1,7 @@
+# 2026-10-09
+
+- [VERIFIED] Draft list/card exposes cancellation/Reopen history, auto system/manual admin/unknown source filter and current actor/time. Existing audit survives Reopen; service-only sanitized read RPC and finance-admin v35 verified with real rollback cancellation/reopen/recancel, privacy/paging/filter tests and desktop/mobile rendered workflows. Backend deployed; frontend publication pending. Authenticated hosted owner interaction remains unexercised.
+
 ## 2026-10-09
 
 - [PRODUCTION delivery / VERIFIED controlled UI] Draft Orders adds default list and graph views with MYT Day/Week/Month, complete server-filtered sent/paid-closed/cancelled percentages, cancelled-reason drilldown, time trend and source conversion. Converted unpaid orders remain separate. Migration 20261009080630 and finance-admin v34 installed; 26 read-only production cohorts/pagination, Edge auth/filter replay and desktop/mobile App/component interactions pass. PR #81 release `861f222` passed Workers Builds/guard; hosted root/admin asset chain contains the new controls/CSS. Authenticated hosted owner interaction remains unexercised. See docs/DRAFT_LIST_ANALYTICS.md.

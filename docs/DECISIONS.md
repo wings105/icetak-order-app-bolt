@@ -210,3 +210,8 @@ The owner authorizes exact-phone cancellation of a single customer-linked prepai
 # 2026-10-09 — Draft reporting uses explicit cohorts and paid canonical conversion
 
 Draft list/graph analytics include converted rows and use either draft-created or stored customer-send dates, with MYT day/ISO week/month boundaries. Outcomes are current, not event-date counts. Sent conversion percentages use recorded sent drafts; missing legacy dispatch evidence is not inferred. Closed requires a noncancelled canonical paid order; unpaid pickup conversion remains separate. Reason percentages use all cancelled drafts. Service-only read aggregation runs before bounded pagination through existing finance-admin owner auth. No historical updates or provider sends. See DRAFT_LIST_ANALYTICS.md.
+
+
+## 2026-10-09 — Review cancellation history without rewriting audit facts
+
+Use existing draft events for cancellation/Reopen history through a sanitized private read RPC. Both system and admin cancellation retain their recorded source, actor, reason and time; Reopen clears current draft cancellation fields but never deletes earlier events. A source filter applies to current cancelled cohort outcomes, while history remains available on active/converted drafts. Missing legacy source remains unknown; no historical audit reconstruction or provider sends. See DRAFT_LIST_ANALYTICS.md.

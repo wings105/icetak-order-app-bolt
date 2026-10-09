@@ -147,9 +147,16 @@ Deno.serve(async (req) => {
     if (action === "draft_report") return json({ success: true, data: await rpc("finance_admin_draft_report", {p_filter: {
       period:body.period||"month",date:body.date||null,date_basis:body.date_basis||"created",
       query:String(body.query||"").slice(0,200),state:body.state||"all",status:body.status||"all",
-      source:body.source||"all",payment_mode:body.payment_mode||"all",delivery:body.delivery||"all",reason:body.reason||"all",
+      source:body.source||"all",payment_mode:body.payment_mode||"all",delivery:body.delivery||"all",reason:body.reason||"all",cancel_source:body.cancel_source||"all",
       sort:body.sort||"newest",offset:Math.max(0,Math.trunc(Number(body.offset)||0)),limit:50,
     }} ) });
+    if (action === "draft_cancellation_history") {
+      const draftId=String(body.draft_id||"");
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(draftId)) return json({success:false,error:"Valid draft is required"},400);
+      return json({success:true,data:await rpc("finance_admin_draft_cancellation_history",{
+        p_draft_id:draftId,p_offset:Math.max(0,Math.trunc(Number(body.offset)||0)),
+      })});
+    }
     if (action === "draft_orders") return json({ success: true, data: await rpc("finance_admin_draft_orders", {
       p_query: String(body.query || "").trim() || null,
       p_status: String(body.status || "").trim() || null,
