@@ -1,6 +1,6 @@
 ## 2026-10-09
 
-- [PRODUCTION] Paid Shopee exact-phone matches now cancel one recent unpaid customer-linked prepaid quotation with customer_order_shopee and its Shopee Order ID. Follow-ups/payment sessions stop; ambiguous matches require admin review; paid/receipt-linked drafts and stale checkout are protected. Sixteen real-trigger service_role production rollback tests and Edge source/auth readback pass. See docs/SHOPEE_DRAFT_AUTOCANCEL.md for frontend verification and release evidence.
+- [PRODUCTION] Paid Shopee exact-phone matches now cancel one recent unpaid customer-linked prepaid quotation with customer_order_shopee and its Shopee Order ID. Follow-ups/payment sessions stop; ambiguous matches require admin review; paid/receipt-linked drafts and stale checkout are protected. Sixteen real-trigger service_role production rollback tests and Edge source/auth readback pass. PR #80 release `a7fe77c` passed Workers Builds/guard; exact hosted cancellation HTML passes controlled desktop/mobile rendering without checkout or mutation POST. Admin V2 controlled interactions pass; authenticated hosted owner interaction remains unexercised. See docs/SHOPEE_DRAFT_AUTOCANCEL.md.
 
 ## 2026-10-07
 

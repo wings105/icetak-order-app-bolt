@@ -1,6 +1,6 @@
 # Shopee purchase cancels the preceding direct quotation
 
-Backend PRODUCTION; frontend controlled verification/release tracked below.
+Backend and customer cancellation pages PRODUCTION; Admin V2 rendered interactions VERIFIED in controlled tests.
 
 The owner authorized automatic cancellation when a customer receives a direct quotation/payment link and purchases through Shopee instead. Order System owns this behavior; no separate Activepieces flow or scheduled ChatGPT task is required.
 
@@ -25,3 +25,11 @@ Deferred triggers on marketplace_orders, marketplace_customers, customer_master 
 - Browser plugin not available. Controlled Playwright uses an npm-distributed Chromium binary because the normal browser ZIP download is truncated by the environment. Customer cancelled review/payment desktop (1280px) and mobile (390px) render without QR/checkout/mutation or runtime errors.
 
 The public hosted assets and authenticated owner UI must be distinguished: controlled component tests use mocked admin data and do not prove a signed-in hosted owner interaction. Backend installation is effective independently of frontend publishing.
+
+## Production release
+
+PR #80 merged to `production` as `a7fe77c9ee787882931ac4d00fff7a9ed48311ad`. Workers Builds and the Public Domain Guard both passed; deployed Worker version `4e47ed25-f864-46fc-b71e-f8e37e9772bd`.
+
+The public root asset chain (`main-DPaLnSOn.js` → `admin-v2-route-h1vPItM7.js` → `App-DczY1BJr.js`) serves the new Shopee review label, `shopee_match` read model and paused-follow-up explanation.
+
+Public customer review/payment HTML was fetched from `https://shop.decocake.my/` after deployment. Chromium rendered those exact hosted bytes at 1280px and 390px with a synthetic rejected-draft API response: the cancellation message appeared, checkout/QR/receipt controls were absent, no mutation POST occurred and there were no runtime errors. This is a controlled render of deployed HTML, not a real customer-token transaction. Direct Chromium navigation timed out in this environment; HTTP fetch succeeded. No real customer link, order or payment was changed by release QA. Authenticated hosted owner interaction remains unexercised.

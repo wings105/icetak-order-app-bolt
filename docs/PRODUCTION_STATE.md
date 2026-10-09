@@ -1,6 +1,6 @@
 # 2026-10-09 — Shopee quotation auto-cancellation
 
-Backend PRODUCTION: migration 20261009051918 and order-draft-customer v13 cancel one recent customer-linked unpaid prepaid quotation on a paid Shopee exact-phone match; delayed CRM mapping is supported. Multi-draft/identity conflicts pause follow-up for admin review, payment/receipt-linked drafts remain protected and stale checkout is blocked. Sixteen real-trigger service_role production rollback cases pass, no QA records remain, Edge source/auth readback matches and security advisor counts are unchanged. Frontend controlled QA/release evidence: docs/SHOPEE_DRAFT_AUTOCANCEL.md.
+Backend PRODUCTION: migration 20261009051918 and order-draft-customer v13 cancel one recent customer-linked unpaid prepaid quotation on a paid Shopee exact-phone match; delayed CRM mapping is supported. Multi-draft/identity conflicts pause follow-up for admin review, payment/receipt-linked drafts remain protected and stale checkout is blocked. Sixteen real-trigger service_role production rollback cases pass, no QA records remain, Edge source/auth readback matches and security advisor counts are unchanged. PR #80 release `a7fe77c` / Worker `4e47ed25-f864-46fc-b71e-f8e37e9772bd` passed Workers Builds/guard. Exact hosted review/payment HTML renders the cancelled notice without checkout/QR or mutation POST in controlled desktop/mobile Chromium tests. Admin V2 controlled interactions pass; authenticated hosted owner interaction remains unexercised. See docs/SHOPEE_DRAFT_AUTOCANCEL.md.
 
 # iCetak Production State
 
