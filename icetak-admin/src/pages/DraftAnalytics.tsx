@@ -7,7 +7,7 @@ export type DraftReport = {
   sources:{source:string;total:number;sent:number;closed:number;cancelled:number;closed_pct:number|null}[];
   trend:{at:string;label:string;total:number;sent:number;closed:number;cancelled:number;pending:number}[];
 };
-export type DraftFilters = {period:'day'|'week'|'month';date:string;date_basis:'created'|'sent';state:string;status:string;source:string;payment_mode:string;delivery:string;reason:string;sort:string;offset:number};
+export type DraftFilters = {period:'day'|'week'|'month';date:string;date_basis:'created'|'sent';state:string;status:string;source:string;payment_mode:string;delivery:string;reason:string;cancel_source:string;sort:string;offset:number};
 export const percentage=(value:number|null|undefined)=>value==null?'—':`${Number(value).toFixed(1)}%`;
 export const sourceLabel=(source:string)=>({chat_trigger:'WhatsApp / chat',pickup_trigger:'Pickup trigger',admin_manual:'Manual admin',qrpay_payment:'QRPay'}[source]||source.replaceAll('_',' '));
 export const outcomeLabel=(outcome:string)=>({active:'Draft aktif',closed:'Closed sales',cancelled:'Cancelled',order_unpaid:'Order belum bayar'}[outcome]||outcome);

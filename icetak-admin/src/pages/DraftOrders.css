@@ -120,3 +120,17 @@
 .draft-chart-panel details>.draft-table-scroll{margin-top:12px}
 @media(max-width:1100px){.draft-report-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.draft-graphs{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:700px){.draft-report-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.draft-report-metrics button{padding:12px}.draft-advanced-filters>div{grid-template-columns:1fr 1fr}.draft-chart-panel{padding:15px}.draft-report-toolbar{align-items:flex-start}.draft-view-switch button,.draft-period-switch button{padding:8px 11px}.draft-period-controls label:last-child{flex-basis:100%}.draft-outcome-bars button,.draft-reason-bars button{grid-template-columns:minmax(100px,1.3fr) minmax(45px,.7fr) auto;gap:7px}.draft-pagination{flex-wrap:wrap}.draft-orders-head{flex-wrap:wrap}.draft-head-actions{justify-content:flex-start}}
+
+.draft-history-modal { max-width:720px; }
+.draft-history-modal .draft-modal-head p { overflow-wrap:anywhere; }
+.draft-cancellation-timeline { list-style:none; padding:0; margin:16px 0; }
+.draft-cancellation-timeline li { border-left:3px solid #e1a15d; padding:12px 16px; margin:12px 0; background:#faf8f4; border-radius:0 8px 8px 0; overflow-wrap:anywhere; }
+.draft-cancellation-timeline li>div { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.draft-cancellation-timeline time,.draft-cancellation-timeline small { color:#786e61; font-size:12px; }
+.draft-cancellation-timeline p { margin:6px 0; }
+.draft-advanced-filters label,.draft-advanced-filters select { min-width:0; }
+.draft-advanced-filters select { width:100%; }
+.draft-history-modal { min-width:0; max-height:calc(100dvh - 40px); overflow:auto; }
+.draft-history-modal .draft-modal-head>div { min-width:0; }
+.draft-history-modal .draft-modal-close { flex-shrink:0; }
+.draft-history-modal .draft-pagination>div { flex-wrap:wrap; }
