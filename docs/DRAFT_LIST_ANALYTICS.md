@@ -1,6 +1,6 @@
 # Draft Orders list and analysis
 
-Backend PRODUCTION; frontend VERIFIED in controlled desktop/mobile tests, hosted release tracked below.
+Backend and frontend delivery PRODUCTION; rendered workflows VERIFIED in controlled desktop/mobile tests. Authenticated hosted owner interaction remains unexercised.
 
 Admin V2 Draft Orders defaults to List view. Card view retains the existing draft actions; Graf view adds sent-outcome bars, cancelled-reason bars, a stacked time trend and source conversion comparison. A reason bar opens the filtered list. Details expands the existing card without changing draft lifecycle contracts. Converted rows link to their canonical order and do not expose draft payment/cancellation mutations.
 
@@ -37,10 +37,10 @@ Installed migration: 20261009080630. finance-admin v34 ACTIVE; source readback m
 - 26 read-only production cohorts reconcile against independent canonical SQL: day/week/month, created/sent dates, active/closed/cancelled/unpaid/pending/sent/unsent states, source/flow/delivery/status/reason/search filters, missing data and empty periods.
 - Every filtered ID is recovered exactly once across 17-row test pages, including cohorts beyond the old 200-row list limit. Full chart/source/reason counts and conversion percentages reconcile; MYT midnight, ISO week and leap-month/zero buckets are checked.
 - Actual Edge handler controlled replay verifies owner reads/filter forwarding, 50-row gateway bound and unauthenticated/staff/other-owner/missing-permission rejection without external requests.
-- Actual React component with synthetic 240-draft API responses: 50-row list, pagination, canonical order navigation, all-cohort graph totals, Day/Week/Month, reason drilldown, payment/sort/date-basis/search filters, empty state, stale response isolation, existing cancel modal and reader mutation hiding pass. Desktop 1440×1000 and mobile 390×844 have no page overflow, runtime errors or framework overlay. Screenshots visually inspected.
+- Actual React component and full Admin App/Draft Workspace shell with synthetic 240-draft API responses: 50-row list, pagination, canonical order navigation, all-cohort graph totals, Day/Week/Month, reason drilldown, payment/sort/date-basis/search filters, empty state, stale response isolation, existing cancel modal and reader mutation hiding pass. Desktop 1440×1000 and mobile 390×844 have no page overflow, runtime errors or framework overlay. Screenshots visually inspected.
 - Browser plugin not available; regular Playwright uses tool-only npm Chromium outside the repository. No signed-in hosted owner interaction or real draft/customer mutation is exercised.
 - Full storefront/Inbox build, Admin V2 type/build, admin source boundary and git diff checks pass.
 
 ## Hosted release
 
-Pending publication at this document's initial commit. Record production release/checks and public asset-chain smoke evidence after merging production. Controlled UI verification and private production SQL/API verification do not by themselves prove authenticated hosted owner interaction.
+PR #81 merged to production as `861f222000f4579a944c978cb0da2028a62cb632`. Workers Builds and Public Domain Guard pass; Worker version `4a1c2589-41b6-40f7-a9e5-2d55e899592d`. Public `https://shop.decocake.my/?admin=v2&view=draft-orders` asset chain serves `main-B92AteEa.js` → `admin-v2-route-4XGaWPQ5.js` → `App-CO3ojcGF.js` and the new list/metrics/trend CSS. Hosted JS contains the new list/graph labels, reason/trend/paid-outcome controls, cohort API call and corrected workspace header. Controlled UI verification and private production SQL/API verification do not by themselves prove authenticated hosted owner interaction.
