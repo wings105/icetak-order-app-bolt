@@ -3,7 +3,7 @@ import { Conversation } from '../types';
 import { useReplySuggestion } from '../lib/useReplySuggestion';
 
 export function ReplySuggestion({ conversation, ready, onPick }: { conversation: Conversation; ready: boolean; onPick: (text: string) => void }) {
-  const { result, loading, error, refresh } = useReplySuggestion(conversation, ready);
+  const { result, loading, error, refresh, canRefresh } = useReplySuggestion(conversation, ready);
   if (!ready || !conversation.messages.some(m => m.direction === 'inbound')) return null;
   const note = result?.order_reference ? `Order ${result.order_reference}` : 'Semak detail sebelum hantar';
   return (
@@ -11,7 +11,7 @@ export function ReplySuggestion({ conversation, ready, onPick }: { conversation:
       <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)]">
         {loading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
         <span className="flex-1" role="status">{loading ? 'Semak chat & order…' : error || 'Cadangan balasan'}{result?.text && !loading ? ' · klik untuk guna' : ''}</span>
-        <button type="button" onClick={refresh} disabled={loading} aria-label="Semak semula cadangan" title="Semak semula chat dan status order" className="rounded p-1.5 hover:bg-[var(--surface-hover)] disabled:opacity-40"><RefreshCw size={12} /></button>
+        <button type="button" onClick={refresh} disabled={!canRefresh} aria-label="Semak semula cadangan" title={canRefresh ? 'Semak semula chat dan status order' : 'Tunggu sebelum semak semula'} className="rounded p-1.5 hover:bg-[var(--surface-hover)] disabled:opacity-40"><RefreshCw size={12} /></button>
       </div>
       {result?.text && !loading && (
         <>

@@ -20,6 +20,9 @@ Deno.serve(suggestionHandler({
     const rows = await db(`workspace_members?auth_user_id=eq.${encodeURIComponent(user.id)}&select=role,active&limit=1`);
     return rows[0] || { active: false };
   },
+  async claim(id) {
+    return await db('rpc/inbox_reply_suggestion_claim', { p_conversation_id: id });
+  },
   async read(id) {
     const source = await db('rpc/icetak_ai_inbox_read', { p_conversation_id: id, p_channel: null, p_search: '', p_offset: 0, p_limit: 1 });
     return source.rows?.[0] || null;

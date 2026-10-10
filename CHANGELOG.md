@@ -1,3 +1,7 @@
+# 2026-10-10 — Inline suggestion cost control
+
+- [VERIFIED frontend / PRODUCTION backend] Unified Inbox removes periodic/expiry/global-order suggestion refresh, reuses bounded account-scoped fresh cache, serializes requests and backs off failures/429. Gateway v2 enforces shared 120/hour, 1000/MYT day and 30s/chat claims before chat/canonical reads. Real SQL rollback limit/reset/retention/grant tests, exact gateway/auth readback, 10-minute zero-request idle test, scoped orders/cache/debounce/backoff/stale-chat tests, composer/theme/mobile QA and builds pass. No customer/order/provider writes; only bounded counters. Hosted authenticated staff interaction remains unexercised; see docs/INBOX_REPLY_SUGGESTIONS.md.
+
 # 2026-10-10
 
 - [PRODUCTION] Draft customer phone now links to the registered WhatsApp app; the second line shows its full wa.me URL in list/card/details. Controlled desktop/mobile click and keyboard destinations, fallbacks and builds pass; PR #84 e071d40 / Worker 59fd3959 hosted JS/CSS and deployment guard checks pass. Native Windows WhatsApp launch and signed-in hosted owner interaction remain unexercised.

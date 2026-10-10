@@ -109,6 +109,7 @@ export interface Conversation {
   orderStatus: ConversationStatus;
   orderSession?: OrderSessionSnapshot;
   shopeeOrder?: ShopeeOrder;
+  externalCustomerId?: string;
   needsReply?: boolean;
   lastMessageSender?: 'customer' | 'seller' | 'system' | null;
   orderId?: string;

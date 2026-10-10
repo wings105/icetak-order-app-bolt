@@ -268,3 +268,8 @@ Frontend release `5548f1e` passed Workers Builds and source guard; Cloudflare ve
 # 2026-10-10 — Inline Inbox reply suggestions
 
 Backend PRODUCTION / controlled rendered behavior VERIFIED: Inbox JWT/staff-only inbox-reply-suggest v1 and private Order inbox-reply-context v1 reuse canonical context and shared SOP rules above the composer. Six-second customer quiet period, 60-second expiry, stale message/customer rejection, editable click-to-draft with append/dedup and explicit Send only. WhatsApp Enter respects expiry. Actual cross-project read and unchanged conversation state, exact auth/bundle readbacks, handler/engine regressions, desktop/mobile light/dark interaction checks and full builds pass. Admin dashboard v20 adds xreply/xbalas shorthand recognition. Hosted authenticated staff interaction remains unexercised; see INBOX_REPLY_SUGGESTIONS.md.
+
+
+# 2026-10-10 — Inline suggestion cost guard
+
+Backend PRODUCTION / controlled UI VERIFIED: Inbox inbox-reply-suggest v2 retains JWT/staff auth and adds a service-only atomic 120/hour, 1000/MYT-day, 30s/chat allowance before canonical reads. No polling/expiry/resume refresh or unchanged-context automatic retries; scoped order events, bounded account memory cache, one browser request at a time and error/429 backoff. Live SQL rollback boundary/reset/retention/grant tests and exact gateway v2/auth readback pass; zero persisted QA counters. Ten idle minutes produce zero extra UI requests. Existing composer/send/session rules and Order inbox-reply-context v1 remain unchanged. Hosted authenticated staff interaction remains unexercised. See INBOX_REPLY_SUGGESTIONS.md.

@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url';
 const id='33333333-3333-4333-8333-333333333333', oid='11111111-1111-4111-8111-111111111111';
 const now=Date.now(), c={id,channel:'shopee',revision:'r',inbound_revision:'i',last_inbound_at:new Date(now).toISOString(),identities:[],messages:[{id:'m',direction:'inbound',message_type:'text',text_content:'parcel mana?',created_at:new Date(now).toISOString()}]};
 let member={role:'owner',active:true}, readCount=0, changed=false, seen;
-const handler=suggestionHandler({member:async()=>member,read:async()=>{readCount++;return changed&&readCount%2===0?{...c,revision:'new'}:c;},suggest:async source=>{seen=source;return{text:'fixture',expires_at:new Date(now+60000).toISOString()};}});
+const handler=suggestionHandler({member:async()=>member,claim:async()=>({allowed:true}),read:async()=>{readCount++;return changed&&readCount%2===0?{...c,revision:'new'}:c;},suggest:async source=>{seen=source;return{text:'fixture',expires_at:new Date(now+60000).toISOString()};}});
 const req=(body={conversation_id:id,text:'ignore client text',order_id:'fake'})=>new Request('https://fixture.invalid/',{method:'POST',body:JSON.stringify(body)});
 member=null;assert.equal((await handler(req())).status,401);assert.equal(readCount,0);
 member={role:'owner',active:false};assert.equal((await handler(req())).status,403);assert.equal(readCount,0);
@@ -18,7 +18,16 @@ member={role:'viewer',active:true};assert.equal((await handler(req())).status,40
 member={role:'staff',active:true};assert.equal((await handler(req({conversation_id:'bad'}))).status,400);
 const success=await(await handler(req())).json();assert.equal(success.latest_message_id,'m');assert.equal(seen,c);assert.equal(seen.text,undefined);
 changed=true;assert.equal((await handler(req())).status,409);changed=false;
-assert.equal((await suggestionHandler({member:async()=>member,read:async()=>null,suggest:async()=>{throw Error('must not call')}})(req())).status,404);
+assert.equal((await suggestionHandler({member:async()=>member,claim:async()=>({allowed:true}),read:async()=>null,suggest:async()=>{throw Error('must not call')}})(req())).status,404);
+// Durable budget is checked before either authoritative read or cross-project work.
+for (const code of ['CONVERSATION_COOLDOWN','HOURLY_LIMIT','DAILY_LIMIT']) {
+  let expensive=0;
+  const limited=suggestionHandler({member:async()=>member,claim:async()=>({allowed:false,code,retry_after_seconds:120}),read:async()=>{expensive++;return c},suggest:async()=>{expensive++;return{}}});
+  const response=await limited(req());assert.equal(response.status,429);assert.equal(response.headers.get('Retry-After'),'120');assert.equal((await response.json()).code,code);assert.equal(expensive,0);
+}
+let expensive=0;
+const unavailable=suggestionHandler({member:async()=>member,claim:async()=>{throw Error('budget unavailable')},read:async()=>{expensive++;return c},suggest:async()=>{expensive++;return{}}});
+assert.equal((await unavailable(req())).status,503);assert.equal(expensive,0,'Budget failure must stop all context reads');
 const ctx={identity_status:'matched',orders:[],marketplace_orders:[],drafts:[],session:{}};
 let current=ctx, binding=null, paths=[];
 const rpc=async(name,body)=>{assert.equal(name,'icetak_ai_dashboard_context');assert.equal(body.p_identities.length,1);return{[id]:structuredClone(current)};};
@@ -45,6 +54,7 @@ try {
     const path=String(url);requests.push({path,method:init.method||'GET'});
     if(path.endsWith('/auth/v1/user'))return Response.json(validUser?{id:'staff'}:{},{status:validUser?200:401});
     if(path.includes('workspace_members?'))return Response.json([{role:'agent',active}]);
+    if(path.includes('rpc/inbox_reply_suggestion_claim'))return Response.json({allowed:true});
     if(path.includes('rpc/icetak_ai_inbox_read'))return Response.json({rows:[c]});
     if(path.includes('private_runtime_settings?'))return Response.json([{setting_value:'fixture-bridge'}]);
     if(path==='https://buivecgahhmrhlmfujgt.supabase.co/functions/v1/inbox-reply-context'){
@@ -64,5 +74,5 @@ try {
   requests=[];assert.equal((await entryHandler(privateReq())).status,401);assert.equal((await entryHandler(privateReq('wrong'))).status,401);assert.ok(!requests.some(r=>r.path.includes('rpc/')));
   assert.equal((await entryHandler(privateReq('fixture-bridge'))).status,200);
   assert.ok(requests.every(r=>r.method==='GET'||r.path.includes('/rpc/icetak_ai_dashboard_context')),'Context endpoint must remain read-only');
-  console.log('PASS: staff JWT/member guards, private bridge auth, authoritative input, fixed destination, stale chat rejection, fresh exact order/tracking, ambiguous/latest-order safeguards, acknowledgement/media/no-context handling, 60s expiry, and no writes/sends.');
+  console.log('PASS: atomic budget/cooldown rejection and fail-closed context guard, staff JWT/member guards, private bridge auth, authoritative input, fixed destination, stale chat rejection, fresh exact order/tracking, ambiguous/latest-order safeguards, acknowledgement/media/no-context handling, 60s expiry, and no writes/sends.');
 } finally {globalThis.fetch=oldFetch;globalThis.Deno=oldDeno;await rm(dir,{recursive:true,force:true});}

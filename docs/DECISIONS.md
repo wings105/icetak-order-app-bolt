@@ -234,3 +234,8 @@ Use existing draft events for cancellation/Reopen history through a sanitized pr
 ## 2026-10-10 — Reuse canonical SOP suggestions inside Inbox composer
 
 The Unified Inbox owns suggestion presentation and its staff authentication; Order System continues to own canonical case/order/work facts. A narrow authenticated read bridge reuses existing analyzer/enrichment modules instead of copying logic into the browser or requiring a separate Order admin session. Six-second quiet debounce and 60-second freshness bounds limit stale drafts; exact order association remains conservative. Click inserts editable text only. GPT generation, new credentials, automatic sends and inferred latest-order binding are outside this change. See INBOX_REPLY_SUGGESTIONS.md.
+
+
+## 2026-10-10 — Bound inline suggestion cost before canonical reads
+
+Remove periodic/expiry/global-order recalculation in favor of selected-context evidence changes and explicit refresh. Expired drafts are unavailable until rechecked; bounded account-local memory can reuse fresh drafts across selection. Durable service-only Inbox counters serialize claims across tabs/workers before the cross-project read: 120/hour, 1000/MYT day and 30s/chat. Failure consumes the allowance and backoff honors the reset time. Counters contain no customer text, have bounded retention and do not change orders/messages. These limits apply to suggestion calculations, not the whole Supabase bill; an already-open old frontend still requires reload. See INBOX_REPLY_SUGGESTIONS.md.

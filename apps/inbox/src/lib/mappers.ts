@@ -106,6 +106,7 @@ export function mapConversation(detail: ConversationDetail, messages: DbMessage[
     lastMessageSender: dbConv.last_message_sender as Conversation['lastMessageSender'],
     orderId: dbConv.orders?.external_order_id ?? dbConv.orders?.internal_order_number ?? undefined,
     metadata: dbConv.metadata,
+    externalCustomerId: dbConv.external_customer_id ?? undefined,
     aiPriorityScore: Number(dbConv.ai_priority_score ?? 0),
     aiRemark: dbConv.ai_remark ?? undefined,
     aiPaymentStatus: dbConv.ai_payment_status ?? undefined,
