@@ -1,5 +1,9 @@
 # iCetak Architecture Decisions
 
+## 2026-10-11 — Final cancellation wins same-provider-time ties
+
+Canonical marketplace reconciliation orders by provider time first, with CANCELLED winning only equal-time ties before receipt time/ID. Lock the order to serialize reconciliation with ingestion. Preserve true IN_CANCEL as active pending seller action and genuinely newer transitions; do not infer cancellation from LOGISTICS_INVALID or hide badges independently of canonical state. Repair reported exact orders through the existing reconciliation RPC and private sync queue. See `MARKETPLACE_STATUS_RECONCILIATION.md`.
+
 ## 2026-10-10 — Shopee reply resolution follows proven delivery and claim time
 
 Resolve Perlu Balas only after matching successful local-message and send-audit evidence. A private atomic RPC compares incoming activity against the durable outbound claim timestamp, so a customer message during the API request still requires attention. Both Inbox and AI Dashboard use the shared sender; duplicate request repair never invokes the provider again. Keep manual resolution for replies handled outside iCetak. See `SHOPEE_CHAT_DIRECT_SETUP.md`.

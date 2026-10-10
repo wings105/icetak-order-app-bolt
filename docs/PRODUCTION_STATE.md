@@ -1,3 +1,7 @@
+# 2026-10-11 — Marketplace cancelled status in Unified Inbox
+
+Backend PRODUCTION / controlled card rendering VERIFIED: Order migration 20261010155245 makes CANCELLED win same-provider-time ties and serializes canonical reconciliation. Eight service_role rollback cases and live source/grant checks pass. Only 2610109KDDK929 reconciled; existing worker syncs Inbox CANCELLED / active_order=false, preserving history/payment and the active READY_TO_SHIP control. Actual OrderWorkspaceTab desktop/mobile light/dark rendering removes Aktif for the cancelled card. Hosted signed-in staff interaction remains unexercised. See MARKETPLACE_STATUS_RECONCILIATION.md.
+
 # 2026-10-10 — Draft WhatsApp phone shortcuts
 
 Hosted delivery PRODUCTION / controlled rendered behavior VERIFIED: Draft list/card/details numbers use whatsapp://send?phone=<digits>, with a separate full wa.me URL. PR #84 e071d40 / Worker 59fd3959-1b28-4d16-833a-2504a328e84d passed Workers Builds/guard; hosted App-XRuSgwkf.js and App-CHUY3otE.css contain the shared links/styles. Desktop/mobile click/keyboard, fallback, overflow and builds pass. Native Windows app launch and authenticated hosted owner interaction remain unexercised; no message/data mutation. See DRAFT_LIST_ANALYTICS.md.
