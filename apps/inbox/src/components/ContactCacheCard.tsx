@@ -52,13 +52,13 @@ export function ContactCacheCard({ conversation, onSaved }: Props) {
 
   if (!phone) return null;
 
-  return <div className="border-t border-[#2a3942] bg-[#111b21] p-3">
-    <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8696a0]"><UserRound size={13} /> Contact Cache</div>
+  return <div className="border-t border-[var(--border)] bg-[var(--surface)] p-3">
+    <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]"><UserRound size={13} /> Contact Cache</div>
     <div className="space-y-2">
-      <div className="text-[11px] text-[#667781]">Phone: {phone} · {normalized}</div>
-      <input value={name} onChange={(event) => setName(event.target.value)} className="w-full rounded-lg border border-[#3b4a54] bg-[#202c33] px-3 py-2 text-sm text-white outline-none focus:border-[#00a884]" placeholder="Nama contact" />
+      <div className="text-[11px] text-[var(--text-secondary)]">Phone: {phone} · {normalized}</div>
+      <input value={name} onChange={(event) => setName(event.target.value)} className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[#00a884]" placeholder="Nama contact" />
       <button onClick={handleSave} disabled={busy || !name.trim()} className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#00a884] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"><Save size={13} /> {busy ? 'Menyimpan...' : row ? 'Update cache name' : 'Save cache name'}</button>
-      {status && <p className={`text-[11px] ${status.includes('Gagal') ? 'text-red-400' : 'text-[#8696a0]'}`}>{status}</p>}
+      {status && <p className={`text-[11px] ${status.includes('Gagal') ? 'text-red-700 dark:text-red-400' : 'text-[var(--text-secondary)]'}`}>{status}</p>}
     </div>
   </div>;
 }

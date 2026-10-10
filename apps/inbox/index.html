@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ms" class="dark">
+<html lang="ms" >
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
@@ -10,6 +10,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Icetak" />
     <meta name="theme-color" content="#111b21" />
+    <script>try { const theme = localStorage.getItem('icetak-inbox-theme-v1') === 'dark' ? 'dark' : 'light'; document.documentElement.classList.toggle('dark', theme === 'dark'); document.documentElement.style.colorScheme = theme; } catch {}</script>
     <title>ICETAK — decocake.my Inbox</title>
     <meta name="twitter:card" content="summary_large_image" />
   </head>

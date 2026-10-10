@@ -36,17 +36,17 @@ export function WebhookForwardSettings() {
     setSaving(false);
   }
 
-  return <div className="h-full overflow-y-auto bg-[#0b141a] p-4 sm:p-6">
+  return <div className="h-full overflow-y-auto bg-[var(--canvas)] p-4 sm:p-6">
     <div className="mx-auto max-w-3xl">
       <div className="mb-5 flex items-center gap-3">
-        <div className="rounded-xl bg-[#005c4b] p-3 text-[#00d9a3]"><Webhook size={24} /></div>
-        <div><h1 className="text-xl font-semibold text-[#e9edef]">Webhook Forward</h1><p className="text-sm text-[#8696a0]">Hantar salinan payload raw WasapFlow ke automation luar.</p></div>
+        <div className="rounded-xl bg-[var(--bubble-out)] p-3 text-[#00d9a3]"><Webhook size={24} /></div>
+        <div><h1 className="text-xl font-semibold text-[var(--text)]">Webhook Forward</h1><p className="text-sm text-[var(--text-secondary)]">Hantar salinan payload raw WasapFlow ke automation luar.</p></div>
       </div>
-      <form onSubmit={save} className="rounded-2xl border border-[#2a3942] bg-[#202c33] p-5 shadow-xl">
-        <label className="mb-2 block text-sm font-medium text-[#d1d7db]">External Webhook URL</label>
-        <input type="url" value={url} onChange={(event) => setUrl(event.target.value)} disabled={loading || saving} placeholder="https://automation.example.com/webhook/..." className="w-full rounded-lg border border-[#3b4a54] bg-[#111b21] px-3 py-2.5 text-sm text-[#e9edef] outline-none focus:border-[#00a884] disabled:opacity-60" />
-        <p className="mt-2 text-xs text-[#8696a0]">Kosongkan URL dan simpan untuk hentikan forward. Payload dihantar terus sebagai POST JSON tanpa custom header.</p>
-        {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+      <form onSubmit={save} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] p-5 shadow-xl">
+        <label className="mb-2 block text-sm font-medium text-[var(--text)]">External Webhook URL</label>
+        <input type="url" value={url} onChange={(event) => setUrl(event.target.value)} disabled={loading || saving} placeholder="https://automation.example.com/webhook/..." className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--text)] outline-none focus:border-[#00a884] disabled:opacity-60" />
+        <p className="mt-2 text-xs text-[var(--text-secondary)]">Kosongkan URL dan simpan untuk hentikan forward. Payload dihantar terus sebagai POST JSON tanpa custom header.</p>
+        {error && <p className="mt-3 text-sm text-red-700 dark:text-red-400">{error}</p>}
         {notice && <p className="mt-3 text-sm text-[#00d9a3]">{notice}</p>}
         <button type="submit" disabled={loading || saving} className="mt-5 flex items-center gap-2 rounded-lg bg-[#00a884] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#008f72] disabled:cursor-not-allowed disabled:opacity-50">
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}{saving ? 'Menyimpan...' : 'Simpan URL'}

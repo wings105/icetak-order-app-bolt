@@ -77,13 +77,13 @@ export function ConversationListWithTagFilter({ conversations, selectedId, selec
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="space-y-2 border-b border-[#2a3942] bg-[#111b21] px-3 py-2">
+      <div className="space-y-2 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2">
         <div className="flex items-center gap-2">
           <ArrowDownUp size={14} className="flex-shrink-0 text-[#00a884]" />
           <select
             value={sortMode}
             onChange={(event) => changeSortMode(event.target.value as SortMode)}
-            className="min-w-0 flex-1 rounded-lg border border-[#3b4a54] bg-[#202c33] px-2.5 py-1.5 text-xs text-[#e9edef] outline-none focus:border-[#00a884]"
+            className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-2.5 py-1.5 text-xs text-[var(--text)] outline-none focus:border-[#00a884]"
             aria-label="Susunan conversation"
           >
             <option value="latest">Susun: Mesej terbaru</option>
@@ -97,16 +97,16 @@ export function ConversationListWithTagFilter({ conversations, selectedId, selec
             <select
               value={selectedTag}
               onChange={(event) => setSelectedTag(event.target.value)}
-              className="min-w-0 flex-1 rounded-lg border border-[#3b4a54] bg-[#202c33] px-2.5 py-1.5 text-xs text-[#e9edef] outline-none focus:border-[#00a884]"
+              className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-2.5 py-1.5 text-xs text-[var(--text)] outline-none focus:border-[#00a884]"
               aria-label="Filter tag"
             >
               <option value="">Semua tag</option>
               {availableTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
             </select>
             {selectedTag && (
-              <button onClick={() => setSelectedTag('')} className="rounded-full p-1 text-[#8696a0] hover:bg-[#2a3942] hover:text-white" aria-label="Buang filter tag"><X size={14} /></button>
+              <button onClick={() => setSelectedTag('')} className="rounded-full p-1 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]" aria-label="Buang filter tag"><X size={14} /></button>
             )}
-            {selectedTag && <span className="text-[10px] text-[#8696a0]">{filtered.length}</span>}
+            {selectedTag && <span className="text-[10px] text-[var(--text-secondary)]">{filtered.length}</span>}
           </div>
         )}
       </div>

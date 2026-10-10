@@ -34,10 +34,10 @@ export function UnifiedInboxList(props: Props) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#111b21]">
-      <div className="grid grid-cols-2 border-b border-[#2a3942] bg-[#202c33] px-2 pt-2">
-        <button onClick={() => selectMode('chat')} className={`flex items-center justify-center gap-2 border-b-2 px-3 py-2 text-xs font-semibold transition ${mode === 'chat' ? 'border-[#00a884] text-[#71d7bd]' : 'border-transparent text-[#8696a0] hover:text-white'}`}><MessageCircle size={14} />Chat</button>
-        <button onClick={() => selectMode('orders')} className={`flex items-center justify-center gap-2 border-b-2 px-3 py-2 text-xs font-semibold transition ${mode === 'orders' ? 'border-orange-500 text-orange-300' : 'border-transparent text-[#8696a0] hover:text-white'}`}><ShoppingBag size={14} />Order</button>
+    <div className="flex h-full min-h-0 flex-col bg-[var(--surface)]">
+      <div className="grid grid-cols-2 border-b border-[var(--border)] bg-[var(--surface-muted)] px-2 pt-2">
+        <button onClick={() => selectMode('chat')} className={`flex items-center justify-center gap-2 border-b-2 px-3 py-2 text-xs font-semibold transition ${mode === 'chat' ? 'border-[#00a884] text-[var(--accent)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text)]'}`}><MessageCircle size={14} />Chat</button>
+        <button onClick={() => selectMode('orders')} className={`flex items-center justify-center gap-2 border-b-2 px-3 py-2 text-xs font-semibold transition ${mode === 'orders' ? 'border-orange-500 text-orange-700 dark:text-orange-300' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text)]'}`}><ShoppingBag size={14} />Order</button>
       </div>
       <div className="min-h-0 flex-1">
         {mode === 'chat'

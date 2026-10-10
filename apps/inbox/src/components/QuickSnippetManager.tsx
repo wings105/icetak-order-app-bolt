@@ -80,41 +80,41 @@ export function QuickSnippetManager() {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-[#0b141a] p-4 text-[#e9edef] sm:p-6">
+    <div className="h-full overflow-y-auto bg-[var(--canvas)] p-4 text-[var(--text)] sm:p-6">
       <div className="mx-auto max-w-5xl">
-        <div className="mb-5"><h1 className="text-xl font-semibold">Quick Snippets</h1><p className="mt-1 text-sm text-[#8696a0]">Taip / dalam chat untuk masukkan teks atau gambar.</p></div>
+        <div className="mb-5"><h1 className="text-xl font-semibold">Quick Snippets</h1><p className="mt-1 text-sm text-[var(--text-secondary)]">Taip / dalam chat untuk masukkan teks atau gambar.</p></div>
         <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
-          <div className="rounded-xl border border-[#2a3942] bg-[#111b21] p-4">
-            <div className="mb-3 flex items-center justify-between"><h2 className="font-medium">{form.id ? 'Edit snippet' : 'Snippet baru'}</h2>{form.id && <button onClick={reset} className="text-[#8696a0]"><X size={17} /></button>}</div>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <div className="mb-3 flex items-center justify-between"><h2 className="font-medium">{form.id ? 'Edit snippet' : 'Snippet baru'}</h2>{form.id && <button onClick={reset} className="text-[var(--text-secondary)]"><X size={17} /></button>}</div>
             <div className="space-y-3">
-              <label className="block text-xs text-[#8696a0]">Shortcut<div className="mt-1 flex rounded-lg border border-[#3b4a54] bg-[#202c33]"><span className="px-3 py-2 text-[#8696a0]">/</span><input value={form.shortcut} onChange={(event) => setForm((old) => ({ ...old, shortcut: event.target.value }))} className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm outline-none" placeholder="payment" /></div></label>
-              <label className="block text-xs text-[#8696a0]">Tajuk<input value={form.title} onChange={(event) => setForm((old) => ({ ...old, title: event.target.value }))} className="mt-1 w-full rounded-lg border border-[#3b4a54] bg-[#202c33] px-3 py-2 text-sm outline-none focus:border-[#00a884]" /></label>
-              <label className="block text-xs text-[#8696a0]">Kategori<input value={form.category} onChange={(event) => setForm((old) => ({ ...old, category: event.target.value }))} className="mt-1 w-full rounded-lg border border-[#3b4a54] bg-[#202c33] px-3 py-2 text-sm outline-none focus:border-[#00a884]" /></label>
-              <label className="block text-xs text-[#8696a0]">Mesej<textarea rows={6} value={form.message} onChange={(event) => setForm((old) => ({ ...old, message: event.target.value }))} className="mt-1 w-full resize-y rounded-lg border border-[#3b4a54] bg-[#202c33] px-3 py-2 text-sm outline-none focus:border-[#00a884]" placeholder="Boleh kosong jika gambar sahaja" /></label>
+              <label className="block text-xs text-[var(--text-secondary)]">Shortcut<div className="mt-1 flex rounded-lg border border-[var(--border)] bg-[var(--surface-muted)]"><span className="px-3 py-2 text-[var(--text-secondary)]">/</span><input value={form.shortcut} onChange={(event) => setForm((old) => ({ ...old, shortcut: event.target.value }))} className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm outline-none" placeholder="payment" /></div></label>
+              <label className="block text-xs text-[var(--text-secondary)]">Tajuk<input value={form.title} onChange={(event) => setForm((old) => ({ ...old, title: event.target.value }))} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm outline-none focus:border-[#00a884]" /></label>
+              <label className="block text-xs text-[var(--text-secondary)]">Kategori<input value={form.category} onChange={(event) => setForm((old) => ({ ...old, category: event.target.value }))} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm outline-none focus:border-[#00a884]" /></label>
+              <label className="block text-xs text-[var(--text-secondary)]">Mesej<textarea rows={6} value={form.message} onChange={(event) => setForm((old) => ({ ...old, message: event.target.value }))} className="mt-1 w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm outline-none focus:border-[#00a884]" placeholder="Boleh kosong jika gambar sahaja" /></label>
 
               <div>
-                <p className="mb-1 text-xs text-[#8696a0]">Gambar pilihan</p>
+                <p className="mb-1 text-xs text-[var(--text-secondary)]">Gambar pilihan</p>
                 {imagePreview ? (
-                  <div className="relative w-fit"><img src={imagePreview} alt="Snippet" className="max-h-36 max-w-full rounded-lg border border-[#3b4a54] object-contain" /><button onClick={clearImage} className="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white"><X size={12} /></button></div>
+                  <div className="relative w-fit"><img src={imagePreview} alt="Snippet" className="max-h-36 max-w-full rounded-lg border border-[var(--border)] object-contain" /><button onClick={clearImage} className="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white"><X size={12} /></button></div>
                 ) : (
-                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-[#3b4a54] bg-[#202c33] px-3 py-5 text-xs text-[#aebac1] hover:border-[#00a884]"><ImageIcon size={17} /> Pilih gambar<input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} /></label>
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-muted)] px-3 py-5 text-xs text-[var(--text-secondary)] hover:border-[#00a884]"><ImageIcon size={17} /> Pilih gambar<input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} /></label>
                 )}
               </div>
 
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={(event) => setForm((old) => ({ ...old, active: event.target.checked }))} /> Aktif</label>
-              {error && <p className="text-xs text-red-400">{error}</p>}
+              {error && <p className="text-xs text-red-700 dark:text-red-400">{error}</p>}
               <button onClick={submit} disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#00a884] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{form.id ? <Save size={15} /> : <Plus size={15} />}{saving ? 'Menyimpan...' : form.id ? 'Simpan perubahan' : 'Tambah snippet'}</button>
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-[#2a3942] bg-[#111b21]">
-            {loading ? <div className="p-8 text-center text-sm text-[#8696a0]">Memuatkan...</div> : snippets.length === 0 ? <div className="p-8 text-center text-sm text-[#8696a0]">Belum ada snippet.</div> : snippets.map((snippet) => (
+          <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+            {loading ? <div className="p-8 text-center text-sm text-[var(--text-secondary)]">Memuatkan...</div> : snippets.length === 0 ? <div className="p-8 text-center text-sm text-[var(--text-secondary)]">Belum ada snippet.</div> : snippets.map((snippet) => (
               <div key={snippet.id} className="flex items-start gap-3 border-b border-[#202c33] p-4 last:border-b-0">
                 <button onClick={() => void edit(snippet)} className="min-w-0 flex-1 text-left">
-                  <div className="flex flex-wrap items-center gap-2"><span className="rounded bg-[#00a884]/15 px-2 py-1 font-mono text-sm font-semibold text-[#00a884]">/{snippet.shortcut}</span><span className="font-medium">{snippet.title}</span>{snippet.image_path && <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] text-sky-400">Gambar</span>}{snippet.category && <span className="rounded-full bg-[#2a3942] px-2 py-0.5 text-[10px] text-[#aebac1]">{snippet.category}</span>}{!snippet.active && <span className="text-[10px] text-amber-400">Tidak aktif</span>}</div>
-                  <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-[#aebac1]">{snippet.message || '[Gambar sahaja]'}</p>
+                  <div className="flex flex-wrap items-center gap-2"><span className="rounded bg-[#00a884]/15 px-2 py-1 font-mono text-sm font-semibold text-[#00a884]">/{snippet.shortcut}</span><span className="font-medium">{snippet.title}</span>{snippet.image_path && <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] text-sky-700 dark:text-sky-400">Gambar</span>}{snippet.category && <span className="rounded-full bg-[var(--surface-hover)] px-2 py-0.5 text-[10px] text-[var(--text-secondary)]">{snippet.category}</span>}{!snippet.active && <span className="text-[10px] text-amber-700 dark:text-amber-400">Tidak aktif</span>}</div>
+                  <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-[var(--text-secondary)]">{snippet.message || '[Gambar sahaja]'}</p>
                 </button>
-                <button onClick={() => void remove(snippet)} className="rounded-lg p-2 text-[#8696a0] hover:bg-red-500/10 hover:text-red-400"><Trash2 size={16} /></button>
+                <button onClick={() => void remove(snippet)} className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-red-400"><Trash2 size={16} /></button>
               </div>
             ))}
           </div>

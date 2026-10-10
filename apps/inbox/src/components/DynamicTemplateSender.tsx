@@ -85,17 +85,17 @@ export function DynamicTemplateSender({ templates }: { templates: Template[] }) 
     } finally { setBusy(false); }
   }
 
-  return <div className="rounded-xl border border-[#2a3942] bg-[#111b21] p-4 text-[#e9edef]">
+  return <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-[var(--text)]">
     <h2 className="font-semibold">Test Send Pintar</h2>
-    <p className="mt-1 text-xs text-[#8696a0]">Variable dan tracking URL dikesan automatik.</p>
-    <select value={name} onChange={(e) => setName(e.target.value)} className="mt-4 w-full rounded-lg border border-[#2a3942] bg-[#202c33] px-3 py-2.5 text-sm">
+    <p className="mt-1 text-xs text-[var(--text-secondary)]">Variable dan tracking URL dikesan automatik.</p>
+    <select value={name} onChange={(e) => setName(e.target.value)} className="mt-4 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm">
       {approved.map((x) => <option key={String(x.name)} value={String(x.name)}>{String(x.name)} · {lang(x)}</option>)}
     </select>
-    <input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-3 w-full rounded-lg border border-[#2a3942] bg-[#202c33] px-3 py-2.5 text-sm" placeholder="Nombor WhatsApp" />
-    <div className="mt-3 space-y-3">{info.fields.map((field) => <div key={field.key}><label className="mb-1 block text-xs text-[#aebac1]">{field.label}</label><input value={values[field.key] ?? ''} onChange={(e) => setValues((old) => ({ ...old, [field.key]: e.target.value }))} placeholder={field.hint} className="w-full rounded-lg border border-[#2a3942] bg-[#202c33] px-3 py-2.5 text-sm" /></div>)}</div>
-    <div className="mt-4 rounded-lg bg-[#0b141a] p-3 text-sm whitespace-pre-wrap">{preview || 'Template tiada body variable.'}</div>
+    <input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-3 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm" placeholder="Nombor WhatsApp" />
+    <div className="mt-3 space-y-3">{info.fields.map((field) => <div key={field.key}><label className="mb-1 block text-xs text-[var(--text-secondary)]">{field.label}</label><input value={values[field.key] ?? ''} onChange={(e) => setValues((old) => ({ ...old, [field.key]: e.target.value }))} placeholder={field.hint} className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm" /></div>)}</div>
+    <div className="mt-4 rounded-lg bg-[var(--canvas)] p-3 text-sm whitespace-pre-wrap">{preview || 'Template tiada body variable.'}</div>
     <button onClick={submit} disabled={busy || !selected} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#00a884] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Hantar ke Nombor Ujian</button>
-    {message && <p className="mt-3 break-words text-xs text-amber-300">{message}</p>}
+    {message && <p className="mt-3 break-words text-xs text-amber-700 dark:text-amber-300">{message}</p>}
   </div>;
 }
 

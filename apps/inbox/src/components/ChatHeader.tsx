@@ -64,30 +64,30 @@ export function ChatHeader({
   }
 
   return (
-    <div className="flex flex-col bg-[#f0f2f5] dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#2a3942]">
+    <div className="flex flex-col bg-[#f0f2f5] dark:bg-[var(--surface-muted)] border-b border-[#e9edef] dark:border-[var(--border)]">
       <div className="flex items-center gap-3 px-4 py-3">
         {onBack && (
-          <button onClick={onBack} className="text-[#54656f] dark:text-[#aebac1] hover:text-[#111b21] dark:hover:text-white transition-colors mr-1">
+          <button onClick={onBack} className="text-[#54656f] dark:text-[var(--text-secondary)] hover:text-[var(--text)] dark:hover:text-[var(--text)] transition-colors mr-1">
             <ChevronLeft size={20} />
           </button>
         )}
 
         <button onClick={onShowCustomerPanel} className="flex-shrink-0" title="Buka Customer Workspace">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm ${avatarColor(customer.id)}`}>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-[var(--text)] font-semibold text-sm ${avatarColor(customer.id)}`}>
             {getInitials(customer.name)}
           </div>
         </button>
 
         <button onClick={onShowCustomerPanel} className="flex-1 min-w-0 text-left" title="Buka Customer Workspace">
           <div className="flex items-center gap-2 min-w-0">
-            <p className="text-sm font-semibold text-[#111b21] dark:text-white truncate">{customer.name}</p>
+            <p className="text-sm font-semibold text-[var(--text)] dark:text-[var(--text)] truncate">{customer.name}</p>
             <ChannelBadge channel={channel} size="xs" />
           </div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            {subtitle && <span className="text-xs text-[#667781] dark:text-[#8696a0] truncate">{subtitle}</span>}
+            {subtitle && <span className="text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary)] truncate">{subtitle}</span>}
             <StatusBadge status={orderStatus} size="xs" />
             {channel === 'whatsapp' && <OrderSessionBadge session={conversation.orderSession} />}
-            {orderOnly && <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[9px] font-semibold text-orange-300">Order customer · belum ada chat</span>}
+            {orderOnly && <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[9px] font-semibold text-orange-700 dark:text-orange-300">Order customer · belum ada chat</span>}
           </div>
         </button>
 
@@ -149,7 +149,7 @@ function ActionButton({
     <button
       onClick={onClick}
       title={title}
-      className={`p-2 rounded-full transition-colors ${active ? activeClass : 'text-[#54656f] dark:text-[#aebac1] hover:text-[#111b21] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'}`}
+      className={`p-2 rounded-full transition-colors ${active ? activeClass : 'text-[#54656f] dark:text-[var(--text-secondary)] hover:text-[var(--text)] dark:hover:text-[var(--text)] hover:bg-black/5 dark:hover:bg-white/5'}`}
     >
       {children}
     </button>

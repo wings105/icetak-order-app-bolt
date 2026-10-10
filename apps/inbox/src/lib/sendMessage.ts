@@ -39,6 +39,7 @@ export async function sendTestMessage(params: SendMessageParams): Promise<Messag
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        request_id: crypto.randomUUID(),
         conversation_id: params.conversationId,
         order_summary_id: params.orderSummaryId,
         order_no: params.orderId,

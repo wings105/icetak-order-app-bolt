@@ -75,42 +75,42 @@ export function WindowMonitor({ conversations, onReload, onOpenConversation }: W
   ];
 
   return (
-    <div className="h-full overflow-y-auto bg-[#0b141a] p-4 text-[#e9edef] sm:p-6">
+    <div className="h-full overflow-y-auto bg-[var(--canvas)] p-4 text-[var(--text)] sm:p-6">
       <div className="mx-auto max-w-7xl">
         <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-          <div><h1 className="text-xl font-semibold">24H Monitor</h1><p className="mt-1 text-sm text-[#8696a0]">Hanya WhatsApp. Outbound tidak memanjangkan window.</p></div>
-          <button onClick={() => setShowTestChat(true)} className="flex items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-500"><FlaskConical size={16} /> Cipta Test Chat</button>
+          <div><h1 className="text-xl font-semibold">24H Monitor</h1><p className="mt-1 text-sm text-[var(--text-secondary)]">Hanya WhatsApp. Outbound tidak memanjangkan window.</p></div>
+          <button onClick={() => setShowTestChat(true)} className="flex items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-[var(--text)] hover:bg-amber-500"><FlaskConical size={16} /> Cipta Test Chat</button>
         </div>
 
-        <div className="mb-4 flex flex-col gap-3 rounded-xl border border-[#2a3942] bg-[#111b21] p-3">
-          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8696a0]" size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari nama, telefon, order atau tag..." className="w-full rounded-lg border border-[#2a3942] bg-[#202c33] py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#00a884]" /></div>
+        <div className="mb-4 flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari nama, telefon, order atau tag..." className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#00a884]" /></div>
           {availableTags.length > 0 && (
             <div className="flex items-center gap-2">
               <Tag size={14} className="text-[#00a884]" />
-              <select value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-[#3b4a54] bg-[#202c33] px-3 py-2 text-sm text-white outline-none focus:border-[#00a884]">
+              <select value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[#00a884]">
                 <option value="">Semua custom tag</option>
                 {availableTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
               </select>
-              {selectedTag && <span className="text-xs text-[#8696a0]">{rows.length} chat</span>}
+              {selectedTag && <span className="text-xs text-[var(--text-secondary)]">{rows.length} chat</span>}
             </div>
           )}
-          <div className="flex flex-wrap gap-2">{filters.map((item) => <button key={item.id} onClick={() => setFilter(item.id)} className={`rounded-full px-3 py-1.5 text-xs font-medium ${filter === item.id ? 'bg-[#00a884] text-white' : 'bg-[#202c33] text-[#aebac1] hover:bg-[#2a3942]'}`}>{item.label}</button>)}</div>
+          <div className="flex flex-wrap gap-2">{filters.map((item) => <button key={item.id} onClick={() => setFilter(item.id)} className={`rounded-full px-3 py-1.5 text-xs font-medium ${filter === item.id ? 'bg-[#00a884] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'}`}>{item.label}</button>)}</div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-[#2a3942] bg-[#111b21]">
-          <div className="hidden grid-cols-[1.25fr_0.8fr_0.7fr_1fr_0.8fr_1fr_0.7fr_0.7fr] gap-3 border-b border-[#2a3942] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#8696a0] md:grid"><span>Customer</span><span>Tags</span><span>Urgent</span><span>Last inbound</span><span>Baki</span><span>Status</span><span>Perlu balas</span><span>Chat</span></div>
-          {rows.length === 0 ? <div className="px-4 py-12 text-center text-sm text-[#8696a0]">Tiada rekod sepadan.</div> : rows.map(({ conversation, window }) => {
-            const statusClass = window.status === 'open' ? 'text-emerald-400' : window.status === 'closing' || window.status === 'critical' ? 'text-amber-400' : 'text-red-400';
+        <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+          <div className="hidden grid-cols-[1.25fr_0.8fr_0.7fr_1fr_0.8fr_1fr_0.7fr_0.7fr] gap-3 border-b border-[var(--border)] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)] md:grid"><span>Customer</span><span>Tags</span><span>Urgent</span><span>Last inbound</span><span>Baki</span><span>Status</span><span>Perlu balas</span><span>Chat</span></div>
+          {rows.length === 0 ? <div className="px-4 py-12 text-center text-sm text-[var(--text-secondary)]">Tiada rekod sepadan.</div> : rows.map(({ conversation, window }) => {
+            const statusClass = window.status === 'open' ? 'text-emerald-700 dark:text-emerald-400' : window.status === 'closing' || window.status === 'critical' ? 'text-amber-700 dark:text-amber-400' : 'text-red-700 dark:text-red-400';
             const Icon = window.status === 'open' ? CheckCircle2 : window.status === 'expired' ? XCircle : AlertTriangle;
             const tags = conversation.customer.tags ?? [];
             return <div key={conversation.id} className="grid gap-2 border-b border-[#202c33] px-4 py-4 last:border-b-0 md:grid-cols-[1.25fr_0.8fr_0.7fr_1fr_0.8fr_1fr_0.7fr_0.7fr] md:items-center md:gap-3">
-              <div><p className="font-medium">{conversation.customer.name}</p><p className="text-xs text-[#8696a0]">{conversation.customer.phone ?? 'Tiada nombor'}</p></div>
-              <div className="flex flex-wrap gap-1">{tags.length ? tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-[#2a3942] px-2 py-1 text-[10px] text-[#d1d7db]">{tag}</span>) : <span className="text-[#667781]">—</span>}</div>
-              <div className="text-sm">{conversation.isUrgent ? <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-1 font-medium text-red-400"><Flag size={13} fill="currentColor" /> Urgent</span> : <span className="text-[#667781]">—</span>}</div>
-              <div className="text-sm text-[#aebac1]">{conversation.lastInboundAt ? conversation.lastInboundAt.toLocaleString('ms-MY') : '—'}</div>
+              <div><p className="font-medium">{conversation.customer.name}</p><p className="text-xs text-[var(--text-secondary)]">{conversation.customer.phone ?? 'Tiada nombor'}</p></div>
+              <div className="flex flex-wrap gap-1">{tags.length ? tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-[var(--surface-hover)] px-2 py-1 text-[10px] text-[var(--text)]">{tag}</span>) : <span className="text-[var(--text-secondary)]">—</span>}</div>
+              <div className="text-sm">{conversation.isUrgent ? <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-1 font-medium text-red-700 dark:text-red-400"><Flag size={13} fill="currentColor" /> Urgent</span> : <span className="text-[var(--text-secondary)]">—</span>}</div>
+              <div className="text-sm text-[var(--text-secondary)]">{conversation.lastInboundAt ? conversation.lastInboundAt.toLocaleString('ms-MY') : '—'}</div>
               <div className="flex items-center gap-1.5 text-sm"><Clock3 size={14} />{formatRemaining(window.remainingMs)}</div>
               <div className={`flex items-center gap-1.5 text-sm font-medium ${statusClass}`}><Icon size={15} />{window.label}</div>
-              <div className="text-sm">{conversation.needsReply ? <span className="text-amber-400">Ya</span> : <span className="text-[#8696a0]">Tidak</span>}</div>
+              <div className="text-sm">{conversation.needsReply ? <span className="text-amber-700 dark:text-amber-400">Ya</span> : <span className="text-[var(--text-secondary)]">Tidak</span>}</div>
               <div><button type="button" onClick={() => onOpenConversation?.(conversation.id)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#00a884] px-3 py-2 text-xs font-semibold text-white hover:bg-[#06cf9c]"><MessageSquareText size={14} /> Buka</button></div>
             </div>;
           })}

@@ -199,22 +199,22 @@ export function ConversationList({ conversations, selectedId, selectedOrderId, o
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-[#111b21]">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#e9edef] dark:border-[#2a3942]">
+    <div className="flex flex-col h-full bg-white dark:bg-[var(--surface)]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#e9edef] dark:border-[var(--border)]">
         <div className="flex items-center gap-2">
           <Cake size={18} className="text-[#00a884]" />
           <div>
-            <span className="font-semibold text-[#111b21] dark:text-white text-sm leading-tight block">ICETAK</span>
-            <span className="text-[10px] text-[#667781] dark:text-[#8696a0] leading-tight">decocake.my</span>
+            <span className="font-semibold text-[var(--text)] dark:text-[var(--text)] text-sm leading-tight block">ICETAK</span>
+            <span className="text-[10px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)] leading-tight">decocake.my</span>
           </div>
         </div>
       </div>
 
-      <div className="px-3 py-2 border-b border-[#e9edef] dark:border-[#2a3942]">
+      <div className="px-3 py-2 border-b border-[#e9edef] dark:border-[var(--border)]">
         <div className="relative flex items-center">
           {searchLoading && isSearchMode
             ? <Loader2 size={14} className="absolute left-3 text-[#00a884] pointer-events-none animate-spin" />
-            : <Search size={14} className="absolute left-3 text-[#667781] dark:text-[#8696a0] pointer-events-none" />
+            : <Search size={14} className="absolute left-3 text-[var(--text-secondary)] dark:text-[var(--text-secondary)] pointer-events-none" />
           }
           <input
             ref={inputRef}
@@ -230,16 +230,16 @@ export function ConversationList({ conversations, selectedId, selectedOrderId, o
             onPaste={(event) => event.stopPropagation()}
             onKeyDown={(event) => event.stopPropagation()}
             onKeyUp={(event) => event.stopPropagation()}
-            className="w-full bg-[#f0f2f5] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef] placeholder-[#667781] dark:placeholder-[#8696a0] text-sm rounded-lg pl-8 pr-8 py-2 outline-none focus:ring-1 focus:ring-[#00a884] transition-all"
+            className="w-full bg-[#f0f2f5] dark:bg-[var(--surface-hover)] text-[var(--text)] dark:text-[var(--text)] placeholder-[#667781] dark:placeholder-[var(--text-secondary)] text-sm rounded-lg pl-8 pr-8 py-2 outline-none focus:ring-1 focus:ring-[#00a884] transition-all"
           />
           {searchQuery && (
-            <button onClick={handleClear} className="absolute right-3 text-[#667781] hover:text-[#111b21] dark:hover:text-white transition-colors">
+            <button onClick={handleClear} className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text)] dark:hover:text-[var(--text)] transition-colors">
               <X size={14} />
             </button>
           )}
         </div>
         {isSearchMode && (
-          <p className="text-[11px] text-[#667781] dark:text-[#8696a0] mt-1.5 px-1">
+          <p className="text-[11px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)] mt-1.5 px-1">
             {filteredConversations.length === 0 && orderSearchResults.length === 0 && searchLoading
               ? 'Mencari…'
               : filteredConversations.length === 0 && orderSearchResults.length === 0
@@ -260,8 +260,8 @@ export function ConversationList({ conversations, selectedId, selectedOrderId, o
                   ? 'bg-[#00a884] text-white'
                   : channel.key === 'shopee'
                     ? 'bg-orange-500 text-white'
-                    : 'bg-[#3b4a54] dark:bg-[#aebac1] text-white dark:text-[#111b21]'
-                : 'bg-[#f0f2f5] dark:bg-[#2a3942] text-[#667781] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#374045]'
+                    : 'bg-[#3b4a54] dark:bg-[#aebac1] text-[var(--text)] dark:text-[var(--text)]'
+                : 'bg-[#f0f2f5] dark:bg-[var(--surface-hover)] text-[var(--text-secondary)] dark:text-[var(--text-secondary)] hover:bg-[#e9edef] dark:hover:bg-[var(--surface-hover)]'
             }`}
           >
             {channel.label}
@@ -270,7 +270,7 @@ export function ConversationList({ conversations, selectedId, selectedOrderId, o
       </div>
 
       {!isSearchMode && (
-        <div className="flex gap-1 px-3 pb-2 overflow-x-auto overscroll-x-contain border-b border-[#e9edef] dark:border-[#2a3942]" style={{ scrollbarWidth: 'thin' }}>
+        <div className="flex gap-1 px-3 pb-2 overflow-x-auto overscroll-x-contain border-b border-[#e9edef] dark:border-[var(--border)]" style={{ scrollbarWidth: 'thin' }}>
           {FILTERS.map((item) => {
             const count = badgeCounts[item.key];
             const isActive = filter === item.key;
@@ -281,7 +281,7 @@ export function ConversationList({ conversations, selectedId, selectedOrderId, o
                 className={`relative flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
                   isActive
                     ? 'bg-[#00a884] text-white'
-                    : 'bg-[#f0f2f5] dark:bg-[#2a3942] text-[#667781] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#374045]'
+                    : 'bg-[#f0f2f5] dark:bg-[var(--surface-hover)] text-[var(--text-secondary)] dark:text-[var(--text-secondary)] hover:bg-[#e9edef] dark:hover:bg-[var(--surface-hover)]'
                 }`}
               >
                 {item.label}
@@ -298,11 +298,11 @@ export function ConversationList({ conversations, selectedId, selectedOrderId, o
         </div>
       )}
 
-      {isSearchMode && <div className="border-b border-[#e9edef] dark:border-[#2a3942]" />}
+      {isSearchMode && <div className="border-b border-[#e9edef] dark:border-[var(--border)]" />}
 
       <div className="flex-1 overflow-y-auto">
         {filteredConversations.length === 0 && orderSearchResults.length === 0 && !searchLoading ? (
-          <div className="flex h-40 flex-col items-center justify-center gap-2 text-[#667781] dark:text-[#8696a0]">
+          <div className="flex h-40 flex-col items-center justify-center gap-2 text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
             <Search size={24} strokeWidth={1.5} />
             <p className="text-sm">{isSearchMode ? 'Tiada order atau perbualan ditemui' : 'Tiada perbualan ditemui'}</p>
           </div>
@@ -353,13 +353,13 @@ interface OrderSearchResultItemProps {
 }
 
 function OrderSearchResultItem({ result, query, isSelected, onClick }: OrderSearchResultItemProps) {
-  return <button onClick={onClick} className={`w-full border-b border-[#e9edef] px-4 py-3 text-left hover:bg-[#f5f6f6] dark:border-[#222e35] dark:hover:bg-[#202c33] ${isSelected ? 'bg-[#e9edef] dark:bg-[#2a3942]' : ''}`}>
+  return <button onClick={onClick} className={`w-full border-b border-[#e9edef] px-4 py-3 text-left hover:bg-[#f5f6f6] dark:border-[#222e35] dark:hover:bg-[var(--surface-muted)] ${isSelected ? 'bg-[#e9edef] dark:bg-[var(--surface-hover)]' : ''}`}>
     <div className="flex items-start gap-3">
-      <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-orange-500/15"><Package size={17} className="text-orange-400" /></div>
+      <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-orange-500/15"><Package size={17} className="text-orange-700 dark:text-orange-400" /></div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2"><p className="truncate text-sm font-semibold text-[#111b21] dark:text-[#e9edef]"><HighlightedText text={result.title} query={query} /></p><span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[9px] font-semibold text-orange-400">ORDER</span></div>
-        <p className="mt-0.5 truncate text-xs text-[#667781] dark:text-[#8696a0]"><HighlightedText text={result.subtitle} query={query} /></p>
-        <p className="mt-1.5 line-clamp-2 text-xs text-[#41525d] dark:text-[#aebac1]"><HighlightedText text={result.snippet} query={query} /></p>
+        <div className="flex items-center justify-between gap-2"><p className="truncate text-sm font-semibold text-[var(--text)] dark:text-[var(--text)]"><HighlightedText text={result.title} query={query} /></p><span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[9px] font-semibold text-orange-700 dark:text-orange-400">ORDER</span></div>
+        <p className="mt-0.5 truncate text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary)]"><HighlightedText text={result.subtitle} query={query} /></p>
+        <p className="mt-1.5 line-clamp-2 text-xs text-[#41525d] dark:text-[var(--text-secondary)]"><HighlightedText text={result.snippet} query={query} /></p>
         <p className="mt-1 text-[10px] text-[#00a884]">{result.matchedField}{result.conversationId ? ' · ada chat' : ' · belum ada chat'}</p>
       </div>
     </div>
@@ -382,18 +382,18 @@ function SearchResultItem({ conversation, searchResult, query, isSelected, onCli
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-4 py-3 border-b border-[#e9edef] dark:border-[#222e35] hover:bg-[#f5f6f6] dark:hover:bg-[#202c33] ${
-        isSelected ? 'bg-[#e9edef] dark:bg-[#2a3942]' : ''
+      className={`w-full text-left px-4 py-3 border-b border-[#e9edef] dark:border-[#222e35] hover:bg-[#f5f6f6] dark:hover:bg-[var(--surface-muted)] ${
+        isSelected ? 'bg-[#e9edef] dark:bg-[var(--surface-hover)]' : ''
       }`}
     >
       <div className="flex items-center gap-2 min-w-0">
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <p className="truncate text-sm font-semibold text-[#111b21] dark:text-[#e9edef]">{conversation.customer.name}</p>
+            <p className="truncate text-sm font-semibold text-[var(--text)] dark:text-[var(--text)]">{conversation.customer.name}</p>
             <ChannelBadge channel={conversation.channel} />
           </div>
-          <p className="truncate text-xs text-[#667781] dark:text-[#8696a0] mt-0.5">{conversation.customer.phone}</p>
-          <p className="mt-1.5 text-xs text-[#41525d] dark:text-[#aebac1] line-clamp-2">
+          <p className="truncate text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary)] mt-0.5">{conversation.customer.phone}</p>
+          <p className="mt-1.5 text-xs text-[#41525d] dark:text-[var(--text-secondary)] line-clamp-2">
             <HighlightedText text={lastSnippet} query={query} />
           </p>
           <p className="mt-1 text-[11px] text-[#00a884]">

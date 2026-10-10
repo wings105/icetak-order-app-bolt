@@ -73,22 +73,22 @@ function shortDate(value?: string | null): string {
 
 function statusTone(order: ExternalOrderSummary): string {
   const bucket = orderBucket(order);
-  if (bucket === 'completed') return 'bg-emerald-500/15 text-emerald-300';
-  if (bucket === 'shipping') return 'bg-sky-500/15 text-sky-300';
-  if (bucket === 'cancelled' || bucket === 'return') return 'bg-red-500/15 text-red-300';
-  if (bucket === 'to_ship') return 'bg-orange-500/15 text-orange-300';
-  if (bucket === 'unpaid') return 'bg-amber-500/15 text-amber-300';
-  return 'bg-[#2a3942] text-[#aebac1]';
+  if (bucket === 'completed') return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300';
+  if (bucket === 'shipping') return 'bg-sky-500/15 text-sky-700 dark:text-sky-300';
+  if (bucket === 'cancelled' || bucket === 'return') return 'bg-red-500/15 text-red-700 dark:text-red-300';
+  if (bucket === 'to_ship') return 'bg-orange-500/15 text-orange-700 dark:text-orange-300';
+  if (bucket === 'unpaid') return 'bg-amber-500/15 text-amber-700 dark:text-amber-300';
+  return 'bg-[var(--surface-hover)] text-[var(--text-secondary)]';
 }
 
 function StatusIcon({ order }: { order: ExternalOrderSummary }) {
   const bucket = orderBucket(order);
-  if (bucket === 'completed') return <CheckCircle2 size={16} className="text-emerald-400" />;
-  if (bucket === 'shipping') return <Truck size={16} className="text-sky-400" />;
-  if (bucket === 'cancelled' || bucket === 'return') return <XCircle size={16} className="text-red-400" />;
-  if (bucket === 'to_ship') return <Package size={16} className="text-orange-400" />;
-  if (bucket === 'unpaid') return <CreditCard size={16} className="text-amber-400" />;
-  return <ShoppingBag size={16} className="text-[#8696a0]" />;
+  if (bucket === 'completed') return <CheckCircle2 size={16} className="text-emerald-700 dark:text-emerald-400" />;
+  if (bucket === 'shipping') return <Truck size={16} className="text-sky-700 dark:text-sky-400" />;
+  if (bucket === 'cancelled' || bucket === 'return') return <XCircle size={16} className="text-red-700 dark:text-red-400" />;
+  if (bucket === 'to_ship') return <Package size={16} className="text-orange-700 dark:text-orange-400" />;
+  if (bucket === 'unpaid') return <CreditCard size={16} className="text-amber-700 dark:text-amber-400" />;
+  return <ShoppingBag size={16} className="text-[var(--text-secondary)]" />;
 }
 
 function OrderRow({ order, selected, onClick }: { order: ExternalOrderSummary; selected: boolean; onClick: () => void }) {
@@ -99,10 +99,10 @@ function OrderRow({ order, selected, onClick }: { order: ExternalOrderSummary; s
   return (
     <button
       onClick={onClick}
-      className={`w-full border-b border-[#222e35] px-3 py-3 text-left transition hover:bg-[#202c33] ${selected ? 'bg-[#2a3942]' : 'bg-[#111b21]'}`}
+      className={`w-full border-b border-[#222e35] px-3 py-3 text-left transition hover:bg-[var(--surface-muted)] ${selected ? 'bg-[var(--surface-hover)]' : 'bg-[var(--surface)]'}`}
     >
       <div className="flex items-start gap-3">
-        <div className="relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg bg-[#202c33]">
+        <div className="relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg bg-[var(--surface-muted)]">
           {firstItem?.image_url
             ? <img src={firstItem.image_url} alt="" className="h-full w-full object-cover" />
             : <div className="flex h-full w-full items-center justify-center"><StatusIcon order={order} /></div>}
@@ -111,22 +111,22 @@ function OrderRow({ order, selected, onClick }: { order: ExternalOrderSummary; s
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-[#e9edef]">{buyer}</p>
-              <p className="mt-0.5 truncate text-[11px] font-medium text-orange-300">#{order.order_no}</p>
+              <p className="truncate text-sm font-semibold text-[var(--text)]">{buyer}</p>
+              <p className="mt-0.5 truncate text-[11px] font-medium text-orange-700 dark:text-orange-300">#{order.order_no}</p>
             </div>
-            <span className="flex-shrink-0 text-[9px] text-[#667781]">{shortDate(order.order_updated_at || order.last_synced_at)}</span>
+            <span className="flex-shrink-0 text-[9px] text-[var(--text-secondary)]">{shortDate(order.order_updated_at || order.last_synced_at)}</span>
           </div>
           <div className="mt-1.5 flex items-center justify-between gap-2">
-            <p className="min-w-0 flex-1 truncate text-xs text-[#aebac1]">
+            <p className="min-w-0 flex-1 truncate text-xs text-[var(--text-secondary)]">
               {firstItem?.title || (order.detail_complete ? 'Detail item diterima' : 'Menunggu detail item')}
               {(order.item_count || order.items.length) > 1 ? ` +${(order.item_count || order.items.length) - 1}` : ''}
             </p>
-            <span className="flex-shrink-0 text-xs font-semibold text-[#71d7bd]">{money(order.payment_total, order.currency || 'MYR')}</span>
+            <span className="flex-shrink-0 text-xs font-semibold text-[var(--accent)]">{money(order.payment_total, order.currency || 'MYR')}</span>
           </div>
           <div className="mt-2 flex items-center gap-1.5">
             <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${statusTone(order)}`}>{status}</span>
-            {order.buyer_message && <span title="Ada nota checkout" className="inline-flex items-center gap-1 text-[9px] text-amber-300"><StickyNote size={10} />Nota</span>}
-            {!order.detail_complete && <span className="text-[9px] text-[#667781]">Ringkasan</span>}
+            {order.buyer_message && <span title="Ada nota checkout" className="inline-flex items-center gap-1 text-[9px] text-amber-700 dark:text-amber-300"><StickyNote size={10} />Nota</span>}
+            {!order.detail_complete && <span className="text-[9px] text-[var(--text-secondary)]">Ringkasan</span>}
           </div>
         </div>
       </div>
@@ -187,38 +187,38 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
   ])) as Record<OrderFilter, number>, [channelFilter, orders]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#111b21]">
-      <div className="border-b border-[#2a3942] p-3">
+    <div className="flex h-full min-h-0 flex-col bg-[var(--surface)]">
+      <div className="border-b border-[var(--border)] p-3">
         <div className="relative flex items-center">
           {(searchLoading || loading) && isSearchMode
-            ? <Loader2 size={14} className="pointer-events-none absolute left-3 animate-spin text-orange-400" />
-            : <Search size={14} className="pointer-events-none absolute left-3 text-[#8696a0]" />}
+            ? <Loader2 size={14} className="pointer-events-none absolute left-3 animate-spin text-orange-700 dark:text-orange-400" />
+            : <Search size={14} className="pointer-events-none absolute left-3 text-[var(--text-secondary)]" />}
           <input
             ref={inputRef}
             value={searchQuery}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Cari order ID, username, nota, item..."
-            className="w-full rounded-lg border border-[#3b4a54] bg-[#202c33] py-2 pl-8 pr-8 text-sm text-[#e9edef] outline-none focus:border-orange-500"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] py-2 pl-8 pr-8 text-sm text-[var(--text)] outline-none focus:border-orange-500"
           />
-          {searchQuery && <button onClick={() => { onSearchChange(''); inputRef.current?.focus(); }} className="absolute right-3 text-[#8696a0] hover:text-white"><X size={14} /></button>}
+          {searchQuery && <button onClick={() => { onSearchChange(''); inputRef.current?.focus(); }} className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text)]"><X size={14} /></button>}
         </div>
-        <div className="mt-2 flex items-center justify-between text-[10px] text-[#8696a0]">
+        <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--text-secondary)]">
           <span>{isSearchMode ? `${visibleOrders.length} hasil order` : `${orders.length} order diselaraskan`}</span>
-          <button onClick={() => { void load(); }} className="inline-flex items-center gap-1 hover:text-white"><RefreshCw size={11} />Refresh</button>
+          <button onClick={() => { void load(); }} className="inline-flex items-center gap-1 hover:text-[var(--text)]"><RefreshCw size={11} />Refresh</button>
         </div>
       </div>
 
-      <div className="flex gap-1 overflow-x-auto border-b border-[#2a3942] px-3 py-2">
+      <div className="flex gap-1 overflow-x-auto border-b border-[var(--border)] px-3 py-2">
         {(['all', 'shopee', 'whatsapp'] as ChannelFilter[]).map((channel) => (
-          <button key={channel} onClick={() => setChannelFilter(channel)} className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${channelFilter === channel ? channel === 'whatsapp' ? 'bg-[#25d366] text-white' : channel === 'shopee' ? 'bg-orange-500 text-white' : 'bg-[#aebac1] text-[#111b21]' : 'bg-[#202c33] text-[#8696a0]'}`}>
+          <button key={channel} onClick={() => setChannelFilter(channel)} className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${channelFilter === channel ? channel === 'whatsapp' ? 'bg-[#25d366] text-white' : channel === 'shopee' ? 'bg-orange-500 text-white' : 'bg-[#aebac1] text-[var(--text)]' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]'}`}>
             {channel === 'all' ? 'Semua Channel' : channel === 'shopee' ? 'Shopee' : 'WhatsApp'}
           </button>
         ))}
       </div>
 
-      <div className="flex gap-1 overflow-x-auto border-b border-[#2a3942] px-3 py-2">
+      <div className="flex gap-1 overflow-x-auto border-b border-[var(--border)] px-3 py-2">
         {ORDER_FILTERS.map((item) => (
-          <button key={item.key} onClick={() => setFilter(item.key)} className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${filter === item.key ? 'bg-orange-500 text-white' : 'bg-[#202c33] text-[#8696a0]'}`}>
+          <button key={item.key} onClick={() => setFilter(item.key)} className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${filter === item.key ? 'bg-orange-500 text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]'}`}>
             {item.label}{counts[item.key] > 0 && <span className="ml-1 opacity-80">{counts[item.key]}</span>}
           </button>
         ))}
@@ -226,11 +226,11 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {error ? (
-          <div className="m-3 rounded-lg border border-red-800/40 bg-red-950/30 p-3 text-xs text-red-300"><AlertCircle size={14} className="mb-1" />{error}</div>
+          <div className="m-3 rounded-lg border border-red-800/40 bg-red-950/30 p-3 text-xs text-red-700 dark:text-red-300"><AlertCircle size={14} className="mb-1" />{error}</div>
         ) : loading && orders.length === 0 ? (
-          <div className="flex h-40 items-center justify-center gap-2 text-xs text-[#8696a0]"><Loader2 size={16} className="animate-spin" />Memuatkan order…</div>
+          <div className="flex h-40 items-center justify-center gap-2 text-xs text-[var(--text-secondary)]"><Loader2 size={16} className="animate-spin" />Memuatkan order…</div>
         ) : visibleOrders.length === 0 ? (
-          <div className="flex h-40 flex-col items-center justify-center gap-2 text-[#8696a0]"><Clock3 size={24} /><p className="text-xs">Tiada order untuk paparan ini.</p></div>
+          <div className="flex h-40 flex-col items-center justify-center gap-2 text-[var(--text-secondary)]"><Clock3 size={24} /><p className="text-xs">Tiada order untuk paparan ini.</p></div>
         ) : visibleOrders.map((order) => (
           <OrderRow key={order.id} order={order} selected={selectedOrderId === order.id} onClick={() => onOrderSelect(order.id, null)} />
         ))}

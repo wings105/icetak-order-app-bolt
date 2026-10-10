@@ -104,19 +104,19 @@ export function CreateTestChatModal({ onClose, onCreated }: Props) {
   }
 
   return <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 p-4" onMouseDown={onClose}>
-    <form onSubmit={submit} onMouseDown={(event) => event.stopPropagation()} className="w-full max-w-lg rounded-2xl border border-[#2a3942] bg-[#111b21] text-[#e9edef] shadow-2xl">
-      <div className="flex items-center justify-between border-b border-[#2a3942] px-5 py-4">
-        <div><h2 className="font-semibold">Cipta Test Chat</h2><p className="mt-1 text-xs text-[#8696a0]">Gunakan nombor sendiri. Window ditetapkan tamat 26 jam.</p></div>
-        <button type="button" onClick={onClose} className="p-2 text-[#8696a0]"><X size={18} /></button>
+    <form onSubmit={submit} onMouseDown={(event) => event.stopPropagation()} className="w-full max-w-lg rounded-2xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] shadow-2xl">
+      <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
+        <div><h2 className="font-semibold">Cipta Test Chat</h2><p className="mt-1 text-xs text-[var(--text-secondary)]">Gunakan nombor sendiri. Window ditetapkan tamat 26 jam.</p></div>
+        <button type="button" onClick={onClose} className="p-2 text-[var(--text-secondary)]"><X size={18} /></button>
       </div>
       <div className="grid gap-4 p-5 sm:grid-cols-2">
-        <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Nama" className="rounded-lg border border-[#2a3942] bg-[#202c33] px-3 py-2.5 text-sm" />
-        <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Nombor sendiri" className="rounded-lg border border-[#2a3942] bg-[#202c33] px-3 py-2.5 text-sm" />
-        <select value={courier} onChange={(event) => setCourier(event.target.value)} className="rounded-lg border border-[#2a3942] bg-[#202c33] px-3 py-2.5 text-sm"><option>SPX</option><option>J&amp;T</option><option>PosLaju</option></select>
-        <input value={tracking} onChange={(event) => setTracking(event.target.value)} placeholder="Tracking number" className="rounded-lg border border-[#2a3942] bg-[#202c33] px-3 py-2.5 text-sm" />
+        <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Nama" className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm" />
+        <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Nombor sendiri" className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm" />
+        <select value={courier} onChange={(event) => setCourier(event.target.value)} className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm"><option>SPX</option><option>J&amp;T</option><option>PosLaju</option></select>
+        <input value={tracking} onChange={(event) => setTracking(event.target.value)} placeholder="Tracking number" className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm" />
       </div>
-      {error && <p className="mx-5 mb-4 rounded-lg bg-red-950/40 p-3 text-xs text-red-300">{error}</p>}
-      <div className="flex justify-end gap-2 border-t border-[#2a3942] px-5 py-4"><button type="button" onClick={onClose} className="rounded-lg bg-[#202c33] px-4 py-2 text-sm">Batal</button><button disabled={busy} className="flex items-center gap-2 rounded-lg bg-[#00a884] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? <Loader2 size={16} className="animate-spin" /> : <FlaskConical size={16} />} Cipta Test Chat</button></div>
+      {error && <p className="mx-5 mb-4 rounded-lg bg-red-950/40 p-3 text-xs text-red-700 dark:text-red-300">{error}</p>}
+      <div className="flex justify-end gap-2 border-t border-[var(--border)] px-5 py-4"><button type="button" onClick={onClose} className="rounded-lg bg-[var(--surface-muted)] px-4 py-2 text-sm">Batal</button><button disabled={busy} className="flex items-center gap-2 rounded-lg bg-[#00a884] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? <Loader2 size={16} className="animate-spin" /> : <FlaskConical size={16} />} Cipta Test Chat</button></div>
     </form>
   </div>;
 }

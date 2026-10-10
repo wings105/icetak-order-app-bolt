@@ -1,7 +1,8 @@
 import { Conversation, Message, Customer, ShopeeOrder, ConversationStatus } from '../types';
 import { DbConversation, DbMessage, DbOrder, DbCustomer, DbCustomerIdentity, DbCustomerAddress, DbOrderItem, DbClickupTaskLink } from './dbTypes';
 
-function mapMsgStatus(status: string): 'sent' | 'delivered' | 'read' | undefined {
+function mapMsgStatus(status: string): Message['status'] {
+  if (status === 'pending' || status === 'failed' || status === 'unknown') return status;
   if (status === 'read') return 'read';
   if (status === 'delivered') return 'delivered';
   if (status === 'sent') return 'sent';

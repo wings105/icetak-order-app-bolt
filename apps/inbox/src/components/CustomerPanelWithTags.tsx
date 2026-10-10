@@ -16,13 +16,13 @@ interface Props {
 
 export function CustomerPanelWithTags({ conversation, allTags, assignedTags, onTagsChanged, onClose, onFillComposer, onContactChanged }: Props) {
   return (
-    <div className="flex h-full flex-col bg-[#111b21]">
+    <div className="flex h-full flex-col bg-[var(--surface)]">
       <div className="min-h-0 flex-1 overflow-hidden">
         <CustomerPanel conversation={conversation} onClose={onClose} onFillComposer={onFillComposer} />
       </div>
       {conversation.channel === 'whatsapp' && <ContactCacheCard conversation={conversation} onSaved={onContactChanged} />}
-      <div className="border-t border-[#2a3942] bg-[#111b21] p-3">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#8696a0]">Urus Custom Tag</p>
+      <div className="border-t border-[var(--border)] bg-[var(--surface)] p-3">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Urus Custom Tag</p>
         <ConversationTagManager conversationId={conversation.id} allTags={allTags} assignedTags={assignedTags} onChanged={onTagsChanged} />
       </div>
     </div>

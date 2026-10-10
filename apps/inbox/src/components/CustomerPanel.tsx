@@ -84,13 +84,13 @@ export function CustomerPanel({ conversation, onClose, onFillComposer }: Custome
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#f0f2f5] dark:bg-[#111b21] border-l border-[#e9edef] dark:border-[#2a3942]">
+    <div className="w-full h-full flex flex-col bg-[#f0f2f5] dark:bg-[var(--surface)] border-l border-[#e9edef] dark:border-[var(--border)]">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3.5 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#2a3942]">
-        <span className="text-sm font-semibold text-[#111b21] dark:text-white">Info Kenalan</span>
+      <div className="flex items-center justify-between px-4 py-3.5 bg-[#f0f2f5] dark:bg-[var(--surface-muted)] border-b border-[#e9edef] dark:border-[var(--border)]">
+        <span className="text-sm font-semibold text-[var(--text)] dark:text-[var(--text)]">Info Kenalan</span>
         <button
           onClick={onClose}
-          className="p-1 rounded-full text-[#54656f] dark:text-[#aebac1] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          className="p-1 rounded-full text-[#54656f] dark:text-[var(--text-secondary)] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
         >
           <X size={18} />
         </button>
@@ -99,16 +99,16 @@ export function CustomerPanel({ conversation, onClose, onFillComposer }: Custome
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         {/* Avatar & name */}
         <div className="flex flex-col items-center gap-3 py-6 px-4">
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-semibold ${avatarColor(customer.id)}`}>
+          <div className={`w-20 h-20 rounded-full flex items-center justify-center text-[var(--text)] text-2xl font-semibold ${avatarColor(customer.id)}`}>
             {getInitials(customer.name)}
           </div>
           <div className="text-center">
-            <p className="font-semibold text-[#111b21] dark:text-white text-base">{customer.name}</p>
+            <p className="font-semibold text-[var(--text)] dark:text-[var(--text)] text-base">{customer.name}</p>
             {channel === 'shopee' && customer.shopeeUsername && (
               <p className="text-sm text-orange-500 dark:text-orange-400 mt-0.5">@{customer.shopeeUsername}</p>
             )}
             {customer.company && (
-              <p className="text-sm text-[#667781] dark:text-[#8696a0] mt-0.5">{customer.company}</p>
+              <p className="text-sm text-[var(--text-secondary)] dark:text-[var(--text-secondary)] mt-0.5">{customer.company}</p>
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-center">
@@ -207,22 +207,22 @@ export function CustomerPanel({ conversation, onClose, onFillComposer }: Custome
                   multiline
                 />
               ) : (
-                <p className="text-xs text-[#667781] dark:text-[#8696a0] px-1">Tiada alamat disimpan</p>
+                <p className="text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary)] px-1">Tiada alamat disimpan</p>
               )}
               {customer.postcode && (
                 <div className="grid grid-cols-2 gap-2 px-1 mt-1">
                   <div>
-                    <p className="text-[10px] text-[#667781] dark:text-[#8696a0] uppercase tracking-wider">Poskod</p>
-                    <p className="text-sm text-[#3b4a54] dark:text-[#d1d7db]">{customer.postcode}</p>
+                    <p className="text-[10px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)] uppercase tracking-wider">Poskod</p>
+                    <p className="text-sm text-[#3b4a54] dark:text-[var(--text)]">{customer.postcode}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-[#667781] dark:text-[#8696a0] uppercase tracking-wider">Bandar</p>
-                    <p className="text-sm text-[#3b4a54] dark:text-[#d1d7db]">{customer.city}</p>
+                    <p className="text-[10px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)] uppercase tracking-wider">Bandar</p>
+                    <p className="text-sm text-[#3b4a54] dark:text-[var(--text)]">{customer.city}</p>
                   </div>
                   {customer.state && (
                     <div className="col-span-2">
-                      <p className="text-[10px] text-[#667781] dark:text-[#8696a0] uppercase tracking-wider">Negeri</p>
-                      <p className="text-sm text-[#3b4a54] dark:text-[#d1d7db]">{customer.state}</p>
+                      <p className="text-[10px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)] uppercase tracking-wider">Negeri</p>
+                      <p className="text-sm text-[#3b4a54] dark:text-[var(--text)]">{customer.state}</p>
                     </div>
                   )}
                 </div>
@@ -230,7 +230,7 @@ export function CustomerPanel({ conversation, onClose, onFillComposer }: Custome
             </Section>
 
             {/* Confirmation button */}
-            <div className="px-4 pt-1 pb-3 border-t border-[#e9edef] dark:border-[#2a3942]">
+            <div className="px-4 pt-1 pb-3 border-t border-[#e9edef] dark:border-[var(--border)]">
               <button
                 onClick={handleSendConfirmation}
                 className="w-full flex items-center justify-center gap-2 bg-[#00a884] hover:bg-[#008069] active:bg-[#006d59] text-white text-sm font-medium py-2.5 px-4 rounded-lg transition-colors"
@@ -257,7 +257,7 @@ export function CustomerPanel({ conversation, onClose, onFillComposer }: Custome
         {customer.tags && customer.tags.length > 0 && (
           <Section title="Label">
             <div className="flex items-start gap-2 px-1">
-              <Tag size={14} className="text-[#667781] dark:text-[#8696a0] mt-0.5 flex-shrink-0" />
+              <Tag size={14} className="text-[var(--text-secondary)] dark:text-[var(--text-secondary)] mt-0.5 flex-shrink-0" />
               <div className="flex flex-wrap gap-1.5">
                 {customer.tags.map((tag) => (
                   <span
@@ -276,8 +276,8 @@ export function CustomerPanel({ conversation, onClose, onFillComposer }: Custome
         {customer.notes && (
           <Section title="Nota">
             <div className="flex gap-2 px-1">
-              <FileText size={14} className="text-[#667781] dark:text-[#8696a0] mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-[#3b4a54] dark:text-[#d1d7db] leading-relaxed">{customer.notes}</p>
+              <FileText size={14} className="text-[var(--text-secondary)] dark:text-[var(--text-secondary)] mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-[#3b4a54] dark:text-[var(--text)] leading-relaxed">{customer.notes}</p>
             </div>
           </Section>
         )}
@@ -299,8 +299,8 @@ export function CustomerPanel({ conversation, onClose, onFillComposer }: Custome
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="px-4 py-3 border-t border-[#e9edef] dark:border-[#2a3942]">
-      <p className="text-xs font-semibold text-[#667781] dark:text-[#8696a0] uppercase tracking-wider mb-2.5">{title}</p>
+    <div className="px-4 py-3 border-t border-[#e9edef] dark:border-[var(--border)]">
+      <p className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary)] uppercase tracking-wider mb-2.5">{title}</p>
       <div className="flex flex-col gap-2">{children}</div>
     </div>
   );
@@ -309,10 +309,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-start gap-2.5 px-1">
-      <span className="text-[#667781] dark:text-[#8696a0] mt-0.5 flex-shrink-0">{icon}</span>
+      <span className="text-[var(--text-secondary)] dark:text-[var(--text-secondary)] mt-0.5 flex-shrink-0">{icon}</span>
       <div className="min-w-0">
-        <p className="text-[10px] text-[#667781] dark:text-[#8696a0] uppercase tracking-wider">{label}</p>
-        <p className="text-sm text-[#3b4a54] dark:text-[#d1d7db] break-all">{value}</p>
+        <p className="text-[10px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)] uppercase tracking-wider">{label}</p>
+        <p className="text-sm text-[#3b4a54] dark:text-[var(--text)] break-all">{value}</p>
       </div>
     </div>
   );
@@ -328,10 +328,10 @@ function OrderRow({
 }) {
   return (
     <div className="flex items-start gap-2.5 px-1">
-      <span className="text-[#667781] dark:text-[#8696a0] mt-0.5 flex-shrink-0">{icon}</span>
+      <span className="text-[var(--text-secondary)] dark:text-[var(--text-secondary)] mt-0.5 flex-shrink-0">{icon}</span>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] text-[#667781] dark:text-[#8696a0] uppercase tracking-wider">{label}</p>
-        <p className={`text-sm break-all ${highlight ? 'font-semibold text-[#111b21] dark:text-white' : 'text-[#3b4a54] dark:text-[#d1d7db]'}`}>
+        <p className="text-[10px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)] uppercase tracking-wider">{label}</p>
+        <p className={`text-sm break-all ${highlight ? 'font-semibold text-[var(--text)] dark:text-[var(--text)]' : 'text-[#3b4a54] dark:text-[var(--text)]'}`}>
           {value}
         </p>
       </div>
@@ -353,10 +353,10 @@ function CopyRow({
   const isCopied = copied === copyKey;
   return (
     <div className="flex items-start gap-2.5 px-1">
-      {icon && <span className="text-[#667781] dark:text-[#8696a0] mt-0.5 flex-shrink-0">{icon}</span>}
+      {icon && <span className="text-[var(--text-secondary)] dark:text-[var(--text-secondary)] mt-0.5 flex-shrink-0">{icon}</span>}
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] text-[#667781] dark:text-[#8696a0] uppercase tracking-wider">{label}</p>
-        <p className={`text-sm text-[#3b4a54] dark:text-[#d1d7db] ${multiline ? 'break-words leading-snug' : 'break-all'}`}>
+        <p className="text-[10px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)] uppercase tracking-wider">{label}</p>
+        <p className={`text-sm text-[#3b4a54] dark:text-[var(--text)] ${multiline ? 'break-words leading-snug' : 'break-all'}`}>
           {value}
         </p>
       </div>
@@ -366,7 +366,7 @@ function CopyRow({
         className={`flex-shrink-0 flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
           isCopied
             ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
-            : 'bg-[#e9edef] dark:bg-[#2a3942] text-[#54656f] dark:text-[#aebac1] hover:bg-[#d1d7db] dark:hover:bg-[#374045]'
+            : 'bg-[#e9edef] dark:bg-[var(--surface-hover)] text-[#54656f] dark:text-[var(--text-secondary)] hover:bg-[#d1d7db] dark:hover:bg-[var(--surface-hover)]'
         }`}
       >
         {isCopied ? (
@@ -379,11 +379,11 @@ function CopyRow({
   );
 }
 
-function StatCard({ label, value, color = 'text-[#111b21] dark:text-white' }: { label: string; value: number; color?: string }) {
+function StatCard({ label, value, color = 'text-[var(--text)] dark:text-[var(--text)]' }: { label: string; value: number; color?: string }) {
   return (
-    <div className="bg-white dark:bg-[#202c33] rounded-lg px-3 py-2.5 text-center">
+    <div className="bg-white dark:bg-[var(--surface-muted)] rounded-lg px-3 py-2.5 text-center">
       <p className={`text-xl font-bold ${color}`}>{value}</p>
-      <p className="text-[10px] text-[#667781] dark:text-[#8696a0] mt-0.5">{label}</p>
+      <p className="text-[10px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)] mt-0.5">{label}</p>
     </div>
   );
 }

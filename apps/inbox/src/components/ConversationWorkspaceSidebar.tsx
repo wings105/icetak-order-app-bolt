@@ -53,7 +53,7 @@ export function ConversationWorkspaceSidebar({
 
   function fillComposer(text: string) {
     onFillComposer(text);
-    if (window.innerWidth < 640) onClose();
+    if (window.innerWidth < 1024) onClose();
   }
 
   function openRelated(conversationId: string) {
@@ -62,29 +62,29 @@ export function ConversationWorkspaceSidebar({
   }
 
   return (
-    <div className="flex h-full w-full flex-col border-l border-[#2a3942] bg-[#111b21] shadow-2xl sm:shadow-none">
-      <div className="flex items-center justify-between gap-2 border-b border-[#2a3942] bg-[#202c33] px-3 py-3">
+    <div className="flex h-full w-full flex-col border-l border-[var(--border)] bg-[var(--surface)] shadow-2xl sm:shadow-none">
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--surface-muted)] px-3 py-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-white">Customer Workspace</p>
-          <p className="truncate text-[10px] text-[#8696a0]">{conversation.customer.name} · {conversation.channel}</p>
+          <p className="truncate text-sm font-semibold text-[var(--text)]">Customer Workspace</p>
+          <p className="truncate text-[10px] text-[var(--text-secondary)]">{conversation.customer.name} · {conversation.channel}</p>
         </div>
         <div className="flex flex-shrink-0 items-center gap-1">
           <WorkspaceMemberProfile />
           <button
             onClick={() => void reload()}
             disabled={loading}
-            className="rounded-full p-2 text-[#aebac1] hover:bg-[#2a3942] hover:text-white disabled:opacity-50"
+            className="rounded-full p-2 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] disabled:opacity-50"
             title="Refresh sidebar"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
           </button>
-          <button onClick={onClose} className="rounded-full p-2 text-[#aebac1] hover:bg-[#2a3942] hover:text-white" title="Tutup sidebar">
+          <button onClick={onClose} className="rounded-full p-2 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]" title="Tutup sidebar">
             <X size={18} />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 border-b border-[#2a3942] bg-[#111b21]">
+      <div className="grid grid-cols-3 border-b border-[var(--border)] bg-[var(--surface)]">
         {TABS.map((item) => {
           const Icon = item.icon;
           const count = item.id === 'order'
@@ -100,11 +100,11 @@ export function ConversationWorkspaceSidebar({
                 if (item.id === 'activity') void reload();
               }}
               className={`relative flex items-center justify-center gap-1.5 px-2 py-3 text-xs font-medium transition-colors ${
-                tab === item.id ? 'text-[#00a884]' : 'text-[#8696a0] hover:text-[#d1d7db]'
+                tab === item.id ? 'text-[#00a884]' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
               }`}
             >
               <Icon size={14} />{item.label}
-              {count > 0 && <span className="rounded-full bg-[#2a3942] px-1.5 py-0.5 text-[9px] text-[#aebac1]">{count > 99 ? '99+' : count}</span>}
+              {count > 0 && <span className="rounded-full bg-[var(--surface-hover)] px-1.5 py-0.5 text-[9px] text-[var(--text-secondary)]">{count > 99 ? '99+' : count}</span>}
               {tab === item.id && <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-[#00a884]" />}
             </button>
           );
@@ -112,7 +112,7 @@ export function ConversationWorkspaceSidebar({
       </div>
 
       {error && (
-        <div className="flex items-center justify-between gap-2 border-b border-red-800/40 bg-red-950/30 px-3 py-2 text-xs text-red-300">
+        <div className="flex items-center justify-between gap-2 border-b border-red-800/40 bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-300">
           <span className="line-clamp-2">{error}</span>
           <button onClick={() => void reload()} className="rounded bg-red-500/15 px-2 py-1 text-[10px]">Cuba lagi</button>
         </div>

@@ -154,26 +154,26 @@ export function CustomerWorkspaceTab({
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-[#111b21] pb-6">
-      <div className="flex flex-col items-center border-b border-[#2a3942] px-4 py-5 text-center">
+    <div className="h-full overflow-y-auto bg-[var(--surface)] pb-6">
+      <div className="flex flex-col items-center border-b border-[var(--border)] px-4 py-5 text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#00a884] text-xl font-semibold text-white">
           {initials(conversation.customer.name)}
         </div>
-        <p className="mt-3 text-base font-semibold text-white">{conversation.customer.name}</p>
+        <p className="mt-3 text-base font-semibold text-[var(--text)]">{conversation.customer.name}</p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
           <ChannelBadge channel={conversation.channel} size="sm" />
-          {conversation.isUrgent && <span className="inline-flex items-center gap-1 rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] font-medium text-red-300"><AlertTriangle size={10} />Urgent</span>}
-          {(conversation.aiPriorityScore ?? 0) > 0 && <span className="rounded-full bg-[#00a884]/20 px-2 py-0.5 text-[10px] font-semibold text-[#71d7bd]">P{conversation.aiPriorityScore}</span>}
+          {conversation.isUrgent && <span className="inline-flex items-center gap-1 rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:text-red-300"><AlertTriangle size={10} />Urgent</span>}
+          {(conversation.aiPriorityScore ?? 0) > 0 && <span className="rounded-full bg-[#00a884]/20 px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]">P{conversation.aiPriorityScore}</span>}
         </div>
-        {conversation.aiRemark && <p className="mt-3 rounded-lg bg-[#202c33] px-3 py-2 text-left text-xs leading-relaxed text-[#d1d7db]">{conversation.aiRemark}</p>}
+        {conversation.aiRemark && <p className="mt-3 rounded-lg bg-[var(--surface-muted)] px-3 py-2 text-left text-xs leading-relaxed text-[var(--text)]">{conversation.aiRemark}</p>}
       </div>
 
-      <section className="border-b border-[#2a3942] p-4">
+      <section className="border-b border-[var(--border)] p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-[#8696a0]">Maklumat Customer</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Maklumat Customer</h3>
           <button
             onClick={() => setEditing((value) => !value)}
-            className="inline-flex items-center gap-1 rounded-lg bg-[#202c33] px-2 py-1 text-[11px] text-[#aebac1] hover:text-white"
+            className="inline-flex items-center gap-1 rounded-lg bg-[var(--surface-muted)] px-2 py-1 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text)]"
           >
             {editing ? <X size={12} /> : <Edit3 size={12} />}{editing ? 'Batal' : 'Edit'}
           </button>
@@ -184,7 +184,7 @@ export function CustomerWorkspaceTab({
             <Field label="Nama" value={name} onChange={setName} />
             <Field label="E-mel" value={email} onChange={setEmail} type="email" />
             <Field label="Nota customer" value={notes} onChange={setNotes} multiline />
-            <div className="my-3 border-t border-[#2a3942]" />
+            <div className="my-3 border-t border-[var(--border)]" />
             <Field label="Nama penerima" value={address.recipient_name} onChange={(value) => setAddress((current) => ({ ...current, recipient_name: value }))} />
             <Field label="Alamat" value={address.address_line_1} onChange={(value) => setAddress((current) => ({ ...current, address_line_1: value }))} multiline />
             <Field label="Alamat tambahan" value={address.address_line_2} onChange={(value) => setAddress((current) => ({ ...current, address_line_2: value }))} />
@@ -193,7 +193,7 @@ export function CustomerWorkspaceTab({
               <Field label="Bandar" value={address.city} onChange={(value) => setAddress((current) => ({ ...current, city: value }))} />
             </div>
             <Field label="Negeri" value={address.state} onChange={(value) => setAddress((current) => ({ ...current, state: value }))} />
-            {error && <p className="text-xs text-red-400">{error}</p>}
+            {error && <p className="text-xs text-red-700 dark:text-red-400">{error}</p>}
             <button
               onClick={saveCustomer}
               disabled={saving || !name.trim()}
@@ -207,58 +207,58 @@ export function CustomerWorkspaceTab({
             {conversation.customer.phone && <InfoRow icon={<Phone size={14} />} label="Telefon" value={conversation.customer.phone} onCopy={() => copyText(conversation.customer.phone ?? '')} />}
             {conversation.customer.email && <InfoRow icon={<Mail size={14} />} label="E-mel" value={conversation.customer.email} onCopy={() => copyText(conversation.customer.email ?? '')} />}
             {fullAddress && <InfoRow icon={<MapPin size={14} />} label="Alamat" value={fullAddress} onCopy={() => copyText(fullAddress)} multiline />}
-            {conversation.customer.notes && <div className="rounded-lg bg-[#202c33] p-3 text-[#d1d7db]"><p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[#8696a0]">Nota</p><p className="whitespace-pre-wrap leading-relaxed">{conversation.customer.notes}</p></div>}
-            {!conversation.customer.phone && !conversation.customer.email && !fullAddress && !conversation.customer.notes && <p className="py-3 text-center text-[#8696a0]">Belum ada maklumat tambahan.</p>}
+            {conversation.customer.notes && <div className="rounded-lg bg-[var(--surface-muted)] p-3 text-[var(--text)]"><p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Nota</p><p className="whitespace-pre-wrap leading-relaxed">{conversation.customer.notes}</p></div>}
+            {!conversation.customer.phone && !conversation.customer.email && !fullAddress && !conversation.customer.notes && <p className="py-3 text-center text-[var(--text-secondary)]">Belum ada maklumat tambahan.</p>}
           </div>
         )}
       </section>
 
-      <section className="border-b border-[#2a3942] p-4">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#8696a0]">Identiti Channel</h3>
+      <section className="border-b border-[var(--border)] p-4">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Identiti Channel</h3>
         <div className="space-y-2">
           {identities.map((identity) => (
-            <div key={identity.id} className="flex items-center gap-3 rounded-lg bg-[#202c33] p-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2a3942] text-[#00a884]">
+            <div key={identity.id} className="flex items-center gap-3 rounded-lg bg-[var(--surface-muted)] p-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-hover)] text-[#00a884]">
                 {identity.channel === 'whatsapp' ? <Phone size={14} /> : identity.channel === 'shopee' ? <AtSign size={14} /> : <UserRound size={14} />}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5"><p className="text-xs font-medium capitalize text-white">{identity.channel}</p>{identity.is_verified && <ShieldCheck size={12} className="text-emerald-400" />}</div>
-                <p className="truncate text-[11px] text-[#8696a0]">{identityLabel(identity)}</p>
+                <div className="flex items-center gap-1.5"><p className="text-xs font-medium capitalize text-[var(--text)]">{identity.channel}</p>{identity.is_verified && <ShieldCheck size={12} className="text-emerald-700 dark:text-emerald-400" />}</div>
+                <p className="truncate text-[11px] text-[var(--text-secondary)]">{identityLabel(identity)}</p>
               </div>
-              <button onClick={() => copyText(identityLabel(identity))} className="rounded p-1.5 text-[#8696a0] hover:bg-[#2a3942] hover:text-white"><Copy size={13} /></button>
+              <button onClick={() => copyText(identityLabel(identity))} className="rounded p-1.5 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"><Copy size={13} /></button>
             </div>
           ))}
-          {identities.length === 0 && <p className="py-2 text-center text-xs text-[#8696a0]">Tiada identiti lain dipadankan.</p>}
+          {identities.length === 0 && <p className="py-2 text-center text-xs text-[var(--text-secondary)]">Tiada identiti lain dipadankan.</p>}
         </div>
       </section>
 
-      <section className="border-b border-[#2a3942] p-4">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#8696a0]">Tag Conversation</h3>
+      <section className="border-b border-[var(--border)] p-4">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Tag Conversation</h3>
         <ConversationTagManager conversationId={conversation.id} allTags={allTags} assignedTags={assignedTags} onChanged={onTagsChanged} />
       </section>
 
       {conversation.channel === 'whatsapp' && (
-        <div className="border-b border-[#2a3942]"><ContactCacheCard conversation={conversation} onSaved={onContactChanged} /></div>
+        <div className="border-b border-[var(--border)]"><ContactCacheCard conversation={conversation} onSaved={onContactChanged} /></div>
       )}
 
       <section className="p-4">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#8696a0]">Conversation Berkaitan</h3>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Conversation Berkaitan</h3>
         <div className="space-y-2">
           {relatedConversations.map((related) => (
             <button
               key={related.id}
               onClick={() => onOpenConversation(related.id)}
-              className="flex w-full items-center gap-3 rounded-lg bg-[#202c33] p-3 text-left hover:bg-[#2a3942]"
+              className="flex w-full items-center gap-3 rounded-lg bg-[var(--surface-muted)] p-3 text-left hover:bg-[var(--surface-hover)]"
             >
               <MessageCircle size={15} className="text-[#00a884]" />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2"><span className="text-xs font-medium capitalize text-white">{related.channel}</span>{related.archived && <span className="rounded bg-[#374045] px-1.5 py-0.5 text-[9px] text-[#aebac1]">Arkib</span>}{related.needs_reply && <span className="rounded bg-orange-500/20 px-1.5 py-0.5 text-[9px] text-orange-300">Perlu balas</span>}</div>
-                <p className="mt-0.5 text-[10px] text-[#8696a0]">{formatRelatedTime(related.last_message_at)}</p>
+                <div className="flex items-center gap-2"><span className="text-xs font-medium capitalize text-white">{related.channel}</span>{related.archived && <span className="rounded bg-[var(--surface-hover)] px-1.5 py-0.5 text-[9px] text-[var(--text-secondary)]">Arkib</span>}{related.needs_reply && <span className="rounded bg-orange-500/20 px-1.5 py-0.5 text-[9px] text-orange-700 dark:text-orange-300">Perlu balas</span>}</div>
+                <p className="mt-0.5 text-[10px] text-[var(--text-secondary)]">{formatRelatedTime(related.last_message_at)}</p>
               </div>
-              <ExternalLink size={13} className="text-[#8696a0]" />
+              <ExternalLink size={13} className="text-[var(--text-secondary)]" />
             </button>
           ))}
-          {relatedConversations.length === 0 && <p className="py-3 text-center text-xs text-[#8696a0]">Tiada conversation lain untuk customer ini.</p>}
+          {relatedConversations.length === 0 && <p className="py-3 text-center text-xs text-[var(--text-secondary)]">Tiada conversation lain untuk customer ini.</p>}
         </div>
       </section>
     </div>
@@ -266,10 +266,10 @@ export function CustomerWorkspaceTab({
 }
 
 function Field({ label, value, onChange, multiline = false, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean; type?: string }) {
-  const className = 'w-full rounded-lg border border-[#3b4a54] bg-[#202c33] px-3 py-2 text-xs text-white outline-none focus:border-[#00a884]';
+  const className = 'w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-xs text-[var(--text)] outline-none focus:border-[#00a884]';
   return (
     <label className="block">
-      <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[#8696a0]">{label}</span>
+      <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">{label}</span>
       {multiline
         ? <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={3} className={`${className} resize-none`} />
         : <input type={type} value={value} onChange={(event) => onChange(event.target.value)} className={className} />}
@@ -279,10 +279,10 @@ function Field({ label, value, onChange, multiline = false, type = 'text' }: { l
 
 function InfoRow({ icon, label, value, onCopy, multiline = false }: { icon: React.ReactNode; label: string; value: string; onCopy: () => void; multiline?: boolean }) {
   return (
-    <div className="flex items-start gap-3 rounded-lg bg-[#202c33] p-3">
+    <div className="flex items-start gap-3 rounded-lg bg-[var(--surface-muted)] p-3">
       <span className="mt-0.5 text-[#00a884]">{icon}</span>
-      <div className="min-w-0 flex-1"><p className="text-[10px] font-semibold uppercase tracking-wider text-[#8696a0]">{label}</p><p className={`mt-0.5 text-xs text-[#e9edef] ${multiline ? 'whitespace-pre-wrap' : 'truncate'}`}>{value}</p></div>
-      <button onClick={onCopy} className="rounded p-1 text-[#8696a0] hover:bg-[#2a3942] hover:text-white"><Copy size={12} /></button>
+      <div className="min-w-0 flex-1"><p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">{label}</p><p className={`mt-0.5 text-xs text-[var(--text)] ${multiline ? 'whitespace-pre-wrap' : 'truncate'}`}>{value}</p></div>
+      <button onClick={onCopy} className="rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"><Copy size={12} /></button>
     </div>
   );
 }
