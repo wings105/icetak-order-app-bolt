@@ -1,3 +1,7 @@
+# 2026-10-10 — WhatsApp API sends in Unified Inbox
+
+Backend PRODUCTION: Order whatsapp-send v29 durably audits successful API sends and mirrors them through the private Inbox order-whatsapp-outbound v1. Dispatch v18 retries logs only, never delivery. Full idempotency conflict index and service-only Inbox RPC applied; exact bundled source/auth readback, real rollback tests, sender retry/audit-failure fixtures and opt-out checks pass. Three proven sent notifications for IC261010-1391 recovered with original text/time/provider IDs, each once; live log API and existing cron mark all synced while preserving the later customer reply/unread state. No recovery provider sends or broad historical backfill. External AP/Make direct sends need their own callback/routing. See WHATSAPP_API_INBOX_SYNC.md.
+
 # 2026-10-10 — Shopee token push without dates
 
 Backend PRODUCTION: minimal App ID / Shop ID / Access Token and blank dates accepted, server receipt time recorded and expiry stays unknown. Same-token retries preserve state; unknown-expiry sends require provider read before claim. Inbox optional-times migration, rotation/config v2, sender v7 and AI bridge v8 have exact source/auth readback. Twenty-eight integration checks, six provider checks and both service-role live rollback suites pass; configured shop/key remain unchanged. Root build passes. Settings sample updated; rendered owner and real automation retry pending. See SHOPEE_CHAT_DIRECT_SETUP.md.

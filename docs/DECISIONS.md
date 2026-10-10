@@ -1,5 +1,9 @@
 # iCetak Architecture Decisions
 
+## 2026-10-10 — API delivery and Inbox logging have separate retry state
+
+Order whatsapp-send retains delivery authority and a durable outbox. A private, log-only bridge projects successful sends into Unified Inbox; app echo is not assumed for API sends. Delivery remains sent when Inbox logging fails, and existing dispatchers retry only the saved log projection. Provider IDs and unambiguous customer identities deduplicate the Inbox record. Historical mirrors retain original time without reopening sessions or clearing later customer state. Missing pre-send audit blocks delivery. External provider callers must explicitly integrate logging. See `WHATSAPP_API_INBOX_SYNC.md`.
+
 ## 2026-10-10 — Token rotation needs only identity and token
 
 The owner requested removing automation timestamps. Minimal pushes contain App ID, Shop ID and Access Token. Record receipt time, keep absent expiry unknown, preserve same-token retries and reject bounded known retired-token replays. Unknown expiry requires an immediate read-only Shopee check before an outbound claim. Do not assume a four-hour lifetime for tokens copied from ClickUp. Optional original timestamps remain backward compatible; untimed unseen updates must come from one serialized refresh producer.

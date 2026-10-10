@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { mirrorWhatsApp } from '../_shared/whatsapp-inbox-sync.ts';
 
 const U = Deno.env.get('SUPABASE_URL') || '';
 const K = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -374,7 +375,7 @@ Deno.serve(async (req) => {
     const idempotencyKey = body.idempotency_key || null;
     if (idempotencyKey) {
       const old = await rest(`whatsapp_outbox?idempotency_key=eq.${encodeURIComponent(idempotencyKey)}&status=eq.sent&limit=1`).catch(() => []);
-      if (old?.[0]) return json({ ok: true, duplicate: true, mode: old[0].mode, message_id: old[0].provider_message_id, decision_reason: old[0].decision_reason });
+      if (old?.[0]) { await mirrorWhatsApp(rest,old[0]); return json({ ok: true, duplicate: true, mode: old[0].mode, message_id: old[0].provider_message_id, decision_reason: old[0].decision_reason }); }
     }
 
     if (eventType === 'shipment_auto_tracking') {
@@ -404,17 +405,20 @@ Deno.serve(async (req) => {
 
     const logged = await logOutbox(baseLog);
     logId = logged?.[0]?.id || '';
+    if (!logId) return json({ok:false,error:'outbound_audit_unavailable'},503);
 
     try {
       const sent = await provider(endpoint, payload);
       if (logId) {
-        await rest(`whatsapp_outbox?id=eq.${logId}`, {
+        const saved = await rest(`whatsapp_outbox?id=eq.${logId}`, {
           method: 'PATCH',
           body: JSON.stringify({
             status: 'sent', provider_message_id: sent.message_id || sent.id || null,
             response_payload: sent, sent_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+            inbox_sync_status: 'pending', inbox_sync_next_at: null,
           }),
         });
+        await mirrorWhatsApp(rest,saved?.[0]||{});
       }
       return json({ ok: true, mode, to: validPhone || bsuid, recipient_type: validPhone ? 'phone' : 'bsuid', recipient_bsuid: bsuid || null, message_id: sent.message_id || sent.id || null, can_send_freeform: canSendFreeform, decision_reason: decisionReason, window });
     } catch (error) {

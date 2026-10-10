@@ -1,3 +1,7 @@
+# 2026-10-10 — WhatsApp API outbound Inbox logging
+
+- [PRODUCTION backend] Successful Order WhatsApp API sends now mirror saved text/time/provider IDs to Unified Inbox independently of app echo. Audit registration fails closed; private log endpoint deduplicates identity and message IDs; dispatcher retries only logging. Source/auth readback, real SQL rollback and sender failure/idempotency/opt-out checks pass. Three user-reported notification records recovered once and synced through the live API/cron without resending customer messages or changing the later reply/unread state. External provider callers remain outside this sender scope; see docs/WHATSAPP_API_INBOX_SYNC.md.
+
 # 2026-10-10 — Shopee token push simplification
 
 - [PRODUCTION backend] Token rotation accepts three fields without dates, records receipt time and preserves retries; unknown expiry uses provider read before any send claim. Applied private RPC and four deployed functions verified by live rollback tests/source/auth readback and 28 integration checks; no real messages/token/ClickUp mutations. Settings sample updated; owner rendered automation retry remains pending.

@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { flushWhatsAppInbox } from '../_shared/whatsapp-inbox-sync.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -141,7 +142,8 @@ Deno.serve(async (req) => {
         results.push({ id: job.id, status: terminal ? 'failed' : 'retry', next_retry_at: terminal ? null : nextRetry });
       }
     }
-    return json({ ok: true, processed: results.length, results });
+    const inbox_sync=await flushWhatsAppInbox(rest);
+    return json({ ok: true, processed: results.length, results, inbox_sync });
   } catch (error) {
     return json({ ok: false, error: error instanceof Error ? error.message : String(error) }, 500);
   }
