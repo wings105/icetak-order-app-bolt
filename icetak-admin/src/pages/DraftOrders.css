@@ -134,3 +134,7 @@
 .draft-history-modal .draft-modal-head>div { min-width:0; }
 .draft-history-modal .draft-modal-close { flex-shrink:0; }
 .draft-history-modal .draft-pagination>div { flex-wrap:wrap; }
+
+.draft-phone-links{display:grid;gap:5px;min-width:0;margin-top:5px}
+.draft-phone-links a,.draft-contact-links .draft-phone-links a{display:block;color:#175cd3;font-size:11px;overflow-wrap:anywhere;text-decoration:none;padding:0;border:0;background:transparent;border-radius:0}
+.draft-phone-links a:hover,.draft-contact-links .draft-phone-links a:hover{text-decoration:underline}

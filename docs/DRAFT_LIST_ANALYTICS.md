@@ -60,3 +60,10 @@ Verification: production rollback tests exercise the real cancel RPC (automation
 
 
 PR #82 merged as `9e55979fc67083bf3a348dd3efa8f13d83b035a8`; Workers Builds and public-domain guard pass. Worker `0565d39f-e6b7-46e6-bf23-94543fa4ff5d`. Hosted asset chain `main-TqrqKmc9.js` → `admin-v2-route-B3vE2tbL.js` → `App-CIyhdYdS.js` plus `App-Bd1cH7jW.css` contains history/source controls, private read action and timeline styling.
+
+
+## WhatsApp phone shortcuts — 2026-10-10
+
+VERIFIED in controlled desktop/mobile React rendering; publication pending. Under the customer name in List view, Card view and expanded Details, the displayed phone opens `whatsapp://send?phone=<digits>` in the registered WhatsApp application. A separate link displays its full `https://wa.me/<digits>` URL and opens in a new tab with noopener/noreferrer. Display formatting stays intact while link destinations strip nondigits, reusing the existing app protocol used elsewhere in Admin V2. Username/BSUID/missing-phone fallbacks stay intact. No automatic message or database write is performed.
+
+Actual DraftOrders component checks pass at 1440×950 and 390×844: list/card destinations, formatted phone, full URL label, missing-phone cases, click and keyboard link dispatch, no runtime error/framework overlay or document overflow. Browser plugin absent; regular Playwright used with an external tool-only Chromium because the old scratch binary was truncated. Screenshots visually inspected. Link dispatch was captured without opening an external app or sending a message; launching the installed Windows WhatsApp Desktop and authenticated hosted owner UI remain unexercised. Admin type/build, root storefront/Inbox build, admin source boundary and git diff checks pass.
