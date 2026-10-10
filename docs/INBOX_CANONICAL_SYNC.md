@@ -38,6 +38,8 @@ to both main order tables and changes during an in-flight request.
 
 ## Shopee send adapter
 
+Update 10 October: owner-configurable direct Shopee sending and a scoped external token-rotation endpoint now supplement the adapter. See [SHOPEE_CHAT_DIRECT_SETUP.md](SHOPEE_CHAT_DIRECT_SETUP.md). Direct configuration is currently empty and customer sends remain untested. Once configured, direct mode has explicit shop/expiry/read-verification guards and does not fall back silently when OFF.
+
 Apply `backend/inbox/shopee-send-audit.sql` to Inbox. Inbox and AI Dashboard
 share `_shared/shopee-send.ts`. An approved manual send gets a request UUID,
 atomic pending message and audit attempt. Retries of the same UUID never send

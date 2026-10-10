@@ -1,5 +1,6 @@
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import {sendShopee} from '../_shared/shopee-send.ts';
+import {readiness} from '../_shared/shopee-direct.ts';
 // Deploy to Unified Inbox. Server-to-server only; never expose the bridge token to browsers.
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 const U=Deno.env.get('SUPABASE_URL')||'', K=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
@@ -17,7 +18,7 @@ async function read(id:string|null,b:any={}) {
  p_search:t(b.search).slice(0,100),p_offset:Math.max(0,Number(b.offset)||0),p_limit:Math.min(60,Math.max(1,Number(b.limit)||30))});
 }
 function phone(value:unknown){const raw=t(value);if(/^[A-Z]{2}\./i.test(raw))return '';let d=raw.replace(/\D/g,'');if(d.startsWith('0'))d='6'+d;return /^[1-9]\d{7,14}$/.test(d)?d:'';}
-async function capability(){return {whatsapp_api:!!((Deno.env.get('WF_PARTNER_KEY')||Deno.env.get('WASAPFLOW_PARTNER_KEY'))&&(Deno.env.get('WF_WABA_ID')||Deno.env.get('WASAPFLOW_WABA_ID'))),shopee_api:await db('private_runtime_settings?setting_key=in.(shopee_chat_send_endpoint,shopee_chat_send_token)&select=setting_key,setting_value').then(rows => rows.length===2 && rows.every((row:any)=>t(row.setting_value)))};}
+async function capability(){return {whatsapp_api:!!((Deno.env.get('WF_PARTNER_KEY')||Deno.env.get('WASAPFLOW_PARTNER_KEY'))&&(Deno.env.get('WF_WABA_ID')||Deno.env.get('WASAPFLOW_WABA_ID'))),shopee_api:await db('private_runtime_settings?setting_key=in.(shopee_chat_send_endpoint,shopee_chat_send_token,shopee_chat_direct_config)&select=setting_key,setting_value').then(rows => {const settings=Object.fromEntries(rows.map((r:any)=>[r.setting_key,r.setting_value]));const c=settings.shopee_chat_direct_config?JSON.parse(settings.shopee_chat_direct_config):null;return c?.shop_id?readiness(c)==='READY':!!(t(settings.shopee_chat_send_endpoint)&&t(settings.shopee_chat_send_token));})};}
 Deno.serve(async req=>{
  if(req.method!=='POST')return out({ok:false,error:'POST required'},405);
  try{

@@ -1,4 +1,5 @@
 import {providerResult} from './shopee-provider-result.ts';
+import {readiness, shopeeRequest} from './shopee-direct.ts';
 const text=(v:unknown)=>String(v??'').trim();
 const out=(body:unknown,status=200)=>Response.json(body,{status});
 export async function sendShopee(db:any,body:Record<string,any>,actor:{id:string|null,label:string}) {
@@ -13,20 +14,25 @@ export async function sendShopee(db:any,body:Record<string,any>,actor:{id:string
  if(body.revision&&body.revision!==conversation.last_message_at) return out({ok:false,error:'Chat sudah berubah. Semak mesej terbaru dahulu.'},409);
  const buyer=text(conversation.external_customer_id),shop=text(conversation.metadata?.shop_id);
  if(!buyer||!shop)return out({ok:false,error:'Identiti buyer dan shop belum disahkan.'},422);
- const {data:settingRows,error:settingError}=await db.from('private_runtime_settings').select('setting_key,setting_value').in('setting_key',['shopee_chat_send_endpoint','shopee_chat_send_token']);
+ const {data:settingRows,error:settingError}=await db.from('private_runtime_settings').select('setting_key,setting_value').in('setting_key',['shopee_chat_send_endpoint','shopee_chat_send_token','shopee_chat_direct_config']);
  if(settingError)return out({ok:false,error:'Konfigurasi Shopee tidak tersedia.'},503);
  const settings=Object.fromEntries((settingRows||[]).map((s:any)=>[s.setting_key,s.setting_value]));
+ const direct=settings.shopee_chat_direct_config?JSON.parse(settings.shopee_chat_direct_config):null;
  const endpoint=text(settings.shopee_chat_send_endpoint),token=text(settings.shopee_chat_send_token);
  // Do not create a pending message when the provider is not connected.
- if(!endpoint||!token)return out({ok:false,error:'Shopee Chat belum disambung. Draf kekal di sini; mesej belum dihantar.',code:'SHOPEE_CHAT_NOT_CONFIGURED'},503);
- if(!endpoint.startsWith('https://'))return out({ok:false,error:'Endpoint Shopee mesti HTTPS.'},503);
+ if(direct?.shop_id && readiness(direct,shop)!=='READY')return out({ok:false,error:'Sambungan direct Shopee belum sedia. Semak token dan sambungan dalam Admin v2 → Settings.',code:readiness(direct,shop)},503);
+ if(!direct?.shop_id&&(!endpoint||!token))return out({ok:false,error:'Shopee Chat belum disambung. Draf kekal di sini; mesej belum dihantar.',code:'SHOPEE_CHAT_NOT_CONFIGURED'},503);
+ if(!direct?.shop_id&&!endpoint.startsWith('https://'))return out({ok:false,error:'Endpoint Shopee mesti HTTPS.'},503);
+ if(direct?.shop_id&&(!/^[1-9]\d{0,14}$/.test(buyer)||!Number.isSafeInteger(Number(buyer))))return out({ok:false,error:'Buyer ID Shopee tidak sah.'},422);
  const {data:claim,error:claimError}=await db.rpc('claim_shopee_send',{p_request_id:requestId,p_conversation_id:conversation.id,p_order_summary_id:order?.id||null,p_order_no:order?.order_no||null,p_staff_user_id:actor.id,p_actor_label:actor.label,p_text:content,p_buyer_id:buyer});
  if(claimError)return out({ok:false,error:'Rekod penghantaran tidak dapat disediakan.'},409);
  const attempt=claim.attempt;
  if(!claim.claimed)return out({ok:attempt.status==='sent',duplicate:true,status:attempt.status,local_message_id:attempt.local_message_id,provider_message_id:attempt.provider_message_id,error:attempt.status==='sent'?null:'Permintaan ini sudah direkod. Semak status sebelum menghantar semula.'},attempt.status==='sent'?200:409);
  let result:{status:string,id:string,error:string|null};let httpStatus:number|null=null;
  try{
-  const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`,'x-icetak-token':token,'Idempotency-Key':requestId},body:JSON.stringify({action:'send_message',provider:'shopee',request_id:requestId,conversation_id:conversation.id,provider_conversation_id:conversation.external_conversation_id,shop_id:shop,buyer_user_id:buyer,buyer_shop_id:conversation.metadata?.buyer_shop_id,order_sn:order?.order_no||null,message_type:'text',text:content}),signal:AbortSignal.timeout(20000)});
+  const response=direct?.shop_id
+   ? await shopeeRequest(direct,'/api/v2/sellerchat/send_message',{to_id:Number(buyer),message_type:'text',content:{text:content}},'POST')
+   : await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`,'x-icetak-token':token,'Idempotency-Key':requestId},body:JSON.stringify({action:'send_message',provider:'shopee',request_id:requestId,conversation_id:conversation.id,provider_conversation_id:conversation.external_conversation_id,shop_id:shop,buyer_user_id:buyer,buyer_shop_id:conversation.metadata?.buyer_shop_id,order_sn:order?.order_no||null,message_type:'text',text:content}),signal:AbortSignal.timeout(20000),redirect:'error'});
   httpStatus=response.status;result=providerResult(response.status,await response.json().catch(()=>({})));
  }catch{result={status:'unknown',id:'',error:'Status tidak pasti. Semak Shopee asal sebelum cuba semula.'};}
  const now=new Date().toISOString();
