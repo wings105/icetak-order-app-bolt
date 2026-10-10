@@ -1,6 +1,6 @@
 # 2026-10-10 — Shopee direct configuration backend
 
-- [PRODUCTION backend] Owner-only Shopee settings gateway, private versioned config RPC and dedicated hashed-key token rotation endpoint deployed and smoke-checked. Identical rotation retries are idempotent; stale/conflicting/wrong-shop/revoked-key input is rejected. Inbox/Dashboard sender retains the shared ledger and adds shop/expiry/read-check guards. Exact five-function source/auth readback, 19 integration checks, six provider-result tests, SQL rollback tests and live sanitized bridge/anonymous rejection checks pass; advisor counts unchanged. Configuration is empty, no customer sends or ClickUp writes. Settings frontend/provider outcome verification remains pending owner login and credential entry; see docs/SHOPEE_CHAT_DIRECT_SETUP.md.
+- [PRODUCTION backend] Owner-only Shopee settings gateway, private versioned config RPC and dedicated hashed-key token rotation endpoint deployed and smoke-checked. Identical rotation retries are idempotent; stale/conflicting/wrong-shop/revoked-key input is rejected. Inbox/Dashboard sender retains the shared ledger and adds shop/expiry/read-check guards. Exact five-function source/auth readback, 20 integration checks, six provider-result tests, SQL rollback tests and live sanitized bridge/anonymous rejection checks pass; advisor counts unchanged. Configuration is empty, no customer sends or ClickUp writes. Settings frontend/provider outcome verification remains pending owner login and credential entry; see docs/SHOPEE_CHAT_DIRECT_SETUP.md.
 
 # 2026-10-09
 

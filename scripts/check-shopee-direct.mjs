@@ -63,5 +63,8 @@ try {
   assert.equal((await rotation(request('get'))).status,401);assert.equal(rotationCalls,0);
   const response=await rotation(new Request('https://fixture.example',{method:'POST',headers:{'x-icetak-shopee-key':hookKey},body:JSON.stringify({partner_id:'123',shop_id:'456',access_token:'fixture-new-token',rotated_at:new Date().toISOString(),expires_at:c.token_expires_at})}));
   assert.equal(response.status,200);const body=await response.text();assert.ok(!body.includes(c.access_token));assert.ok(!body.includes(hookKey));assert.equal(rotationCalls,1);checks+=2;
+  const inactiveDb={auth:{getUser:async()=>({data:{user:{id:'inactive-staff'}}})},from:()=>({select(){return this},eq(){return this},maybeSingle:async()=>({data:{display_name:'Inactive',role:'staff',active:false}})})};
+  const staffSend=await handler('supabase/inbox-functions/shopee-chat-send/index.ts',inactiveDb);
+  assert.equal((await staffSend(new Request('https://fixture.example',{method:'POST',headers:{authorization:'Bearer fixture'},body:JSON.stringify(sendBody)}))).status,403);checks++;
   console.log(`${checks} Shopee direct checks passed: signing, redaction, expiry/shop guards, read diagnostics, outbox idempotency, owner-only gateway and scoped rotation.`);
 } finally {globalThis.fetch=oldFetch;delete globalThis.Deno;delete globalThis.fixtureDB;await rm(dir,{recursive:true,force:true});}

@@ -65,11 +65,11 @@ Provider errors inside HTTP 200 remain failures. Missing message ID, timeout or 
 ## Deployment and verification, 10 October 2026
 
 - Inbox migration: `backend/inbox/migrations/20261010050746_shopee_direct_chat_settings.sql`, applied as `shopee_direct_chat_settings` to Inbox only. Do not apply it to Order System.
-- Inbox: `shopee-chat-config` v1 and `shopee-token-rotate` v1 have custom authentication and platform JWT off; `shopee-chat-send` v5 retains JWT on; `ai-dashboard-bridge` v7 retains its existing custom bridge authentication.
+- Inbox: `shopee-chat-config` v1 and `shopee-token-rotate` v1 have custom authentication and platform JWT off; `shopee-chat-send` v6 retains JWT on and requires an active workspace membership; `ai-dashboard-bridge` v7 retains its existing custom bridge authentication.
 - Order System: `shopee-chat-settings` v1 retains JWT on and independently checks active owner.
 - Exact deployed source/auth-mode readback matched all five functions.
 - Controlled SQL rollback tests proved initial save, private grants, token update, identical retry, stale/conflicting rotation, wrong-shop rejection, credential/check-version isolation, revoked-key rejection and credential reset on identity change. Fixture credentials were rolled back; no config remains staged in production.
-- `node scripts/check-shopee-direct.mjs`: 19 checks pass for signing, redaction, readiness, diagnostics, shared outbox behavior, gateway role checks and rotation boundary. Existing six provider-result tests pass.
+- `node scripts/check-shopee-direct.mjs`: 20 checks pass for signing, redaction, readiness, diagnostics, shared outbox behavior, gateway role checks and rotation boundary. Existing six provider-result tests pass.
 - Targeted Settings component TypeScript check and the actual root production build pass. Standalone Admin build has existing unrelated OrderProfitDetail DOM iterable and missing plugin-react errors; no new Settings type error was found.
 - Security advisor categories/counts match baseline; no new advisory finding introduced by the migration.
 - Live custom-auth config get through the real Order→Inbox bridge returns sanitized NOT_CONFIGURED, enabled=false. Anonymous calls to all new endpoints are rejected. Direct credential config is still empty; no messages/ClickUp updates sent.
