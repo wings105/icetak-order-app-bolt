@@ -1,6 +1,6 @@
 # 2026-10-10 — Inline suggestion cost control
 
-- [VERIFIED frontend / PRODUCTION backend] Unified Inbox removes periodic/expiry/global-order suggestion refresh, reuses bounded account-scoped fresh cache, serializes requests and backs off failures/429. Gateway v2 enforces shared 120/hour, 1000/MYT day and 30s/chat claims before chat/canonical reads. Real SQL rollback limit/reset/retention/grant tests, exact gateway/auth readback, 10-minute zero-request idle test, scoped orders/cache/debounce/backoff/stale-chat tests, composer/theme/mobile QA and builds pass. No customer/order/provider writes; only bounded counters. Hosted authenticated staff interaction remains unexercised; see docs/INBOX_REPLY_SUGGESTIONS.md.
+- [PRODUCTION] Unified Inbox removes periodic/expiry/global-order suggestion refresh, reuses bounded account-scoped fresh cache, serializes requests and backs off failures/429. Gateway v2 enforces shared 120/hour, 1000/MYT day and 30s/chat claims before chat/canonical reads. Real SQL rollback limit/reset/retention/grant tests, exact gateway/auth readback, 10-minute zero-request idle test, scoped orders/cache/debounce/backoff/stale-chat tests, composer/theme/mobile QA and builds pass. Release b343a80 / Worker f33edf17 served the exact tested Inbox JS; Workers Builds and domain guard pass. No customer/order/provider writes; only bounded counters. Hosted authenticated staff interaction remains unexercised; see docs/INBOX_REPLY_SUGGESTIONS.md.
 
 # 2026-10-10
 
