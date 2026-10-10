@@ -1,3 +1,7 @@
+# 2026-10-10 — Shopee reply state
+
+- [PRODUCTION backend] Successful Shopee replies from Inbox and AI Dashboard now automatically resolve Perlu Balas, with an atomic guard retaining newer customer messages. Failed/unknown sends retain reply status; sent request replay repairs state without another send. Private migration, exact deployed source/auth readback, 30 sender checks and real SQL rollback coverage pass. Screenshot chat repaired without resending; existing frontend reload retained. Hosted staff rendering remains unexercised. See docs/SHOPEE_CHAT_DIRECT_SETUP.md.
+
 # 2026-10-10 — WhatsApp API outbound Inbox logging
 
 - [PRODUCTION backend] Successful Order WhatsApp API sends now mirror saved text/time/provider IDs to Unified Inbox independently of app echo. Audit registration fails closed; private log endpoint deduplicates identity and message IDs; dispatcher retries only logging. Source/auth readback, real SQL rollback and sender failure/idempotency/opt-out checks pass. Three user-reported notification records recovered once and synced through the live API/cron without resending customer messages or changing the later reply/unread state. External provider callers remain outside this sender scope; see docs/WHATSAPP_API_INBOX_SYNC.md.

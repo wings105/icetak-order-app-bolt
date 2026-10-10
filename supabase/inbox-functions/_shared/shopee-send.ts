@@ -2,6 +2,9 @@ import {providerResult} from './shopee-provider-result.ts';
 import {readiness, shopeeRequest, checkConnection} from './shopee-direct.ts';
 const text=(v:unknown)=>String(v??'').trim();
 const out=(body:unknown,status=200)=>Response.json(body,{status});
+async function completeReply(db:any,messageId:string){
+ try{const {error}=await db.rpc('complete_shopee_reply',{p_message_id:messageId});return !error;}catch{return false;}
+}
 export async function sendShopee(db:any,body:Record<string,any>,actor:{id:string|null,label:string}) {
  const content=text(body.text),requestId=text(body.request_id);
  if(!content||content.length>4000||!/^[0-9a-f-]{36}$/i.test(requestId)) return out({ok:false,error:'Mesej dan request ID yang sah diperlukan.'},400);
@@ -32,7 +35,10 @@ export async function sendShopee(db:any,body:Record<string,any>,actor:{id:string
  const {data:claim,error:claimError}=await db.rpc('claim_shopee_send',{p_request_id:requestId,p_conversation_id:conversation.id,p_order_summary_id:order?.id||null,p_order_no:order?.order_no||null,p_staff_user_id:actor.id,p_actor_label:actor.label,p_text:content,p_buyer_id:buyer});
  if(claimError)return out({ok:false,error:'Rekod penghantaran tidak dapat disediakan.'},409);
  const attempt=claim.attempt;
- if(!claim.claimed)return out({ok:attempt.status==='sent',duplicate:true,status:attempt.status,local_message_id:attempt.local_message_id,provider_message_id:attempt.provider_message_id,error:attempt.status==='sent'?null:'Permintaan ini sudah direkod. Semak status sebelum menghantar semula.'},attempt.status==='sent'?200:409);
+ if(!claim.claimed){
+  const repaired=attempt.status==='sent'?await completeReply(db,attempt.local_message_id):true;
+  return out({ok:attempt.status==='sent',duplicate:true,status:attempt.status,local_message_id:attempt.local_message_id,provider_message_id:attempt.provider_message_id,error:attempt.status==='sent'?null:'Permintaan ini sudah direkod. Semak status sebelum menghantar semula.',...(!repaired?{warning:'Mesej sudah dihantar; status balasan Inbox perlu disemak.'}:{})},attempt.status==='sent'?200:409);
+ }
  let result:{status:string,id:string,error:string|null};let httpStatus:number|null=null;
  try{
   const response=direct?.shop_id
@@ -43,9 +49,10 @@ export async function sendShopee(db:any,body:Record<string,any>,actor:{id:string
  const now=new Date().toISOString();
  const {error:messageError}=await db.from('messages').update({status:result.status,provider_message_id:result.id||null,sent_at:result.status==='sent'?now:null,failed_at:result.status==='failed'?now:null,failure_reason:result.error,updated_at:now}).eq('id',attempt.local_message_id);
  const {error:auditError}=await db.from('shopee_chat_send_attempts').update({status:result.status,upstream_status:httpStatus,provider_message_id:result.id||null,error_message:result.error,completed_at:now}).eq('id',attempt.id);
+ let replyRecorded=true;
  if(result.status==='sent'){
-  await db.from('conversations').update({last_outbound_at:now,last_message_at:now,last_message_sender:'seller'}).eq('id',conversation.id);
+  replyRecorded=await completeReply(db,attempt.local_message_id);
   await db.from('conversation_activity_logs').insert({conversation_id:conversation.id,event_type:'shopee_message_sent',actor_type:'staff',actor_id:actor.id,actor_label:actor.label,source:'shopee-chat-send',summary:'Mesej Shopee dihantar dari iCetak',metadata:{request_id:requestId,provider_message_id:result.id},importance:'normal'});
  }
- return out({ok:result.status==='sent',status:result.status,local_message_id:attempt.local_message_id,provider_message_id:result.id||null,error:result.error,...(messageError||auditError?{warning:'Status provider diterima; rekod Inbox perlu disemak.'}:{})},result.status==='sent'?200:502);
+ return out({ok:result.status==='sent',status:result.status,local_message_id:attempt.local_message_id,provider_message_id:result.id||null,error:result.error,...(messageError||auditError||!replyRecorded?{warning:'Status provider diterima; rekod atau status balasan Inbox perlu disemak.'}:{})},result.status==='sent'?200:502);
 }

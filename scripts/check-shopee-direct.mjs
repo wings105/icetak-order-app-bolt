@@ -34,17 +34,19 @@ try {
   let unknownReads=0;
   await checkConnection(checkDb,unknownExpiry,'owner',async()=>{unknownReads++;return Response.json({response:{conversation_id:'conv-provider'}})});
   assert.equal(unknownReads,1);assert.equal(record.ok,true);checks+=3;
-  let claims=0, sends=0, status='sending', mode='success', config={...c};
+  let claims=0, sends=0, completions=0, completionError=false, status='sending', mode='success', config={...c};
   const conversation={id:'00000000-0000-0000-0000-000000000001',channel:'shopee',external_customer_id:'789',metadata:{shop_id:'456'},external_conversation_id:'conv-provider'};
   const updates=[];
-  const db={from(table){return {select(){return this},eq(){return this},in(){return this},single:async()=>({data:conversation}),then(resolve,reject){return Promise.resolve({data:[{setting_key:'shopee_chat_direct_config',setting_value:JSON.stringify(config)}]}).then(resolve,reject)},update(value){updates.push({table,value});return this},insert:async()=>({error:null})}},rpc:async()=>{claims++;return {data:{claimed:claims===1,attempt:{id:'attempt',status,local_message_id:'local',provider_message_id:status==='sent'?'fixture-message':null}}}}};
-  globalThis.fetch=async()=>{sends++;return Response.json(mode==='success'?{response:{message_id:'fixture-message'}}:{error:'permission_denied'})};
+  const db={from(table){return {select(){return this},eq(){return this},in(){return this},single:async()=>({data:conversation}),then(resolve,reject){return Promise.resolve({data:[{setting_key:'shopee_chat_direct_config',setting_value:JSON.stringify(config)}]}).then(resolve,reject)},update(value){updates.push({table,value});return this},insert:async()=>({error:null})}},rpc:async(name)=>{if(name==='complete_shopee_reply'){completions++;return {data:{replied:true},error:completionError?{message:'fixture error'}:null};}claims++;return {data:{claimed:claims===1,attempt:{id:'attempt',status,local_message_id:'local',provider_message_id:status==='sent'?'fixture-message':null}}}}};
+  globalThis.fetch=async()=>{sends++;return Response.json(mode==='success'?{response:{message_id:'fixture-message'}}:mode==='unknown'?{}:{error:'permission_denied'})};
   const sendBody={conversation_id:conversation.id,text:'Hello',request_id:'00000000-0000-0000-0000-000000000002'};
   const actor={id:'owner',label:'owner'};
   config.token_expires_at=new Date(0).toISOString(); assert.equal((await sendShopee(db,sendBody,actor)).status,503); assert.equal(claims,0); assert.equal(sends,0); checks++;
-  config={...c}; assert.equal((await sendShopee(db,sendBody,actor)).status,200); assert.equal(sends,1); assert.ok(updates.some(x=>x.table==='messages'&&x.value.provider_message_id==='fixture-message')); checks++;
-  status='sent'; assert.equal((await sendShopee(db,sendBody,actor)).status,200);assert.equal(sends,1);checks++;
-  claims=0; mode='error'; assert.equal((await sendShopee(db,{...sendBody,request_id:'00000000-0000-0000-0000-000000000003'},actor)).status,502);assert.ok(updates.some(x=>x.table==='messages'&&x.value.status==='failed'));checks++;
+  config={...c}; assert.equal((await sendShopee(db,sendBody,actor)).status,200); assert.equal(sends,1); assert.equal(completions,1); assert.ok(updates.some(x=>x.table==='messages'&&x.value.provider_message_id==='fixture-message')); checks++;
+  status='sent'; assert.equal((await sendShopee(db,sendBody,actor)).status,200);assert.equal(sends,1);assert.equal(completions,2);checks++;
+  completionError=true;const repairFailure=await sendShopee(db,sendBody,actor);assert.equal(repairFailure.status,200);assert.ok((await repairFailure.json()).warning);assert.equal(sends,1);completionError=false;checks++;
+  const beforeFailedCompletion=completions;claims=0; mode='error'; assert.equal((await sendShopee(db,{...sendBody,request_id:'00000000-0000-0000-0000-000000000003'},actor)).status,502);assert.ok(updates.some(x=>x.table==='messages'&&x.value.status==='failed'));assert.equal(completions,beforeFailedCompletion);checks++;
+  claims=0;mode='unknown';const uncertain=await sendShopee(db,{...sendBody,request_id:'00000000-0000-0000-0000-000000000004'},actor);assert.equal(uncertain.status,502);assert.equal(completions,beforeFailedCompletion);checks++;
   async function handler(file, fixtureDb){
     globalThis.fixtureDB=fixtureDb;
     let fn; globalThis.Deno={env:{get:()=> 'https://fixture.supabase.co'},serve:value=>fn=value};
@@ -77,6 +79,7 @@ try {
   // Unknown expiry requires a fresh provider read; a failed read creates no outbox claim.
   let readAllowed=true, preflights=0, unknownClaims=0, unknownSends=0;
   const unknownDb={from(table){return {select(){return this},eq(){return this},in(){return this},order(){return this},single:async()=>({data:conversation}),limit:async()=>({data:[conversation]}),then(resolve,reject){return Promise.resolve({data:[{setting_key:'shopee_chat_direct_config',setting_value:JSON.stringify(unknownExpiry)}]}).then(resolve,reject)},update(){return this},insert:async()=>({})}},rpc:async(name,args)=>{
+    if(name==='complete_shopee_reply')return {data:{replied:true}};
     if(name==='icetak_shopee_chat_config')return {data:{...unknownExpiry,check_ok:args.p_body.ok,checked_credential_version:args.p_body.credential_version}};
     unknownClaims++;return {data:{claimed:unknownClaims===1,attempt:{id:'attempt',status:'sending',local_message_id:'local'}}};
   }};

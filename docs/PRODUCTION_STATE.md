@@ -1,3 +1,7 @@
+# 2026-10-10 — Shopee replies resolve Perlu Balas
+
+Backend PRODUCTION: Inbox complete_shopee_reply validates sent message/audit proof, atomically clears needs_reply/unread for pre-send inbound and preserves customer messages arriving during the provider wait. Shared sender covers Inbox v8 and AI Dashboard bridge v9; auth unchanged and exact bundle readback verified. Thirty sender integration checks and actual SQL rollback cases pass. Screenshot conversation reconciled to false/0 without new messages or provider sends. Inbox existing post-send reload consumes the persisted state; authenticated hosted rendering not exercised because staff session is absent. See SHOPEE_CHAT_DIRECT_SETUP.md.
+
 # 2026-10-10 — WhatsApp API sends in Unified Inbox
 
 Backend PRODUCTION: Order whatsapp-send v29 durably audits successful API sends and mirrors them through the private Inbox order-whatsapp-outbound v1. Dispatch v18 retries logs only, never delivery. Full idempotency conflict index and service-only Inbox RPC applied; exact bundled source/auth readback, real rollback tests, sender retry/audit-failure fixtures and opt-out checks pass. Three proven sent notifications for IC261010-1391 recovered with original text/time/provider IDs, each once; live log API and existing cron mark all synced while preserving the later customer reply/unread state. No recovery provider sends or broad historical backfill. External AP/Make direct sends need their own callback/routing. See WHATSAPP_API_INBOX_SYNC.md.

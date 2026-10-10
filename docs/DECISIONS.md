@@ -1,5 +1,9 @@
 # iCetak Architecture Decisions
 
+## 2026-10-10 — Shopee reply resolution follows proven delivery and claim time
+
+Resolve Perlu Balas only after matching successful local-message and send-audit evidence. A private atomic RPC compares incoming activity against the durable outbound claim timestamp, so a customer message during the API request still requires attention. Both Inbox and AI Dashboard use the shared sender; duplicate request repair never invokes the provider again. Keep manual resolution for replies handled outside iCetak. See `SHOPEE_CHAT_DIRECT_SETUP.md`.
+
 ## 2026-10-10 — API delivery and Inbox logging have separate retry state
 
 Order whatsapp-send retains delivery authority and a durable outbox. A private, log-only bridge projects successful sends into Unified Inbox; app echo is not assumed for API sends. Delivery remains sent when Inbox logging fails, and existing dispatchers retry only the saved log projection. Provider IDs and unambiguous customer identities deduplicate the Inbox record. Historical mirrors retain original time without reopening sessions or clearing later customer state. Missing pre-send audit blocks delivery. External provider callers must explicitly integrate logging. See `WHATSAPP_API_INBOX_SYNC.md`.

@@ -1,5 +1,13 @@
 # Shopee Chat direct settings and external token rotation
 
+## Automatic reply state, 2026-10-10
+
+Successful seller sends through the shared sender now call private `complete_shopee_reply`. Both the local message and send audit must be sent with matching provider ID before reply state changes. It locks the conversation, clears `needs_reply` and unread count only for inbound messages present at the durable outbound claim time, and preserves new customer messages received while waiting for Shopee. Failed, pending and unknown sends never resolve the conversation. Replaying an existing sent request repairs reply state without another provider send, and does not move latest activity backwards or reopen/archive order sessions.
+
+Inbox already reloads the conversation list after sends, so the successful backend state removes the chat from Perlu Balas automatically. The manual action remains useful for work done outside iCetak.
+
+Inbox migration `20261010084500`, shopee-chat-send v8 and ai-dashboard-bridge v9 are deployed with unchanged authentication and exact bundle readback. Thirty controlled sender checks and real service-role rollback cases cover success/duplicate/failure/unknown, audit proof, private grants, incoming-during-send and later-message preservation. The screenshot's existing successful reply was reconciled through the same RPC: needs_reply=false, unread=0, original two outbound messages unchanged. No customer resend or broad historical reset. Hosted browser verification is blocked by an absent staff session; backend persistence is verified. SQL checks: `backend/inbox/shopee-reply-state.test.sql` inside a rolled-back service-role transaction.
+
 ## Ownership and entry point
 
 Admin V2 Settings (`/?admin=v2&view=settings`) contains **Shopee Chat — Direct API**. The existing settings-management UI mounts the panel; the backend independently requires an active owner. General staff/admin permissions do not grant credential access.
