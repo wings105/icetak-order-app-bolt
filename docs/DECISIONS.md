@@ -1,5 +1,9 @@
 # iCetak Architecture Decisions
 
+## 2026-10-10 — Shopee sends are direct; existing automation owns token refresh
+
+Keep the existing ClickUp/AP refresh flow as the single token-rotation producer. It may push the new token to a dedicated, hashed-key Inbox endpoint after updating its ClickUp task. iCetak does not run a competing refresh loop. Owner-only Admin V2 Settings configures one App/Shop/environment through the existing private Order→Inbox bridge; browser responses never return stored Partner Key/Access Token. A changed identity clears old credentials, and rotation/check versions fail closed on stale or conflicting input. Manual Inbox and AI Dashboard sends share the existing audited ledger. See `SHOPEE_CHAT_DIRECT_SETUP.md` for contract and unverified provider/UI boundaries.
+
 This file records decisions that future agents should understand before attempting to simplify or redesign the system.
 
 ## ADR-001 — `production` is the live code reference
