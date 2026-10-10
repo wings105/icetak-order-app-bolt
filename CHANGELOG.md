@@ -1,3 +1,7 @@
+# 2026-10-10
+
+- [PRODUCTION] Draft customer phone now links to the registered WhatsApp app; the second line shows its full wa.me URL in list/card/details. Controlled desktop/mobile click and keyboard destinations, fallbacks and builds pass; PR #84 e071d40 / Worker 59fd3959 hosted JS/CSS and deployment guard checks pass. Native Windows WhatsApp launch and signed-in hosted owner interaction remain unexercised.
+
 # 2026-10-10 — Shopee reply state
 
 - [PRODUCTION backend] Successful Shopee replies from Inbox and AI Dashboard now automatically resolve Perlu Balas, with an atomic guard retaining newer customer messages. Failed/unknown sends retain reply status; sent request replay repairs state without another send. Private migration, exact deployed source/auth readback, 30 sender checks and real SQL rollback coverage pass. Screenshot chat repaired without resending; existing frontend reload retained. Hosted staff rendering remains unexercised. See docs/SHOPEE_CHAT_DIRECT_SETUP.md.

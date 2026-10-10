@@ -1,3 +1,7 @@
+# 2026-10-10 — Draft WhatsApp phone shortcuts
+
+Hosted delivery PRODUCTION / controlled rendered behavior VERIFIED: Draft list/card/details numbers use whatsapp://send?phone=<digits>, with a separate full wa.me URL. PR #84 e071d40 / Worker 59fd3959-1b28-4d16-833a-2504a328e84d passed Workers Builds/guard; hosted App-XRuSgwkf.js and App-CHUY3otE.css contain the shared links/styles. Desktop/mobile click/keyboard, fallback, overflow and builds pass. Native Windows app launch and authenticated hosted owner interaction remain unexercised; no message/data mutation. See DRAFT_LIST_ANALYTICS.md.
+
 # 2026-10-10 — Shopee replies resolve Perlu Balas
 
 Backend PRODUCTION: Inbox complete_shopee_reply validates sent message/audit proof, atomically clears needs_reply/unread for pre-send inbound and preserves customer messages arriving during the provider wait. Shared sender covers Inbox v8 and AI Dashboard bridge v9; auth unchanged and exact bundle readback verified. Thirty sender integration checks and actual SQL rollback cases pass. Screenshot conversation reconciled to false/0 without new messages or provider sends. Inbox existing post-send reload consumes the persisted state; authenticated hosted rendering not exercised because staff session is absent. See SHOPEE_CHAT_DIRECT_SETUP.md.
