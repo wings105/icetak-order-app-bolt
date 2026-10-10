@@ -1,6 +1,6 @@
 # Reply Knowledge and automatic style learning
 
-2026-10-11 MYT. Backend PRODUCTION; frontend behavior VERIFIED in controlled Chromium. Frontend delivery evidence is added after the production asset check below.
+2026-10-11 MYT. Backend and frontend delivery PRODUCTION; staff interactions VERIFIED in controlled Chromium. Hosted signed-in staff interaction remains unexercised.
 
 ## Location and ownership
 
@@ -48,4 +48,6 @@ Message receipts are deduplicated and retained 30 days. Generated snapshots expi
 - Actual KnowledgeTab rendered at desktop 1440 and mobile 390: select/edit/save/publish/unpublish/create/history/style toggle/source-labelled FAQ test/search, no overflow or page errors. The actual AiDashboard wrapper deep link and tab switch stop work polling. Ten idle minutes produce zero additional Knowledge calls.
 - Browser plugin was not available; Playwright with local Chromium and controlled staff responses tested the actual components. Root multi-app build and standalone admin TypeScript/build pass. Hosted signed-in staff interaction remains unexercised.
 
-Frontend production asset/deployment evidence: pending final release check.
+Frontend delivery PRODUCTION: code release `14178506c2e641ea1fca7936db52eb6dee167cce`, Cloudflare Worker `f9b8b660-3525-4bcd-8905-f86e0ab437a0`. Workers Builds, deployment workflow and public-domain guard all succeeded. Cloud browser opened the exact Knowledge deep link and observed the secure Admin V2 login gate, with served entry `main-BV7GPqUa.js` and admin route `admin-v2-route-DM3HSAM9.js`. `/inbox/` serves the expected isolated build entry `index-DUwdbjFj.js`. This browser has no staff session, so the hosted Knowledge controls themselves were not exercised. Raw asset navigation/CLI byte-download checks were restricted by the browser/network, so no byte-identical hosted Admin asset claim is made. The rendered real components and wrapper, authenticated handler logic, live SQL and deployed FAQ source/version were verified as recorded above.
+
+The HTTP smoke generated one private synthetic snapshot for a nonexistent Inbox conversation, not a customer message or training sample. It is covered by the normal seven-day snapshot retention. Controlled SQL learning tests roll back all style/profile/message/queue changes. No customer's reply was sent during verification.
