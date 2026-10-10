@@ -1,3 +1,4 @@
+import { knowledgeReply } from '../_shared/reply-knowledge.ts';
 import { attachDetailSources, orderDetails, validateDetailCheck } from './order-details.ts';
 import { enrichContexts } from './enrich.ts';
 import { focusRows, validateFocusUpdate } from './focus.ts';
@@ -241,7 +242,10 @@ Deno.serve(async req=>{
    let semantic=null;try{if(recent)semantic=await inbox({action:'semantic',text:recent});}catch{/* deterministic SOP fallback is explicitly labelled */}
    const events=await rest(`ai_dashboard_events?conversation_id=eq.${c.id}&select=id,action,actor,created_at,after_state&order=created_at.desc&limit=10`);
    const training=await rest(`ai_dashboard_training?conversation_id=eq.${c.id}&select=*&order=created_at.desc&limit=20`);
-   return json({ok:true,row:{...c,context:ctx,analysis:analyze(c,ctx,semantic)},events,training,capabilities,fetched_at:source.fetched_at});
+   const analysis=analyze(c,ctx,semantic);
+   const reply=await knowledgeReply(c,analysis,rest,rpc);
+   analysis.suggestion=reply.text;analysis.response_text=ctx.review?.inbound_revision===c.inbound_revision&&ctx.review?.response_text?ctx.review.response_text:reply.text;analysis.engine=reply.engine;
+   return json({ok:true,row:{...c,context:ctx,analysis:{...analysis,knowledge_sources:reply.knowledge_sources,style_version:reply.style_version}},events,training,capabilities,fetched_at:source.fetched_at});
   }
   if(b.inbound_revision!==c.inbound_revision||b.revision!==c.revision)return json({ok:false,error:'CHAT_CHANGED: Ada mesej baharu. Muat semula sebelum tindakan.'},409);
   if((Number(ctx.review?.version)||0)!==Number(b.expected_version))return json({ok:false,error:'REVIEW_CHANGED: Admin lain telah mengemas kini kad ini.'},409);

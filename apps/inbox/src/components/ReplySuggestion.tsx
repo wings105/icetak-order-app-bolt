@@ -15,8 +15,8 @@ export function ReplySuggestion({ conversation, ready, onPick }: { conversation:
       </div>
       {result?.text && !loading && (
         <>
-          <button type="button" onClick={() => { if (Date.parse(result.expires_at) > Date.now()) onPick(result.text); else refresh(); }} title={result.warnings.join('\n')} className="block w-full max-h-28 overflow-y-auto rounded py-1.5 pr-2 text-left text-[13px] leading-5 text-[var(--text)] hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00a884] whitespace-pre-wrap break-words" aria-label={`Guna cadangan: ${result.text}`}>{result.text}</button>
-          <div className="pb-1 text-[10px] text-[var(--text-secondary)]">{note} · SOP</div>
+          <button type="button" onClick={() => { if (Date.parse(result.expires_at) > Date.now()) onPick(result.text); else refresh(); }} title={[...result.warnings,...(result.knowledge_sources||[]).map(s=>`${s.title} · v${s.version} · ${s.source}`)].join('\n')} className="block w-full max-h-28 overflow-y-auto rounded py-1.5 pr-2 text-left text-[13px] leading-5 text-[var(--text)] hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00a884] whitespace-pre-wrap break-words" aria-label={`Guna cadangan: ${result.text}`}>{result.text}</button>
+          <div className="pb-1 text-[10px] text-[var(--text-secondary)]">{note} · {result.knowledge_sources?.length ? 'Knowledge' : 'SOP'}</div>
         </>
       )}
       {result && !result.text && !loading && <p className="pb-1 text-xs text-[var(--text-secondary)]">Belum cukup konteks untuk cadangan. Baca mesej pelanggan dahulu.</p>}

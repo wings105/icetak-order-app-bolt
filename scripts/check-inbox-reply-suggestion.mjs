@@ -1,4 +1,4 @@
-// Real handlers with controlled reads. No credentials, database mutations or provider sends.
+// Real handlers with controlled reads/writes. No credentials or provider sends.
 import assert from 'node:assert/strict';
 import { suggestionHandler } from '../supabase/inbox-functions/inbox-reply-suggest/handler.ts';
 import { replySuggestion } from '../supabase/functions/inbox-reply-context/suggestion.ts';
@@ -30,7 +30,7 @@ const unavailable=suggestionHandler({member:async()=>member,claim:async()=>{thro
 assert.equal((await unavailable(req())).status,503);assert.equal(expensive,0,'Budget failure must stop all context reads');
 const ctx={identity_status:'matched',orders:[],marketplace_orders:[],drafts:[],session:{}};
 let current=ctx, binding=null, paths=[];
-const rpc=async(name,body)=>{assert.equal(name,'icetak_ai_dashboard_context');assert.equal(body.p_identities.length,1);return{[id]:structuredClone(current)};};
+const rpc=async(name,body)=>{if(name==='reply_suggestion_remember'){assert.equal(body.p_data.conversation_id,id);return null;}assert.equal(name,'icetak_ai_dashboard_context');assert.equal(body.p_identities.length,1);return{[id]:structuredClone(current)};};
 const read=async path=>{paths.push(path);if(path.startsWith('ai_dashboard_case_orders?'))return binding?[binding]:[];return[];};
 let result=await replySuggestion(c,rpc,read,now);assert.ok(result.text.includes('nombor order'));assert.equal(result.order_reference,null);assert.equal(result.evidence_count,1);assert.equal(Date.parse(result.expires_at)-Date.parse(result.fetched_at),60000);
 current={...ctx,marketplace_orders:[{id:oid,order_sn:'260TEST',current_status:'SHIPPED',tracking:'TRACK123'}]};
@@ -61,7 +61,8 @@ try {
       assert.equal(init.headers['x-admin-window-token'],'fixture-bridge');assert.deepEqual(JSON.parse(init.body),{conversation:c});return Response.json({ok:true,text:'test'});
     }
     if(path.includes('rpc/icetak_ai_dashboard_context'))return Response.json({[id]:ctx});
-    if(path.includes('ai_dashboard_case_orders?'))return Response.json([]);
+    if(path.includes('ai_dashboard_case_orders?')||path.includes('reply_style?')||path.includes('reply_knowledge?'))return Response.json([]);
+    if(path.includes('rpc/reply_suggestion_remember'))return new Response(null,{status:204});
     throw Error('Unexpected network target');
   };
   const authReq=()=>new Request('https://fixture.invalid/',{method:'POST',headers:{authorization:'Bearer fixture-user'},body:JSON.stringify({conversation_id:id,conversation:{id:'untrusted'},text:'untrusted'})});
@@ -73,6 +74,6 @@ try {
   const privateReq=token=>new Request('https://fixture.invalid/',{method:'POST',headers:token?{'x-admin-window-token':token}:{},body:JSON.stringify({conversation:c})});
   requests=[];assert.equal((await entryHandler(privateReq())).status,401);assert.equal((await entryHandler(privateReq('wrong'))).status,401);assert.ok(!requests.some(r=>r.path.includes('rpc/')));
   assert.equal((await entryHandler(privateReq('fixture-bridge'))).status,200);
-  assert.ok(requests.every(r=>r.method==='GET'||r.path.includes('/rpc/icetak_ai_dashboard_context')),'Context endpoint must remain read-only');
-  console.log('PASS: atomic budget/cooldown rejection and fail-closed context guard, staff JWT/member guards, private bridge auth, authoritative input, fixed destination, stale chat rejection, fresh exact order/tracking, ambiguous/latest-order safeguards, acknowledgement/media/no-context handling, 60s expiry, and no writes/sends.');
+  assert.ok(requests.every(r=>r.method==='GET'||r.path.includes('/rpc/icetak_ai_dashboard_context')||r.path.includes('/rpc/reply_suggestion_remember')),'Only a bounded draft snapshot may be written; no customer sends');
+  console.log('PASS: atomic budget/cooldown rejection and fail-closed context guard, staff JWT/member guards, private bridge auth, authoritative input, fixed destination, stale chat rejection, fresh exact order/tracking, ambiguous/latest-order safeguards, acknowledgement/media/no-context handling, 60s expiry, and no provider sends.');
 } finally {globalThis.fetch=oldFetch;globalThis.Deno=oldDeno;await rm(dir,{recursive:true,force:true});}

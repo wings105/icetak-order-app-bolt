@@ -1,3 +1,7 @@
+# 2026-10-11 — Reply Knowledge and automatic style learning
+
+- [PRODUCTION backend / VERIFIED controlled UI] AI Dashboard Knowledge manages versioned FAQ articles and channel style settings. Nineteen useful owner-reference FAQs are published; 61 unresolved articles remain drafts. Shared suggestions use published facts plus canonical runtime order evidence. Forward-only confirmed human replies learn safe style and fact-equivalent wording; generated copies/automation are excluded. Bounded batching/retry/retention and existing Inbox budgets remain. Live SQL/endpoint/auth/readback and rendered desktop/mobile/tab-idle checks pass; frontend delivery check pending. See docs/REPLY_KNOWLEDGE.md.
+
 # 2026-10-11 — Marketplace cancellation status
 
 - [PRODUCTION backend / VERIFIED controlled UI] CANCELLED wins same-provider-time webhook ties in canonical reconciliation. Eight real service_role rollback cases and live source/grant checks pass. Exact reported order 2610109KDDK929 now syncs to Inbox as CANCELLED / inactive through the existing worker; original history/payment and READY_TO_SHIP control preserved. Actual linked-order component desktop/mobile light/dark tests confirm Aktif absent only on cancelled card. No broad backfill or provider send; signed-in hosted staff interaction remains unexercised. See docs/MARKETPLACE_STATUS_RECONCILIATION.md.

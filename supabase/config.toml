@@ -79,3 +79,7 @@ verify_jwt = false
 # Server-only reply context, mandatory existing x-admin-window-token authentication.
 [functions.inbox-reply-context]
 verify_jwt = false
+
+# Staff-authenticated Knowledge management. Permissions are checked again in code.
+[functions.admin-ai-knowledge]
+verify_jwt = true

@@ -3,7 +3,7 @@ import { Conversation } from '../types';
 import { supabase } from './supabase';
 
 export interface ReplySuggestion {
-  conversation_id: string;
+  conversation_id: string; knowledge_sources?: {id:string; title:string; version:number; source:string}[]; engine?:string;
   latest_message_id: string | null;
   text: string;
   evidence_count: number;

@@ -1,3 +1,4 @@
+import { knowledgeReply } from '../_shared/reply-knowledge.ts';
 import { analyze, identity } from '../admin-ai-dashboard/analysis.ts';
 import { enrichContexts } from '../admin-ai-dashboard/enrich.ts';
 type Data = Record<string, any>;
@@ -10,8 +11,9 @@ export async function replySuggestion(c: Data, rpc: (name: string, body: unknown
   if (bindings[0]) ctx.case_order = bindings[0];
   await enrichContexts({ [c.id]: ctx }, read);
   const analysis = analyze(c, ctx, null, now);
+  const reply = await knowledgeReply(c, analysis, read, rpc);
   return {
-    ok: true, text: analysis.suggestion, engine: 'SOP rules v1',
+    ok: true, ...reply,
     evidence_count: analysis.evidence.length, warnings: analysis.warnings,
     order_reference: analysis.referenced_order?.reference || null,
     fetched_at: new Date(now).toISOString(), expires_at: new Date(now + 60000).toISOString(),

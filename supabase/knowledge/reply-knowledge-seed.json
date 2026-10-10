@@ -1,0 +1,1442 @@
+[
+  {
+    "import_key": "owner-reference-FAQ-001",
+    "draft": {
+      "title": "Produk apa yang iCetak buat?",
+      "answer": "Kami sediakan Edible Image, Burn Away Combo, Wafer Paper, printed Cake Topper, Mirror Gold Artpaper dan Acrylic Cake Topper. Nak jenis mana dan guna pada tarikh bila?",
+      "category": "Umum",
+      "keywords": "Produk apa yang iCetak buat? produk apa ada jual apa jenis produk",
+      "aliases": "produk apa ada\njual apa\njenis produk",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630, CONTEXT-OWNER",
+      "review_note": "",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-002",
+    "draft": {
+      "title": "Harga ini termasuk kek sekali ke?",
+      "answer": "Kami menyediakan cetakan atau hiasan topper mengikut produk yang dipilih. Kek tidak termasuk. Boleh hantar contoh hiasan yang nak dibuat.",
+      "category": "Umum",
+      "keywords": "Harga ini termasuk kek sekali ke? termasuk kek harga termasuk kek cake included",
+      "aliases": "termasuk kek\nharga termasuk kek\ncake included",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-003",
+    "draft": {
+      "title": "Nak gambar atas kek, pilih edible atau topper?",
+      "answer": "Kalau nak imej yang boleh dimakan di atas kek, pilih Edible Image. Printed topper, acrylic dan mirror artpaper ialah hiasan topper. Boleh hantar contoh supaya kami cadangkan produk yang sesuai.",
+      "category": "Umum",
+      "keywords": "Nak gambar atas kek, pilih edible atau topper?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-004",
+    "draft": {
+      "title": "Boleh custom nama atau gambar sendiri?",
+      "answer": "Boleh hantar wording dan gambar atau contoh design. Kami semak jenis produk, saiz dan kesesuaian design sebelum sahkan tempahan.",
+      "category": "Umum",
+      "keywords": "Boleh custom nama atau gambar sendiri? boleh custom nama boleh custom gambar boleh letak nama",
+      "aliases": "boleh custom nama\nboleh custom gambar\nboleh letak nama",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-005",
+    "draft": {
+      "title": "Boleh buat wording Bahasa Melayu atau English?",
+      "answer": "Boleh hantar wording tepat seperti yang nak dicetak. Ejaan dan susunan akan ikut teks yang disahkan; wording bahasa atau aksara khas perlu semakan design.",
+      "category": "Umum",
+      "keywords": "Boleh buat wording Bahasa Melayu atau English?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Sokongan font/aksara khas belum disahkan.\nPerlu semakan produk atau ukuran semasa sebelum diterbitkan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-006",
+    "draft": {
+      "title": "Kedai dekat mana, boleh pickup?",
+      "answer": "Pickup di Bandar Baru Pasir Puteh, Kelantan. Alamat dan waktu pickup yang disahkan akan diberikan bersama maklumat order.",
+      "category": "Umum",
+      "keywords": "Kedai dekat mana, boleh pickup?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630, CONTEXT-OWNER",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-007",
+    "draft": {
+      "title": "Edible image boleh makan ke?",
+      "answer": "Edible Image menggunakan icing paper dan edible ink, untuk hiasan yang boleh dimakan. Kalau perlukan maklumat bahan atau alergen tertentu, kami semak spesifikasi bahan dahulu.",
+      "category": "Edible Image",
+      "keywords": "Edible image boleh makan ke? edible boleh makan boleh makan ke boleh dimakan edible food grade",
+      "aliases": "edible boleh makan\nboleh makan ke\nboleh dimakan\nedible food grade",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "",
+      "product_scope": "edible,icing",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-008",
+    "draft": {
+      "title": "Saiz 5 inci berapa harga?",
+      "answer": "Untuk Edible Image {{shape}} {{size}}, harga bagi {{process}} / {{review_mode}} ialah {{quoted_price}}. Caj penghantaran akan dikira berasingan mengikut kaedah yang dipilih.",
+      "category": "Edible Image",
+      "keywords": "Saiz 5 inci berapa harga?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · RPC-PRICE-20261007, CHAT-EI-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "edible,icing",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-009",
+    "draft": {
+      "title": "Kenapa petak 4 inci harga lain daripada bulat 4 inci?",
+      "answer": "Harga dikira mengikut ruang cetakan dan pilihan bentuk. Dalam aturan harga semasa, bulat 4 inci dan petak 4 inci berada pada pilihan harga berbeza. Saya semak harga tepat untuk bentuk yang dipilih.",
+      "category": "Edible Image",
+      "keywords": "Kenapa petak 4 inci harga lain daripada bulat 4 inci?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · RPC-PRICE-20261007, CHAT-EI-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "edible,icing",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-010",
+    "draft": {
+      "title": "Ada bentuk bulat, petak dan love?",
+      "answer": "Pilihan biasa termasuk bulat, petak, love dan rectangular. Bentuk custom perlu semakan saiz dan servis pemotongan yang tersedia.",
+      "category": "Edible Image",
+      "keywords": "Ada bentuk bulat, petak dan love?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630, CHAT-EI-20261007",
+      "review_note": "",
+      "product_scope": "edible,icing",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-011",
+    "draft": {
+      "title": "Saiz maksimum edible berapa?",
+      "answer": "Pilihan biasa yang terkini disenaraikan sehingga 7.5 inci dan rectangular A4 sekitar 11 × 7.5 inci. Permintaan 8 inci atau saiz custom perlu semakan ruang cetak sebelum disahkan.",
+      "category": "Edible Image",
+      "keywords": "Saiz maksimum edible berapa?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630, CHAT-EI-20261007",
+      "review_note": "Description lama ada 8 inci; senarai terkini berakhir 7.5 inci. Jangan janji 8 inci tersedia.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "edible,icing",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-012",
+    "draft": {
+      "title": "Kek 6 inci patut ambil edible saiz berapa?",
+      "answer": "Boleh pertimbangkan edible 5 atau 5.5 inci untuk beri ruang piping di tepi kek 6 inci. Saiz terbaik bergantung pada hiasan baker; nak penuh permukaan atau ada ruang tepi?",
+      "category": "Edible Image",
+      "keywords": "Kek 6 inci patut ambil edible saiz berapa?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Perlu semakan produk atau ukuran semasa sebelum diterbitkan.",
+      "product_scope": "edible,icing",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-013",
+    "draft": {
+      "title": "Boleh print gambar saya sendiri?",
+      "answer": "Boleh. Hantar fail gambar yang jelas bersama saiz, bentuk dan wording jika ada. Kami semak kesesuaian gambar sebelum cetak.",
+      "category": "Edible Image",
+      "keywords": "Boleh print gambar saya sendiri? boleh print gambar sendiri boleh guna gambar sendiri",
+      "aliases": "boleh print gambar sendiri\nboleh guna gambar sendiri",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "",
+      "product_scope": "edible,icing",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-014",
+    "draft": {
+      "title": "Gambar kabur boleh jadi HD bila print?",
+      "answer": "Kualiti cetakan bergantung pada gambar asal. Hantar fail asal atau versi paling jelas; gambar kabur perlu semakan sebelum cetak. Kami tak boleh sahkan ia jadi tajam tanpa melihat fail.",
+      "category": "Edible Image",
+      "keywords": "Gambar kabur boleh jadi HD bila print? gambar blur boleh print gambar kabur",
+      "aliases": "gambar blur boleh print\ngambar kabur",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Perlu semakan produk atau ukuran semasa sebelum diterbitkan.",
+      "product_scope": "edible,icing",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-015",
+    "draft": {
+      "title": "Boleh tambah nama dan umur pada gambar?",
+      "answer": "Boleh hantar wording tepat bersama gambar dan saiz. Pilihan tambah wording dan perlu review akan disemak mengikut produk atau listing yang dipilih.",
+      "category": "Edible Image",
+      "keywords": "Boleh tambah nama dan umur pada gambar?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630, CATALOG-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "edible,icing",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-016",
+    "draft": {
+      "title": "Harga termasuk potong sekali ke?",
+      "answer": "Sesetengah servis ialah print only; servis print & cut juga pernah ditawarkan untuk tempahan tertentu. Saya semak pilihan order ini dahulu. Nak cetak sahaja atau siap potong?",
+      "category": "Edible Image",
+      "keywords": "Harga termasuk potong sekali ke?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630, CHAT-BULK-20260922",
+      "review_note": "Jangan generalisasikan semua order sebagai tidak termasuk cut atau RM5/A4.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "edible,icing",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-017",
+    "draft": {
+      "title": "Macam mana nak simpan sebelum guna?",
+      "answer": "Simpan di tempat sejuk dan kering serta elakkan cahaya terus dan lembapan. Tempoh penggunaan dan tarikh luput perlu dirujuk pada bahan atau label yang digunakan.",
+      "category": "Edible Image",
+      "keywords": "Macam mana nak simpan sebelum guna? cara simpan edible edible tahan berapa lama",
+      "aliases": "cara simpan edible\nedible tahan berapa lama",
+      "source": "Fail knowledge rujukan pemilik · CHAT-STORAGE-20261007, DESC-20260630",
+      "review_note": "",
+      "product_scope": "edible,icing",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-018",
+    "draft": {
+      "title": "Edible belum guna boleh masuk peti sejuk atau freezer?",
+      "answer": "Panduan sebelum guna ialah simpan di tempat sejuk dan kering serta elakkan lembapan. Untuk chiller atau freezer, kami perlu semak jenis bahan dan arahan penyimpanan yang sesuai dahulu.",
+      "category": "Edible Image",
+      "keywords": "Edible belum guna boleh masuk peti sejuk atau freezer?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CHAT-STORAGE-20261007, DESC-20260630",
+      "review_note": "Panduan kek siap dalam kotak bukan pengesahan simpan helaian belum guna dalam freezer.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "edible,icing",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-019",
+    "draft": {
+      "title": "Macam mana nak letak edible atas kek?",
+      "answer": "Pastikan permukaan kek rata dan kering, keluarkan edible dari plastik, gunting lebihan jika perlu, kemudian letak perlahan dan tekan lembut. Elakkan terkena air. Panduan kedai menyarankan letak beberapa jam sebelum hidang; kesesuaian permukaan perlu ikut baker.",
+      "category": "Edible Image",
+      "keywords": "Macam mana nak letak edible atas kek?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CHAT-STORAGE-20261007, DESC-20260630",
+      "review_note": "",
+      "product_scope": "edible,icing",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-020",
+    "draft": {
+      "title": "Nak wrap keliling kek, kena berapa keping?",
+      "answer": "Bagi kek bulat, panjang keliling ialah diameter × π. Untuk kek diameter 8 inci, anggaran keliling 25.13 inci. Beritahu tinggi wrap dan susunan sambungan yang nak dibuat; kami akan semak bilangan helaian, margin dan potongan sebelum quote.",
+      "category": "Edible Image",
+      "keywords": "Nak wrap keliling kek, kena berapa keping?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · PLAN",
+      "review_note": "Kiraan matematik tepat; bilangan helaian perlu packing/layout sebenar, bukan sekadar luas A4.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "edible,icing",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-021",
+    "draft": {
+      "title": "Apa beza wafer paper dengan edible image?",
+      "answer": "Edible Image menggunakan icing paper. Wafer Paper ialah pilihan cetakan berbeza dan digunakan sebagai lapisan atas dalam Burn Away. Untuk pilih yang sesuai, beritahu nak gambar biasa atas kek atau Burn Away.",
+      "category": "Wafer / Burn Away",
+      "keywords": "Apa beza wafer paper dengan edible image? beza wafer dengan edible wafer vs edible",
+      "aliases": "beza wafer dengan edible\nwafer vs edible",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "",
+      "product_scope": "burn away,burnaway,wafer",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-022",
+    "draft": {
+      "title": "Wafer sahaja berapa harga?",
+      "answer": "Harga Wafer Paper {{size}} bagi {{process}} / {{review_mode}} ialah {{quoted_price}} untuk pilihan yang disahkan. Nak wafer sahaja atau combo dengan edible bawah?",
+      "category": "Wafer / Burn Away",
+      "keywords": "Wafer sahaja berapa harga?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · RPC-PRICE-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "burn away,burnaway,wafer",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-023",
+    "draft": {
+      "title": "Wafer ada saiz apa?",
+      "answer": "Description menyenaraikan saiz biasa serta custom A5 dan A4. Kami semak pilihan semasa untuk ukuran yang diminta sebelum sahkan order.",
+      "category": "Wafer / Burn Away",
+      "keywords": "Wafer ada saiz apa?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "burn away,burnaway,wafer",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-024",
+    "draft": {
+      "title": "Wafer boleh buat love atau petak?",
+      "answer": "Description wafer menyenaraikan bulat, petak dan love. Pilihan combo Burn Away standard pula dinyatakan bulat; bentuk lain perlu semakan.",
+      "category": "Wafer / Burn Away",
+      "keywords": "Wafer boleh buat love atau petak?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "burn away,burnaway,wafer",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-025",
+    "draft": {
+      "title": "Burn Away combo dapat apa?",
+      "answer": "Combo terdiri daripada dua cetakan: edible untuk lapisan bawah dan wafer untuk lapisan atas. Kek tidak termasuk.",
+      "category": "Wafer / Burn Away",
+      "keywords": "Burn Away combo dapat apa? burn away dapat apa combo dapat apa",
+      "aliases": "burn away dapat apa\ncombo dapat apa",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "",
+      "product_scope": "burn away,burnaway,wafer",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-026",
+    "draft": {
+      "title": "Untuk combo kena hantar dua gambar?",
+      "answer": "Hantar atau nyatakan design untuk lapisan atas wafer dan lapisan bawah edible secara berasingan. Kalau mahu gambar sama, sebut dengan jelas supaya susunan dua lapisan betul.",
+      "category": "Wafer / Burn Away",
+      "keywords": "Untuk combo kena hantar dua gambar? burn away kena dua gambar combo dua gambar",
+      "aliases": "burn away kena dua gambar\ncombo dua gambar",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "",
+      "product_scope": "burn away,burnaway,wafer",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-027",
+    "draft": {
+      "title": "Burn Away untuk kek 4 inci ambil saiz apa?",
+      "answer": "Panduan contoh mencadangkan edible bawah sekitar 3 atau 3.5 inci, dan wafer atas sekitar 4 inci. Saiz akhir ikut hiasan serta cadangan baker.",
+      "category": "Wafer / Burn Away",
+      "keywords": "Burn Away untuk kek 4 inci ambil saiz apa?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Perlu semakan produk atau ukuran semasa sebelum diterbitkan.",
+      "product_scope": "burn away,burnaway,wafer",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-028",
+    "draft": {
+      "title": "Burn Away untuk kek 6 inci ambil saiz apa?",
+      "answer": "Panduan contoh mencadangkan edible bawah sekitar 5 atau 5.5 inci dan wafer atas sekitar 6 atau 6.5 inci. Beritahu ukuran setiap lapisan supaya harga dan susunannya boleh disemak.",
+      "category": "Wafer / Burn Away",
+      "keywords": "Burn Away untuk kek 6 inci ambil saiz apa?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Perlu semakan produk atau ukuran semasa sebelum diterbitkan.",
+      "product_scope": "burn away,burnaway,wafer",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-029",
+    "draft": {
+      "title": "Burn Away 6 inci total berapa?",
+      "answer": "Saya perlu semak saiz edible bawah dan wafer atas. Harga tepat ialah {{quoted_price}} selepas kedua-dua lapisan dan pilihan servis disahkan. Jika saiz lapisan berbeza, quote mesti ikut setiap lapisan.",
+      "category": "Wafer / Burn Away",
+      "keywords": "Burn Away 6 inci total berapa?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · RPC-PRICE-20261007, DESC-20260630",
+      "review_note": "RPC satu size memberi RM30 pada 6 inci; tidak membuktikan semua combo berlainan saiz RM30.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "burn away,burnaway,wafer",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-030",
+    "draft": {
+      "title": "Macam mana nak pasang dan bakar Burn Away?",
+      "answer": "Kami sediakan cetakan untuk dua lapisan. Teknik pemasangan dan penggunaan api perlu ikut panduan baker yang sesuai; kami semak panduan produk yang disahkan sebelum beri langkah khusus.",
+      "category": "Wafer / Burn Away",
+      "keywords": "Macam mana nak pasang dan bakar Burn Away?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Belum ada SOP lengkap pemasangan/nyalaan yang disahkan dalam sumber yang dibaca.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "burn away,burnaway,wafer",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-031",
+    "draft": {
+      "title": "Printed topper guna material apa?",
+      "answer": "Description produk menyatakan Artpaper Glossy photo paper dengan cetakan satu muka. Ini hiasan topper; ia berbeza daripada Edible Image.",
+      "category": "Printed Topper",
+      "keywords": "Printed topper guna material apa? topper material apa printed topper bahan apa",
+      "aliases": "topper material apa\nprinted topper bahan apa",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "",
+      "product_scope": "printed,topper",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-032",
+    "draft": {
+      "title": "Printed cake topper berapa harga?",
+      "answer": "Untuk servis printed topper yang disahkan, harga ialah {{quoted_price}}. Pilihan listing, kuantiti atau custom khas perlu disemak dahulu.",
+      "category": "Printed Topper",
+      "keywords": "Printed cake topper berapa harga?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · RPC-PRICE-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "printed,topper",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-033",
+    "draft": {
+      "title": "Nak custom topper perlu bagi detail apa?",
+      "answer": "Hantar nama, umur atau wish yang tepat, tema atau contoh, kuantiti dan tarikh nak guna. Kami semak maklumat yang masih kurang sebelum proses.",
+      "category": "Printed Topper",
+      "keywords": "Nak custom topper perlu bagi detail apa?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "",
+      "product_scope": "printed,topper",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-034",
+    "draft": {
+      "title": "Satu set dapat berapa topper?",
+      "answer": "Description set standard menyebut satu topper nama besar dan 5–10 topper kecil. Kandungan sebenar ikut listing atau design yang dipilih; saya semak set order ini dahulu.",
+      "category": "Printed Topper",
+      "keywords": "Satu set dapat berapa topper?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Jangan menjanjikan 5–10 pcs pada semua listing atau servis RM10.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "printed,topper",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-035",
+    "draft": {
+      "title": "Topper besar dan kecil saiz berapa?",
+      "answer": "Panduan description ialah banner nama sekitar 4–6 inci dan elemen kecil sekitar 1–3 inci. Ukuran akhir bergantung pada template dan set yang dipilih.",
+      "category": "Printed Topper",
+      "keywords": "Topper besar dan kecil saiz berapa?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Perlu semakan produk atau ukuran semasa sebelum diterbitkan.",
+      "product_scope": "printed,topper",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-036",
+    "draft": {
+      "title": "Printed topper print dua belah ke?",
+      "answer": "Description standard ialah cetakan satu muka. Kalau perlukan dua muka, admin perlu semak servis dan harga khas dahulu.",
+      "category": "Printed Topper",
+      "keywords": "Printed topper print dua belah ke? topper print dua belah print dua muka",
+      "aliases": "topper print dua belah\nprint dua muka",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "",
+      "product_scope": "printed,topper",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-037",
+    "draft": {
+      "title": "Apa beza acrylic dengan mirror artpaper?",
+      "answer": "Acrylic ialah plastik keras; Mirror Gold Artpaper ialah kertas premium warna mirror gold. Pilih ikut jenis hiasan dan bajet, kemudian beritahu saiz yang nak dibuat.",
+      "category": "Acrylic / Mirror",
+      "keywords": "Apa beza acrylic dengan mirror artpaper? beza acrylic dengan mirror acrylic vs mirror",
+      "aliases": "beza acrylic dengan mirror\nacrylic vs mirror",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630, CHAT-ACRYLIC-20261007",
+      "review_note": "",
+      "product_scope": "acrylic,mirror",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-038",
+    "draft": {
+      "title": "Acrylic tebal berapa, satu layer atau dua?",
+      "answer": "Description standard menyatakan acrylic 2 mm, satu layer. Double layer ialah permintaan khas yang perlu semakan design dan caj.",
+      "category": "Acrylic / Mirror",
+      "keywords": "Acrylic tebal berapa, satu layer atau dua?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Sahkan material stok semasa sebelum penerbitan artikel spesifikasi.\nPerlu semakan produk atau ukuran semasa sebelum diterbitkan.",
+      "product_scope": "acrylic,mirror",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-039",
+    "draft": {
+      "title": "Acrylic A6 harga normal dan urgent berapa?",
+      "answer": "Acrylic {{size}} bagi {{process}} ialah {{quoted_price}} mengikut quote semasa. Untuk urgent, beritahu tarikh guna serta pickup atau pos supaya slot boleh disemak.",
+      "category": "Acrylic / Mirror",
+      "keywords": "Acrylic A6 harga normal dan urgent berapa?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · RPC-PRICE-20261007, CHAT-ACRYLIC-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "acrylic,mirror",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-040",
+    "draft": {
+      "title": "A7, A6, A5 dan A4 besar mana?",
+      "answer": "Panduan semasa menyatakan A6 sekitar 5.5 × 4 inci dan A5 sekitar 8 × 5.5 inci. Ukuran A7 dan permintaan A4 perlu disemak kerana sumber mempunyai perbezaan ukuran dan pilihan harga.",
+      "category": "Acrylic / Mirror",
+      "keywords": "A7, A6, A5 dan A4 besar mana?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CHAT-ACRYLIC-20261007, DESC-20260630",
+      "review_note": "A7: 2.5×4 inci berbanding 4×2.8 inci; A4 RM60 dalam chat tetapi tidak ditangani khusus oleh RPC.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "acrylic,mirror",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-041",
+    "draft": {
+      "title": "Acrylic ada warna apa, gold ada stok?",
+      "answer": "Panduan warna menyenaraikan Gold Mirror, Silver Mirror, Black, White dan Clear serta pilihan lain. Warna yang boleh ditempah perlu ikut stok semasa; nak warna dan saiz apa?",
+      "category": "Acrylic / Mirror",
+      "keywords": "Acrylic ada warna apa, gold ada stok?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CHAT-ACRYLIC-20261007, DESC-20260630",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "acrylic,mirror",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-042",
+    "draft": {
+      "title": "Boleh buat acrylic logo wedding sendiri?",
+      "answer": "Hantar logo atau contoh yang jelas bersama ukuran dan warna. Kami semak kesesuaian garis serta struktur untuk laser cut sebelum sahkan design dan harga.",
+      "category": "Acrylic / Mirror",
+      "keywords": "Boleh buat acrylic logo wedding sendiri?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630, INBOX-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "acrylic,mirror",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-043",
+    "draft": {
+      "title": "Acrylic datang dengan stick sekali?",
+      "answer": "Description standard menyatakan stick dan double-sided tape disertakan. Permintaan tanpa stick, warna stick atau panjang tertentu perlu disemak mengikut order.",
+      "category": "Acrylic / Mirror",
+      "keywords": "Acrylic datang dengan stick sekali?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Arahan design owner tanpa stick ialah output artwork, bukan automatik polisi packaging customer.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "acrylic,mirror",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-044",
+    "draft": {
+      "title": "Design acrylic percuma ke, boleh edit banyak kali?",
+      "answer": "Description menyatakan design disediakan. Skop design asas dan perubahan tambahan perlu ikut servis yang dipilih; custom kompleks atau perubahan berulang perlu semakan admin dahulu.",
+      "category": "Acrylic / Mirror",
+      "keywords": "Design acrylic percuma ke, boleh edit banyak kali?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630, CHAT-ACRYLIC-20261007",
+      "review_note": "Tiada bilangan revision atau polisi free design tanpa had yang disahkan.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "acrylic,mirror",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-045",
+    "draft": {
+      "title": "Mirror Gold Artpaper berapa harga dan sampai saiz apa?",
+      "answer": "Mirror Gold Artpaper boleh custom sehingga A5 mengikut description. Harga bagi {{process}} ialah {{quoted_price}} daripada quote semasa.",
+      "category": "Acrylic / Mirror",
+      "keywords": "Mirror Gold Artpaper berapa harga dan sampai saiz apa?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630, RPC-PRICE-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "acrylic,mirror",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-046",
+    "draft": {
+      "title": "Mirror artpaper ada silver atau warna lain?",
+      "answer": "Mirror Gold Artpaper standard hanya warna mirror gold. Jika nak material acrylic berwarna lain, beritahu saiz dan warna untuk kami semak stok.",
+      "category": "Acrylic / Mirror",
+      "keywords": "Mirror artpaper ada silver atau warna lain?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "",
+      "product_scope": "acrylic,mirror",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-047",
+    "draft": {
+      "title": "Macam mana nak order?",
+      "answer": "Beritahu produk, saiz atau bentuk, kuantiti, wording atau gambar, tarikh nak guna dan pickup atau pos. Kami semak detail dan jumlah sebelum beri langkah pengesahan atau pembayaran.",
+      "category": "Order / Design",
+      "keywords": "Macam mana nak order? macam mana nak order cara order nk order mcm mana",
+      "aliases": "macam mana nak order\ncara order\nnk order mcm mana",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630, OS-20260716",
+      "review_note": "",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-048",
+    "draft": {
+      "title": "Saya dah order Shopee, detail kena hantar dekat mana?",
+      "answer": "Hantar wording dan gambar dalam chat order ini. Jika detail dihantar melalui WhatsApp, order perlu dipadankan dengan identiti yang betul supaya detail masuk pada item yang sama.",
+      "category": "Order / Design",
+      "keywords": "Saya dah order Shopee, detail kena hantar dekat mana?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630, CONTEXT-OWNER",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-049",
+    "draft": {
+      "title": "Saya dah bayar tapi belum bagi nama, boleh terus proses?",
+      "answer": "Kami semak detail yang wajib untuk item ini dahulu. Kalau nama, wording atau gambar masih diperlukan, hantar detail tersebut supaya order boleh diproses dengan tepat.",
+      "category": "Order / Design",
+      "keywords": "Saya dah bayar tapi belum bagi nama, boleh terus proses?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER, ADMINAI-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-050",
+    "draft": {
+      "title": "Boleh tengok design sebelum print?",
+      "answer": "Review atau preview bergantung pada servis yang dipilih. Order dengan review akan menggunakan proses semakan design; print only / no review mengikut pilihan yang disahkan.",
+      "category": "Order / Design",
+      "keywords": "Boleh tengok design sebelum print?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630, RPC-PRICE-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-051",
+    "draft": {
+      "title": "Design salah, boleh edit sekarang?",
+      "answer": "Beritahu bahagian yang nak diubah. Saya semak status review dan production dahulu untuk tentukan sama ada masih boleh edit, kemudian admin sahkan perubahan yang perlu.",
+      "category": "Order / Design",
+      "keywords": "Design salah, boleh edit sekarang?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER, ADMINAI-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-052",
+    "draft": {
+      "title": "Saya tekan Design OK, lepas tu macam mana?",
+      "answer": "Saya semak keputusan review untuk order ini. Apabila design telah disahkan dan syarat order dipenuhi, kerja akan ikut aliran production yang ditetapkan.",
+      "category": "Order / Design",
+      "keywords": "Saya tekan Design OK, lepas tu macam mana?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER, ADMINAI-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-053",
+    "draft": {
+      "title": "Boleh buat dua design untuk dua keping?",
+      "answer": "Boleh nyatakan detail untuk setiap keping secara berasingan. Jika kuantiti lebih daripada satu, kami perlu tahu sama design atau design berbeza sebelum sahkan order.",
+      "category": "Order / Design",
+      "keywords": "Boleh buat dua design untuk dua keping?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER, ADMINAI-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-054",
+    "draft": {
+      "title": "Nama untuk order baru sama macam order lepas?",
+      "answer": "Sila sahkan nama atau wording untuk order baru ini. Kami guna detail sesi order semasa; detail order lama tidak digunakan semula tanpa pengesahan.",
+      "category": "Order / Design",
+      "keywords": "Nama untuk order baru sama macam order lepas?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-055",
+    "draft": {
+      "title": "Order sekarang sempat siap hari ini?",
+      "answer": "Untuk urgent, kami semak produk, detail lengkap, pengesahan bayaran, cutoff sebelum 12 tengah hari dan slot tersedia. Beritahu tarikh guna serta pickup atau pos dahulu.",
+      "category": "Masa / Delivery",
+      "keywords": "Order sekarang sempat siap hari ini?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CHAT-ACRYLIC-20261007, DESC-20260630",
+      "review_note": "Same-day process/ship tidak sama dengan sampai pada customer hari sama.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-056",
+    "draft": {
+      "title": "Bayar selepas 12 tengah hari boleh pos hari ini?",
+      "answer": "Selepas cutoff, jadual perlu disemak untuk hari bekerja berikutnya dan slot yang tersedia. Kami sahkan berdasarkan produk serta status detail dan payment order ini.",
+      "category": "Masa / Delivery",
+      "keywords": "Bayar selepas 12 tengah hari boleh pos hari ini?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CHAT-ACRYLIC-20261007, DESC-20260630",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-057",
+    "draft": {
+      "title": "Pre-order berapa hari siap?",
+      "answer": "Tempoh proses ikut produk dan servis. Panduan acrylic terkini menyebut 2–3 hari bekerja; produk lain perlu ikut listing atau polisi semasa. Respon review customer juga boleh mempengaruhi tempoh siap.",
+      "category": "Masa / Delivery",
+      "keywords": "Pre-order berapa hari siap?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CHAT-ACRYLIC-20261007, DESC-20260630, CONTEXT-OWNER",
+      "review_note": "Sumber lama ada 1–3, 2–3 dan 3–5 hari; perlu polisi khusus produk/channel.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-058",
+    "draft": {
+      "title": "Hari Jumaat atau public holiday proses juga?",
+      "answer": "Panduan urgent menyatakan pengecualian Jumaat dan public holiday. Tarikh siap perlu ikut kalendar kerja serta slot yang disahkan untuk order ini.",
+      "category": "Masa / Delivery",
+      "keywords": "Hari Jumaat atau public holiday proses juga?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CHAT-ACRYLIC-20261007, CONTEXT-OWNER",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-059",
+    "draft": {
+      "title": "Kalau pos, bila sampai?",
+      "answer": "Tempoh courier ialah anggaran selepas parcel diserahkan. Untuk Shopee, semak estimated delivery pada order; untuk direct order, kami semak pilihan courier dan destinasi. Tarikh sampai tidak boleh dijamin daripada tarikh ship sahaja.",
+      "category": "Masa / Delivery",
+      "keywords": "Kalau pos, bila sampai?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-060",
+    "draft": {
+      "title": "Pos ke Sabah atau Sarawak boleh, berapa hari?",
+      "answer": "Description menyenaraikan penghantaran EM, tetapi tempoh dan caj tepat perlu ikut courier serta alamat semasa. Beritahu postcode dan tarikh guna untuk semakan.",
+      "category": "Masa / Delivery",
+      "keywords": "Pos ke Sabah atau Sarawak boleh, berapa hari?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Sumber edible 3–9 hari; acrylic 7–10 hari, bukan satu SLA universal.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-061",
+    "draft": {
+      "title": "Postage SPX, J&T atau Ninja berapa?",
+      "answer": "Caj penghantaran akan dikira daripada pilihan dan alamat semasa. Untuk Shopee, jumlah ikut checkout Shopee termasuk voucher yang layak; untuk direct order, jumlah daripada quote sistem.",
+      "category": "Masa / Delivery",
+      "keywords": "Postage SPX, J&T atau Ninja berapa?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · AUDIT-20260721",
+      "review_note": "RM4.50/RM5.90/RM6.90 ialah rujukan sejarah, belum diverifikasi kadar live semua laluan.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-062",
+    "draft": {
+      "title": "Free shipping ada?",
+      "answer": "Untuk Shopee, voucher penghantaran tertakluk pada syarat aplikasi dan checkout. Untuk direct order, kami semak caj yang dipaparkan dalam quote; tiada free shipping dijanjikan tanpa promosi sah.",
+      "category": "Masa / Delivery",
+      "keywords": "Free shipping ada?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-063",
+    "draft": {
+      "title": "Dah siap boleh terus datang pickup?",
+      "answer": "Saya semak sama ada order telah ditanda ready for pickup dan waktu operasi. Jika belum ada pengesahan siap, admin perlu semak dahulu.",
+      "category": "Masa / Delivery",
+      "keywords": "Dah siap boleh terus datang pickup?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER, ADMINAI-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-064",
+    "draft": {
+      "title": "Nak tracking, barang dah pos ke?",
+      "answer": "Saya semak tracking dan status shipment untuk order ini. Jika sudah ada tracking sah, kami beri pautan tracking; nombor AWB sahaja tidak semestinya bermaksud courier sudah ambil parcel.",
+      "category": "Masa / Delivery",
+      "keywords": "Nak tracking, barang dah pos ke?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · ADMINAI-20261007, CONTEXT-OWNER",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-065",
+    "draft": {
+      "title": "Boleh bayar cash masa pickup?",
+      "answer": "Pilihan cash at counter boleh digunakan apabila ditawarkan untuk order ini. Status kelulusan admin perlu disemak sebelum production disahkan.",
+      "category": "Payment / Support",
+      "keywords": "Boleh bayar cash masa pickup?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-066",
+    "draft": {
+      "title": "Saya pilih cash counter, order automatik masuk production?",
+      "answer": "Saya semak pengesahan order dan kelulusan admin. Pilihan cash sahaja belum cukup untuk menyatakan order sudah masuk production.",
+      "category": "Payment / Support",
+      "keywords": "Saya pilih cash counter, order automatik masuk production?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER, ADMINAI-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-067",
+    "draft": {
+      "title": "Nak QR untuk bayar?",
+      "answer": "Saya beri pautan pembayaran yang sah untuk order ini: {{payment_link}}. Ikut jumlah tepat dan tempoh sah yang dipaparkan pada halaman tersebut.",
+      "category": "Payment / Support",
+      "keywords": "Nak QR untuk bayar?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-068",
+    "draft": {
+      "title": "Jumlah ada sen pelik, boleh round up?",
+      "answer": "Ikut jumlah TEPAT yang dipaparkan pada halaman pembayaran supaya bayaran boleh dipadankan dengan order. Jangan ubah jumlah atau guna sesi yang telah tamat.",
+      "category": "Payment / Support",
+      "keywords": "Jumlah ada sen pelik, boleh round up?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-069",
+    "draft": {
+      "title": "Dah transfer, kenapa masih unpaid?",
+      "answer": "Saya semak rekod transaksi dan order dahulu. Hantar rujukan bayaran jika diperlukan; status paid hanya disahkan apabila transaksi dipadankan atau disahkan admin.",
+      "category": "Payment / Support",
+      "keywords": "Dah transfer, kenapa masih unpaid?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER, ADMINAI-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-070",
+    "draft": {
+      "title": "Resit screenshot cukup untuk confirm paid?",
+      "answer": "Resit boleh membantu semakan. Pengesahan paid perlu berdasarkan rekod bayaran atau pengesahan admin; screenshot sahaja tidak terus mengesahkan pembayaran.",
+      "category": "Payment / Support",
+      "keywords": "Resit screenshot cukup untuk confirm paid?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-071",
+    "draft": {
+      "title": "Boleh bayar deposit atau dapat diskaun?",
+      "answer": "Bayaran sebahagian, deposit atau harga khas perlu kelulusan dan aturan yang disahkan untuk order ini. Kami semak dengan admin sebelum janji jumlah atau syarat.",
+      "category": "Payment / Support",
+      "keywords": "Boleh bayar deposit atau dapat diskaun?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-072",
+    "draft": {
+      "title": "Boleh cancel atau refund?",
+      "answer": "Saya semak status bayaran dan production dahulu. Permintaan cancel atau refund akan diserahkan kepada admin; bagi order Shopee, langkah seterusnya juga ikut proses dalam aplikasi.",
+      "category": "Payment / Support",
+      "keywords": "Boleh cancel atau refund?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-073",
+    "draft": {
+      "title": "Barang rosak, patah atau print salah, macam mana?",
+      "answer": "Boleh hantar gambar keadaan barang, bungkusan dan maklumat order. Kami akan serahkan kepada admin untuk semakan dan tindakan yang sesuai.",
+      "category": "Payment / Support",
+      "keywords": "Barang rosak, patah atau print salah, macam mana?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · INBOX-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-074",
+    "draft": {
+      "title": "Barang tak sampai sebelum event, boleh ganti?",
+      "answer": "Beritahu tarikh event dan nombor order. Kami semak status courier serta pilihan tindakan dengan admin; gantian atau refund perlu keputusan berdasarkan kes sebenar.",
+      "category": "Payment / Support",
+      "keywords": "Barang tak sampai sebelum event, boleh ganti?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · INBOX-20261007, DESC-20260630",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-075",
+    "draft": {
+      "title": "Produk halal ke, ada sijil?",
+      "answer": "Description bahan menyatakan food grade dan halal, tetapi dokumen sijil serta status semasa perlu disemak sebelum kami sahkan pensijilan. Boleh beritahu maklumat bahan yang diperlukan.",
+      "category": "Lanjutan",
+      "keywords": "Produk halal ke, ada sijil?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "Jangan menyebut ada sijil halal iCetak tanpa dokumen dan skop yang sah.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-076",
+    "draft": {
+      "title": "Edible ada alergen apa?",
+      "answer": "Kami perlu semak senarai ramuan dan maklumat alergen daripada label atau pembekal bagi bahan yang digunakan. Kami tidak mengesahkan bebas alergen tanpa dokumen.",
+      "category": "Lanjutan",
+      "keywords": "Edible ada alergen apa?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · PLAN",
+      "review_note": "Tiada senarai ramuan/alergen dalam sumber yang dibaca.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-077",
+    "draft": {
+      "title": "Order banyak 500 keping ada harga borong?",
+      "answer": "Beritahu diameter, kuantiti, jumlah design dan print only atau print & cut. Kami kira susunan setiap A4 dan beri quotation yang disahkan; harga tempahan lama tidak digunakan automatik.",
+      "category": "Lanjutan",
+      "keywords": "Order banyak 500 keping ada harga borong?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CHAT-BULK-20260922",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-078",
+    "draft": {
+      "title": "Edible cupcake 1.8 inci satu A4 dapat berapa?",
+      "answer": "Senarai harga seller menyebut 24 keping pada saiz 1.8 inci dan harga unit RM1.20. Jumlah set, pembundaran helaian dan servis cut perlu disahkan sebelum quote.",
+      "category": "Lanjutan",
+      "keywords": "Edible cupcake 1.8 inci satu A4 dapat berapa?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CHAT-EI-20261007",
+      "review_note": "24 × RM1.20 = RM28.80; berbeza daripada harga A4 RM24. Jangan auto kira satu set tanpa polisi.\nPerlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  },
+  {
+    "import_key": "owner-reference-FAQ-079",
+    "draft": {
+      "title": "Warna print sama 100% dengan gambar phone?",
+      "answer": "Warna cetakan boleh berbeza sedikit daripada paparan gambar asal. Hantar fail paling jelas dan nyatakan jika ada warna tertentu yang perlu semakan.",
+      "category": "Lanjutan",
+      "keywords": "Warna print sama 100% dengan gambar phone? warna sama dengan phone warna print sama",
+      "aliases": "warna sama dengan phone\nwarna print sama",
+      "source": "Fail knowledge rujukan pemilik · DESC-20260630",
+      "review_note": "",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": true
+  },
+  {
+    "import_key": "owner-reference-FAQ-080",
+    "draft": {
+      "title": "Saya dah bagi detail dekat WhatsApp, kena hantar semula di Shopee?",
+      "answer": "Kami semak sama ada WhatsApp itu telah dipautkan kepada order Shopee yang betul. Kalau padanan sah dan detail setiap item lengkap, maklumat boleh digunakan untuk order semasa; kalau belum pasti, kami minta pengesahan.",
+      "category": "Lanjutan",
+      "keywords": "Saya dah bagi detail dekat WhatsApp, kena hantar semula di Shopee?",
+      "aliases": "",
+      "source": "Fail knowledge rujukan pemilik · CONTEXT-OWNER, ADMINAI-20261007",
+      "review_note": "Perlu semakan konteks, katalog atau polisi semasa. Harga dan tempoh dalam fail rujukan lama belum disahkan untuk penerbitan.",
+      "product_scope": "",
+      "channels": [
+        "whatsapp",
+        "shopee"
+      ]
+    },
+    "publish": false
+  }
+]

@@ -277,3 +277,8 @@ Backend PRODUCTION / controlled rendered behavior VERIFIED: Inbox JWT/staff-only
 # 2026-10-10 — Inline suggestion cost guard
 
 Delivery PRODUCTION / controlled UI VERIFIED: Inbox inbox-reply-suggest v2 retains JWT/staff auth and adds a service-only atomic 120/hour, 1000/MYT-day, 30s/chat allowance before canonical reads. No polling/expiry/resume refresh or unchanged-context automatic retries; scoped order events, bounded account memory cache, one browser request at a time and error/429 backoff. Live SQL rollback boundary/reset/retention/grant tests and exact gateway v2/auth readback pass; zero persisted QA counters. Ten idle minutes produce zero extra UI requests. Existing composer/send/session rules and Order inbox-reply-context v1 remain unchanged. Hosted authenticated staff interaction remains unexercised. See INBOX_REPLY_SUGGESTIONS.md.
+
+
+# 2026-10-11 — Reply Knowledge
+
+Backend PRODUCTION / rendered UI VERIFIED: Order Knowledge v2, context v4 and Dashboard v22 share published FAQ retrieval and formal/channel style; Inbox owns successful-human-only learning queue. 19 published / 61 review drafts; five-minute bounded learning batches, copy/automation exclusion and TTL cleanup active. No OpenAI generation or provider sends. Actual desktop/mobile Knowledge controls, tab unmount/no idle polling, live SQL and endpoint source/version outcomes verified; hosted frontend release check pending. See [REPLY_KNOWLEDGE.md](REPLY_KNOWLEDGE.md).
