@@ -15,7 +15,8 @@ Deno.serve(async (req: Request) => {
     if (raw.length > 12000) return out({ ok: false, error: 'Payload terlalu besar.' }, 413);
     let b: any;
     try { b = JSON.parse(raw); } catch { return out({ ok: false, error: 'JSON diperlukan.' }, 400); }
-    if (!b || typeof b !== 'object' || String(b.access_token || '').length > 8192) return out({ ok: false, error: 'Payload tidak sah.' }, 400);
+    if (!b || typeof b !== 'object' || Array.isArray(b) || typeof b.access_token !== 'string' || !b.access_token.trim() || b.access_token.length > 8192) return out({ ok: false, error: 'Payload tidak sah.' }, 400);
+    // Times remain optional for old integrations; the minimal contract needs only IDs and token.
     const { data, error } = await db.rpc('icetak_shopee_chat_config', { p_action: 'rotate_token', p_body: { partner_id: String(b.partner_id || ''), shop_id: String(b.shop_id || ''), access_token: b.access_token, rotated_at: b.rotated_at, expires_at: b.expires_at, webhook_key_hash: hash, actor: 'token-automation' } });
     if (error) {
       const code = ['STALE_ROTATION', 'ROTATION_CONFLICT', 'IDENTITY_MISMATCH', 'UNAUTHORIZED_ROTATION'].find(x => String(error.message).includes(x));

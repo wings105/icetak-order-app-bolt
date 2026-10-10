@@ -28,6 +28,12 @@ try {
   await checkConnection(checkDb,c,'owner',async()=>Response.json({response:{conversation_id:'conv-provider'}}));assert.equal(record.ok,true);
   await checkConnection(checkDb,c,'owner',async()=>Response.json({response:{}}));assert.equal(record.ok,false);
   await checkConnection(checkDb,c,'owner',async()=>Response.json({error:'bad_token',message:c.access_token}));assert.equal(record.code,'SHOPEE_bad_token');checks+=3;
+  const unknownExpiry={...c,token_expires_at:null};
+  assert.equal(readiness(unknownExpiry),'READY');
+  assert.equal(readiness({...c,token_expires_at:'bad-date'}),'TOKEN_EXPIRED');
+  let unknownReads=0;
+  await checkConnection(checkDb,unknownExpiry,'owner',async()=>{unknownReads++;return Response.json({response:{conversation_id:'conv-provider'}})});
+  assert.equal(unknownReads,1);assert.equal(record.ok,true);checks+=3;
   let claims=0, sends=0, status='sending', mode='success', config={...c};
   const conversation={id:'00000000-0000-0000-0000-000000000001',channel:'shopee',external_customer_id:'789',metadata:{shop_id:'456'},external_conversation_id:'conv-provider'};
   const updates=[];
@@ -58,11 +64,26 @@ try {
   assert.equal((await gateway(request('get'))).status,401); role='admin'; assert.equal((await gateway(request('save','Bearer fixture'))).status,403);assert.equal(bridgeCalls,0);role='owner';assert.equal((await gateway(request('get','Bearer fixture'))).status,200);checks+=3;
   const hookKey='fixture-rotation-key-that-is-at-least-forty-characters', hash=await sha256(hookKey);
   let rotationCalls=0;
-  const rotationDb={rpc:async(name,args)=>args.p_action==='get'?{data:{...c,webhook_key_hash:hash}}:(rotationCalls++,assert.equal(args.p_body.webhook_key_hash,hash),{data:{...c,duplicate:true}})};
+  let rotationBody;
+  const rotationDb={rpc:async(name,args)=>args.p_action==='get'?{data:{...c,webhook_key_hash:hash}}:(rotationCalls++,rotationBody=args.p_body,assert.equal(args.p_body.webhook_key_hash,hash),{data:{...c,duplicate:true}})};
   const rotation=await handler('supabase/inbox-functions/shopee-token-rotate/index.ts',rotationDb);
   assert.equal((await rotation(request('get'))).status,401);assert.equal(rotationCalls,0);
   const response=await rotation(new Request('https://fixture.example',{method:'POST',headers:{'x-icetak-shopee-key':hookKey},body:JSON.stringify({partner_id:'123',shop_id:'456',access_token:'fixture-new-token',rotated_at:new Date().toISOString(),expires_at:c.token_expires_at})}));
   assert.equal(response.status,200);const body=await response.text();assert.ok(!body.includes(c.access_token));assert.ok(!body.includes(hookKey));assert.equal(rotationCalls,1);checks+=2;
+  for(const optional of [{},{rotated_at:'',expires_at:''}]){
+    const r=await rotation(new Request('https://fixture.example',{method:'POST',headers:{'x-icetak-shopee-key':hookKey},body:JSON.stringify({partner_id:'123',shop_id:'456',access_token:'fixture-new-token',...optional})}));
+    assert.equal(r.status,200);assert.equal(rotationBody.access_token,'fixture-new-token');checks++;
+  }
+  // Unknown expiry requires a fresh provider read; a failed read creates no outbox claim.
+  let readAllowed=true, preflights=0, unknownClaims=0, unknownSends=0;
+  const unknownDb={from(table){return {select(){return this},eq(){return this},in(){return this},order(){return this},single:async()=>({data:conversation}),limit:async()=>({data:[conversation]}),then(resolve,reject){return Promise.resolve({data:[{setting_key:'shopee_chat_direct_config',setting_value:JSON.stringify(unknownExpiry)}]}).then(resolve,reject)},update(){return this},insert:async()=>({})}},rpc:async(name,args)=>{
+    if(name==='icetak_shopee_chat_config')return {data:{...unknownExpiry,check_ok:args.p_body.ok,checked_credential_version:args.p_body.credential_version}};
+    unknownClaims++;return {data:{claimed:unknownClaims===1,attempt:{id:'attempt',status:'sending',local_message_id:'local'}}};
+  }};
+  globalThis.fetch=async(url)=>{if(new URL(url).pathname.endsWith('get_one_conversation')){preflights++;return Response.json(readAllowed?{response:{conversation_id:'conv-provider'}}:{error:'bad_token'})}unknownSends++;return Response.json({response:{message_id:'fixture-message'}})};
+  readAllowed=false;assert.equal((await sendShopee(unknownDb,sendBody,actor)).status,503);assert.equal(unknownClaims,0);assert.equal(unknownSends,0);checks++;
+  readAllowed=true;assert.equal((await sendShopee(unknownDb,sendBody,actor)).status,200);assert.equal(preflights,2);assert.equal(unknownSends,1);checks++;
+  await sendShopee(unknownDb,sendBody,actor);assert.equal(unknownSends,1);checks++;
   const inactiveDb={auth:{getUser:async()=>({data:{user:{id:'inactive-staff'}}})},from:()=>({select(){return this},eq(){return this},maybeSingle:async()=>({data:{display_name:'Inactive',role:'staff',active:false}})})};
   const staffSend=await handler('supabase/inbox-functions/shopee-chat-send/index.ts',inactiveDb);
   assert.equal((await staffSend(new Request('https://fixture.example',{method:'POST',headers:{authorization:'Bearer fixture'},body:JSON.stringify(sendBody)}))).status,403);checks++;

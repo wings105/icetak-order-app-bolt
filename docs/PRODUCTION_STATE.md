@@ -1,3 +1,7 @@
+# 2026-10-10 — Shopee token push without dates
+
+Backend PRODUCTION: minimal App ID / Shop ID / Access Token and blank dates accepted, server receipt time recorded and expiry stays unknown. Same-token retries preserve state; unknown-expiry sends require provider read before claim. Inbox optional-times migration, rotation/config v2, sender v7 and AI bridge v8 have exact source/auth readback. Twenty-eight integration checks, six provider checks and both service-role live rollback suites pass; configured shop/key remain unchanged. Root build passes. Settings sample updated; rendered owner and real automation retry pending. See SHOPEE_CHAT_DIRECT_SETUP.md.
+
 # 2026-10-10 — Shopee direct settings and token rotation
 
 Backend PRODUCTION: Inbox private icetak_shopee_chat_config invoker RPC, shopee-chat-config v1, shopee-token-rotate v1, shopee-chat-send v6 and ai-dashboard-bridge v7; Order shopee-chat-settings v1 validates active owner. Existing ClickUp/AP flow remains the only refresh producer, pushing timestamped scoped updates. SQL rollback/idempotency/privacy tests, 20 integration and six provider checks, exact source/auth readback and real sanitized Order→Inbox config read pass. Empty configuration and anonymous rejections verified; no customer send or ClickUp write. Admin V2 Settings frontend is implemented; owner rendered/provider validation pending login and credential entry. See SHOPEE_CHAT_DIRECT_SETUP.md.

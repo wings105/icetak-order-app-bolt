@@ -1,3 +1,7 @@
+# 2026-10-10 — Shopee token push simplification
+
+- [PRODUCTION backend] Token rotation accepts three fields without dates, records receipt time and preserves retries; unknown expiry uses provider read before any send claim. Applied private RPC and four deployed functions verified by live rollback tests/source/auth readback and 28 integration checks; no real messages/token/ClickUp mutations. Settings sample updated; owner rendered automation retry remains pending.
+
 # 2026-10-10 — Shopee direct configuration backend
 
 - [PRODUCTION backend] Owner-only Shopee settings gateway, private versioned config RPC and dedicated hashed-key token rotation endpoint deployed and smoke-checked. Identical rotation retries are idempotent; stale/conflicting/wrong-shop/revoked-key input is rejected. Inbox/Dashboard sender retains the shared ledger and adds shop/expiry/read-check guards. Exact five-function source/auth readback, 20 integration checks, six provider-result tests, SQL rollback tests and live sanitized bridge/anonymous rejection checks pass; advisor counts unchanged. Configuration is empty, no customer sends or ClickUp writes. Settings frontend/provider outcome verification remains pending owner login and credential entry; see docs/SHOPEE_CHAT_DIRECT_SETUP.md.

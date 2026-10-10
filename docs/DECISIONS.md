@@ -1,5 +1,9 @@
 # iCetak Architecture Decisions
 
+## 2026-10-10 — Token rotation needs only identity and token
+
+The owner requested removing automation timestamps. Minimal pushes contain App ID, Shop ID and Access Token. Record receipt time, keep absent expiry unknown, preserve same-token retries and reject bounded known retired-token replays. Unknown expiry requires an immediate read-only Shopee check before an outbound claim. Do not assume a four-hour lifetime for tokens copied from ClickUp. Optional original timestamps remain backward compatible; untimed unseen updates must come from one serialized refresh producer.
+
 ## 2026-10-10 — Shopee sends are direct; existing automation owns token refresh
 
 Keep the existing ClickUp/AP refresh flow as the single token-rotation producer. It may push the new token to a dedicated, hashed-key Inbox endpoint after updating its ClickUp task. iCetak does not run a competing refresh loop. Owner-only Admin V2 Settings configures one App/Shop/environment through the existing private Order→Inbox bridge; browser responses never return stored Partner Key/Access Token. A changed identity clears old credentials, and rotation/check versions fail closed on stale or conflicting input. Manual Inbox and AI Dashboard sends share the existing audited ledger. See `SHOPEE_CHAT_DIRECT_SETUP.md` for contract and unverified provider/UI boundaries.

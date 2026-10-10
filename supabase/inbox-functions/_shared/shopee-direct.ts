@@ -1,5 +1,9 @@
 export type ShopeeConfig = Record<string, any>;
 const str = (value: unknown) => String(value ?? '').trim();
+// Missing expiry means unknown, not expired or an invented new token lifetime.
+export function tokenExpired(c: ShopeeConfig) {
+  return !!c.token_expires_at && (!Number.isFinite(Date.parse(c.token_expires_at)) || Date.parse(c.token_expires_at) <= Date.now());
+}
 export async function sha256(value: string) {
   return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))), x => x.toString(16).padStart(2, '0')).join('');
 }
@@ -8,7 +12,7 @@ export function readiness(c: ShopeeConfig, shop?: string) {
   if (shop && str(c.shop_id) !== shop) return 'SHOP_MISMATCH';
   if (!c.enabled) return 'DISABLED';
   if (!c.partner_key || !c.access_token) return 'CREDENTIALS_REQUIRED';
-  if (!Number.isFinite(Date.parse(c.token_expires_at)) || Date.parse(c.token_expires_at) <= Date.now()) return 'TOKEN_EXPIRED';
+  if (tokenExpired(c)) return 'TOKEN_EXPIRED';
   if (!c.check_ok || c.checked_credential_version !== c.credential_version) return 'CHECK_REQUIRED';
   return 'READY';
 }
@@ -36,7 +40,7 @@ export async function shopeeRequest(c: ShopeeConfig, path: '/api/v2/sellerchat/s
 }
 export async function checkConnection(db: any, c: ShopeeConfig, actor: string, fetcher = fetch) {
   let code = 'CREDENTIALS_REQUIRED', ok = false;
-  if (c.partner_key && c.access_token && Date.parse(c.token_expires_at) > Date.now()) {
+  if (c.partner_key && c.access_token && !tokenExpired(c)) {
     const { data, error } = await db.from('conversations').select('external_conversation_id,metadata').eq('channel', 'shopee').order('last_message_at', { ascending: false }).limit(200);
     const conversation = (data || []).find((row: any) => str(row.metadata?.shop_id) === str(c.shop_id) && row.external_conversation_id);
     if (error) code = 'INBOX_READ_FAILED';

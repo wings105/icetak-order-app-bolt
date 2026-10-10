@@ -78,33 +78,33 @@ export default function ShopeeChatSettings() {
     catch { setError('Clipboard tidak tersedia. Pilih dan salin teks secara manual.'); }
   }
   const change = () => { setDirty(true); setNotice(''); };
-  const sample = JSON.stringify({ partner_id: partnerId || '<APP_ID>', shop_id: shopId || '<SHOP_ID>', access_token: '<TOKEN_BARU_DARI_AUTOMATION>', rotated_at: '<MASA_TOKEN_DIJANA_ISO8601>', expires_at: '<MASA_TOKEN_EXPIRE_ISO8601>' }, null, 2);
+  const sample = JSON.stringify({ partner_id: partnerId || '<APP_ID>', shop_id: shopId || '<SHOP_ID>', access_token: '<TOKEN_BARU_DARI_AUTOMATION>' }, null, 2);
   return <section className="panel" id="shopee-chat-settings" aria-label="Shopee Chat Direct API" style={{ gridColumn: '1 / -1' }}>
     <div className="panel-header"><div><div className="panel-title">Shopee Chat — Direct API</div><div className="panel-subtitle">Chat dihantar terus dari iCetak. Automation sedia ada kekal mengurus token refresh.</div></div></div>
     <div style={{ padding: 20, display: 'grid', gap: 14 }}>
       {error && <div role="alert" style={{ color: '#b42318' }}>{error}</div>}
       {notice && <div role="status" style={{ color: '#027a48' }}>{notice}</div>}
       {!loaded && !busy && <button className="btn btn-outline" onClick={() => setReload(x => x + 1)}>Cuba muat semula</button>}
-      {config && <div className="cell-sub"><b>{states[config.readiness] || config.readiness}</b> · Token expire: {date(config.token_expires_at)} MYT · Update token: {date(config.token_rotated_at)} MYT</div>}
+      {config && <div className="cell-sub"><b>{states[config.readiness] || config.readiness}</b> · Token expire: {config.token_expires_at ? `${date(config.token_expires_at)} MYT` : 'Tidak dibekalkan — disemak dengan Shopee sebelum send'} · Update token: {date(config.token_rotated_at)} MYT</div>}
       <div className="grid-2">
         <label className="form-field"><span>Partner / App ID</span><input inputMode="numeric" value={partnerId} disabled={busy || !loaded} onChange={e => { setPartnerId(e.target.value); change(); }} /></label>
         <label className="form-field"><span>Shop ID</span><input inputMode="numeric" value={shopId} disabled={busy || !loaded} onChange={e => { setShopId(e.target.value); change(); }} /></label>
         <label className="form-field"><span>Environment</span><select value={environment} disabled={busy || !loaded} onChange={e => { setEnvironment(e.target.value); change(); }}><option value="production">Production</option><option value="sandbox">Sandbox / test-stable</option></select></label>
         <label className="form-field"><span>Partner Key {config?.partner_key_present ? '— sudah disimpan' : ''}</span><input type="password" autoComplete="new-password" value={partnerKey} placeholder={config?.partner_key_present ? 'Kosongkan untuk kekalkan key' : 'Isi Partner Key'} disabled={busy || !loaded} onChange={e => { setPartnerKey(e.target.value); change(); }} /></label>
         <label className="form-field"><span>Access Token awal — pilihan {config?.access_token_present ? '(sudah disimpan)' : ''}</span><input type="password" autoComplete="new-password" value={accessToken} placeholder="Boleh tunggu token dipush oleh automation" disabled={busy || !loaded} onChange={e => { setAccessToken(e.target.value); change(); }} /></label>
-        <label className="form-field"><span>Expiry token awal — masa tempatan peranti</span><input type="datetime-local" value={expiry} disabled={busy || !loaded || !accessToken} onChange={e => { setExpiry(e.target.value); change(); }} /></label>
+        <label className="form-field"><span>Expiry token awal — pilihan, masa tempatan peranti</span><input type="datetime-local" value={expiry} disabled={busy || !loaded || !accessToken} onChange={e => { setExpiry(e.target.value); change(); }} /></label>
       </div>
       <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input type="checkbox" checked={enabled} disabled={busy || !loaded} onChange={e => { setEnabled(e.target.checked); change(); }} />Aktifkan penghantaran direct selepas semakan sambungan lulus</label>
       <div className="cell-sub">Partner Key dan Access Token yang disimpan tidak dipaparkan semula. Tukar App/Shop/environment memerlukan credential dan rotation key baharu.</div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn btn-primary" disabled={busy || !loaded || !partnerId || !shopId || (!!accessToken && !expiry)} onClick={() => void act('save')}>Save Shopee Settings</button>
+        <button className="btn btn-primary" disabled={busy || !loaded || !partnerId || !shopId} onClick={() => void act('save')}>Save Shopee Settings</button>
         <button className="btn btn-outline" disabled={busy || !loaded || dirty || !config?.access_token_present} onClick={() => void act('check')}>Semak sambungan tanpa hantar chat</button>
         <button className="btn btn-outline" disabled={busy || !loaded || dirty} onClick={() => setReload(x => x + 1)}>Refresh status</button>
       </div>
       {dirty && <div className="cell-sub">Save perubahan dahulu sebelum semak sambungan atau jana rotation key.</div>}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, display: 'grid', gap: 10 }}>
         <b>Token rotation dari automation / ClickUp</b>
-        <div className="cell-sub">Selepas automation refresh token dan update task ClickUp, tambah HTTP POST ke URL ini. Guna masa token asal untuk rotated_at dan expiry sebenar. Retry mesti menggunakan payload yang sama.</div>
+        <div className="cell-sub">Selepas automation refresh token dan update task ClickUp, tambah HTTP POST ke URL ini. Hantar App ID, Shop ID dan Access Token sahaja. Sistem rekod masa penerimaan; token yang sama tidak disimpan berulang. Tanpa expiry, token disemak dengan Shopee sebelum send.</div>
         <label className="form-field"><span>Token Rotation Webhook URL</span><input value={rotationUrl} readOnly /></label>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button className="btn btn-outline" disabled={!rotationUrl} onClick={() => void copy(rotationUrl)}>Copy URL</button><button className="btn btn-outline" disabled={busy || !loaded || dirty || !config?.shop_id} onClick={() => void act('rotate_webhook')}>{config?.rotation_key_present ? 'Ganti rotation key (batalkan key lama)' : 'Jana rotation key'}</button></div>
         {rotationKey && <><label className="form-field"><span>Rotation key — salin sekarang</span><input type="password" autoComplete="off" value={rotationKey} readOnly /></label><div style={{ display: 'flex', gap: 8 }}><button className="btn btn-outline" onClick={() => void copy(rotationKey)}>Copy rotation key</button><button className="btn btn-outline" onClick={() => setRotationKey('')}>Sembunyikan key</button></div></>}

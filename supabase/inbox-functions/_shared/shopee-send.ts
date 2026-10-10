@@ -1,5 +1,5 @@
 import {providerResult} from './shopee-provider-result.ts';
-import {readiness, shopeeRequest} from './shopee-direct.ts';
+import {readiness, shopeeRequest, checkConnection} from './shopee-direct.ts';
 const text=(v:unknown)=>String(v??'').trim();
 const out=(body:unknown,status=200)=>Response.json(body,{status});
 export async function sendShopee(db:any,body:Record<string,any>,actor:{id:string|null,label:string}) {
@@ -17,10 +17,15 @@ export async function sendShopee(db:any,body:Record<string,any>,actor:{id:string
  const {data:settingRows,error:settingError}=await db.from('private_runtime_settings').select('setting_key,setting_value').in('setting_key',['shopee_chat_send_endpoint','shopee_chat_send_token','shopee_chat_direct_config']);
  if(settingError)return out({ok:false,error:'Konfigurasi Shopee tidak tersedia.'},503);
  const settings=Object.fromEntries((settingRows||[]).map((s:any)=>[s.setting_key,s.setting_value]));
- const direct=settings.shopee_chat_direct_config?JSON.parse(settings.shopee_chat_direct_config):null;
+ let direct=settings.shopee_chat_direct_config?JSON.parse(settings.shopee_chat_direct_config):null;
  const endpoint=text(settings.shopee_chat_send_endpoint),token=text(settings.shopee_chat_send_token);
  // Do not create a pending message when the provider is not connected.
  if(direct?.shop_id && readiness(direct,shop)!=='READY')return out({ok:false,error:'Sambungan direct Shopee belum sedia. Semak token dan sambungan dalam Admin v2 → Settings.',code:readiness(direct,shop)},503);
+ // With no supplied expiry, prove provider access immediately before claiming an outbound send.
+ if(direct?.shop_id&&!direct.token_expires_at){
+  try{direct=await checkConnection(db,direct,actor.label);}catch{return out({ok:false,error:'Token Shopee tidak dapat disahkan. Tiada mesej dihantar.'},503);}
+  if(readiness(direct,shop)!=='READY')return out({ok:false,error:'Semakan token Shopee gagal. Tiada mesej dihantar.',code:readiness(direct,shop)},503);
+ }
  if(!direct?.shop_id&&(!endpoint||!token))return out({ok:false,error:'Shopee Chat belum disambung. Draf kekal di sini; mesej belum dihantar.',code:'SHOPEE_CHAT_NOT_CONFIGURED'},503);
  if(!direct?.shop_id&&!endpoint.startsWith('https://'))return out({ok:false,error:'Endpoint Shopee mesti HTTPS.'},503);
  if(direct?.shop_id&&(!/^[1-9]\d{0,14}$/.test(buyer)||!Number.isSafeInteger(Number(buyer))))return out({ok:false,error:'Buyer ID Shopee tidak sah.'},422);
