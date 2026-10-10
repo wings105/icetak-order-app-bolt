@@ -30,7 +30,7 @@ const CONFIG: Record<Channel, {
 }> = {
   whatsapp: {
     label: 'WhatsApp',
-    bg: 'bg-[#d9fdd3] dark:bg-[#005c4b]/60',
+    bg: 'bg-[#d9fdd3] dark:bg-[var(--bubble-out)]/60',
     text: 'text-[#00a884]',
     icon: WhatsAppIcon,
   },
@@ -56,4 +56,3 @@ export function ChannelBadge({ channel, size = 'sm' }: ChannelBadgeProps) {
     </span>
   );
 }
-

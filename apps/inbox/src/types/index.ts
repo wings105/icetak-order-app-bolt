@@ -1,4 +1,4 @@
-export type MessageStatus = 'sent' | 'delivered' | 'read';
+export type MessageStatus = 'pending' | 'failed' | 'unknown' | 'sent' | 'delivered' | 'read';
 export type MessageDirection = 'inbound' | 'outbound';
 export type WindowStatus = 'open' | 'closing_soon' | 'expired' | 'no_window';
 export type Channel = 'whatsapp' | 'shopee';
@@ -123,4 +123,3 @@ export interface Conversation {
   aiAnalysisStatus?: string;
   aiAnalysisVersion?: string;
 }
-

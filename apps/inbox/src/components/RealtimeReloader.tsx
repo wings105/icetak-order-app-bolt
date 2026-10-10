@@ -86,7 +86,7 @@ export function RealtimeReloader({ channelName, onConversationChange, onMessageC
     <button
       type="button"
       onClick={forceReload}
-      className="fixed bottom-[calc(env(safe-area-inset-bottom)+12px)] right-3 z-[100] flex items-center gap-2 rounded-full bg-[#202c33] px-3 py-2 text-xs text-white shadow-lg ring-1 ring-[#3b4a54]"
+      className="fixed bottom-[calc(env(safe-area-inset-bottom)+12px)] right-3 z-[100] flex items-center gap-2 rounded-full bg-[var(--surface-muted)] px-3 py-2 text-xs text-[var(--text)] shadow-lg ring-1 ring-[#3b4a54]"
       aria-label="Muat semula mesej"
     >
       <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
@@ -94,4 +94,3 @@ export function RealtimeReloader({ channelName, onConversationChange, onMessageC
     </button>
   );
 }
-

@@ -231,7 +231,7 @@ Deno.serve(async req=>{
   if(action==='list'||action==='detail')await enrichContexts(contexts,rest);
   const globalSend=await enabled();
   const capabilities={can_manage:canManage,can_train:owner,whatsapp_api:globalSend&&source.capabilities?.whatsapp_api===true,
-   shopee_api:false,send_reason:globalSend?'':'Penghantaran WhatsApp dimatikan dalam Control Center.'};
+   shopee_api:source.capabilities?.shopee_api===true,send_reason:globalSend?'':'Penghantaran WhatsApp dimatikan dalam Control Center.'};
   if(action==='list')return json({ok:true,rows:source.rows.map((c:any)=>({...c,context:contexts[c.id],analysis:analyze(c,contexts[c.id]||{})})),
     has_more:source.rows.length===30,offset:source.offset,capabilities,fetched_at:source.fetched_at});
   const c=source.rows[0];if(!c)return json({ok:false,error:'Conversation not found'},404);
@@ -279,12 +279,12 @@ Deno.serve(async req=>{
    return json({ok:true,...await rpc('icetak_ai_dashboard_training',{p_action:trainingAction,p_actor:admin.username,p_request_id:b.request_id,p_data:data})});
   }
   if(action==='send'){
-   if(!capabilities.whatsapp_api)return json({ok:false,error:capabilities.send_reason||'Provider API tidak tersedia'},409);
-   if(c.channel!=='whatsapp')return json({ok:false,error:'Shopee: gunakan balasan manual di Seller Chat.'},409);
+   if(c.channel==='whatsapp'&&!capabilities.whatsapp_api)return json({ok:false,error:capabilities.send_reason||'Provider API tidak tersedia'},409);
+   if(c.channel==='shopee'&&!capabilities.shopee_api)return json({ok:false,error:'Shopee Chat belum disambung.'},503);
    if(b.approved!==true||!response||response.length>4000)return json({ok:false,error:'Semak dan sahkan balasan dahulu.'},400);
    if(ctx.identity_status==='ambiguous')return json({ok:false,error:'Semak padanan CRM dahulu.'},409);
    const orderIds=(ctx.orders||[]).map((o:any)=>o.id).filter(isUuid);
-   if(orderIds.length){
+   if(c.channel==='whatsapp'&&orderIds.length){
     const optouts=await rest(`orders?id=in.(${orderIds.join(',')})&whatsapp_opt_in=eq.false&select=id&limit=1`);
     if(optouts.length)return json({ok:false,error:'Ada order pelanggan ini dengan WhatsApp opt-out. Semak order sebelum hantar API.'},409);
    }

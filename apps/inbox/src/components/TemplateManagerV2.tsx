@@ -43,18 +43,17 @@ export function TemplateManagerV2() {
 
   useEffect(() => { load(); }, []);
 
-  return <div className="h-full overflow-y-auto bg-[#0b141a] text-[#e9edef]">
-    <div className="sticky top-0 z-30 flex items-center justify-between border-b border-[#2a3942] bg-[#111b21] px-4 py-3">
+  return <div className="h-full overflow-y-auto bg-[var(--canvas)] text-[var(--text)]">
+    <div className="sticky top-0 z-30 flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
       <div className="flex gap-2">
-        <button onClick={() => setTab('send')} className={`rounded-lg px-4 py-2 text-sm ${tab === 'send' ? 'bg-[#00a884] text-white' : 'bg-[#202c33] text-[#aebac1]'}`}>Hantar Template</button>
-        <button onClick={() => setTab('manage')} className={`rounded-lg px-4 py-2 text-sm ${tab === 'manage' ? 'bg-[#00a884] text-white' : 'bg-[#202c33] text-[#aebac1]'}`}>Cipta & Urus</button>
+        <button onClick={() => setTab('send')} className={`rounded-lg px-4 py-2 text-sm ${tab === 'send' ? 'bg-[#00a884] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]'}`}>Hantar Template</button>
+        <button onClick={() => setTab('manage')} className={`rounded-lg px-4 py-2 text-sm ${tab === 'manage' ? 'bg-[#00a884] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]'}`}>Cipta & Urus</button>
       </div>
-      <button onClick={load} className="flex items-center gap-2 rounded-lg bg-[#202c33] px-3 py-2 text-xs"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Sync</button>
+      <button onClick={load} className="flex items-center gap-2 rounded-lg bg-[var(--surface-muted)] px-3 py-2 text-xs"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Sync</button>
     </div>
 
     {tab === 'manage' ? <TemplateManager /> : <div className="mx-auto max-w-xl p-4 sm:p-6">
-      {loading ? <div className="flex justify-center py-16 text-[#8696a0]"><Loader2 className="animate-spin" /></div> : error ? <div className="rounded-lg border border-red-900 bg-red-950/30 p-3 text-sm text-red-300">{error}</div> : <DynamicTemplateSender templates={templates} />}
+      {loading ? <div className="flex justify-center py-16 text-[var(--text-secondary)]"><Loader2 className="animate-spin" /></div> : error ? <div className="rounded-lg border border-red-900 bg-red-950/30 p-3 text-sm text-red-700 dark:text-red-300">{error}</div> : <DynamicTemplateSender templates={templates} />}
     </div>}
   </div>;
 }
-

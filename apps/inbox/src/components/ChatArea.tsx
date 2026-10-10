@@ -406,14 +406,14 @@ export function ChatArea({
 
   if (!conversation) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#f0f2f5] dark:bg-[#0b141a] gap-4 select-none">
-        <div className="w-20 h-20 rounded-full bg-[#d9fdd3] dark:bg-[#005c4b] flex items-center justify-center">
+      <div className="flex-1 flex flex-col items-center justify-center bg-[#f0f2f5] dark:bg-[var(--canvas)] gap-4 select-none">
+        <div className="w-20 h-20 rounded-full bg-[#d9fdd3] dark:bg-[var(--bubble-out)] flex items-center justify-center">
           <MessageCircle size={36} className="text-[#00a884]" strokeWidth={1.5} />
         </div>
         <div className="text-center">
-          <p className="text-xl font-medium text-[#41525d] dark:text-[#e9edef]">ICETAK Inbox</p>
-          <p className="text-sm text-[#667781] dark:text-[#8696a0] mt-1">Pilih perbualan untuk mula membaca</p>
-          <p className="text-xs text-[#667781] dark:text-[#8696a0] mt-0.5">decocake.my</p>
+          <p className="text-xl font-medium text-[#41525d] dark:text-[var(--text)]">ICETAK Inbox</p>
+          <p className="text-sm text-[var(--text-secondary)] dark:text-[var(--text-secondary)] mt-1">Pilih perbualan untuk mula membaca</p>
+          <p className="text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary)] mt-0.5">decocake.my</p>
         </div>
       </div>
     );
@@ -431,12 +431,11 @@ export function ChatArea({
   const canSend = !isExpired && hasContent;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[#efeae2] dark:bg-[#0b141a]">
-      <div className="absolute inset-0 pointer-events-none opacity-[0.04] dark:opacity-[0.06]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4h-4z'/%3E%3C/g%3E%3C%2Fg%3E%3C%2Fsvg%3E")` }} />
+    <div className="flex-1 flex flex-col min-h-0 bg-[var(--chat-bg)] dark:bg-[var(--canvas)]">
 
       <ChatHeader conversation={conversation} onArchiveToggle={() => onArchiveToggle(conversation.id)} onMarkUnread={() => onMarkUnread(conversation.id)} onUrgentToggle={() => onUrgentToggle(conversation.id)} onShowCustomerPanel={onShowCustomerPanel} onBack={onBack} showCustomerPanel={showCustomerPanel} onMarkReplied={() => onMarkReplied(conversation.id)} orderOnly={orderOnly} />
 
-      {conversation.channel === 'whatsapp' && <div className="sm:hidden px-4 py-2 bg-[#f0f2f5] dark:bg-[#202c33]"><WindowBadge lastInboundAt={conversation.lastInboundAt} /></div>}
+      {conversation.channel === 'whatsapp' && <div className="sm:hidden px-4 py-2 bg-[#f0f2f5] dark:bg-[var(--surface-muted)]"><WindowBadge lastInboundAt={conversation.lastInboundAt} /></div>}
 
       {hasMatches && (
         <div className="flex items-center justify-between gap-2 px-4 py-1.5 bg-[#fff8e1] dark:bg-[#2d2600] border-b border-[#f0d060] dark:border-[#4a3e00] relative z-20">
@@ -453,17 +452,17 @@ export function ChatArea({
           <div ref={scrollContentRef} className="flex flex-col gap-1.5 max-w-3xl mx-auto">
             {groupedMessages.length === 0 && (
               <div className="flex min-h-[45vh] flex-col items-center justify-center gap-3 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-500/10"><MessageCircle size={26} className="text-orange-400" /></div>
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-500/10"><MessageCircle size={26} className="text-orange-700 dark:text-orange-400" /></div>
                 <div>
-                  <p className="text-sm font-semibold text-[#41525d] dark:text-[#d1d7db]">Belum ada mesej dengan customer ini</p>
-                  <p className="mt-1 text-xs text-[#667781] dark:text-[#8696a0]">{orderOnly ? 'Order tetap tersedia walaupun customer tidak pernah chat.' : 'Conversation ini masih kosong.'}</p>
-                  {conversation.orderId && <p className="mt-1 text-[11px] font-medium text-orange-400">Order #{conversation.orderId}</p>}
+                  <p className="text-sm font-semibold text-[#41525d] dark:text-[var(--text)]">Belum ada mesej dengan customer ini</p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">{orderOnly ? 'Order tetap tersedia walaupun customer tidak pernah chat.' : 'Conversation ini masih kosong.'}</p>
+                  {conversation.orderId && <p className="mt-1 text-[11px] font-medium text-orange-700 dark:text-orange-400">Order #{conversation.orderId}</p>}
                 </div>
               </div>
             )}
             {groupedMessages.map((group) => (
               <div key={group.date.toISOString()} className="flex flex-col gap-1.5">
-                <div className="flex justify-center my-2"><span className="bg-[#ffffff] dark:bg-[#1d282f] text-[#54656f] dark:text-[#8696a0] text-xs px-3 py-1 rounded-full shadow-sm">{formatDaySeparator(group.date)}</span></div>
+                <div className="flex justify-center my-2"><span className="bg-[#ffffff] dark:bg-[#1d282f] text-[#54656f] dark:text-[var(--text-secondary)] text-xs px-3 py-1 rounded-full shadow-sm">{formatDaySeparator(group.date)}</span></div>
                 {group.messages.map((msg) => <MessageBubble key={msg.id} message={msg} searchQuery={searchQuery} isCurrentMatch={msg.id === currentMatchId} />)}
               </div>
             ))}
@@ -472,12 +471,12 @@ export function ChatArea({
         )}
       </div>
 
-      <div className="flex flex-col bg-[#f0f2f5] dark:bg-[#202c33] border-t border-[#e9edef] dark:border-[#2a3942] relative z-10">
+      <div className="flex flex-col bg-[#f0f2f5] dark:bg-[var(--surface-muted)] border-t border-[#e9edef] dark:border-[var(--border)] relative z-10">
         {sendError && <div className="flex items-center gap-2 px-4 py-1.5 bg-red-50 dark:bg-red-950/40 border-b border-red-200 dark:border-red-800/40"><AlertCircle size={12} className="text-red-500" /><span className="text-xs text-red-600 dark:text-red-400 flex-1">{sendError}</span><button onClick={() => setSendError(null)}><X size={12} /></button></div>}
-        {templateSentNotice && <div className="flex items-center justify-between gap-2 border-b border-emerald-800/40 bg-emerald-950/30 px-4 py-2 text-xs text-emerald-300"><span>Template berjaya dihantar dan direkodkan.</span><button onClick={() => setTemplateSentNotice(false)}><X size={12} /></button></div>}
+        {templateSentNotice && <div className="flex items-center justify-between gap-2 border-b border-emerald-800/40 bg-emerald-950/30 px-4 py-2 text-xs text-emerald-700 dark:text-emerald-300"><span>Template berjaya dihantar dan direkodkan.</span><button onClick={() => setTemplateSentNotice(false)}><X size={12} /></button></div>}
 
         {orderOnly && conversation.channel === 'shopee' && (
-          <div className="border-b border-orange-500/20 bg-orange-500/10 px-4 py-2 text-center text-[11px] text-orange-200">
+          <div className="border-b border-orange-500/20 bg-orange-500/10 px-4 py-2 text-center text-[11px] text-orange-700 dark:text-orange-200">
             Mesej pertama akan dihantar melalui adapter Shopee Chat. Jika endpoint belum dikonfigurasi, mesej tidak akan direkod atau dianggap berjaya.
           </div>
         )}
@@ -486,10 +485,10 @@ export function ChatArea({
           <div className="flex flex-col items-center gap-2 px-4 py-3">
             <span className="bg-[#fff9c4] dark:bg-[#3b3b00] text-[#7a6f00] dark:text-[#ffd600] text-xs px-4 py-1.5 rounded-full shadow-sm text-center">Tetingkap 24 jam telah tamat. Free-form tidak dibenarkan.</span>
             {orderOnly && conversation.channel === 'whatsapp' ? (
-              <p className="text-center text-[11px] text-[#8696a0]">Order WhatsApp belum mempunyai conversation aktif. Ia akan menggunakan flow WhatsApp biasa selepas dipautkan melalui nombor telefon.</p>
+              <p className="text-center text-[11px] text-[var(--text-secondary)]">Order WhatsApp belum mempunyai conversation aktif. Ia akan menggunakan flow WhatsApp biasa selepas dipautkan melalui nombor telefon.</p>
             ) : <div className="flex flex-wrap justify-center gap-2">
               <button onClick={() => setShowTemplateModal(true)} className="flex items-center gap-2 rounded-lg bg-[#00a884] px-4 py-2 text-xs font-semibold text-white hover:bg-[#008f72]"><LayoutTemplate size={15} /> Pilih Template</button>
-              <button onClick={copyDraft} disabled={!draftText.trim()} className="flex items-center gap-2 rounded-lg bg-[#2a3942] px-4 py-2 text-xs text-[#e9edef] disabled:opacity-40"><Copy size={15} /> Salin Mesej</button>
+              <button onClick={copyDraft} disabled={!draftText.trim()} className="flex items-center gap-2 rounded-lg bg-[var(--surface-hover)] px-4 py-2 text-xs text-[var(--text)] disabled:opacity-40"><Copy size={15} /> Salin Mesej</button>
             </div>}
           </div>
         )}
@@ -497,17 +496,17 @@ export function ChatArea({
         {imagePreviewUrl && !isExpired && (
           <div className="flex flex-col gap-1.5 px-4 pt-3 pb-1">
             <div className="relative w-fit">
-              <img src={imagePreviewUrl} alt="Preview" className="max-h-32 max-w-[180px] rounded-lg object-cover border border-[#d1d7db] dark:border-[#2a3942]" />
-              <button onClick={() => setQueuedImage(null)} className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#374045] text-white flex items-center justify-center hover:bg-red-500 transition-colors" aria-label="Buang gambar"><X size={11} /></button>
+              <img src={imagePreviewUrl} alt="Preview" className="max-h-32 max-w-[180px] rounded-lg object-cover border border-[#d1d7db] dark:border-[var(--border)]" />
+              <button onClick={() => setQueuedImage(null)} className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[var(--surface-hover)] text-white flex items-center justify-center hover:bg-red-500 transition-colors" aria-label="Buang gambar"><X size={11} /></button>
             </div>
-            <p className="text-[11px] text-[#667781] dark:text-[#8696a0]">Gambar sudah masuk queue. Taip caption jika perlu, kemudian tekan Enter atau Send.</p>
+            <p className="text-[11px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">Gambar sudah masuk queue. Taip caption jika perlu, kemudian tekan Enter atau Send.</p>
           </div>
         )}
 
         <div className="flex items-end gap-2 px-4 py-3">
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           {!isExpired && !orderOnly && (
-            <button onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-[#667781] dark:text-[#8696a0] hover:text-[#00a884] hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors" aria-label="Pilih gambar">
+            <button onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-[var(--text-secondary)] dark:text-[var(--text-secondary)] hover:text-[#00a884] hover:bg-[#e9edef] dark:hover:bg-[var(--surface-hover)] transition-colors" aria-label="Pilih gambar">
               <ImageIcon size={18} />
             </button>
           )}
@@ -521,11 +520,11 @@ export function ChatArea({
             onKeyPress={(e) => e.stopPropagation()}
             onPaste={handlePaste}
             placeholder={isExpired ? 'Tulis draft untuk disalin, atau pilih template.' : 'Taip mesej... (Enter untuk hantar, Shift+Enter untuk baris baru)'}
-            className="flex-1 resize-none overflow-hidden text-sm rounded-lg px-4 py-2.5 outline-none focus:ring-1 focus:ring-[#00a884] transition-all leading-relaxed bg-white dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef] placeholder-[#667781] dark:placeholder-[#8696a0]"
+            className="flex-1 resize-none overflow-hidden text-sm rounded-lg px-4 py-2.5 outline-none focus:ring-1 focus:ring-[#00a884] transition-all leading-relaxed bg-white dark:bg-[var(--surface-hover)] text-[var(--text)] dark:text-[var(--text)] placeholder-[#667781] dark:placeholder-[var(--text-secondary)]"
             style={{ minHeight: '40px', maxHeight: '120px' }}
           />
           {!isExpired && (
-            <button onClick={handleSend} disabled={!canSend} className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${!canSend ? 'bg-[#374045] text-[#667781]' : 'bg-[#00a884] text-white'}`}>
+            <button onClick={handleSend} disabled={!canSend} className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${!canSend ? 'bg-[var(--surface-hover)] text-[var(--text-secondary)]' : 'bg-[#00a884] text-white'}`}>
               {pendingSends > 0 && !hasContent ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
             </button>
           )}
@@ -536,4 +535,3 @@ export function ChatArea({
     </div>
   );
 }
-

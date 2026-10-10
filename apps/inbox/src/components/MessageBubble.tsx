@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Message } from '../types';
 import { formatTime } from '../utils/timeUtils';
 import {
-  Check, CheckCheck, Copy, Download, FileText, ImageIcon, Loader2,
+  AlertCircle, Clock3, Check, CheckCheck, Copy, Download, FileText, ImageIcon, Loader2,
   Mic, Minus, Plus, RotateCcw, SmilePlus, Video, X,
 } from 'lucide-react';
 import { useMediaUrl } from '../lib/mediaProxy';
@@ -27,8 +27,11 @@ const listeners = new Set<() => void>();
 function notifyRegistry() { listeners.forEach((listener) => listener()); }
 
 const statusIcons = {
-  sent: <Check size={14} className="text-[#667781]" />,
-  delivered: <CheckCheck size={14} className="text-[#667781]" />,
+  pending: <Clock3 size={14} className="text-[var(--text-secondary)]" aria-label="Sedang dihantar" />,
+  failed: <AlertCircle size={14} className="text-red-500" aria-label="Gagal dihantar" />,
+  unknown: <AlertCircle size={14} className="text-amber-600" aria-label="Status penghantaran belum disahkan" />,
+  sent: <Check size={14} className="text-[var(--text-secondary)]" />,
+  delivered: <CheckCheck size={14} className="text-[var(--text-secondary)]" />,
   read: <CheckCheck size={14} className="text-[#53bdeb]" />,
 };
 
@@ -129,20 +132,20 @@ function ImageLightbox({ url, filename, alt, onClose }: ImageLightboxProps) {
   }, [copyImage, onClose]);
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex flex-col bg-black/95 text-white" role="dialog" aria-modal="true" aria-label="Paparan penuh gambar">
+    <div className="fixed inset-0 z-[200] flex flex-col bg-black/95 text-[var(--text)]" role="dialog" aria-modal="true" aria-label="Paparan penuh gambar">
       <div className="relative z-10 flex min-h-14 items-center justify-between gap-3 border-b border-white/10 bg-black/60 px-3 py-2 backdrop-blur sm:px-5">
-        <div className="min-w-0"><p className="truncate text-sm font-medium">{alt || 'Gambar customer'}</p><p className="text-[10px] text-white/55">{Math.round(zoom * 100)}% · Esc untuk tutup</p></div>
+        <div className="min-w-0"><p className="truncate text-sm font-medium">{alt || 'Gambar customer'}</p><p className="text-[10px] text-[var(--text)]/55">{Math.round(zoom * 100)}% · Esc untuk tutup</p></div>
         <div className="flex flex-shrink-0 items-center gap-1">
-          <button onClick={() => setZoom((value) => Math.max(0.5, value - 0.25))} disabled={zoom <= 0.5} className="rounded-full p-2.5 text-white/80 hover:bg-white/10 hover:text-white disabled:opacity-30" title="Zoom keluar"><Minus size={18} /></button>
-          <button onClick={() => setZoom(1)} className="rounded-full p-2.5 text-white/80 hover:bg-white/10 hover:text-white" title="Saiz asal"><RotateCcw size={17} /></button>
-          <button onClick={() => setZoom((value) => Math.min(4, value + 0.25))} disabled={zoom >= 4} className="rounded-full p-2.5 text-white/80 hover:bg-white/10 hover:text-white disabled:opacity-30" title="Zoom masuk"><Plus size={18} /></button>
+          <button onClick={() => setZoom((value) => Math.max(0.5, value - 0.25))} disabled={zoom <= 0.5} className="rounded-full p-2.5 text-[var(--text)]/80 hover:bg-white/10 hover:text-[var(--text)] disabled:opacity-30" title="Zoom keluar"><Minus size={18} /></button>
+          <button onClick={() => setZoom(1)} className="rounded-full p-2.5 text-[var(--text)]/80 hover:bg-white/10 hover:text-[var(--text)]" title="Saiz asal"><RotateCcw size={17} /></button>
+          <button onClick={() => setZoom((value) => Math.min(4, value + 0.25))} disabled={zoom >= 4} className="rounded-full p-2.5 text-[var(--text)]/80 hover:bg-white/10 hover:text-[var(--text)] disabled:opacity-30" title="Zoom masuk"><Plus size={18} /></button>
           <div className="mx-1 h-6 w-px bg-white/15" />
           <button onClick={() => void copyImage()} disabled={copyState === 'copying'} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition ${copyState === 'copied' ? 'bg-emerald-500 text-white' : copyState === 'error' ? 'bg-red-500/80 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`} title="Salin gambar untuk paste ke Photoshop">
             {copyState === 'copying' ? <Loader2 size={15} className="animate-spin" /> : copyState === 'copied' ? <Check size={15} /> : <Copy size={15} />}
             <span className="hidden sm:inline">{copyState === 'copied' ? 'Disalin' : copyState === 'error' ? 'Gagal salin' : 'Salin gambar'}</span>
           </button>
-          <button onClick={() => void downloadImage()} disabled={downloadBusy} className="rounded-full p-2.5 text-white/80 hover:bg-white/10 hover:text-white" title="Download gambar">{downloadBusy ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}</button>
-          <button onClick={onClose} className="rounded-full p-2.5 text-white/80 hover:bg-white/10 hover:text-white" title="Tutup"><X size={22} /></button>
+          <button onClick={() => void downloadImage()} disabled={downloadBusy} className="rounded-full p-2.5 text-[var(--text)]/80 hover:bg-white/10 hover:text-[var(--text)]" title="Download gambar">{downloadBusy ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}</button>
+          <button onClick={onClose} className="rounded-full p-2.5 text-[var(--text)]/80 hover:bg-white/10 hover:text-[var(--text)]" title="Tutup"><X size={22} /></button>
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-auto" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
@@ -178,10 +181,10 @@ function MediaViewer({ message }: { message: Message }) {
   const placeholderIcon = type === 'audio' ? <Mic size={24} /> : type === 'video' ? <Video size={24} /> : type === 'document' ? <FileText size={24} /> : <ImageIcon size={24} />;
 
   if (!shouldLoad) {
-    return <div ref={containerRef} className="flex h-36 w-52 items-center justify-center rounded-md bg-black/10 text-[#667781] dark:bg-white/10 dark:text-[#8696a0]">{placeholderIcon}</div>;
+    return <div ref={containerRef} className="flex h-36 w-52 items-center justify-center rounded-md bg-black/10 text-[var(--text-secondary)] dark:bg-white/10 dark:text-[var(--text-secondary)]">{placeholderIcon}</div>;
   }
   if (loading) return <div ref={containerRef} className="flex h-36 w-52 items-center justify-center rounded-md bg-black/10 animate-pulse dark:bg-white/10">{placeholderIcon}</div>;
-  if (!objectUrl) return <div ref={containerRef} className="flex h-20 w-52 items-center justify-center rounded-md bg-black/10 text-xs text-[#667781] dark:bg-white/10 dark:text-[#8696a0]">Media tidak tersedia</div>;
+  if (!objectUrl) return <div ref={containerRef} className="flex h-20 w-52 items-center justify-center rounded-md bg-black/10 text-xs text-[var(--text-secondary)] dark:bg-white/10 dark:text-[var(--text-secondary)]">Media tidak tersedia</div>;
 
   if (type === 'image') {
     const label = message.content && message.content !== '[Image]' ? message.content : 'Gambar customer';
@@ -242,7 +245,7 @@ export function MessageBubble({ message, searchQuery = '', isCurrentMatch = fals
   const hasCaption = !PLACEHOLDER_LABELS.has(message.content) && Boolean(message.content);
   const showText = !hasMedia || (hasCaption && type !== 'document');
   const hasMatch = searchQuery.trim().length >= 2 && message.content.toLowerCase().includes(searchQuery.trim().toLowerCase());
-  const bubbleBg = isOut ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-[#e9edef] rounded-br-none' : 'bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] rounded-bl-none';
+  const bubbleBg = isOut ? 'bg-[#d9fdd3] dark:bg-[var(--bubble-out)] text-[var(--text)] dark:text-[var(--text)] rounded-br-none' : 'bg-white dark:bg-[var(--surface-muted)] text-[var(--text)] dark:text-[var(--text)] rounded-bl-none';
 
   async function sendReaction(emoji: string) {
     setSendingReaction(true);
@@ -259,16 +262,15 @@ export function MessageBubble({ message, searchQuery = '', isCurrentMatch = fals
 
   return <div className={`group flex w-full ${isOut ? 'justify-end' : 'justify-start'}`} data-message-id={message.id}>
     <div className={`flex w-full items-end gap-1 ${isOut ? 'justify-end' : 'justify-start'}`}>
-      {!isOut && message.providerMessageId && <button type="button" onClick={() => setShowReactions((value) => !value)} className="mb-1 rounded-full p-1.5 text-[#8696a0] hover:bg-[#2a3942] hover:text-white sm:opacity-0 sm:group-hover:opacity-100" aria-label="React"><SmilePlus size={15} /></button>}
+      {!isOut && message.providerMessageId && <button type="button" onClick={() => setShowReactions((value) => !value)} className="mb-1 rounded-full p-1.5 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] sm:opacity-0 sm:group-hover:opacity-100" aria-label="React"><SmilePlus size={15} /></button>}
       <div className={`relative max-w-[75%] overflow-visible rounded-lg shadow-sm transition-all sm:max-w-[65%] ${bubbleBg} ${isCurrentMatch ? 'ring-2 ring-orange-400 ring-offset-1 dark:ring-orange-500' : ''} ${hasMedia && !showText ? 'p-1' : 'px-3 py-2'}`}>
-        {message.replyToProviderMessageId && <button type="button" onClick={() => repliedMessage && jumpToMessage(repliedMessage.id)} className="mb-1.5 block w-full rounded-md border-l-4 border-[#00a884] bg-black/10 px-2.5 py-2 text-left dark:bg-black/20"><span className="block text-[11px] font-semibold text-[#00a884]">{repliedMessage ? (repliedMessage.direction === 'outbound' ? 'Anda' : 'Customer') : 'Quoted message'}</span><span className="block truncate text-xs text-[#667781] dark:text-[#aebac1]">{repliedMessage ? quoteLabel(repliedMessage) : 'Mesej asal tidak ada dalam sejarah inbox'}</span></button>}
+        {message.replyToProviderMessageId && <button type="button" onClick={() => repliedMessage && jumpToMessage(repliedMessage.id)} className="mb-1.5 block w-full rounded-md border-l-4 border-[#00a884] bg-black/10 px-2.5 py-2 text-left dark:bg-black/20"><span className="block text-[11px] font-semibold text-[#00a884]">{repliedMessage ? (repliedMessage.direction === 'outbound' ? 'Anda' : 'Customer') : 'Quoted message'}</span><span className="block truncate text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">{repliedMessage ? quoteLabel(repliedMessage) : 'Mesej asal tidak ada dalam sejarah inbox'}</span></button>}
         {hasMedia && <MediaViewer message={message} />}
         {showText && <p className={`break-words whitespace-pre-wrap text-[13.5px] leading-[1.5] ${hasMedia ? 'mt-1 px-2' : ''}`}>{hasMatch ? <HighlightedContent text={message.content} query={searchQuery} isCurrentMatch={isCurrentMatch} /> : message.content}</p>}
-        <div className={`mt-1 flex items-center gap-1 ${isOut ? 'justify-end' : 'justify-start'} ${hasMedia && !showText ? 'px-2 pb-1' : ''}`}><span className="text-[11px] text-[#667781] dark:text-[#8696a0]">{formatTime(message.timestamp)}</span>{isOut && message.status && statusIcons[message.status]}</div>
-        {showReactions && <div className={`absolute bottom-full z-30 mb-1 flex gap-1 rounded-full border border-[#3b4a54] bg-[#111b21] p-1.5 shadow-xl ${isOut ? 'right-0' : 'left-0'}`}>{MESSAGE_REACTIONS.map((emoji) => <button key={emoji} type="button" disabled={sendingReaction} onClick={() => void sendReaction(emoji)} className="rounded-full px-1.5 py-1 text-lg hover:bg-[#2a3942] disabled:opacity-40">{emoji}</button>)}</div>}
-        {localReaction && <span className={`absolute -bottom-3 ${isOut ? 'left-2' : 'right-2'} rounded-full bg-[#111b21] px-2 py-0.5 text-sm shadow`}>{localReaction}</span>}
+        <div className={`mt-1 flex items-center gap-1 ${isOut ? 'justify-end' : 'justify-start'} ${hasMedia && !showText ? 'px-2 pb-1' : ''}`}><span className="text-[11px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">{formatTime(message.timestamp)}</span>{isOut && message.status && statusIcons[message.status]}</div>
+        {showReactions && <div className={`absolute bottom-full z-30 mb-1 flex gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-xl ${isOut ? 'right-0' : 'left-0'}`}>{MESSAGE_REACTIONS.map((emoji) => <button key={emoji} type="button" disabled={sendingReaction} onClick={() => void sendReaction(emoji)} className="rounded-full px-1.5 py-1 text-lg hover:bg-[var(--surface-hover)] disabled:opacity-40">{emoji}</button>)}</div>}
+        {localReaction && <span className={`absolute -bottom-3 ${isOut ? 'left-2' : 'right-2'} rounded-full bg-[var(--surface)] px-2 py-0.5 text-sm shadow`}>{localReaction}</span>}
       </div>
     </div>
   </div>;
 }
-

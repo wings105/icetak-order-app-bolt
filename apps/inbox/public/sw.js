@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'icetak-inbox-';
-const CACHE_NAME = `${CACHE_PREFIX}v1`;
+const CACHE_NAME = `${CACHE_PREFIX}v2`;
 const INBOX_PATH = new URL('./', self.location.href).pathname;
 const PRECACHE = [INBOX_PATH];
 

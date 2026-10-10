@@ -130,50 +130,50 @@ export function ContactsPage({ onOpenConversation }: ContactsPageProps) {
 
   function waLink(phone: string) { return `https://wa.me/${normalizePhone(phone)}`; }
 
-  return <div className="h-full overflow-y-auto bg-[#0b141a] p-4 text-[#e9edef] sm:p-6">
+  return <div className="h-full overflow-y-auto bg-[var(--canvas)] p-4 text-[var(--text)] sm:p-6">
     <div className="mx-auto max-w-6xl">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div><h1 className="text-xl font-semibold">Contacts</h1><p className="mt-1 text-sm text-[#8696a0]">Google Contacts cache untuk matching nama dalam Inbox.</p></div>
-        <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg bg-[#202c33] px-3 py-2 text-sm text-[#aebac1] hover:bg-[#2a3942]"><RefreshCw size={15} /> Refresh</button>
+        <div><h1 className="text-xl font-semibold">Contacts</h1><p className="mt-1 text-sm text-[var(--text-secondary)]">Google Contacts cache untuk matching nama dalam Inbox.</p></div>
+        <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"><RefreshCw size={15} /> Refresh</button>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
         <div className="space-y-4">
-          <div className="rounded-xl border border-[#2a3942] bg-[#111b21] p-4">
-            <div className="mb-3 flex items-center justify-between"><h2 className="font-medium">{form.id ? 'Edit cache contact' : 'Tambah cache contact'}</h2>{form.id && <button onClick={reset} className="text-[#8696a0]"><X size={17} /></button>}</div>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <div className="mb-3 flex items-center justify-between"><h2 className="font-medium">{form.id ? 'Edit cache contact' : 'Tambah cache contact'}</h2>{form.id && <button onClick={reset} className="text-[var(--text-secondary)]"><X size={17} /></button>}</div>
             <div className="space-y-3">
-              <label className="block text-xs text-[#8696a0]">Nama contact<input value={form.display_name} onChange={(event) => setForm((old) => ({ ...old, display_name: event.target.value }))} className="mt-1 w-full rounded-lg border border-[#3b4a54] bg-[#202c33] px-3 py-2 text-sm outline-none focus:border-[#00a884]" placeholder="cs@eiS sarahaziera" /></label>
-              <label className="block text-xs text-[#8696a0]">Phone<input value={form.phone_raw} onChange={(event) => setForm((old) => ({ ...old, phone_raw: event.target.value }))} className="mt-1 w-full rounded-lg border border-[#3b4a54] bg-[#202c33] px-3 py-2 text-sm outline-none focus:border-[#00a884]" placeholder="012-6034232" />{normalizedPreview && <span className="mt-1 block text-[11px] text-[#667781]">Normalized: {normalizedPreview}</span>}</label>
-              <div className="grid grid-cols-2 gap-2"><label className="block text-xs text-[#8696a0]">First name<input value={form.given_name} onChange={(event) => setForm((old) => ({ ...old, given_name: event.target.value }))} className="mt-1 w-full rounded-lg border border-[#3b4a54] bg-[#202c33] px-3 py-2 text-sm outline-none focus:border-[#00a884]" /></label><label className="block text-xs text-[#8696a0]">Last name<input value={form.family_name} onChange={(event) => setForm((old) => ({ ...old, family_name: event.target.value }))} className="mt-1 w-full rounded-lg border border-[#3b4a54] bg-[#202c33] px-3 py-2 text-sm outline-none focus:border-[#00a884]" /></label></div>
-              <label className="block text-xs text-[#8696a0]">Email<input value={form.email} onChange={(event) => setForm((old) => ({ ...old, email: event.target.value }))} className="mt-1 w-full rounded-lg border border-[#3b4a54] bg-[#202c33] px-3 py-2 text-sm outline-none focus:border-[#00a884]" /></label>
-              <label className="block text-xs text-[#8696a0]">Company<input value={form.company} onChange={(event) => setForm((old) => ({ ...old, company: event.target.value }))} className="mt-1 w-full rounded-lg border border-[#3b4a54] bg-[#202c33] px-3 py-2 text-sm outline-none focus:border-[#00a884]" /></label>
-              <label className="block text-xs text-[#8696a0]">Google contact ID<input value={form.google_contact_id} onChange={(event) => setForm((old) => ({ ...old, google_contact_id: event.target.value }))} className="mt-1 w-full rounded-lg border border-[#3b4a54] bg-[#202c33] px-3 py-2 text-sm outline-none focus:border-[#00a884]" placeholder="people/c123..." /></label>
-              {error && <p className="text-xs text-red-400">{error}</p>}
+              <label className="block text-xs text-[var(--text-secondary)]">Nama contact<input value={form.display_name} onChange={(event) => setForm((old) => ({ ...old, display_name: event.target.value }))} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm outline-none focus:border-[#00a884]" placeholder="cs@eiS sarahaziera" /></label>
+              <label className="block text-xs text-[var(--text-secondary)]">Phone<input value={form.phone_raw} onChange={(event) => setForm((old) => ({ ...old, phone_raw: event.target.value }))} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm outline-none focus:border-[#00a884]" placeholder="012-6034232" />{normalizedPreview && <span className="mt-1 block text-[11px] text-[var(--text-secondary)]">Normalized: {normalizedPreview}</span>}</label>
+              <div className="grid grid-cols-2 gap-2"><label className="block text-xs text-[var(--text-secondary)]">First name<input value={form.given_name} onChange={(event) => setForm((old) => ({ ...old, given_name: event.target.value }))} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm outline-none focus:border-[#00a884]" /></label><label className="block text-xs text-[var(--text-secondary)]">Last name<input value={form.family_name} onChange={(event) => setForm((old) => ({ ...old, family_name: event.target.value }))} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm outline-none focus:border-[#00a884]" /></label></div>
+              <label className="block text-xs text-[var(--text-secondary)]">Email<input value={form.email} onChange={(event) => setForm((old) => ({ ...old, email: event.target.value }))} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm outline-none focus:border-[#00a884]" /></label>
+              <label className="block text-xs text-[var(--text-secondary)]">Company<input value={form.company} onChange={(event) => setForm((old) => ({ ...old, company: event.target.value }))} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm outline-none focus:border-[#00a884]" /></label>
+              <label className="block text-xs text-[var(--text-secondary)]">Google contact ID<input value={form.google_contact_id} onChange={(event) => setForm((old) => ({ ...old, google_contact_id: event.target.value }))} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm outline-none focus:border-[#00a884]" placeholder="people/c123..." /></label>
+              {error && <p className="text-xs text-red-700 dark:text-red-400">{error}</p>}
               <button onClick={submit} disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#00a884] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{form.id ? <Save size={15} /> : <Plus size={15} />}{saving ? 'Menyimpan...' : form.id ? 'Simpan cache' : 'Tambah cache'}</button>
             </div>
           </div>
 
-          <div className="rounded-xl border border-[#2a3942] bg-[#111b21] p-4">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
             <h2 className="mb-2 font-medium">Bulk import</h2>
-            <p className="mb-2 text-xs text-[#8696a0]">Paste JSON atau CSV ringkas: name,phone,email,company</p>
-            <textarea value={bulkText} onChange={(event) => setBulkText(event.target.value)} className="h-28 w-full rounded-lg border border-[#3b4a54] bg-[#202c33] px-3 py-2 text-xs outline-none focus:border-[#00a884]" placeholder={'Sarah,0126034232\nRonica,0163414326'} />
-            <button onClick={importBulk} disabled={importing || !bulkText.trim()} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[#202c33] px-3 py-2 text-xs font-semibold text-[#d1d7db] hover:bg-[#2a3942] disabled:opacity-50"><Upload size={13} /> {importing ? 'Importing...' : 'Import ke cache'}</button>
-            {bulkStatus && <p className="mt-2 text-[11px] text-[#8696a0]">{bulkStatus}</p>}
+            <p className="mb-2 text-xs text-[var(--text-secondary)]">Paste JSON atau CSV ringkas: name,phone,email,company</p>
+            <textarea value={bulkText} onChange={(event) => setBulkText(event.target.value)} className="h-28 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-xs outline-none focus:border-[#00a884]" placeholder={'Sarah,0126034232\nRonica,0163414326'} />
+            <button onClick={importBulk} disabled={importing || !bulkText.trim()} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--surface-muted)] px-3 py-2 text-xs font-semibold text-[var(--text)] hover:bg-[var(--surface-hover)] disabled:opacity-50"><Upload size={13} /> {importing ? 'Importing...' : 'Import ke cache'}</button>
+            {bulkStatus && <p className="mt-2 text-[11px] text-[var(--text-secondary)]">{bulkStatus}</p>}
           </div>
 
-          <details className="rounded-xl border border-[#2a3942] bg-[#111b21] p-4 text-xs text-[#aebac1]">
-            <summary className="cursor-pointer font-medium text-white">Apps Script sync sample</summary>
-            <pre className="mt-3 max-h-60 overflow-auto whitespace-pre-wrap rounded bg-[#0b141a] p-3 font-mono text-[11px] text-[#00a884]">{appsScriptSample}</pre>
-            <p className="mt-2 text-[#8696a0]">Nota: ini sync masuk cache sahaja. Write balik ke Google Contacts belum aktif dalam app.</p>
+          <details className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-xs text-[var(--text-secondary)]">
+            <summary className="cursor-pointer font-medium text-[var(--text)]">Apps Script sync sample</summary>
+            <pre className="mt-3 max-h-60 overflow-auto whitespace-pre-wrap rounded bg-[var(--canvas)] p-3 font-mono text-[11px] text-[#00a884]">{appsScriptSample}</pre>
+            <p className="mt-2 text-[var(--text-secondary)]">Nota: ini sync masuk cache sahaja. Write balik ke Google Contacts belum aktif dalam app.</p>
           </details>
         </div>
 
         <div>
-          <div className="mb-4 rounded-xl border border-[#2a3942] bg-[#111b21] p-3"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8696a0]" size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari nama contact atau phone..." className="w-full rounded-lg border border-[#2a3942] bg-[#202c33] py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#00a884]" /></div></div>
-          <div className="overflow-hidden rounded-xl border border-[#2a3942] bg-[#111b21]">
-            {loading ? <div className="flex items-center justify-center gap-2 p-10 text-sm text-[#8696a0]"><Loader2 className="animate-spin" size={17} /> Memuatkan contacts...</div> : error ? <div className="p-8 text-center text-sm text-red-400">{error}</div> : rows.length === 0 ? <div className="p-10 text-center text-sm text-[#8696a0]"><UserRound className="mx-auto mb-3" size={28} />Belum ada contact cache.</div> : rows.map((row) => {
+          <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari nama contact atau phone..." className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#00a884]" /></div></div>
+          <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+            {loading ? <div className="flex items-center justify-center gap-2 p-10 text-sm text-[var(--text-secondary)]"><Loader2 className="animate-spin" size={17} /> Memuatkan contacts...</div> : error ? <div className="p-8 text-center text-sm text-red-700 dark:text-red-400">{error}</div> : rows.length === 0 ? <div className="p-10 text-center text-sm text-[var(--text-secondary)]"><UserRound className="mx-auto mb-3" size={28} />Belum ada contact cache.</div> : rows.map((row) => {
               const matchedConversation = conversationsByPhone[row.phone_normalized];
-              return <div key={row.id} className="flex items-start gap-3 border-b border-[#202c33] p-4 last:border-b-0"><button onClick={() => edit(row)} className="min-w-0 flex-1 text-left"><p className="font-medium text-white">{row.display_name}</p>{row.company && <p className="text-xs text-[#8696a0]">{row.company}</p>}<div className="mt-1 flex flex-wrap gap-3 text-xs text-[#8696a0]"><span>{row.phone_raw}</span><span>Normalized: {row.phone_normalized}</span></div><p className="mt-1 text-[11px] text-[#667781]">{new Date(row.last_synced_at).toLocaleString('ms-MY')}</p></button><div className="flex flex-col gap-2">{matchedConversation && onOpenConversation ? <button onClick={() => onOpenConversation(matchedConversation.id)} className="inline-flex items-center gap-1 rounded-lg bg-[#00a884] px-2.5 py-1.5 text-xs font-semibold text-white"><MessageCircle size={14} /> Open</button> : <a href={waLink(row.phone_normalized)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-[#202c33] px-2.5 py-1.5 text-xs text-[#aebac1] hover:bg-[#2a3942]"><ExternalLink size={14} /> WA</a>}<button onClick={() => void remove(row)} className="rounded-lg p-2 text-[#8696a0] hover:bg-red-500/10 hover:text-red-400"><Trash2 size={16} /></button></div></div>;
+              return <div key={row.id} className="flex items-start gap-3 border-b border-[#202c33] p-4 last:border-b-0"><button onClick={() => edit(row)} className="min-w-0 flex-1 text-left"><p className="font-medium text-white">{row.display_name}</p>{row.company && <p className="text-xs text-[var(--text-secondary)]">{row.company}</p>}<div className="mt-1 flex flex-wrap gap-3 text-xs text-[var(--text-secondary)]"><span>{row.phone_raw}</span><span>Normalized: {row.phone_normalized}</span></div><p className="mt-1 text-[11px] text-[var(--text-secondary)]">{new Date(row.last_synced_at).toLocaleString('ms-MY')}</p></button><div className="flex flex-col gap-2">{matchedConversation && onOpenConversation ? <button onClick={() => onOpenConversation(matchedConversation.id)} className="inline-flex items-center gap-1 rounded-lg bg-[#00a884] px-2.5 py-1.5 text-xs font-semibold text-white"><MessageCircle size={14} /> Open</button> : <a href={waLink(row.phone_normalized)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-[var(--surface-muted)] px-2.5 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"><ExternalLink size={14} /> WA</a>}<button onClick={() => void remove(row)} className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-red-400"><Trash2 size={16} /></button></div></div>;
             })}
           </div>
         </div>
@@ -181,4 +181,3 @@ export function ContactsPage({ onOpenConversation }: ContactsPageProps) {
     </div>
   </div>;
 }
-

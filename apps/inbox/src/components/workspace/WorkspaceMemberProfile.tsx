@@ -63,7 +63,7 @@ export function WorkspaceMemberProfile() {
     setSaving(false);
   }
 
-  if (loading) return <div className="flex h-8 w-8 items-center justify-center text-[#8696a0]"><Loader2 size={14} className="animate-spin" /></div>;
+  if (loading) return <div className="flex h-8 w-8 items-center justify-center text-[var(--text-secondary)]"><Loader2 size={14} className="animate-spin" /></div>;
   if (!member) return null;
 
   return (
@@ -72,8 +72,8 @@ export function WorkspaceMemberProfile() {
         onClick={() => { setEditing((value) => !value); setError(null); }}
         className={`flex max-w-[120px] items-center gap-1.5 rounded-full px-2 py-1.5 text-[10px] transition-colors ${
           member.display_name === 'Staff'
-            ? 'bg-orange-500/15 text-orange-300 hover:bg-orange-500/25'
-            : 'bg-[#111b21] text-[#aebac1] hover:bg-[#2a3942] hover:text-white'
+            ? 'bg-orange-500/15 text-orange-700 dark:text-orange-300 hover:bg-orange-500/25'
+            : 'bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
         }`}
         title="Nama ini digunakan dalam Activity Log"
       >
@@ -83,15 +83,15 @@ export function WorkspaceMemberProfile() {
       </button>
 
       {editing && (
-        <div className="absolute right-0 top-10 z-50 w-64 rounded-xl border border-[#3b4a54] bg-[#202c33] p-3 shadow-2xl">
+        <div className="absolute right-0 top-10 z-50 w-64 rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] p-3 shadow-2xl">
           <div className="mb-2 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-white">Profil Staff</p>
-              <p className="text-[10px] capitalize text-[#8696a0]">Role: {member.role}</p>
+              <p className="text-xs font-semibold text-[var(--text)]">Profil Staff</p>
+              <p className="text-[10px] capitalize text-[var(--text-secondary)]">Role: {member.role}</p>
             </div>
-            <button onClick={() => { setEditing(false); setName(member.display_name); }} className="rounded p-1 text-[#8696a0] hover:bg-[#2a3942] hover:text-white"><X size={13} /></button>
+            <button onClick={() => { setEditing(false); setName(member.display_name); }} className="rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"><X size={13} /></button>
           </div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-[#8696a0]">
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
             Nama dalam activity log
             <input
               ref={inputRef}
@@ -102,11 +102,11 @@ export function WorkspaceMemberProfile() {
                 if (event.key === 'Escape') { setEditing(false); setName(member.display_name); }
               }}
               maxLength={80}
-              className="mt-1.5 w-full rounded-lg border border-[#3b4a54] bg-[#111b21] px-3 py-2 text-xs text-white outline-none focus:border-[#00a884]"
+              className="mt-1.5 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text)] outline-none focus:border-[#00a884]"
               placeholder="Contoh: Zaim, Mira, Ana"
             />
           </label>
-          {error && <p className="mt-2 text-[10px] text-red-300">{error}</p>}
+          {error && <p className="mt-2 text-[10px] text-red-700 dark:text-red-300">{error}</p>}
           <button
             onClick={() => void save()}
             disabled={!name.trim() || saving}
@@ -120,4 +120,3 @@ export function WorkspaceMemberProfile() {
     </div>
   );
 }
-

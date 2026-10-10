@@ -26,7 +26,7 @@ import {
   setConversationArchived,
   setConversationUrgent,
 } from './lib/conversationActions';
-import { Loader2, WifiOff, MessageSquareText, Clock3, LayoutTemplate, Zap, Tags, Contact, PackageCheck, Settings } from 'lucide-react';
+import { Loader2, WifiOff, MessageSquareText, Clock3, LayoutTemplate, Zap, Tags, Contact, PackageCheck, Settings, Moon, Sun } from 'lucide-react';
 
 type ConvOverride = Partial<Pick<Conversation, 'unreadCount' | 'isUrgent' | 'isArchived' | 'needsReply' | 'lastMessageSender'>>;
 type Page = 'inbox' | 'orders' | 'monitor' | 'templates' | 'snippets' | 'tags' | 'contacts' | 'settings';
@@ -177,6 +177,7 @@ function InboxApp() {
     setInitialMatchMessageId(firstMatchMsgId);
     setMobileView('chat');
     setComposerText('');
+    if (window.innerWidth >= 1100) setShowCustomerPanel(true);
     setOverrides((previous) => ({ ...previous, [id]: { ...(previous[id] ?? {}), unreadCount: 0 } }));
   }
 
@@ -251,9 +252,9 @@ function InboxApp() {
     const convId = activeConversation.id;
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const previewUrl = file ? URL.createObjectURL(file) : undefined;
-    const tempMsg: Message = { id: tempId, content: file ? (text || '[Image]') : text, direction: 'outbound', timestamp: new Date(), status: 'sent', messageType: file ? 'image' : 'text', mediaUrl: previewUrl };
+    const tempMsg: Message = { id: tempId, content: file ? (text || '[Image]') : text, direction: 'outbound', timestamp: new Date(), status: 'pending', messageType: file ? 'image' : 'text', mediaUrl: previewUrl };
     setOptimisticMessages((previous) => ({ ...previous, [convId]: [...(previous[convId] ?? []), tempMsg] }));
-    setOverrides((previous) => ({ ...previous, [convId]: { ...(previous[convId] ?? {}), unreadCount: 0, needsReply: false, lastMessageSender: 'seller' } }));
+
     const sendToProvider = async () => {
       if (file) await sendMediaMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, file, caption: text || undefined });
       else await sendTestMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderSummaryId: selectedOrder?.id ?? null, orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, text });
@@ -263,6 +264,7 @@ function InboxApp() {
 
     try {
       await queuedSend;
+      setOptimisticMessages(previous => ({...previous,[convId]:(previous[convId] ?? []).map(message => message.id === tempId ? {...message,status:'sent'} : message)}));
       reload();
       setMsgReloadKey((key) => key + 1);
       setTimeout(() => {
@@ -276,6 +278,8 @@ function InboxApp() {
     } catch (reason) {
       setOptimisticMessages((previous) => ({ ...previous, [convId]: (previous[convId] ?? []).filter((message) => message.id !== tempId) }));
       if (previewUrl) URL.revokeObjectURL(previewUrl);
+      reload();
+      setMsgReloadKey(key => key + 1);
       throw reason;
     }
   }
@@ -284,17 +288,17 @@ function InboxApp() {
     if (!conversationId || conversationId === selectedId) setMsgReloadKey((key) => key + 1);
   }, [selectedId]);
 
-  if (loading && conversations.length === 0) return <div className="flex h-full items-center justify-center bg-[#111b21]"><Loader2 size={32} className="animate-spin text-[#00a884]" /></div>;
-  if (error && conversations.length === 0) return <div className="flex h-full items-center justify-center bg-[#111b21]"><div className="text-center"><WifiOff size={40} className="mx-auto text-[#667781]" /><p className="mt-3 text-white">Gagal memuatkan data</p><p className="text-sm text-[#8696a0]">{error}</p><button onClick={reload} className="mt-3 rounded-lg bg-[#00a884] px-4 py-2 text-sm text-white">Cuba Semula</button></div></div>;
+  if (loading && conversations.length === 0) return <div className="flex h-full items-center justify-center bg-[var(--surface)]"><Loader2 size={32} className="animate-spin text-[#00a884]" /></div>;
+  if (error && conversations.length === 0) return <div className="flex h-full items-center justify-center bg-[var(--surface)]"><div className="text-center"><WifiOff size={40} className="mx-auto text-[var(--text-secondary)]" /><p className="mt-3 text-white">Gagal memuatkan data</p><p className="text-sm text-[var(--text-secondary)]">{error}</p><button onClick={reload} className="mt-3 rounded-lg bg-[#00a884] px-4 py-2 text-sm text-white">Cuba Semula</button></div></div>;
 
-  return <div className="flex h-full overflow-hidden bg-[#111b21] font-sans antialiased">
+  return <div className="flex h-full overflow-hidden bg-[var(--surface)] font-sans antialiased">
     <MobileBackGuard mobileView={mobileView} selectedId={selectedId ?? (selectedOrder ? `order-only:${selectedOrder.id}` : null)} onBackToList={handleBackToList} />
     <RealtimeReloader channelName="icetak-inbox-realtime" onConversationChange={reload} onMessageChange={handleRealtimeMessageChange} />
-    <div className={`flex-shrink-0 w-full sm:w-[360px] lg:w-[380px] xl:w-[400px] border-r border-[#2a3942] ${mobileView === 'list' ? 'flex' : 'hidden sm:flex'} flex-col h-full`}><UnifiedInboxList conversations={mergedConversations} selectedId={selectedId} selectedOrderId={selectedOrder?.id ?? null} onSelect={handleSelect} onOrderSelect={(orderId, conversationId) => { void handleOrderSelect(orderId, conversationId); }} searchQuery={searchQuery} onSearchChange={setSearchQuery} /></div>
+    <div className={`flex-shrink-0 w-full sm:w-[300px] lg:w-[320px] xl:w-[340px] border-r border-[var(--border)] ${mobileView === 'list' ? 'flex' : 'hidden sm:flex'} flex-col h-full`}><UnifiedInboxList conversations={mergedConversations} selectedId={selectedId} selectedOrderId={selectedOrder?.id ?? null} onSelect={handleSelect} onOrderSelect={(orderId, conversationId) => { void handleOrderSelect(orderId, conversationId); }} searchQuery={searchQuery} onSearchChange={setSearchQuery} /></div>
     <div className={`flex flex-1 min-w-0 h-full ${mobileView === 'chat' ? 'flex' : 'hidden sm:flex'}`}>
       <div className="flex flex-col flex-1 min-w-0"><ChatArea conversation={activeConversation} messagesLoading={selectedId ? msgsLoading : false} orderOnly={Boolean(selectedOrder && !selectedOrderConversationId)} onArchiveToggle={handleArchiveToggle} onMarkUnread={handleMarkUnread} onUrgentToggle={handleUrgentToggle} onShowCustomerPanel={() => setShowCustomerPanel((value) => !value)} onBack={mobileView === 'chat' ? handleBackToList : undefined} showCustomerPanel={showCustomerPanel} composerText={composerText} onComposerChange={setComposerText} onSend={handleSend} searchQuery={searchQuery} initialMatchMessageId={initialMatchMessageId} onMarkReplied={handleMarkReplied} /></div>
       {showCustomerPanel && (activeConversation || selectedOrder) && (
-        <div className="fixed inset-0 z-50 h-full w-full flex-shrink-0 overflow-hidden sm:relative sm:inset-auto sm:z-auto sm:w-[380px] xl:w-[420px]">
+        <div className="fixed inset-0 z-50 h-full w-full flex-shrink-0 overflow-hidden lg:relative lg:inset-auto lg:z-auto lg:w-[320px] xl:w-[360px]">
           {selectedOrder ? (
             <OrderOnlySidebar
               order={selectedOrder}
@@ -324,8 +328,8 @@ function MonitorPage({ onOpenConversation }: { onOpenConversation: (conversation
   const { conversations, loading, error, reload } = useConversations();
   const { byConversation } = useConversationTags();
   const taggedConversations = useMemo(() => mergeConversationTags(conversations, byConversation), [conversations, byConversation]);
-  if (loading && conversations.length === 0) return <div className="flex h-full items-center justify-center bg-[#0b141a] text-[#8696a0]"><Loader2 className="animate-spin" /></div>;
-  if (error && conversations.length === 0) return <div className="flex h-full flex-col items-center justify-center gap-3 bg-[#0b141a] text-red-400"><p>{error}</p><button onClick={reload} className="rounded bg-[#202c33] px-4 py-2 text-sm text-white">Cuba Semula</button></div>;
+  if (loading && conversations.length === 0) return <div className="flex h-full items-center justify-center bg-[var(--canvas)] text-[var(--text-secondary)]"><Loader2 className="animate-spin" /></div>;
+  if (error && conversations.length === 0) return <div className="flex h-full flex-col items-center justify-center gap-3 bg-[var(--canvas)] text-red-700 dark:text-red-400"><p>{error}</p><button onClick={reload} className="rounded bg-[var(--surface-muted)] px-4 py-2 text-sm text-[var(--text)]">Cuba Semula</button></div>;
   return <><RealtimeReloader channelName="icetak-monitor-realtime" onConversationChange={reload} /><WindowMonitor conversations={taggedConversations} onReload={reload} onOpenConversation={onOpenConversation} /></>;
 }
 
@@ -336,6 +340,14 @@ function pageFromHash(): Page {
 }
 
 function Dashboard() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+  function toggleTheme() {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    document.documentElement.classList.toggle('dark', next === 'dark');
+    document.documentElement.style.colorScheme = next;
+    try { window.localStorage.setItem('icetak-inbox-theme-v1', next); } catch { /* Preference storage can be blocked. */ }
+  }
   const [page, setPage] = useState<Page>(pageFromHash);
   useEffect(() => {
     function onPopState() { setPage(pageFromHash()); }
@@ -359,15 +371,14 @@ function Dashboard() {
     { id: 'templates' as const, label: 'Templates', icon: LayoutTemplate },
     { id: 'snippets' as const, label: 'Snippets', icon: Zap },
     { id: 'tags' as const, label: 'Tags', icon: Tags },
-    { id: 'settings' as const, label: 'Settings', icon: Settings },
+    { id: 'settings' as const, label: 'Settings', icon: Settings, Moon, Sun },
   ];
-  return <div className="flex h-screen-mobile flex-col bg-[#0b141a]">
-    <nav className="flex h-12 flex-shrink-0 items-center gap-1 overflow-x-auto border-b border-[#2a3942] bg-[#111b21] px-3 pr-14"><span className="mr-3 hidden text-sm font-semibold text-white sm:block">ICETAK</span>{items.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => navigate(item.id)} className={`flex flex-shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition sm:text-sm ${page === item.id ? 'bg-[#00a884] text-white' : 'text-[#aebac1] hover:bg-[#202c33]'}`}><Icon size={15} /> {item.label}</button>; })}</nav>
-    <main className="min-h-0 flex-1">{page === 'inbox' && <InboxApp />}{page === 'orders' && <ActiveOrdersPage onOpenConversation={openConversation} />}{page === 'monitor' && <MonitorPage onOpenConversation={openConversation} />}{page === 'contacts' && <ContactsPage onOpenConversation={openConversation} />}{page === 'templates' && <TemplateManagerV2 />}{page === 'snippets' && <QuickSnippetManager />}{page === 'tags' && <TagManager />}{page === 'settings' && <WebhookForwardSettings />}</main>
+  return <div className="flex h-screen-mobile flex-col bg-[var(--canvas)]">
+    <nav className="flex h-12 flex-shrink-0 items-center gap-1 overflow-x-auto border-b border-[var(--border)] bg-[var(--surface)] px-3 pr-24"><span className="mr-3 hidden text-sm font-semibold text-white sm:block">ICETAK</span>{items.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => navigate(item.id)} className={`flex flex-shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition sm:text-sm ${page === item.id ? 'bg-[#00a884] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-muted)]'}`}><Icon size={15} /> {item.label}</button>; })}</nav>
+    <button onClick={toggleTheme} aria-label={theme === 'light' ? 'Tukar ke tema Black' : 'Tukar ke tema White'} title={theme === 'light' ? 'Black theme' : 'White theme'} className="absolute right-14 top-3 z-50 rounded-full bg-[var(--surface-muted)] p-2 text-[var(--text-secondary)]">{theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}</button><main className="min-h-0 flex-1">{page === 'inbox' && <InboxApp />}{page === 'orders' && <ActiveOrdersPage onOpenConversation={openConversation} />}{page === 'monitor' && <MonitorPage onOpenConversation={openConversation} />}{page === 'contacts' && <ContactsPage onOpenConversation={openConversation} />}{page === 'templates' && <TemplateManagerV2 />}{page === 'snippets' && <QuickSnippetManager />}{page === 'tags' && <TagManager />}{page === 'settings' && <WebhookForwardSettings />}</main>
   </div>;
 }
 
 export default function App() {
   return <AuthGate><Dashboard /></AuthGate>;
 }
-

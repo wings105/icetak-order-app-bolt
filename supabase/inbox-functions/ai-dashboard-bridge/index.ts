@@ -1,3 +1,5 @@
+import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import {sendShopee} from '../_shared/shopee-send.ts';
 // Deploy to Unified Inbox. Server-to-server only; never expose the bridge token to browsers.
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 const U=Deno.env.get('SUPABASE_URL')||'', K=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
@@ -15,7 +17,7 @@ async function read(id:string|null,b:any={}) {
  p_search:t(b.search).slice(0,100),p_offset:Math.max(0,Number(b.offset)||0),p_limit:Math.min(60,Math.max(1,Number(b.limit)||30))});
 }
 function phone(value:unknown){const raw=t(value);if(/^[A-Z]{2}\./i.test(raw))return '';let d=raw.replace(/\D/g,'');if(d.startsWith('0'))d='6'+d;return /^[1-9]\d{7,14}$/.test(d)?d:'';}
-async function capability(){return {whatsapp_api:!!((Deno.env.get('WF_PARTNER_KEY')||Deno.env.get('WASAPFLOW_PARTNER_KEY'))&&(Deno.env.get('WF_WABA_ID')||Deno.env.get('WASAPFLOW_WABA_ID'))),shopee_api:false};}
+async function capability(){return {whatsapp_api:!!((Deno.env.get('WF_PARTNER_KEY')||Deno.env.get('WASAPFLOW_PARTNER_KEY'))&&(Deno.env.get('WF_WABA_ID')||Deno.env.get('WASAPFLOW_WABA_ID'))),shopee_api:await db('private_runtime_settings?setting_key=in.(shopee_chat_send_endpoint,shopee_chat_send_token)&select=setting_key,setting_value').then(rows => rows.length===2 && rows.every((row:any)=>t(row.setting_value)))};}
 Deno.serve(async req=>{
  if(req.method!=='POST')return out({ok:false,error:'POST required'},405);
  try{
@@ -23,6 +25,7 @@ Deno.serve(async req=>{
   const expected=t(settings?.[0]?.setting_value), supplied=t(req.headers.get('x-admin-window-token'));
   if(!expected||!supplied||supplied!==expected)return out({ok:false,error:'Unauthorized'},401);
   const b=await req.json();const action=t(b.action)||'list';
+  if(action==='credential_presence')return out({ok:true,openai_key_present:!!Deno.env.get('OPENAI_API_KEY')?.trim().startsWith('sk-')});
   if(action==='capabilities')return out({ok:true,...await capability()});
   if(action==='order_details'){
    if(!Array.isArray(b.orders)||b.orders.length>50)return out({ok:false,error:'Maksimum 50 order'},400);
@@ -60,6 +63,11 @@ Deno.serve(async req=>{
    return out({ok:a.status==='sent',duplicate:true,status:a.status,provider_message_id:a.provider_message_id,error:a.error});
   }
   const c=(await read(b.conversation_id)).rows[0];
+  if(c?.channel==='shopee'){
+   const client=createClient(U,K,{auth:{persistSession:false}});
+   if(b.revision!==c.revision)return out({ok:false,error:'CHAT_CHANGED: Muat semula sebelum menghantar.'},409);
+   return await sendShopee(client,{...b,revision:undefined},{id:null,label:t(b.actor)});
+  }
   if(!c||c.channel!=='whatsapp')return out({ok:false,error:'WhatsApp conversation required'},422);
   const expires=Date.parse(c.window_expires_at||'')||Date.parse(c.last_inbound_at||'')+86400000;
   if(!Number.isFinite(expires)||Date.now()>=expires)return out({ok:false,error:'Tetingkap API tamat. Balas manual atau guna template diluluskan.'},409);
