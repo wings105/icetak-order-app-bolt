@@ -210,7 +210,7 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
 
       <div className="flex gap-1 overflow-x-auto border-b border-[var(--border)] px-3 py-2">
         {(['all', 'shopee', 'whatsapp'] as ChannelFilter[]).map((channel) => (
-          <button key={channel} onClick={() => setChannelFilter(channel)} className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${channelFilter === channel ? channel === 'whatsapp' ? 'bg-[#25d366] text-white' : channel === 'shopee' ? 'bg-orange-500 text-white' : 'bg-[#aebac1] text-[var(--text)]' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]'}`}>
+          <button key={channel} onClick={() => setChannelFilter(channel)} className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${channelFilter === channel ? channel === 'whatsapp' ? 'bg-[#25d366] text-white' : channel === 'shopee' ? 'bg-orange-500 text-white' : 'bg-[#aebac1] text-[#111b21]' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]'}`}>
             {channel === 'all' ? 'Semua Channel' : channel === 'shopee' ? 'Shopee' : 'WhatsApp'}
           </button>
         ))}
@@ -226,7 +226,7 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {error ? (
-          <div className="m-3 rounded-lg border border-red-800/40 bg-red-950/30 p-3 text-xs text-red-700 dark:text-red-300"><AlertCircle size={14} className="mb-1" />{error}</div>
+          <div className="m-3 rounded-lg border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/30 p-3 text-xs text-red-700 dark:text-red-300"><AlertCircle size={14} className="mb-1" />{error}</div>
         ) : loading && orders.length === 0 ? (
           <div className="flex h-40 items-center justify-center gap-2 text-xs text-[var(--text-secondary)]"><Loader2 size={16} className="animate-spin" />Memuatkan order…</div>
         ) : visibleOrders.length === 0 ? (

@@ -473,7 +473,7 @@ export function ChatArea({
 
       <div className="flex flex-col bg-[#f0f2f5] dark:bg-[var(--surface-muted)] border-t border-[#e9edef] dark:border-[var(--border)] relative z-10">
         {sendError && <div className="flex items-center gap-2 px-4 py-1.5 bg-red-50 dark:bg-red-950/40 border-b border-red-200 dark:border-red-800/40"><AlertCircle size={12} className="text-red-500" /><span className="text-xs text-red-600 dark:text-red-400 flex-1">{sendError}</span><button onClick={() => setSendError(null)}><X size={12} /></button></div>}
-        {templateSentNotice && <div className="flex items-center justify-between gap-2 border-b border-emerald-800/40 bg-emerald-950/30 px-4 py-2 text-xs text-emerald-700 dark:text-emerald-300"><span>Template berjaya dihantar dan direkodkan.</span><button onClick={() => setTemplateSentNotice(false)}><X size={12} /></button></div>}
+        {templateSentNotice && <div className="flex items-center justify-between gap-2 border-b border-emerald-200 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2 text-xs text-emerald-700 dark:text-emerald-300"><span>Template berjaya dihantar dan direkodkan.</span><button onClick={() => setTemplateSentNotice(false)}><X size={12} /></button></div>}
 
         {orderOnly && conversation.channel === 'shopee' && (
           <div className="border-b border-orange-500/20 bg-orange-500/10 px-4 py-2 text-center text-[11px] text-orange-700 dark:text-orange-200">
@@ -497,7 +497,7 @@ export function ChatArea({
           <div className="flex flex-col gap-1.5 px-4 pt-3 pb-1">
             <div className="relative w-fit">
               <img src={imagePreviewUrl} alt="Preview" className="max-h-32 max-w-[180px] rounded-lg object-cover border border-[#d1d7db] dark:border-[var(--border)]" />
-              <button onClick={() => setQueuedImage(null)} className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[var(--surface-hover)] text-white flex items-center justify-center hover:bg-red-500 transition-colors" aria-label="Buang gambar"><X size={11} /></button>
+              <button onClick={() => setQueuedImage(null)} className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[var(--surface-hover)] text-[var(--text)] flex items-center justify-center hover:bg-red-500 transition-colors" aria-label="Buang gambar"><X size={11} /></button>
             </div>
             <p className="text-[11px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">Gambar sudah masuk queue. Taip caption jika perlu, kemudian tekan Enter atau Send.</p>
           </div>

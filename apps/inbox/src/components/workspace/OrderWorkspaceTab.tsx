@@ -145,7 +145,7 @@ export function OrderWorkspaceTab({
 
   return (
     <div className="h-full overflow-y-auto bg-[var(--surface)] pb-8">
-      {error && <div className="m-3 rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-300">{error}</div>}
+      {error && <div className="m-3 rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-300">{error}</div>}
 
       <section className="border-b border-[var(--border)] p-4">
         <div className="mb-3 flex items-center justify-between">
@@ -160,7 +160,7 @@ export function OrderWorkspaceTab({
             const summary = link.summary;
             const items = orderItems(summary);
             return (
-              <div key={link.id} className={`rounded-xl border p-3 ${link.is_primary ? 'border-[#00a884]/60 bg-[#0f2622]' : 'border-[var(--border)] bg-[var(--surface-muted)]'}`}>
+              <div key={link.id} className={`rounded-xl border p-3 ${link.is_primary ? 'border-[#00a884]/60 bg-emerald-50 dark:bg-[#0f2622]' : 'border-[var(--border)] bg-[var(--surface-muted)]'}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -360,7 +360,7 @@ function ActionButton({ icon, label, onClick, busy = false, disabled = false, da
     <button
       onClick={onClick}
       disabled={disabled || busy}
-      className={`inline-flex items-center justify-center gap-1 rounded-lg px-2 py-2 text-[10px] font-medium disabled:opacity-35 ${danger ? 'bg-red-500/15 text-red-700 dark:text-red-300 hover:bg-red-500/25' : 'bg-[var(--surface-hover)] text-[var(--text)] hover:text-white'}`}
+      className={`inline-flex items-center justify-center gap-1 rounded-lg px-2 py-2 text-[10px] font-medium disabled:opacity-35 ${danger ? 'bg-red-500/15 text-red-700 dark:text-red-300 hover:bg-red-500/25' : 'bg-[var(--surface-hover)] text-[var(--text)] hover:text-[var(--text)]'}`}
     >
       {busy ? <Loader2 size={12} className="animate-spin" /> : icon}{label}
     </button>

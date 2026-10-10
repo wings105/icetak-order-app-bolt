@@ -115,7 +115,7 @@ export function CreateTestChatModal({ onClose, onCreated }: Props) {
         <select value={courier} onChange={(event) => setCourier(event.target.value)} className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm"><option>SPX</option><option>J&amp;T</option><option>PosLaju</option></select>
         <input value={tracking} onChange={(event) => setTracking(event.target.value)} placeholder="Tracking number" className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm" />
       </div>
-      {error && <p className="mx-5 mb-4 rounded-lg bg-red-950/40 p-3 text-xs text-red-700 dark:text-red-300">{error}</p>}
+      {error && <p className="mx-5 mb-4 rounded-lg bg-red-50 dark:bg-red-950/40 p-3 text-xs text-red-700 dark:text-red-300">{error}</p>}
       <div className="flex justify-end gap-2 border-t border-[var(--border)] px-5 py-4"><button type="button" onClick={onClose} className="rounded-lg bg-[var(--surface-muted)] px-4 py-2 text-sm">Batal</button><button disabled={busy} className="flex items-center gap-2 rounded-lg bg-[#00a884] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? <Loader2 size={16} className="animate-spin" /> : <FlaskConical size={16} />} Cipta Test Chat</button></div>
     </form>
   </div>;

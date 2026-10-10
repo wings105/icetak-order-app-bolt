@@ -3,7 +3,9 @@
 The main source for orders, payment, and production is `icetak-order-system`
 (`buivecgahhmrhlmfujgt`). `icetak-unified-inbox` (`uujcqcsfghqkukaydruc`)
 retains messages and an order cache. Frontend source is `apps/inbox` and is
-published by the existing shop build at `/inbox/`.
+published by the existing shop build at `/inbox/`. Live Cloudflare hosting follows
+`production`; `main` builds a preview. Only this inbox release was carried onto
+production, preserving its separate admin changes.
 
 ## Order sync
 
@@ -70,5 +72,10 @@ OpenAI reply generation remains gated on the user's key reuse/new-key decision.
 Validation: inbox TypeScript, full shop+inbox production build, eleven focused
 Node tests, SQL rollback tests, queue/cache checks. Local visual browser QA was
 blocked by browser binary download failure; cloud browser cannot reach the
-local server. Production Inbox requires staff login, so authenticated chat
-interactions and live Shopee sending remain untested.
+local server. After staff login, live White/Black switching, Black persistence after reload,
+chat reading, and linked order IC261009-6001 (RM28.50 paid, RM0 balance) were
+verified. Browser DOM snapshots timed out after loading the large inbox, so
+visual QA used screenshots and documented coordinate interactions. Live
+Shopee sending remains untested because its adapter is not configured.
+Phone-sized viewport and first-chat/media sending are not verified. Subsequent
+visual QA corrected primary order card, navigation and filter contrast in White.

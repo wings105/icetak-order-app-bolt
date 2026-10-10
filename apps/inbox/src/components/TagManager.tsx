@@ -95,7 +95,7 @@ export function TagManager() {
           <button onClick={() => void createTag()} disabled={!name.trim()} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#00a884] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"><Plus size={15} /> Cipta</button>
         </div>
 
-        {error && <div className="mb-3 rounded-lg border border-red-800 bg-red-950/40 px-3 py-2 text-sm text-red-700 dark:text-red-300">{error}</div>}
+        {error && <div className="mb-3 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-sm text-red-700 dark:text-red-300">{error}</div>}
 
         <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
           {loading ? <div className="p-10 text-center text-sm text-[var(--text-secondary)]">Memuatkan...</div> : visible.length === 0 ? <div className="p-10 text-center text-sm text-[var(--text-secondary)]">Tiada tag.</div> : visible.map((tag) => (
@@ -103,7 +103,7 @@ export function TagManager() {
               <div className="flex items-center gap-2"><span className="h-3 w-3 flex-shrink-0 rounded-full" style={{ backgroundColor: tag.color }} /><input value={tag.name} onChange={(event) => setTags((rows) => rows.map((row) => row.id === tag.id ? { ...row, name: event.target.value } : row))} className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm outline-none focus:border-[#00a884]" /></div>
               <label className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-2 py-1.5 text-xs"><input type="color" value={tag.color} onChange={(event) => setTags((rows) => rows.map((row) => row.id === tag.id ? { ...row, color: event.target.value } : row))} className="h-6 w-8 bg-transparent" /> {tag.color}</label>
               <span className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)]"><TagIcon size={13} /> {tag.usage_count} chat</span>
-              <button onClick={() => void saveTag(tag)} disabled={busyId === tag.id} className="inline-flex items-center justify-center gap-1 rounded-lg bg-[var(--surface-hover)] px-3 py-2 text-xs text-[var(--text)] hover:bg-[#3b4a54]"><Save size={13} /> Simpan</button>
+              <button onClick={() => void saveTag(tag)} disabled={busyId === tag.id} className="inline-flex items-center justify-center gap-1 rounded-lg bg-[var(--surface-hover)] px-3 py-2 text-xs text-[var(--text)] hover:bg-[var(--surface-muted)]"><Save size={13} /> Simpan</button>
               <button onClick={() => void toggleArchive(tag)} disabled={busyId === tag.id} className={`inline-flex items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs ${tag.archived ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'}`}>{tag.archived ? <RotateCcw size={13} /> : <Archive size={13} />}{tag.archived ? 'Aktifkan' : 'Archive'}</button>
             </div>
           ))}
