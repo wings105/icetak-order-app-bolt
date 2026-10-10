@@ -260,7 +260,7 @@ export function ConversationList({ conversations, selectedId, selectedOrderId, o
                   ? 'bg-[#00a884] text-white'
                   : channel.key === 'shopee'
                     ? 'bg-orange-500 text-white'
-                    : 'bg-[#3b4a54] dark:bg-[#aebac1] text-[var(--text)] dark:text-[var(--text)]'
+                    : 'bg-[#3b4a54] text-white dark:bg-[#aebac1] dark:text-[#111b21]'
                 : 'bg-[#f0f2f5] dark:bg-[var(--surface-hover)] text-[var(--text-secondary)] dark:text-[var(--text-secondary)] hover:bg-[#e9edef] dark:hover:bg-[var(--surface-hover)]'
             }`}
           >
@@ -406,4 +406,3 @@ function SearchResultItem({ conversation, searchResult, query, isSelected, onCli
     </button>
   );
 }
-

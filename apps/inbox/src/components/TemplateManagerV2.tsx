@@ -53,8 +53,7 @@ export function TemplateManagerV2() {
     </div>
 
     {tab === 'manage' ? <TemplateManager /> : <div className="mx-auto max-w-xl p-4 sm:p-6">
-      {loading ? <div className="flex justify-center py-16 text-[var(--text-secondary)]"><Loader2 className="animate-spin" /></div> : error ? <div className="rounded-lg border border-red-900 bg-red-950/30 p-3 text-sm text-red-700 dark:text-red-300">{error}</div> : <DynamicTemplateSender templates={templates} />}
+      {loading ? <div className="flex justify-center py-16 text-[var(--text-secondary)]"><Loader2 className="animate-spin" /></div> : error ? <div className="rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 p-3 text-sm text-red-700 dark:text-red-300">{error}</div> : <DynamicTemplateSender templates={templates} />}
     </div>}
   </div>;
 }
-

@@ -289,7 +289,7 @@ function InboxApp() {
   }, [selectedId]);
 
   if (loading && conversations.length === 0) return <div className="flex h-full items-center justify-center bg-[var(--surface)]"><Loader2 size={32} className="animate-spin text-[#00a884]" /></div>;
-  if (error && conversations.length === 0) return <div className="flex h-full items-center justify-center bg-[var(--surface)]"><div className="text-center"><WifiOff size={40} className="mx-auto text-[var(--text-secondary)]" /><p className="mt-3 text-white">Gagal memuatkan data</p><p className="text-sm text-[var(--text-secondary)]">{error}</p><button onClick={reload} className="mt-3 rounded-lg bg-[#00a884] px-4 py-2 text-sm text-white">Cuba Semula</button></div></div>;
+  if (error && conversations.length === 0) return <div className="flex h-full items-center justify-center bg-[var(--surface)]"><div className="text-center"><WifiOff size={40} className="mx-auto text-[var(--text-secondary)]" /><p className="mt-3 text-[var(--text)]">Gagal memuatkan data</p><p className="text-sm text-[var(--text-secondary)]">{error}</p><button onClick={reload} className="mt-3 rounded-lg bg-[#00a884] px-4 py-2 text-sm text-white">Cuba Semula</button></div></div>;
 
   return <div className="flex h-full overflow-hidden bg-[var(--surface)] font-sans antialiased">
     <MobileBackGuard mobileView={mobileView} selectedId={selectedId ?? (selectedOrder ? `order-only:${selectedOrder.id}` : null)} onBackToList={handleBackToList} />
@@ -374,7 +374,7 @@ function Dashboard() {
     { id: 'settings' as const, label: 'Settings', icon: Settings, Moon, Sun },
   ];
   return <div className="flex h-screen-mobile flex-col bg-[var(--canvas)]">
-    <nav className="flex h-12 flex-shrink-0 items-center gap-1 overflow-x-auto border-b border-[var(--border)] bg-[var(--surface)] px-3 pr-24"><span className="mr-3 hidden text-sm font-semibold text-white sm:block">ICETAK</span>{items.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => navigate(item.id)} className={`flex flex-shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition sm:text-sm ${page === item.id ? 'bg-[#00a884] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-muted)]'}`}><Icon size={15} /> {item.label}</button>; })}</nav>
+    <nav className="flex h-12 flex-shrink-0 items-center gap-1 overflow-x-auto border-b border-[var(--border)] bg-[var(--surface)] px-3 pr-24"><span className="mr-3 hidden text-sm font-semibold text-[var(--text)] sm:block">ICETAK</span>{items.map((item) => { const Icon = item.icon; return <button key={item.id} onClick={() => navigate(item.id)} className={`flex flex-shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition sm:text-sm ${page === item.id ? 'bg-[#00a884] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-muted)]'}`}><Icon size={15} /> {item.label}</button>; })}</nav>
     <button onClick={toggleTheme} aria-label={theme === 'light' ? 'Tukar ke tema Black' : 'Tukar ke tema White'} title={theme === 'light' ? 'Black theme' : 'White theme'} className="absolute right-14 top-3 z-50 rounded-full bg-[var(--surface-muted)] p-2 text-[var(--text-secondary)]">{theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}</button><main className="min-h-0 flex-1">{page === 'inbox' && <InboxApp />}{page === 'orders' && <ActiveOrdersPage onOpenConversation={openConversation} />}{page === 'monitor' && <MonitorPage onOpenConversation={openConversation} />}{page === 'contacts' && <ContactsPage onOpenConversation={openConversation} />}{page === 'templates' && <TemplateManagerV2 />}{page === 'snippets' && <QuickSnippetManager />}{page === 'tags' && <TagManager />}{page === 'settings' && <WebhookForwardSettings />}</main>
   </div>;
 }
@@ -382,4 +382,3 @@ function Dashboard() {
 export default function App() {
   return <AuthGate><Dashboard /></AuthGate>;
 }
-

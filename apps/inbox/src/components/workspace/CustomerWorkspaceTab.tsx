@@ -252,7 +252,7 @@ export function CustomerWorkspaceTab({
             >
               <MessageCircle size={15} className="text-[#00a884]" />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2"><span className="text-xs font-medium capitalize text-white">{related.channel}</span>{related.archived && <span className="rounded bg-[var(--surface-hover)] px-1.5 py-0.5 text-[9px] text-[var(--text-secondary)]">Arkib</span>}{related.needs_reply && <span className="rounded bg-orange-500/20 px-1.5 py-0.5 text-[9px] text-orange-700 dark:text-orange-300">Perlu balas</span>}</div>
+                <div className="flex items-center gap-2"><span className="text-xs font-medium capitalize text-[var(--text)]">{related.channel}</span>{related.archived && <span className="rounded bg-[var(--surface-hover)] px-1.5 py-0.5 text-[9px] text-[var(--text-secondary)]">Arkib</span>}{related.needs_reply && <span className="rounded bg-orange-500/20 px-1.5 py-0.5 text-[9px] text-orange-700 dark:text-orange-300">Perlu balas</span>}</div>
                 <p className="mt-0.5 text-[10px] text-[var(--text-secondary)]">{formatRelatedTime(related.last_message_at)}</p>
               </div>
               <ExternalLink size={13} className="text-[var(--text-secondary)]" />
@@ -286,4 +286,3 @@ function InfoRow({ icon, label, value, onCopy, multiline = false }: { icon: Reac
     </div>
   );
 }
-

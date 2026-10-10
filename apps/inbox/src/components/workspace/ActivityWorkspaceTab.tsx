@@ -174,7 +174,7 @@ export function ActivityWorkspaceTab({ activities, loading }: Props) {
             key={item.id}
             onClick={() => setFilter(item.id)}
             className={`whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
-              filter === item.id ? 'bg-[#00a884] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)] hover:text-white'
+              filter === item.id ? 'bg-[#00a884] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)] hover:text-[var(--text)]'
             }`}
           >
             {item.label}
@@ -202,4 +202,3 @@ export function ActivityWorkspaceTab({ activities, loading }: Props) {
     </div>
   );
 }
-
