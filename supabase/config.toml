@@ -75,3 +75,7 @@ verify_jwt = false
 # Private ChatGPT action protected by x-icetak-gpt-token SHA-256 verification in code.
 [functions.gpt-order-actions]
 verify_jwt = false
+
+# Server-only reply context, mandatory existing x-admin-window-token authentication.
+[functions.inbox-reply-context]
+verify_jwt = false

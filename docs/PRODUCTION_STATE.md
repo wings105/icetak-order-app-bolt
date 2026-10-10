@@ -265,3 +265,6 @@ Frontend release `5548f1e` passed Workers Builds and source guard; Cloudflare ve
 ## 2026-10-08 — AWB reference task name copy
 
 [PRODUCTION] PR #77 release `a1cc728dcdfa871473f6d2af72be58c2ea89d27c` passed Workers Builds/guard; Cloudflare version `ae7fde23-804c-4333-816f-2e8edf44bb9c`. Each task title has a one-click copy icon with Disalin ✓ feedback. Native clipboard bytes verified in local Chromium; hosted exact-order icon/click feedback verified. Copy controls/status are hidden in print/PDF. No backend or business writes. See [AWB_PREVIEW.md](AWB_PREVIEW.md).
+# 2026-10-10 — Inline Inbox reply suggestions
+
+Backend PRODUCTION / controlled rendered behavior VERIFIED: Inbox JWT/staff-only inbox-reply-suggest v1 and private Order inbox-reply-context v1 reuse canonical context and shared SOP rules above the composer. Six-second customer quiet period, 60-second expiry, stale message/customer rejection, editable click-to-draft with append/dedup and explicit Send only. WhatsApp Enter respects expiry. Actual cross-project read and unchanged conversation state, exact auth/bundle readbacks, handler/engine regressions, desktop/mobile light/dark interaction checks and full builds pass. Admin dashboard v20 adds xreply/xbalas shorthand recognition. Hosted authenticated staff interaction remains unexercised; see INBOX_REPLY_SUGGESTIONS.md.

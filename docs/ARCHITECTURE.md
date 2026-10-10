@@ -201,3 +201,6 @@ Admin V2 now has a VERIFIED contribution-target read model and direct-order cost
 ## AWB reference task actions
 
 The standalone exact-order AWB preview reads Order System's private ClickUp projection. Owner-approved buttons POST scoped task actions to `awb-preview`; that function validates a signed page grant and current membership/configuration, claims a private delivery receipt and forwards one task to an admin-configured HTTPS webhook. Admin V2 Settings owns the private destination through authenticated `webhook-forward-settings` kind `awb_preview`. External automation owns resulting task updates. No direct order/payment/WhatsApp mutations or Unified Inbox changes. See `AWB_PREVIEW.md`.
+# Inline Inbox reply context (2026-10-10)
+
+The active Inbox staff session calls JWT/member-checked `inbox-reply-suggest` in Inbox. That gateway loads actual chat evidence and calls private `inbox-reply-context` in Order System with the existing bridge key. Canonical CRM/session/order/work reads and the shared AI Dashboard SOP analyzer return a short draft DTO. Inbox rechecks chat revision before returning it; the composer discards expired/outdated results. This is a read-only draft calculation, with existing send paths preserved. See INBOX_REPLY_SUGGESTIONS.md.

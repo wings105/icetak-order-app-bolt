@@ -10,6 +10,7 @@ import {
   Send, AlertCircle, LayoutTemplate, Copy, ImageIcon,
 } from 'lucide-react';
 import { getMatchingMessageIds } from '../lib/hooks';
+import { ReplySuggestion } from './ReplySuggestion';
 
 interface ChatAreaProps {
   conversation: Conversation | null;
@@ -370,6 +371,8 @@ export function ChatArea({
   }
 
   function handleSend() {
+    // Recheck at the action boundary too: Enter must respect the same window as the button.
+    if (conversation?.channel === 'whatsapp' && conversation.lastInboundAt && Date.now() - conversation.lastInboundAt.getTime() >= 24 * 60 * 60 * 1000) return;
     const text = draftText.trim();
     const file = queuedImage;
     if (!text && !file) return;
@@ -431,7 +434,7 @@ export function ChatArea({
   const canSend = !isExpired && hasContent;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[var(--chat-bg)] dark:bg-[var(--canvas)]">
+    <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-[var(--chat-bg)] dark:bg-[var(--canvas)]">
 
       <ChatHeader conversation={conversation} onArchiveToggle={() => onArchiveToggle(conversation.id)} onMarkUnread={() => onMarkUnread(conversation.id)} onUrgentToggle={() => onUrgentToggle(conversation.id)} onShowCustomerPanel={onShowCustomerPanel} onBack={onBack} showCustomerPanel={showCustomerPanel} onMarkReplied={() => onMarkReplied(conversation.id)} orderOnly={orderOnly} />
 
@@ -503,6 +506,10 @@ export function ChatArea({
           </div>
         )}
 
+        {!orderOnly && <ReplySuggestion conversation={conversation} ready={!messagesLoading} onPick={(text) => {
+          setDraftText(current => current.includes(text) ? current : current.trim() ? `${current}\n\n${text}` : text);
+          window.requestAnimationFrame(() => { textareaRef.current?.focus(); });
+        }} />}
         <div className="flex items-end gap-2 px-4 py-3">
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           {!isExpired && !orderOnly && (
@@ -520,11 +527,11 @@ export function ChatArea({
             onKeyPress={(e) => e.stopPropagation()}
             onPaste={handlePaste}
             placeholder={isExpired ? 'Tulis draft untuk disalin, atau pilih template.' : 'Taip mesej... (Enter untuk hantar, Shift+Enter untuk baris baru)'}
-            className="flex-1 resize-none overflow-hidden text-sm rounded-lg px-4 py-2.5 outline-none focus:ring-1 focus:ring-[#00a884] transition-all leading-relaxed bg-white dark:bg-[var(--surface-hover)] text-[var(--text)] dark:text-[var(--text)] placeholder-[#667781] dark:placeholder-[var(--text-secondary)]"
+            className="flex-1 min-w-0 resize-none overflow-hidden text-sm rounded-lg px-4 py-2.5 outline-none focus:ring-1 focus:ring-[#00a884] transition-all leading-relaxed bg-white dark:bg-[var(--surface-hover)] text-[var(--text)] dark:text-[var(--text)] placeholder-[#667781] dark:placeholder-[var(--text-secondary)]"
             style={{ minHeight: '40px', maxHeight: '120px' }}
           />
           {!isExpired && (
-            <button onClick={handleSend} disabled={!canSend} className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${!canSend ? 'bg-[var(--surface-hover)] text-[var(--text-secondary)]' : 'bg-[#00a884] text-white'}`}>
+            <button aria-label="Hantar mesej" onClick={handleSend} disabled={!canSend} className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${!canSend ? 'bg-[var(--surface-hover)] text-[var(--text-secondary)]' : 'bg-[#00a884] text-white'}`}>
               {pendingSends > 0 && !hasContent ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
             </button>
           )}

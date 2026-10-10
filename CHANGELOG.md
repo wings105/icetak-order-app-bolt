@@ -268,3 +268,6 @@ Added Address/Complete header actions for all preview tasks and one Finished act
 ## 2026-10-08 [PRODUCTION] — SKU copy beneath Finished in AWB preview
 
 Added ClickUp SKU text and a copy icon beneath each task's Finished button. Exact SKU-only clipboard copying, empty omission, Refresh/keyboard/error retry, task 17, desktop/mobile and print/PDF exclusion pass in the actual rendered entry. Private read-only snapshot RPC preserves AWB lookup and existing RPC compatibility; live value, bounds and grants verified. No webhook POST on copy. PR #79 release 818130d passed Workers Builds/guard; production browser shows melody cupcake beneath Finished and confirms SKU disalin ✓. awb-preview v6 source readback and safe preview/PDF smoke pass; details in AWB_PREVIEW.md.
+## 2026-10-10 — [VERIFIED] Inline Unified Inbox reply suggestions
+
+Minimal SOP suggestion above the composer inserts editable text, preserves existing drafts and requires explicit Send. Six-second customer burst debounce, fresh canonical order/work context, 60-second expiry and stale chat/customer safeguards. Inbox staff/private cross-project endpoints deployed and smoke-tested without writes/sends; desktop/mobile light/dark actual-component interactions pass. WhatsApp expired-window Enter guard fixed. Authenticated hosted staff interaction remains unexercised. See docs/INBOX_REPLY_SUGGESTIONS.md.

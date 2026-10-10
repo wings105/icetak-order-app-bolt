@@ -26,7 +26,7 @@ export function analyze(c:RecordData,ctx:RecordData,semantic:RecordData|null=nul
  const inbound=recent.filter(m=>m.direction==='inbound');
  const evidence=inbound.slice(-5);const text=evidence.map(content).join('\n');
  const matches:Array<{intent:string;pattern:RegExp}>=[
-  {intent:'complaint',pattern:/refund|rosak|salah barang|kecewa|complaint|tak reply|x reply|tak balas|x balas|cancel|batal/i},
+  {intent:'complaint',pattern:/refund|rosak|salah barang|kecewa|complaint|tak reply|x\s*reply|tak balas|x\s*balas|cancel|batal/i},
   {intent:'shipping',pattern:/tracking|parcel|courier|penghantaran|shipment|shipping|rush.{0,20}ship|bila.{0,20}(sampai|pos|ship)|(?:dah|dh|belum).{0,12}(pos|ship)|barang.{0,12}(mana|sampai)/i},
   {intent:'design',pattern:/design|desain|font|huruf|initial|intial|wording|tulisan|saiz|size|ukuran|diameter|gambar|tiramisu/i},
   {intent:'payment',pattern:/bayar|payment|transfer|resit|receipt|qr\b|akaun|pautan|\blink\b/i},

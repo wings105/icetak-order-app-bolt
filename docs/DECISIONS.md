@@ -231,3 +231,6 @@ Draft list/graph analytics include converted rows and use either draft-created o
 ## 2026-10-09 — Review cancellation history without rewriting audit facts
 
 Use existing draft events for cancellation/Reopen history through a sanitized private read RPC. Both system and admin cancellation retain their recorded source, actor, reason and time; Reopen clears current draft cancellation fields but never deletes earlier events. A source filter applies to current cancelled cohort outcomes, while history remains available on active/converted drafts. Missing legacy source remains unknown; no historical audit reconstruction or provider sends. See DRAFT_LIST_ANALYTICS.md.
+## 2026-10-10 — Reuse canonical SOP suggestions inside Inbox composer
+
+The Unified Inbox owns suggestion presentation and its staff authentication; Order System continues to own canonical case/order/work facts. A narrow authenticated read bridge reuses existing analyzer/enrichment modules instead of copying logic into the browser or requiring a separate Order admin session. Six-second quiet debounce and 60-second freshness bounds limit stale drafts; exact order association remains conservative. Click inserts editable text only. GPT generation, new credentials, automatic sends and inferred latest-order binding are outside this change. See INBOX_REPLY_SUGGESTIONS.md.
