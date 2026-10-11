@@ -121,7 +121,7 @@ export function ConversationItem({ conversation, isSelected, onClick }: Conversa
 
         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
           <ChannelBadge channel={channel} size="xs" />
-          <StatusBadge status={orderStatus} size="xs" />
+          {!(channel === 'shopee' && conversation.needsReply === false && orderStatus === 'Selesai') && <StatusBadge status={orderStatus} size="xs" />}
           {channel === 'whatsapp' && <OrderSessionBadge session={conversation.orderSession} compact />}
           {channel === 'whatsapp' && <WindowBadge lastInboundAt={lastInboundAt} compact />}
         </div>

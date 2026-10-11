@@ -90,28 +90,31 @@ export function mapConversation(detail: ConversationDetail, messages: DbMessage[
   const customer = dbConv.customers ? mapCustomer(dbConv.customers, identities, addresses, dbConv.channel) : { id: dbConv.customer_id ?? dbConv.id, name: dbConv.external_customer_id ?? 'Unknown' };
   const mappedMessages = messages.map(mapMessage);
   const firstItem = items[0];
+  // Reply state is authoritative; old AI output must not reopen handled chats.
+  const handled = dbConv.channel === 'shopee' && !dbConv.needs_reply;
+  const resolvedStatus = resolveOrderStatus(dbConv.orders);
   return {
     id: dbConv.id,
     channel: dbConv.channel,
     customer,
     messages: mappedMessages,
     isArchived: dbConv.archived,
-    isUrgent: dbConv.priority === 'urgent',
+    isUrgent: !handled && dbConv.priority === 'urgent',
     unreadCount: dbConv.unread_count,
     lastInboundAt: dbConv.last_inbound_at ? new Date(dbConv.last_inbound_at) : undefined,
     lastMessageAt: dbConv.last_message_at ? new Date(dbConv.last_message_at) : undefined,
-    orderStatus: resolveOrderStatus(dbConv.orders),
+    orderStatus: handled && resolvedStatus === 'Menunggu Balasan' ? 'Selesai' : resolvedStatus,
     shopeeOrder: dbConv.channel === 'shopee' && dbConv.orders ? mapShopeeOrder(dbConv.orders, firstItem) : undefined,
     needsReply: dbConv.needs_reply,
     lastMessageSender: dbConv.last_message_sender as Conversation['lastMessageSender'],
     orderId: dbConv.orders?.external_order_id ?? dbConv.orders?.internal_order_number ?? undefined,
     metadata: dbConv.metadata,
-    aiPriorityScore: Number(dbConv.ai_priority_score ?? 0),
-    aiRemark: dbConv.ai_remark ?? undefined,
+    aiPriorityScore: handled ? 0 : Number(dbConv.ai_priority_score ?? 0),
+    aiRemark: handled ? undefined : dbConv.ai_remark ?? undefined,
     aiPaymentStatus: dbConv.ai_payment_status ?? undefined,
     aiIntent: dbConv.ai_intent ?? undefined,
     aiUrgency: dbConv.ai_urgency ?? undefined,
-    aiDueDate: dbConv.ai_due_date ?? undefined,
+    aiDueDate: handled ? undefined : dbConv.ai_due_date ?? undefined,
     aiConfidence: dbConv.ai_confidence == null ? undefined : Number(dbConv.ai_confidence),
     aiAnalysisStatus: dbConv.ai_analysis_status ?? undefined,
     aiAnalysisVersion: dbConv.ai_analysis_version ?? undefined,

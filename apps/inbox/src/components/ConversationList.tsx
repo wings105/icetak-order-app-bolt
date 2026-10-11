@@ -39,6 +39,7 @@ function matchesNeedsReply(c: Conversation): boolean {
 }
 
 function matchesWaitingForCustomer(c: Conversation): boolean {
+  if (c.channel === 'shopee' && c.needsReply === false && c.metadata?.manual_mark_replied === true) return false;
   if (c.lastMessageSender === 'seller') return true;
   if (c.lastMessageSender === 'customer') return false;
   if (c.messages.length === 0) return false;
