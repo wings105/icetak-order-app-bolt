@@ -22,6 +22,7 @@ import StaffRoles from './pages/StaffRoles';
 import Settings from './pages/Settings';
 import ChannelInbox from './pages/ChannelInbox';
 
+const ShopeeOperations=lazy(()=>import('./pages/ShopeeOperations'));
 const RenderTemplates = lazy(() => import('./pages/RenderTemplates'));
 const CustomerFocus = lazy(() => import('./pages/CustomerFocus'));
 const AiDashboard = lazy(() => import('./pages/AiDashboard'));
@@ -30,6 +31,7 @@ const CreateOrder = lazy(() => import('./pages/CreateOrder'));
 const PickupCounter = lazy(() => import('./pages/PickupCounter'));
 
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
+  'shopee-monitor': {title:'Shopee Monitor',subtitle:'Webhook, alert & return'},
   'channel-inbox': { title: 'Channel / Inbox', subtitle: 'WhatsApp & Shopee' },
   'render-templates': { title: 'Render Templates', subtitle: 'Upload template & customize tulisan' },
   'customer-focus': { title: 'Fokus Customer', subtitle: 'Customer, order & tindakan harian' },
@@ -75,7 +77,7 @@ export default function App({ adminData }: Props) {
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
   const initialDraftTab=linkedView==='draft-followups'||initialParams.get('draft_tab')==='followup'?'followup':'all';
-  const [page, setPage] = useState(linkedView === 'customer-focus' ? 'customer-focus' : linkedView === 'channel-inbox' ? 'channel-inbox' : linkedView === 'render-templates' ? 'render-templates' : linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','settings','clickup-queue','integrations','whatsapp-control'].includes(linkedView)?linkedView:'dashboard');
+  const [page, setPage] = useState(linkedView === 'shopee-monitor'?'shopee-monitor':linkedView === 'customer-focus' ? 'customer-focus' : linkedView === 'channel-inbox' ? 'channel-inbox' : linkedView === 'render-templates' ? 'render-templates' : linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','settings','clickup-queue','integrations','whatsapp-control'].includes(linkedView)?linkedView:'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [inboxOpened, setInboxOpened] = useState(linkedView === 'channel-inbox');
   const [marketplaceSearch,setMarketplaceSearch]=useState(initialParams.get('marketplace_q')?.trim() || '');
@@ -98,7 +100,8 @@ export default function App({ adminData }: Props) {
     if (key !== 'marketplace-orders') url.searchParams.delete('marketplace_q');
     if (key !== 'orders') url.searchParams.delete('order');
     if (key !== 'customers' && key !== 'pickup-counter') url.searchParams.delete('customer');
-    if (key === 'channel-inbox') url.searchParams.set('view','channel-inbox');
+    if(key==='shopee-monitor')url.searchParams.set('view','shopee-monitor');
+    else if (key === 'channel-inbox') url.searchParams.set('view','channel-inbox');
     else if (key === 'render-templates') url.searchParams.set('view','render-templates');
     else if (key === 'customer-focus') url.searchParams.set('view','customer-focus');
     else if (key === 'ai-dashboard') url.searchParams.set('view','ai-dashboard');
@@ -198,6 +201,7 @@ export default function App({ adminData }: Props) {
       case 'whatsapp-outbox': return <WhatsAppOutbox />;
       case 'integrations': return <Integrations />;
       case 'staff': return <StaffRoles currentPermissions={permissions} />;
+      case 'shopee-monitor': return <Suspense fallback={<p>Memuatkan Shopee Monitor…</p>}><ShopeeOperations/></Suspense>;
       case 'settings': return <Settings permissions={permissions} onOpenAiLearning={() => navigate('ai-learning')} />;
       case 'ai-learning': return permissions.includes('view_finance') || permissions.includes('manage_admins')
         ? <Suspense fallback={<div style={{ padding: 24 }}>Loading AI Learning...</div>}><AiLearningSettings /></Suspense>

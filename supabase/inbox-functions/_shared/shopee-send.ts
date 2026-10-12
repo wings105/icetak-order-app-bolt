@@ -17,10 +17,11 @@ export async function sendShopee(db:any,body:Record<string,any>,actor:{id:string
  if(body.revision&&body.revision!==conversation.last_message_at) return out({ok:false,error:'Chat sudah berubah. Semak mesej terbaru dahulu.'},409);
  const buyer=text(conversation.external_customer_id),shop=text(conversation.metadata?.shop_id);
  if(!buyer||!shop)return out({ok:false,error:'Identiti buyer dan shop belum disahkan.'},422);
- const {data:settingRows,error:settingError}=await db.from('private_runtime_settings').select('setting_key,setting_value').in('setting_key',['shopee_chat_send_endpoint','shopee_chat_send_token','shopee_chat_direct_config']);
+ const {data:settingRows,error:settingError}=await db.from('private_runtime_settings').select('setting_key,setting_value').in('setting_key',['shopee_chat_send_endpoint','shopee_chat_send_token','shopee_chat_direct_config',`shopee_chat_direct_config:${shop}`]);
  if(settingError)return out({ok:false,error:'Konfigurasi Shopee tidak tersedia.'},503);
  const settings=Object.fromEntries((settingRows||[]).map((s:any)=>[s.setting_key,s.setting_value]));
- let direct=settings.shopee_chat_direct_config?JSON.parse(settings.shopee_chat_direct_config):null;
+ const selectedConfig=settings[`shopee_chat_direct_config:${shop}`]||settings.shopee_chat_direct_config;
+ let direct=selectedConfig?JSON.parse(selectedConfig):null;
  const endpoint=text(settings.shopee_chat_send_endpoint),token=text(settings.shopee_chat_send_token);
  // Do not create a pending message when the provider is not connected.
  if(direct?.shop_id && readiness(direct,shop)!=='READY')return out({ok:false,error:'Sambungan direct Shopee belum sedia. Semak token dan sambungan dalam Admin v2 → Settings.',code:readiness(direct,shop)},503);

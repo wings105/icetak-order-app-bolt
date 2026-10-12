@@ -90,3 +90,11 @@ For a configured integration, the owner can disable direct sending; this does no
 ## 10 October 2026 — Optional token times follow-up
 
 Backend PRODUCTION: migration `20261010063050_shopee_token_optional_times.sql` / live name `shopee_token_optional_times`, Inbox rotation/config v2, sender v7 and AI bridge v8. Exact deployed sources and existing auth modes match. Twenty-eight integration checks and six provider-result tests pass. Both SQL rollback suites execute against the production RPC as service_role, proving three-field storage, blank fields, receipt time, unchanged retries, replay/identity/expiry rejection, bounded fingerprints and private grants. The user's configured shop and rotation key survive rollback; no real token/customer send or ClickUp write occurs. Deployed anonymous rotation is still 401. Root production build passes. Settings JSON/source is updated; rendered owner interaction and the user's actual automation retry remain pending.
+
+## 2026-10-12 — Shop-isolated Settings and history guards
+
+Settings now selects MY 188218638 or SG 1635364464. MY retains the existing primary private slot; other shops use shopee_chat_direct_config:<shop_id>. Get/save/check, rotation key generation and token rotate use body.shop_id. The sender chooses the exact conversation shop and fails closed on missing/mismatched credentials. Rotation payloads and dedicated keys must match their shop; tokens are never inherited between shops. Existing external refresh remains the single producer. SG credential import has not happened and needs explicit transfer authorization/provider validation.
+
+SHIPPED and other terminal statuses close the matching session and clear stale needs_reply/unread. Historical ingestion retains original time, cannot create a new active provisional order or primary old link, and cannot replace a current customer name/identity. Auto/offwork replies do not count as human replies. Successful-send proof and concurrent-inbound guards remain unchanged.
+
+Latest deployed: config/rotation v3, sender v9, AI bridge v10, chat ingest v8, read-only finance fetch v5. Exact source/dependency readback, 30 sender checks, 59 operations checks, actual rollback suites and rendered desktop/mobile Settings/cards pass. Hosted signed-in owner interaction remains unexercised. See SHOPEE_WEBHOOK_OPERATIONS.md.

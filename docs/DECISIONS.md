@@ -1,3 +1,7 @@
+## 2026-10-12 — Durable Shopee recovery and evidence-based finance
+
+Order System owns the durable raw-event recovery queue, auxiliary operational alerts and canonical finance; Inbox retains chat/session and per-shop credential ownership. Use the existing private bridge and fixed read-only Shopee endpoints; retire the duplicate AP finance dispatcher while retaining the existing sole token refresh producer. Historical chat is evidence only and cannot reopen a session or replace current identity. Known seller shops own region/currency; missing finance stays unknown until explicit release evidence and separate currency wallet posting. Shop-level reminders cannot identify a buyer from abbreviated text. Recovery/resolve actions require the corresponding active admin permission and derive audit actor server-side. SG configuration must not inherit MY credentials; its credential transfer remains blocked until explicitly authorized. See SHOPEE_WEBHOOK_OPERATIONS.md.
+
 # iCetak Architecture Decisions
 
 ## 2026-10-11 — Final cancellation wins same-provider-time ties

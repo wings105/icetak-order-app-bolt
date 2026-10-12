@@ -15,6 +15,7 @@ const states: Record<string, string> = {
 const date = (value: string | null) => value ? new Date(value).toLocaleString('ms-MY', { timeZone: 'Asia/Kuala_Lumpur' }) : 'Belum ada';
 
 export default function ShopeeChatSettings() {
+  const [selectedShop,setSelectedShop]=useState('188218638');
   const [config, setConfig] = useState<Config | null>(null);
   const [partnerId, setPartnerId] = useState('');
   const [shopId, setShopId] = useState('');
@@ -45,17 +46,17 @@ export default function ShopeeChatSettings() {
   }
   function apply(data: { config: Config; rotation_url: string }) {
     const c = data.config;
-    setConfig(c); setPartnerId(c.partner_id); setShopId(c.shop_id); setEnvironment(c.environment); setEnabled(c.enabled);
+    setConfig(c); setPartnerId(c.partner_id); setShopId(c.shop_id||selectedShop); setEnvironment(c.environment); setEnabled(c.enabled);
     setRotationUrl(data.rotation_url); setDirty(false);
   }
   useEffect(() => {
     let active = true;
     setBusy(true); setLoaded(false); setError('');
-    void call('get').then(data => { if (active) { apply(data); setLoaded(true); } })
+    void call('get',{shop_id:selectedShop}).then(data => { if (active) { apply(data); setLoaded(true); } })
       .catch(failure => { if (active) setError(failure.message); })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
-  }, [reload]);
+  }, [reload,selectedShop]);
   async function act(action: 'save' | 'check' | 'rotate_webhook') {
     if (busy || !loaded || (action !== 'save' && dirty)) return;
     setBusy(true); setError(''); setNotice('');
@@ -64,7 +65,7 @@ export default function ShopeeChatSettings() {
         partner_id: partnerId.trim(), shop_id: shopId.trim(), environment, enabled,
         partner_key: partnerKey.trim(), access_token: accessToken.trim(),
         token_expires_at: accessToken.trim() && expiry ? new Date(expiry).toISOString() : null,
-      } : {};
+      } : {shop_id:selectedShop};
       const data = await call(action, fields);
       apply(data);
       if (action === 'save') { setPartnerKey(''); setAccessToken(''); setExpiry(''); setRotationKey(''); }
@@ -82,13 +83,14 @@ export default function ShopeeChatSettings() {
   return <section className="panel" id="shopee-chat-settings" aria-label="Shopee Chat Direct API" style={{ gridColumn: '1 / -1' }}>
     <div className="panel-header"><div><div className="panel-title">Shopee Chat — Direct API</div><div className="panel-subtitle">Chat dihantar terus dari iCetak. Automation sedia ada kekal mengurus token refresh.</div></div></div>
     <div style={{ padding: 20, display: 'grid', gap: 14 }}>
+      <label className="form-field"><span>Shop yang diurus</span><select value={selectedShop} disabled={busy} onChange={e=>{setSelectedShop(e.target.value);setPartnerKey('');setAccessToken('');setExpiry('');setRotationKey('');setNotice('');}}><option value="188218638">Shopee MY · 188218638</option><option value="1635364464">Shopee SG · 1635364464</option></select></label>
       {error && <div role="alert" style={{ color: '#b42318' }}>{error}</div>}
       {notice && <div role="status" style={{ color: '#027a48' }}>{notice}</div>}
       {!loaded && !busy && <button className="btn btn-outline" onClick={() => setReload(x => x + 1)}>Cuba muat semula</button>}
       {config && <div className="cell-sub"><b>{states[config.readiness] || config.readiness}</b> · Token expire: {config.token_expires_at ? `${date(config.token_expires_at)} MYT` : 'Tidak dibekalkan — disemak dengan Shopee sebelum send'} · Update token: {date(config.token_rotated_at)} MYT</div>}
       <div className="grid-2">
         <label className="form-field"><span>Partner / App ID</span><input inputMode="numeric" value={partnerId} disabled={busy || !loaded} onChange={e => { setPartnerId(e.target.value); change(); }} /></label>
-        <label className="form-field"><span>Shop ID</span><input inputMode="numeric" value={shopId} disabled={busy || !loaded} onChange={e => { setShopId(e.target.value); change(); }} /></label>
+        <label className="form-field"><span>Shop ID</span><input readOnly inputMode="numeric" value={shopId} disabled={busy || !loaded} onChange={e => { setShopId(e.target.value); change(); }} /></label>
         <label className="form-field"><span>Environment</span><select value={environment} disabled={busy || !loaded} onChange={e => { setEnvironment(e.target.value); change(); }}><option value="production">Production</option><option value="sandbox">Sandbox / test-stable</option></select></label>
         <label className="form-field"><span>Partner Key {config?.partner_key_present ? '— sudah disimpan' : ''}</span><input type="password" autoComplete="new-password" value={partnerKey} placeholder={config?.partner_key_present ? 'Kosongkan untuk kekalkan key' : 'Isi Partner Key'} disabled={busy || !loaded} onChange={e => { setPartnerKey(e.target.value); change(); }} /></label>
         <label className="form-field"><span>Access Token awal — pilihan {config?.access_token_present ? '(sudah disimpan)' : ''}</span><input type="password" autoComplete="new-password" value={accessToken} placeholder="Boleh tunggu token dipush oleh automation" disabled={busy || !loaded} onChange={e => { setAccessToken(e.target.value); change(); }} /></label>

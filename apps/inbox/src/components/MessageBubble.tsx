@@ -1,3 +1,5 @@
+import {ShopeeMessageCard} from './ShopeeMessageCard';
+import {shopeeCard} from '../lib/shopeeCards';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Message } from '../types';
@@ -243,7 +245,8 @@ export function MessageBubble({ message, searchQuery = '', isCurrentMatch = fals
   const type = (message.messageType ?? '').toLowerCase();
   const hasMedia = Boolean(message.mediaUrl) && MEDIA_TYPES.has(type);
   const hasCaption = !PLACEHOLDER_LABELS.has(message.content) && Boolean(message.content);
-  const showText = !hasMedia || (hasCaption && type !== 'document');
+  const hasCard=!!shopeeCard(message.providerMessageType,message.mediaMetadata);
+  const showText = (!hasMedia || (hasCaption && type !== 'document')) && !(hasCard && /^\[.*\]$/.test(message.content));
   const hasMatch = searchQuery.trim().length >= 2 && message.content.toLowerCase().includes(searchQuery.trim().toLowerCase());
   const bubbleBg = isOut ? 'bg-[#d9fdd3] dark:bg-[var(--bubble-out)] text-[var(--text)] dark:text-[var(--text)] rounded-br-none' : 'bg-white dark:bg-[var(--surface-muted)] text-[var(--text)] dark:text-[var(--text)] rounded-bl-none';
 
@@ -265,6 +268,7 @@ export function MessageBubble({ message, searchQuery = '', isCurrentMatch = fals
       {!isOut && message.providerMessageId && <button type="button" onClick={() => setShowReactions((value) => !value)} className="mb-1 rounded-full p-1.5 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] sm:opacity-0 sm:group-hover:opacity-100" aria-label="React"><SmilePlus size={15} /></button>}
       <div className={`relative max-w-[75%] overflow-visible rounded-lg shadow-sm transition-all sm:max-w-[65%] ${bubbleBg} ${isCurrentMatch ? 'ring-2 ring-orange-400 ring-offset-1 dark:ring-orange-500' : ''} ${hasMedia && !showText ? 'p-1' : 'px-3 py-2'}`}>
         {message.replyToProviderMessageId && <button type="button" onClick={() => repliedMessage && jumpToMessage(repliedMessage.id)} className="mb-1.5 block w-full rounded-md border-l-4 border-[#00a884] bg-black/10 px-2.5 py-2 text-left dark:bg-black/20"><span className="block text-[11px] font-semibold text-[#00a884]">{repliedMessage ? (repliedMessage.direction === 'outbound' ? 'Anda' : 'Customer') : 'Quoted message'}</span><span className="block truncate text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">{repliedMessage ? quoteLabel(repliedMessage) : 'Mesej asal tidak ada dalam sejarah inbox'}</span></button>}
+        {hasCard&&<ShopeeMessageCard type={message.providerMessageType} data={message.mediaMetadata}/>}
         {hasMedia && <MediaViewer message={message} />}
         {showText && <p className={`break-words whitespace-pre-wrap text-[13.5px] leading-[1.5] ${hasMedia ? 'mt-1 px-2' : ''}`}>{hasMatch ? <HighlightedContent text={message.content} query={searchQuery} isCurrentMatch={isCurrentMatch} /> : message.content}</p>}
         <div className={`mt-1 flex items-center gap-1 ${isOut ? 'justify-end' : 'justify-start'} ${hasMedia && !showText ? 'px-2 pb-1' : ''}`}><span className="text-[11px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">{formatTime(message.timestamp)}</span>{isOut && message.status && statusIcons[message.status]}</div>

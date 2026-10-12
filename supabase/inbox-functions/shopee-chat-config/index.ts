@@ -13,7 +13,7 @@ Deno.serve(async (req: Request) => {
     if (!['get', 'save', 'check', 'rotate_webhook'].includes(b.action)) return out({ ok: false, error: 'Invalid action' }, 400);
     if (b.action === 'save' && (String(b.partner_key || '').length > 4096 || String(b.access_token || '').length > 8192)) return out({ ok: false, error: 'Credential terlalu panjang.' }, 400);
     let secret: string | undefined;
-    const body = b.action === 'rotate_webhook' ? { key_hash: await sha256(secret = `icetak_shopee_${crypto.randomUUID()}${crypto.randomUUID()}`), actor } : { ...b, actor };
+    const body = b.action === 'rotate_webhook' ? { shop_id:b.shop_id, key_hash: await sha256(secret = `icetak_shopee_${crypto.randomUUID()}${crypto.randomUUID()}`), actor } : { ...b, actor };
     const { data, error } = await db.rpc('icetak_shopee_chat_config', { p_action: b.action === 'check' ? 'get' : b.action, p_body: body });
     if (error) return out({ ok: false, error: 'Semak App ID, Shop ID, environment dan masa expiry sebelum Save.' }, 400);
     const config = b.action === 'check' ? await checkConnection(db, data, actor) : data;

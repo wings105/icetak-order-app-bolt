@@ -35,6 +35,8 @@ export type ConversationStatus =
   | 'Gagal';
 
 export interface Message {
+  providerMessageType?:string;
+  mediaMetadata?:Record<string,unknown>;
   id: string;
   content: string;
   direction: MessageDirection;
