@@ -283,3 +283,7 @@ Added ClickUp SKU text and a copy icon beneath each task's Finished button. Exac
 ## 2026-10-10 — [VERIFIED] Inline Unified Inbox reply suggestions
 
 Minimal SOP suggestion above the composer inserts editable text, preserves existing drafts and requires explicit Send. Six-second customer burst debounce, fresh canonical order/work context, 60-second expiry and stale chat/customer safeguards. Inbox staff/private cross-project endpoints deployed and smoke-tested without writes/sends; desktop/mobile light/dark actual-component interactions pass. WhatsApp expired-window Enter guard fixed. Authenticated hosted staff interaction remains unexercised. See docs/INBOX_REPLY_SUGGESTIONS.md.
+
+## 2026-10-12
+
+- [VERIFIED] Finance Sales SKU adds Acrylic colour filters, colour-separated rows/CSV and reconciled colour breakdown. Private owner-editable variation mappings include reset/idempotency/audit. Historical report totals, service-role rollback lifecycle/grants, gateway auth, desktop/mobile component interactions and root/admin builds verified. Backend migration and finance-admin v36 deployed; hosted frontend confirmation pending. See docs/SALES_SKU.md.
