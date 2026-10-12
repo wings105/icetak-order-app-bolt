@@ -81,7 +81,11 @@ Deno.serve(async (req) => {
       return json({success:true,data:await rpc("finance_contribution_detail",{p_order_id:orderId})});
     }
     if (action === "sales_channel_report") return json({success:true,data:await rpc("finance_sales_channel_report",{p_filter:{from:body.from||null,to:body.to||null,channel:body.channel||"all",kind:body.kind||"all",query:String(body.query||"").slice(0,200),offset:Math.max(0,Math.trunc(Number(body.offset)||0)),limit:Math.min(5000,Math.max(1,Math.trunc(Number(body.limit)||50)))}})});
-    if (action === "sales_sku_report") return json({success:true,data:await rpc("finance_sales_sku_report",{p_filter:{from:body.from||null,to:body.to||null,currency:body.currency||"MYR",shop_id:body.shop_id||null,query:String(body.query||"").slice(0,200),sku_key:body.sku_key||null,category:body.category||null}})});
+    if (action === "sales_sku_report") return json({success:true,data:await rpc("finance_sales_sku_report",{p_filter:{from:body.from||null,to:body.to||null,currency:body.currency||"MYR",shop_id:body.shop_id||null,query:String(body.query||"").slice(0,200),sku_key:body.sku_key||null,category:body.category||null,colour:body.colour||null}})});
+    if (action === "sales_sku_colour_save") {
+      if (!admin.permissions.includes("manage_finance")) return json({success:false,error:"Finance write permission required"},403);
+      return json({success:true,data:await rpc("finance_sales_sku_colour_save",{p_sku_key:String(body.sku_key||""),p_variation:String(body.variation||""),p_colour:body.colour?String(body.colour):null,p_actor:admin.username})});
+    }
     if (action === "order_finance_options") return json({success:true,data:await rpc("finance_order_finance_options")});
     if (action === "order_finance_report" || action === "order_finance_export") return json({success:true,data:await rpc("finance_order_report",{p_filter:{
       from:body.from||null,to:body.to||null,query:String(body.query||"").slice(0,200),category:body.category||null,state:body.state||null,status:body.status||"all",
