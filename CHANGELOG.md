@@ -286,4 +286,4 @@ Minimal SOP suggestion above the composer inserts editable text, preserves exist
 
 ## 2026-10-12
 
-- [VERIFIED] Finance Sales SKU adds Acrylic colour filters, colour-separated rows/CSV and reconciled colour breakdown. Private owner-editable variation mappings include reset/idempotency/audit. Historical report totals, service-role rollback lifecycle/grants, gateway auth, desktop/mobile component interactions and root/admin builds verified. Backend migration and finance-admin v36 deployed; hosted frontend confirmation pending. See docs/SALES_SKU.md.
+- [VERIFIED] Finance Sales SKU adds Acrylic colour filters, colour-separated rows/CSV and reconciled colour breakdown. Private owner-editable variation mappings include reset/idempotency/audit. Historical report totals, service-role rollback lifecycle/grants, gateway auth, desktop/mobile component interactions and root/admin builds verified. Backend migration and finance-admin v36 deployed. PR #85 production build/guard passed and hosted Admin V2 serves the new frontend bundle; authenticated hosted Finance interaction remains unexercised. See docs/SALES_SKU.md.
