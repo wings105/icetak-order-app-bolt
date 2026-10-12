@@ -80,3 +80,7 @@ The QRPay route first calls the existing `icetak_payment_webhook` matcher. It th
 ## Per-order Shopee contribution
 
 The existing Shopee financial enrichment feeds Finance → Untung Order and Marketplace order costing through the owner-authenticated finance-admin gateway. Escrow remains estimated until explicit release evidence arrives. Material rates live separately under Settings → Modal Bahan; order snapshots retain their original version. These managerial calculations do not post bank/ledger entries or alter webhook dispatch. See ORDER_PROFIT.md.
+
+## 2026-10-12 — Shopee direct reads supersede AP dispatch
+
+The Shopee AP finance dispatcher configuration/cron is now disabled. Order's existing ingestion/normalization pipeline receives signed read-only Shopee escrow/release data through the private Inbox credential bridge. Per-shop cursors, bounded backoff and return detail reads are scheduled; NULL values are preserved, release requires explicit proof and SGD uses its own wallet. This does not change other finance webhook producers. SG credential import remains blocked. See SHOPEE_WEBHOOK_OPERATIONS.md for exact limits, authorization and verification.

@@ -26,7 +26,7 @@ export function publicConfig(c: ShopeeConfig) {
   };
 }
 // Official v2 shop-level signing. Host and paths are fixed, never supplied by admin/webhook input.
-export async function shopeeRequest(c: ShopeeConfig, path: '/api/v2/sellerchat/send_message' | '/api/v2/sellerchat/get_one_conversation', payload: Record<string, unknown>, method: 'GET' | 'POST', fetcher = fetch) {
+export async function shopeeRequest(c: ShopeeConfig, path: '/api/v2/sellerchat/send_message' | '/api/v2/sellerchat/get_one_conversation' | '/api/v2/payment/get_escrow_detail' | '/api/v2/payment/get_escrow_list' | '/api/v2/returns/get_return_detail', payload: Record<string, unknown>, method: 'GET' | 'POST', fetcher = fetch) {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey('raw', encoder.encode(c.partner_key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -54,7 +54,7 @@ export async function checkConnection(db: any, c: ShopeeConfig, actor: string, f
       code = ok ? 'CHAT_READ_VERIFIED' : (typeof body.error === 'string' && /^[a-zA-Z0-9_.-]{1,60}$/.test(body.error) ? `SHOPEE_${body.error}` : `SHOPEE_HTTP_${response.status}`);
     } catch { code = 'SHOPEE_CONNECTION_UNKNOWN'; }
   } else if (c.access_token) code = 'TOKEN_EXPIRED';
-  const { data, error } = await db.rpc('icetak_shopee_chat_config', { p_action: 'record_check', p_body: { credential_version: c.credential_version, ok, code, actor } });
+  const { data, error } = await db.rpc('icetak_shopee_chat_config', { p_action: 'record_check', p_body: { shop_id:c.shop_id, credential_version: c.credential_version, ok, code, actor } });
   if (error) throw new Error('CHECK_RECORD_FAILED');
   return data as ShopeeConfig;
 }

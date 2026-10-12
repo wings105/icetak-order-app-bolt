@@ -40,6 +40,7 @@ const navItems: NavItem[] = [
       { key: 'whatsapp-outbox', label: 'Outbox' },
     ],
   },
+  { key: 'shopee-monitor',label:'Shopee Monitor',icon:IconIntegration },
   { key: 'integrations', label: 'Integrations', icon: IconIntegration },
   { key: 'staff', label: 'Staff / Roles', icon: IconStaff },
   {

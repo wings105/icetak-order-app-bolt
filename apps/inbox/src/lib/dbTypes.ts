@@ -109,6 +109,8 @@ export interface DbConversation {
 }
 
 export interface DbMessage {
+  provider_message_type?:string|null;
+  media_metadata?:Record<string,unknown>|null;
   id: string;
   conversation_id: string;
   order_id: string | null;

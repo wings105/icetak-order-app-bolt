@@ -1,0 +1,8 @@
+-- Recover only known terminal Shopee order boundaries and the two existing video rows.
+update public.messages set media_url=media_metadata->>'video_url',updated_at=now() where channel='shopee' and provider_message_type='video' and media_url is null and nullif(media_metadata->>'video_url','') is not null;
+update public.shopee_order_sessions s set status='closed',cutoff_at=coalesce(s.cutoff_at,e.shipped_at,e.order_updated_at,e.created_at),cutoff_reason=coalesce(s.cutoff_reason,case when e.shipped_at is not null then 'shopee_raw_status_shipped' else 'shopee_terminal_status' end),updated_at=now()
+from public.external_order_summaries e where e.source_channel='shopee' and e.order_no=s.order_no and upper(coalesce(e.order_status,'')) in('SHIPPED','TO_CONFIRM_RECEIVE','COMPLETED','CANCELLED','TO_RETURN','RETURNED') and (s.status<>'closed' or s.cutoff_at is null);
+-- Existing active sessions may not include messages before the previous closed order.
+with bounds as(select s.id,max(old.cutoff_at) cutoff from public.shopee_order_sessions s join public.external_order_summaries e on e.order_no=s.order_no join public.shopee_order_sessions old on lower(old.shopee_username)=lower(s.shopee_username) and old.id<>s.id join public.external_order_summaries oe on oe.order_no=old.order_no and oe.shop_id=e.shop_id where s.status='open' and old.cutoff_at<=coalesce(e.placed_at,e.created_at) group by s.id)
+update public.shopee_order_sessions s set started_at=greatest(s.started_at,b.cutoff),updated_at=now() from bounds b where s.id=b.id and s.started_at<b.cutoff;
+update public.conversations c set needs_reply=false,unread_count=0,updated_at=now() where c.channel='shopee' and (c.needs_reply or c.unread_count>0) and not public.shopee_reply_allowed(c.id);

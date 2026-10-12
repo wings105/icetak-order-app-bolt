@@ -18,6 +18,8 @@ export function mapMessage(row: DbMessage): Message {
     status: row.direction === 'outbound' ? mapMsgStatus(row.status) : undefined,
     messageType: row.message_type,
     mediaUrl: row.media_url ?? undefined,
+    providerMessageType:row.provider_message_type??undefined,
+    mediaMetadata:row.media_metadata??undefined,
     providerMessageId: row.provider_message_id ?? undefined,
     replyToProviderMessageId: row.reply_to_provider_message_id ?? undefined,
     ...(row.reactions ? { reactions: row.reactions } : {}),
