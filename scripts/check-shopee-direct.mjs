@@ -28,6 +28,11 @@ try {
   await checkConnection(checkDb,c,'owner',async()=>Response.json({response:{conversation_id:'conv-provider'}}));assert.equal(record.ok,true);
   await checkConnection(checkDb,c,'owner',async()=>Response.json({response:{}}));assert.equal(record.ok,false);
   await checkConnection(checkDb,c,'owner',async()=>Response.json({error:'bad_token',message:c.access_token}));assert.equal(record.code,'SHOPEE_bad_token');checks+=3;
+  // SG's conversations can be older than the global newest 200 MY conversations.
+  let shopFilter='';
+  const scopedCheckDb={from:()=>({select(){return this},eq(field,value){if(field==='metadata->>shop_id')shopFilter=value;return this},order(){return this},limit:async()=>({data:shopFilter==='1635364464'?[{metadata:{shop_id:'1635364464'},external_conversation_id:'older-sg-conversation'}]:Array.from({length:200},()=>({metadata:{shop_id:'188218638'},external_conversation_id:'my-recent'}))})}),rpc:async(name,args)=>{record=args.p_body;return {data:{...c,shop_id:'1635364464',check_ok:record.ok,checked_credential_version:record.credential_version}}}};
+  await checkConnection(scopedCheckDb,{...c,shop_id:'1635364464'},'owner',async(url)=>{assert.equal(new URL(url).searchParams.get('conversation_id'),'older-sg-conversation');return Response.json({response:{conversation_id:'older-sg-conversation'}})});
+  assert.equal(shopFilter,'1635364464');assert.equal(record.ok,true);assert.equal(record.shop_id,'1635364464');checks++;
   const unknownExpiry={...c,token_expires_at:null};
   assert.equal(readiness(unknownExpiry),'READY');
   assert.equal(readiness({...c,token_expires_at:'bad-date'}),'TOKEN_EXPIRED');
