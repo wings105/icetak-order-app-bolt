@@ -22,6 +22,7 @@ export interface SendMessageParams {
 
 export interface SendMediaParams {
   conversationId: string | null;
+  orderSummaryId?: string | null;
   orderId: string | null;
   channel: string;
   file: File;
@@ -96,7 +97,31 @@ export async function sendTestMessage(params: SendMessageParams): Promise<Messag
 
 export async function sendMediaMessage(params: SendMediaParams): Promise<Message> {
   if (params.channel === 'shopee') {
-    throw new Error('Penghantaran gambar Shopee akan diaktifkan selepas endpoint media Shopee disambung.');
+    const token = await requireStaffSession();
+    const form = new FormData();
+    if (params.conversationId) form.append('conversation_id', params.conversationId);
+    if (params.orderSummaryId) form.append('order_summary_id', params.orderSummaryId);
+    if (params.orderId) form.append('order_no', params.orderId);
+    form.append('request_id', crypto.randomUUID());
+    form.append('file', params.file);
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/shopee-chat-send`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form,
+    });
+    const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+    if (!response.ok || payload.ok !== true) throw new Error(String(payload.error ?? 'Penghantaran gambar Shopee gagal.'));
+    if (params.caption?.trim()) {
+      try {
+        await sendTestMessage({ ...params, text: params.caption.trim() });
+      } catch {
+        throw new Error('Gambar sudah dihantar, tetapi teks gagal dihantar. Hantar semula teks sahaja.');
+      }
+    }
+    return {
+      id: String(payload.local_message_id), content: '[Image]', direction: 'outbound',
+      timestamp: new Date(), status: 'sent', messageType: 'image',
+      mediaUrl: payload.media_url ? String(payload.media_url) : undefined,
+      providerMessageId: payload.provider_message_id ? String(payload.provider_message_id) : undefined,
+    };
   }
   if (params.channel !== 'whatsapp') {
     throw new Error('Penghantaran media untuk channel ini belum disokong.');
@@ -131,3 +156,4 @@ export async function sendMediaMessage(params: SendMediaParams): Promise<Message
     messageType: 'image',
   };
 }
+

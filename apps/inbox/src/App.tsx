@@ -256,7 +256,7 @@ function InboxApp() {
     setOptimisticMessages((previous) => ({ ...previous, [convId]: [...(previous[convId] ?? []), tempMsg] }));
 
     const sendToProvider = async () => {
-      if (file) await sendMediaMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, file, caption: text || undefined });
+      if (file) await sendMediaMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderSummaryId: selectedOrder?.id ?? null, orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, file, caption: text || undefined });
       else await sendTestMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderSummaryId: selectedOrder?.id ?? null, orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, text });
     };
     const queuedSend = sendChainRef.current.then(sendToProvider, sendToProvider);
@@ -382,3 +382,4 @@ function Dashboard() {
 export default function App() {
   return <AuthGate><Dashboard /></AuthGate>;
 }
+

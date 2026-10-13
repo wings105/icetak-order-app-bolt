@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {sendShopee} from '../supabase/inbox-functions/_shared/shopee-send.ts';
+import {validateShopeeImage} from '../supabase/inbox-functions/_shared/shopee-image.ts';
+const png=new File([new Uint8Array([137,80,78,71,13,10,26,10,0])],'test.png',{type:'image/png'});
+assert.equal(await validateShopeeImage(png),true);
+assert.equal(await validateShopeeImage(new File(['bad'],'fake.png',{type:'image/png'})),false);
+assert.equal(await validateShopeeImage(new File([new Uint8Array(10*1024*1024+1)],'large.png',{type:'image/png'})),false);
+const cfg={shop_id:'188218638',partner_id:1,partner_key:'test',access_token:'test',enabled:true,check_ok:true,credential_version:1,checked_credential_version:1,token_expires_at:'2099-01-01T00:00:00Z'};
+let updates=[],calls=[],claimed=true,uploadReject=false,sendReject=false;
+const conversation={id:'local',channel:'shopee',external_customer_id:'123',external_conversation_id:'164768509169502145',metadata:{shop_id:cfg.shop_id}};
+const db={from(table){let mode='select';const q={select(){return q},eq(){return q},in(){return q},not(){return q},order(){return q},limit(){return q},update(value){mode='update';updates.push({table,value});return q},insert(){mode='insert';return q},single:async()=>({data:conversation}),maybeSingle:async()=>({data:null}),then(resolve,reject){return Promise.resolve(mode!=='select'?{error:null}:{data:table==='private_runtime_settings'?[{setting_key:'shopee_chat_direct_config',setting_value:JSON.stringify(cfg)}]:[{provider_message_id:'snapshot-id'}]}).then(resolve,reject)}};return q},async rpc(name){return name==='claim_shopee_send'?{data:{claimed,attempt:{id:'attempt',local_message_id:'message',status:'sent',provider_message_id:'sent-id'}}}:{error:null}}};
+globalThis.fetch=async(url,opts)=>{const path=new URL(url).pathname;calls.push({path,opts});if(path.endsWith('upload_image')){assert.ok(opts.body instanceof FormData);assert.equal(opts.headers['Content-Type'],undefined);return Response.json(uploadReject?{error:'bad'}:{error:'',response:{url:'https://cf.shopee.com.my/file/test',thumbnail:'https://cf.shopee.com.my/file/thumb'}})}if(path.endsWith('send_message'))return Response.json(sendReject?{error:'bad'}:{error:'',response:{message_id:'sent-id'}});return Response.json({error:''});};
+const body={conversation_id:'local',request_id:'12345678-1234-4234-8234-123456789012',file:png};
+let response=await sendShopee(db,body,{id:null,label:'Test'});assert.equal(response.status,200);assert.equal((await response.json()).read_synced,true);
+assert.deepEqual(calls.map(x=>x.path.split('/').at(-1)),['upload_image','send_message','read_conversation']);
+assert.deepEqual(JSON.parse(calls[1].opts.body),{to_id:123,message_type:'image',content:{image_url:'https://cf.shopee.com.my/file/test'}});
+assert.ok(updates.some(x=>x.value.message_type==='image'&&x.value.media_url));
+calls=[];claimed=false;await sendShopee(db,body,{id:null,label:'Test'});assert.equal(calls.length,0);
+calls=[];claimed=true;uploadReject=true;response=await sendShopee(db,body,{id:null,label:'Test'});assert.equal((await response.json()).status,'failed');assert.equal(calls.length,1);
+calls=[];uploadReject=false;sendReject=true;response=await sendShopee(db,body,{id:null,label:'Test'});assert.equal((await response.json()).status,'failed');assert.equal(calls.length,2);
+console.log('PASS image validation, multipart upload, exact send payload, DB image record, read sync, idempotency, upload failure, send failure');
+

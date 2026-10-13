@@ -342,12 +342,17 @@ export function ChatArea({
   }, []);
 
   function enqueueImageFile(file: File) {
+    if (conversation?.channel === 'shopee' && !['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+      setSendError('Shopee menyokong JPG, PNG dan GIF sahaja.');
+      return;
+    }
     if (!file.type.startsWith('image/')) {
       setSendError('Hanya fail gambar diterima.');
       return;
     }
-    if (file.size > MAX_IMAGE_BYTES) {
-      setSendError('Gambar terlalu besar. Had maksimum ialah 5 MB.');
+    const maxBytes = conversation?.channel === 'shopee' ? 10 * 1024 * 1024 : MAX_IMAGE_BYTES;
+    if (!file.size || file.size > maxBytes) {
+      setSendError(`Gambar tidak sah atau terlalu besar. Had maksimum ialah ${maxBytes / (1024 * 1024)} MB.`);
       return;
     }
     setQueuedImage(file);
@@ -395,7 +400,7 @@ export function ChatArea({
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     e.stopPropagation();
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSend();
     }
@@ -502,7 +507,7 @@ export function ChatArea({
               <img src={imagePreviewUrl} alt="Preview" className="max-h-32 max-w-[180px] rounded-lg object-cover border border-[#d1d7db] dark:border-[var(--border)]" />
               <button onClick={() => setQueuedImage(null)} className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[var(--surface-hover)] text-[var(--text)] flex items-center justify-center hover:bg-red-500 transition-colors" aria-label="Buang gambar"><X size={11} /></button>
             </div>
-            <p className="text-[11px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">Gambar sudah masuk queue. Taip caption jika perlu, kemudian tekan Enter atau Send.</p>
+            <p className="text-[11px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">Tekan Enter atau Send untuk hantar gambar.{conversation.channel === 'shopee' ? ' Teks akan dihantar sebagai mesej berasingan selepas gambar.' : ' Taip caption jika perlu.'}</p>
           </div>
         )}
 
@@ -511,8 +516,8 @@ export function ChatArea({
           window.requestAnimationFrame(() => { textareaRef.current?.focus(); });
         }} />}
         <div className="flex items-end gap-2 px-4 py-3">
-          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-          {!isExpired && !orderOnly && (
+          <input ref={fileInputRef} type="file" accept={conversation.channel === 'shopee' ? 'image/jpeg,image/png,image/gif' : 'image/*'} className="hidden" onChange={handleFileChange} />
+          {!isExpired && (!orderOnly || conversation.channel === 'shopee') && (
             <button onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-[var(--text-secondary)] dark:text-[var(--text-secondary)] hover:text-[#00a884] hover:bg-[#e9edef] dark:hover:bg-[var(--surface-hover)] transition-colors" aria-label="Pilih gambar">
               <ImageIcon size={18} />
             </button>
@@ -542,3 +547,4 @@ export function ChatArea({
     </div>
   );
 }
+

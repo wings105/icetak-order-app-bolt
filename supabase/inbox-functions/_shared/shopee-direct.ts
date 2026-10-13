@@ -26,7 +26,7 @@ export function publicConfig(c: ShopeeConfig) {
   };
 }
 // Official v2 shop-level signing. Host and paths are fixed, never supplied by admin/webhook input.
-export async function shopeeRequest(c: ShopeeConfig, path: '/api/v2/sellerchat/send_message' | '/api/v2/sellerchat/get_one_conversation' | '/api/v2/payment/get_escrow_detail' | '/api/v2/payment/get_escrow_list' | '/api/v2/returns/get_return_detail', payload: Record<string, unknown>, method: 'GET' | 'POST', fetcher = fetch) {
+export async function shopeeRequest(c: ShopeeConfig, path: '/api/v2/sellerchat/upload_image' | '/api/v2/sellerchat/read_conversation' | '/api/v2/sellerchat/send_message' | '/api/v2/sellerchat/get_one_conversation' | '/api/v2/payment/get_escrow_detail' | '/api/v2/payment/get_escrow_list' | '/api/v2/returns/get_return_detail', payload: Record<string, unknown> | FormData, method: 'GET' | 'POST', fetcher = fetch) {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey('raw', encoder.encode(c.partner_key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -35,8 +35,8 @@ export async function shopeeRequest(c: ShopeeConfig, path: '/api/v2/sellerchat/s
   const host = c.environment === 'sandbox' ? 'https://partner.test-stable.shopeemobile.com' : 'https://partner.shopeemobile.com';
   const url = new URL(path, host);
   for (const [name, value] of Object.entries({ partner_id: c.partner_id, timestamp, access_token: c.access_token, shop_id: c.shop_id, sign })) url.searchParams.set(name, str(value));
-  if (method === 'GET') for (const [name, value] of Object.entries(payload)) url.searchParams.set(name, str(value));
-  return await fetcher(url, { method, headers: { 'Content-Type': 'application/json' }, body: method === 'POST' ? JSON.stringify(payload) : undefined, signal: AbortSignal.timeout(20000), redirect: 'error' });
+  if (method === 'GET') for (const [name, value] of Object.entries(payload as Record<string, unknown>)) url.searchParams.set(name, str(value));
+  return await fetcher(url, { method, headers: payload instanceof FormData ? {} : { 'Content-Type': 'application/json' }, body: payload instanceof FormData ? payload : method === 'POST' ? (path === '/api/v2/sellerchat/read_conversation' ? serializeReadPayload(payload as Record<string, unknown>) : JSON.stringify(payload)) : undefined, signal: AbortSignal.timeout(20000), redirect: 'error' });
 }
 export async function checkConnection(db: any, c: ShopeeConfig, actor: string, fetcher = fetch) {
   let code = 'CREDENTIALS_REQUIRED', ok = false;
@@ -57,4 +57,11 @@ export async function checkConnection(db: any, c: ShopeeConfig, actor: string, f
   const { data, error } = await db.rpc('icetak_shopee_chat_config', { p_action: 'record_check', p_body: { shop_id:c.shop_id, credential_version: c.credential_version, ok, code, actor } });
   if (error) throw new Error('CHECK_RECORD_FAILED');
   return data as ShopeeConfig;
+}
+
+export function serializeReadPayload(payload: Record<string, unknown>) {
+  const id = str(payload.conversation_id);
+  if (!/^[1-9]\d{0,19}$/.test(id)) throw new Error('INVALID_CONVERSATION_ID');
+  // Preserve Shopee int64 IDs exactly rather than rounding through Number().
+  return JSON.stringify({...payload, conversation_id:id}).replace(/"conversation_id":"([1-9]\d{0,19})"/, '"conversation_id":$1');
 }

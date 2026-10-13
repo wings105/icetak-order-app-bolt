@@ -1,3 +1,7 @@
+## 2026-10-13 — Shopee image composer
+
+- [VERIFIED] Controlled desktop/mobile paste → preview → Enter sends exactly one image; multipart Shopee upload/send, persisted image state, duplicate guard and read synchronization pass mocked integration checks. Inbox typecheck/build pass. Real authenticated customer delivery remains unexercised. See docs/SHOPEE_IMAGE_SEND.md.
+
 # 2026-10-13 — Shopee SG connection and historical release recovery
 
 - [PRODUCTION backend] Owner-authorized SG import passes signed escrow/refund reads and chat readiness; MY credential version and token timestamp are unchanged. Fix shop-scoped conversation selection before the 200-row limit in all five deployed shared callers. Requeue blocked SG jobs and repair missing Shop ID for 250707GSUE6A2Y using the successful signed MY provider read. All 42 return refund details are now available. Bounded SG release catch-up received 95 rows, applied 22 and held 73 pending canonical order identity; 21 positive releases use only the SGD wallet. Preserve release history when placed_at is missing, with a first-recorded fallback and unchanged seven-day windows/90-day start bound. 31 sender checks, 59 operations checks, exact deployed source/auth readback and real cursor rollback cases pass. No customer send/refund approval. Future SG token push still needs the actual existing AP refresh flow URL; prepared request in docs/SHOPEE_SG_TOKEN_PUSH.md.
