@@ -24,6 +24,7 @@ const MESSAGE_SELECT = [
   'id', 'conversation_id', 'direction', 'message_type', 'text_content',
   'created_at', 'status', 'media_url', 'provider_message_id',
   'reply_to_provider_message_id', 'reactions',
+  'provider_message_type', 'media_metadata',
 ].join(', ');
 
 // ── Phone normalization ───────────────────────────────────────────────────────
@@ -263,4 +264,5 @@ export function getMatchingMessageIds(messages: Message[], query: string): strin
     .filter((m) => m.content.toLowerCase().includes(q))
     .map((m) => m.id);
 }
+
 

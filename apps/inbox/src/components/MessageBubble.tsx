@@ -1,5 +1,5 @@
 import {ShopeeMessageCard} from './ShopeeMessageCard';
-import {shopeeCard} from '../lib/shopeeCards';
+import {shopeeCard,shopeeStickerUrl} from '../lib/shopeeCards';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Message } from '../types';
@@ -164,6 +164,7 @@ function MediaViewer({ message }: { message: Message }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [shouldLoad, setShouldLoad] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
   const type = (message.messageType ?? '').toLowerCase();
   const { objectUrl, loading } = useMediaUrl(message.mediaUrl, shouldLoad || viewerOpen);
 
@@ -197,7 +198,7 @@ function MediaViewer({ message }: { message: Message }) {
       {viewerOpen && <ImageLightbox url={objectUrl} filename={`icetak-${message.id}`} alt={label} onClose={() => setViewerOpen(false)} />}
     </div>;
   }
-  if (type === 'sticker') return <div ref={containerRef}><img src={objectUrl} alt="Sticker" loading="lazy" decoding="async" className="max-h-32 w-auto" /></div>;
+  if (type === 'sticker') return <div ref={containerRef}>{imageFailed ? <p className="max-w-[200px] text-xs">Sticker diterima; gambar tidak tersedia.</p> : <img src={objectUrl} alt="Sticker" loading="lazy" decoding="async" className="max-h-32 max-w-[160px] w-auto object-contain" onError={() => setImageFailed(true)} />}</div>;
   if (type === 'audio') return <div ref={containerRef}><audio controls preload="none" src={objectUrl} className="h-10 w-full max-w-[240px]" /></div>;
   if (type === 'video') return <div ref={containerRef}><video controls preload="metadata" src={objectUrl} className="max-h-72 max-w-full rounded-md" /></div>;
   if (type === 'document') return <div ref={containerRef}><a href={objectUrl} download className="flex max-w-[220px] items-center gap-2 text-[13.5px] hover:underline"><FileText size={20} /><span className="flex-1 truncate">{message.content || 'Document'}</span><Download size={16} /></a></div>;
@@ -243,7 +244,9 @@ export function MessageBubble({ message, searchQuery = '', isCurrentMatch = fals
   const repliedMessage = message.replyToProviderMessageId ? registry.get(message.replyToProviderMessageId) : undefined;
   const isOut = message.direction === 'outbound';
   const type = (message.messageType ?? '').toLowerCase();
-  const hasMedia = Boolean(message.mediaUrl) && MEDIA_TYPES.has(type);
+  const stickerUrl=type==='sticker'?(message.mediaUrl||shopeeStickerUrl(message.mediaMetadata)):undefined;
+  const mediaMessage=stickerUrl?{...message,mediaUrl:stickerUrl}:message;
+  const hasMedia = Boolean(mediaMessage.mediaUrl) && MEDIA_TYPES.has(type);
   const hasCaption = !PLACEHOLDER_LABELS.has(message.content) && Boolean(message.content);
   const hasCard=!!shopeeCard(message.providerMessageType,message.mediaMetadata);
   const showText = (!hasMedia || (hasCaption && type !== 'document')) && !(hasCard && /^\[.*\]$/.test(message.content));
@@ -269,7 +272,7 @@ export function MessageBubble({ message, searchQuery = '', isCurrentMatch = fals
       <div className={`relative max-w-[75%] overflow-visible rounded-lg shadow-sm transition-all sm:max-w-[65%] ${bubbleBg} ${isCurrentMatch ? 'ring-2 ring-orange-400 ring-offset-1 dark:ring-orange-500' : ''} ${hasMedia && !showText ? 'p-1' : 'px-3 py-2'}`}>
         {message.replyToProviderMessageId && <button type="button" onClick={() => repliedMessage && jumpToMessage(repliedMessage.id)} className="mb-1.5 block w-full rounded-md border-l-4 border-[#00a884] bg-black/10 px-2.5 py-2 text-left dark:bg-black/20"><span className="block text-[11px] font-semibold text-[#00a884]">{repliedMessage ? (repliedMessage.direction === 'outbound' ? 'Anda' : 'Customer') : 'Quoted message'}</span><span className="block truncate text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">{repliedMessage ? quoteLabel(repliedMessage) : 'Mesej asal tidak ada dalam sejarah inbox'}</span></button>}
         {hasCard&&<ShopeeMessageCard type={message.providerMessageType} data={message.mediaMetadata}/>}
-        {hasMedia && <MediaViewer message={message} />}
+        {hasMedia && <MediaViewer message={mediaMessage} />}
         {showText && <p className={`break-words whitespace-pre-wrap text-[13.5px] leading-[1.5] ${hasMedia ? 'mt-1 px-2' : ''}`}>{hasMatch ? <HighlightedContent text={message.content} query={searchQuery} isCurrentMatch={isCurrentMatch} /> : message.content}</p>}
         <div className={`mt-1 flex items-center gap-1 ${isOut ? 'justify-end' : 'justify-start'} ${hasMedia && !showText ? 'px-2 pb-1' : ''}`}><span className="text-[11px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">{formatTime(message.timestamp)}</span>{isOut && message.status && statusIcons[message.status]}</div>
         {showReactions && <div className={`absolute bottom-full z-30 mb-1 flex gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-xl ${isOut ? 'right-0' : 'left-0'}`}>{MESSAGE_REACTIONS.map((emoji) => <button key={emoji} type="button" disabled={sendingReaction} onClick={() => void sendReaction(emoji)} className="rounded-full px-1.5 py-1 text-lg hover:bg-[var(--surface-hover)] disabled:opacity-40">{emoji}</button>)}</div>}
@@ -278,3 +281,4 @@ export function MessageBubble({ message, searchQuery = '', isCurrentMatch = fals
     </div>
   </div>;
 }
+

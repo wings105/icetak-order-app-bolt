@@ -1,3 +1,7 @@
+## 2026-10-13 — Shopee product cards and received stickers
+
+- [VERIFIED] Controlled desktop/mobile rendering with actual webhook data shows nested variation name, selected-variation price and product thumbnail. Received sticker package/ID resolves to verified Shopee CDN imagery; missing images show a readable fallback. Chat message projection now includes existing provider type/metadata, without adding list payloads, polling, API calls or backfills. Inbox typecheck/build and RM6/RM12, sticker, missing-asset, text and overflow checks pass. Hosted signed-in staff rendering remains unexercised.
+
 ## 2026-10-13 — Shopee image composer
 
 - [VERIFIED] Controlled desktop/mobile paste → preview → Enter sends exactly one image; multipart Shopee upload/send, persisted image state, duplicate guard and read synchronization pass mocked integration checks. Inbox typecheck/build pass. Real authenticated customer delivery remains unexercised. See docs/SHOPEE_IMAGE_SEND.md.
