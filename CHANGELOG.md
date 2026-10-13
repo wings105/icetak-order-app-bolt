@@ -1,3 +1,7 @@
+# 2026-10-13 — SG token delivery and bounded release polling
+
+- [PRODUCTION backend] Verify the owner's actual SG token push and provider read readiness with a dedicated shop key. Correct the SG one-time cursor delay and stop release catch-up chasing each cron's moving endpoint. Order finance v10 now finishes catch-up and schedules six-hour polling: actual MY/SG cron persisted 17:14 MYT next runs and completed without error. Fixed pagination, seven-day bounds, simulated 90-day/six-minute convergence and actual-handler auth/delay/backoff tests pass, with 31 direct and 59 operations checks. Retain separate currency wallets and the sole external refresh producer; its next scheduled token push is still unobserved. See docs/SHOPEE_SG_TOKEN_PUSH.md and docs/SHOPEE_WEBHOOK_OPERATIONS.md.
+
 ## 2026-10-13 — Shopee product cards and received stickers
 
 - [VERIFIED] Controlled desktop/mobile rendering with actual webhook data shows nested variation name, selected-variation price and product thumbnail. Received sticker package/ID resolves to verified Shopee CDN imagery; missing images show a readable fallback. Chat message projection now includes existing provider type/metadata, without adding list payloads, polling, API calls or backfills. Inbox typecheck/build and RM6/RM12, sticker, missing-asset, text and overflow checks pass. Hosted signed-in staff rendering remains unexercised.

@@ -1,5 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import {normalize,stable} from '../shopee-finance-ingest/normalize.ts';
+import {prepareReleaseCursor,finishReleaseCursor} from './release-cursor.ts';
 const U=Deno.env.get('SUPABASE_URL')||'',K=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const out=(body:unknown,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store'}});
 async function db(path:string,body?:unknown){const r=await fetch(`${U}/rest/v1/${path}`,{method:body===undefined?'GET':'POST',headers:{apikey:K,authorization:`Bearer ${K}`,'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(15000)});const d=await r.json().catch(()=>null);if(!r.ok)throw new Error(`DATABASE_${r.status}`);return d;}
@@ -16,16 +17,14 @@ Deno.serve(async req=>{
   async function ingest(rows:any[]){const events=await Promise.all(rows.slice(0,100).map(async row=>{const e=normalize(row);return {...e,payload_hash:await hash(stable(e))};}));if(events.length){const result=await db('rpc/ingest_shopee_finance',{p_events:events,p_dry_run:false});applied+=Number(result.applied||0);return result;}}
   const shops=b.shop_id?[String(b.shop_id)]:((await db('rpc/marketplace_operations',{p_action:'snapshot',p_filter:{},p_actor:null})).shops||[]).map((x:any)=>x.shop_id);
   for(const shop of shops.slice(0,5)){
-   const cursor=await db('rpc/marketplace_finance_runtime',{p_action:'cursor',p_body:{shop_id:shop}});if(Date.parse(cursor.next_at)>Date.now())continue;
+   const savedCursor=await db('rpc/marketplace_finance_runtime',{p_action:'cursor',p_body:{shop_id:shop}});const readAt=Date.now();if(Date.parse(savedCursor.next_at)>readAt)continue;
+   const cursor=prepareReleaseCursor(savedCursor,readAt);
    let next={...cursor};
    try{
     const response=await read({action:'releases',shop_id:shop,from:Math.floor(Date.parse(cursor.from_at)/1000),to:Math.floor(Date.parse(cursor.to_at)/1000),page:cursor.page});
     const list=Array.isArray(response.escrow_list)?response.escrow_list:[];
     await ingest(list.filter((x:any)=>x.order_sn&&Number(x.escrow_release_time)>0&&(x.payout_amount!==undefined||x.escrow_amount!==undefined||x.released_amount!==undefined)).map((x:any)=>({order_sn:x.order_sn,shop_id:shop,released_amount:x.payout_amount??x.released_amount??x.escrow_amount,released_at:x.escrow_release_time,settlement_status:'released',release_evidence:'shopee_get_escrow_list',provider_response:x})));
-    if(response.more||response.has_more||list.length===100)next.page=Number(cursor.page)+1;
-    else if(Date.parse(cursor.to_at)<Date.now()-60000){next.from_at=cursor.to_at;next.to_at=new Date(Math.min(Date.parse(cursor.to_at)+604800000,Date.now())).toISOString();next.page=1;}
-    else {next.from_at=new Date(Date.now()-604800000).toISOString();next.to_at=new Date().toISOString();next.page=1;next.next_at=new Date(Date.now()+21600000).toISOString();}
-    next.error=null;
+    next=finishReleaseCursor(cursor,response,list.length,readAt);
    }catch(e){next.error=e instanceof Error?e.message:'RELEASE_READ_FAILED';next.next_at=new Date(Date.now()+21600000).toISOString();lastError=next.error;}
    await db('rpc/marketplace_finance_runtime',{p_action:'cursor_save',p_body:{shop_id:shop,...next}});
   }
