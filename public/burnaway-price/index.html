@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Burn Away Combo Price</title>
+  <title>Burn Away Combo & Wafer Paper Price</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -17,15 +17,19 @@
     <div class="inline-flex items-center justify-center p-3 bg-orange-100 rounded-2xl text-orange-600 mb-2 shadow-sm border border-orange-200">
       <i class="fa-solid fa-fire-flame-curved text-2xl"></i>
     </div>
-    <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Burn Away Combo</h1>
-    <p class="text-xs md:text-sm text-slate-600 mt-1 font-medium">Edible Image + Wafer Paper · 2 Layer</p>
+    <h1 id="page-title" class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Burn Away Combo</h1>
+    <p id="page-subtitle" class="text-xs md:text-sm text-slate-600 mt-1 font-medium">Edible Image + Wafer Paper · 2 Layer</p>
     <div class="inline-flex items-center space-x-1.5 mt-2 px-3 py-1 bg-white border border-orange-200 rounded-full text-xs font-semibold text-orange-800">
       <i class="fa-brands fa-whatsapp text-emerald-600"></i><span>WhatsApp: 017-9860656</span>
     </div>
   </header>
 
+  <nav class="w-full max-w-lg grid grid-cols-2 gap-2 mb-4" role="tablist" aria-label="Jenis produk">
+    <button id="tab-combo" type="button" role="tab" aria-selected="true" aria-controls="product-panel" class="product-tab rounded-xl border-2 border-orange-500 bg-orange-50 p-3 font-bold text-sm">Burn Away Combo</button>
+    <button id="tab-wafer" type="button" role="tab" aria-selected="false" aria-controls="product-panel" class="product-tab rounded-xl border border-slate-200 bg-white p-3 font-bold text-sm">Wafer Sahaja</button>
+  </nav>
   <main class="w-full max-w-lg space-y-4">
-    <section class="bg-white rounded-2xl shadow-sm border border-orange-100 p-4 md:p-5">
+    <section id="product-panel" role="tabpanel" aria-labelledby="tab-combo" class="bg-white rounded-2xl shadow-sm border border-orange-100 p-4 md:p-5">
       <div class="flex items-center space-x-2 border-b border-slate-100 pb-3 mb-4">
         <span class="flex h-7 w-7 items-center justify-center rounded-full bg-orange-500 text-xs font-bold text-white">1</span>
         <h2 class="font-bold text-slate-800 text-base">Pilih Spesifikasi</h2>
@@ -67,7 +71,7 @@
         <div id="shape-options" class="grid grid-cols-3 gap-2"></div>
       </div>
 
-      <div class="mb-5">
+      <div id="edible-section" class="mb-5">
         <div class="flex justify-between items-center mb-2">
           <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">4. Bottom Layer — Edible Image</label>
           <span id="edible-price" class="text-xs font-bold bg-orange-100 text-orange-800 px-2.5 py-0.5 rounded-full">RM12.00</span>
@@ -77,14 +81,14 @@
 
       <div class="mb-5">
         <div class="flex justify-between items-center mb-2">
-          <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">5. Top Layer — Wafer Paper</label>
+          <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider" id="wafer-label">5. Top Layer — Wafer Paper</label>
           <span id="wafer-price" class="text-xs font-bold bg-orange-100 text-orange-800 px-2.5 py-0.5 rounded-full">RM6.00</span>
         </div>
         <div id="wafer-sizes" class="grid grid-cols-3 gap-2"></div>
       </div>
 
       <div class="mb-5">
-        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">6. Quantity</label>
+        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2" id="quantity-label">6. Quantity</label>
         <div class="flex items-center space-x-3">
           <button type="button" id="btn-minus" class="w-10 h-10 rounded-xl border border-slate-300 flex items-center justify-center text-slate-600"><i class="fa-solid fa-minus"></i></button>
           <input type="number" id="qty-input" min="1" value="1" readonly class="w-20 h-10 text-center font-extrabold text-lg border border-slate-300 rounded-xl bg-slate-50">
@@ -95,7 +99,7 @@
 
       <div class="rounded-xl bg-orange-50 border border-orange-200 p-3 mb-4">
         <div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Shape</span><span id="summary-shape" class="font-semibold">Round / Bulat</span></div>
-        <div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Edible Image</span><span id="summary-edible" class="font-semibold">5 inch</span></div>
+        <div id="summary-edible-row" class="flex justify-between text-xs mb-1"><span class="text-slate-500">Edible Image</span><span id="summary-edible" class="font-semibold">5 inch</span></div>
         <div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Wafer Paper</span><span id="summary-wafer" class="font-semibold">5 inch</span></div>
         <div class="flex justify-between items-end pt-2 mt-2 border-t border-orange-200">
           <span class="font-bold text-slate-700 text-sm">Anggaran</span>
@@ -140,7 +144,7 @@
 
     <section class="bg-white rounded-2xl shadow-sm border border-orange-100 p-4 md:p-5">
       <h2 class="font-bold text-slate-800 mb-3">Info Ringkas</h2>
-      <div class="space-y-2 text-xs">
+      <div id="combo-info" class="space-y-2 text-xs">
         <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
           <b>2 Layer</b><br><span class="text-slate-500">Bottom layer menggunakan Edible Image, top layer menggunakan Wafer Paper.</span>
         </div>
@@ -151,6 +155,10 @@
           Edible Image biasanya lebih kecil atau sama saiz dengan Wafer Paper, ikut kesesuaian design dan kek.
         </div>
       </div>
+      <div id="wafer-info" hidden class="space-y-2 text-xs">
+        <p class="p-3 rounded-xl bg-slate-50 border border-slate-200">Cetakan wafer paper sahaja. Edible image dan kek tidak termasuk. Warna wafer lebih lembut berbanding icing paper.</p>
+        <p class="p-3 rounded-xl bg-orange-50 border border-orange-200">3–6 inci, A6 dan A5: RM6 · 6.5–8 inci dan A4: RM12 sekeping. Urgent + Need Review: tambahan RM2 sekeping.</p>
+      </div>
     </section>
   </main>
 
@@ -160,6 +168,7 @@ const shapes=["Round / Bulat","Square / Petak","Love Shape / Hati"];
 const edibleSizes=["3 inch","3.5 inch","4 inch","4.5 inch","5 inch","5.5 inch","6 inch","6.5 inch","7 inch","7.5 inch"];
 const waferSizes=[...edibleSizes,"8 inch"];
 
+let productMode="combo";
 let process="Pre-order";
 let review="No Review";
 let shape="Round / Bulat";
@@ -177,12 +186,32 @@ function edibleBase(size,style){
   return base;
 }
 function waferBase(size){
-  return parseFloat(size)<=6?6:12;
+  return size==="A4"?12:size==="A5"||size==="A6"||parseFloat(size)<=6?6:12;
 }
 function unitPrice(){
-  return edibleBase(edibleSize,shape)+waferBase(waferSize);
+  return productMode==="wafer"?waferUnit(waferSize):edibleBase(edibleSize,shape)+waferBase(waferSize);
 }
 
+function waferUnit(size){
+  return waferBase(size)+(productMode==="wafer"&&process==="Urgent"&&review==="Need Review"?2:0);
+}
+function setMode(mode){
+  productMode=mode;
+  $("tab-combo").setAttribute("aria-selected",String(mode==="combo"));
+  $("tab-wafer").setAttribute("aria-selected",String(mode==="wafer"));
+  setActive($(mode==="combo"?"tab-combo":"tab-wafer"),".product-tab");
+  $("product-panel").setAttribute("aria-labelledby",mode==="combo"?"tab-combo":"tab-wafer");
+  $("edible-section").hidden=mode==="wafer";
+  $("summary-edible-row").hidden=mode==="wafer";
+  $("combo-info").hidden=mode==="wafer";
+  $("wafer-info").hidden=mode==="combo";
+  $("page-title").textContent=mode==="combo"?"Burn Away Combo":"Wafer Paper Only";
+  $("page-subtitle").textContent=mode==="combo"?"Edible Image + Wafer Paper · 2 Layer":"Cetakan Wafer Paper Sahaja";
+  $("wafer-label").textContent=mode==="combo"?"5. Top Layer — Wafer Paper":"4. Saiz Wafer Paper";
+  $("quantity-label").textContent=mode==="combo"?"6. Quantity":"5. Quantity";
+  if(mode==="combo"&&!waferSizes.includes(waferSize))waferSize="5 inch";
+  renderSizes();updateAll();
+}
 function setActive(btn,group){
   document.querySelectorAll(group).forEach(b=>{
     b.classList.remove("border-2","border-orange-500","bg-orange-50");
@@ -215,7 +244,7 @@ function renderSizeButtons(containerId,sizes,current,setter,type){
   el.innerHTML="";
   sizes.forEach(s=>{
     const active=s===current;
-    const price=type==="edible"?edibleBase(s,shape):waferBase(s);
+    const price=type==="edible"?edibleBase(s,shape):waferUnit(s);
     const btn=document.createElement("button");
     btn.type="button";
     btn.className="rounded-xl p-2 text-left "+(active?"border-2 border-orange-500 bg-orange-50":"border border-slate-200 bg-white");
@@ -227,9 +256,9 @@ function renderSizeButtons(containerId,sizes,current,setter,type){
 
 function renderSizes(){
   renderSizeButtons("edible-sizes",edibleSizes,edibleSize,v=>edibleSize=v,"edible");
-  renderSizeButtons("wafer-sizes",waferSizes,waferSize,v=>waferSize=v,"wafer");
+  renderSizeButtons("wafer-sizes",productMode==="wafer"?[...waferSizes,"A6","A5","A4"]:waferSizes,waferSize,v=>waferSize=v,"wafer");
   $("edible-price").textContent="RM"+edibleBase(edibleSize,shape).toFixed(2);
-  $("wafer-price").textContent="RM"+waferBase(waferSize).toFixed(2);
+  $("wafer-price").textContent="RM"+waferUnit(waferSize).toFixed(2);
 }
 
 function updateAll(){
@@ -244,7 +273,7 @@ function addToCart(){
   const unit=unitPrice();
   cart.push({
     id:Date.now()+Math.random(),
-    process,review,shape,edibleSize,waferSize,quantity,
+    productMode,process,review,shape,edibleSize,waferSize,quantity,
     unitPrice:unit,total:unit*quantity
   });
   quantity=1;
@@ -266,18 +295,18 @@ function buildWhatsAppText(){
   const total=cart.reduce((sum,item)=>sum+item.total,0);
   let text="Berminat dengan pilihan:\n\n";
   cart.forEach((item,idx)=>{
-    text+=(idx+1)+". *Burn Away Combo*\n";
+    text+=(idx+1)+". *"+(item.productMode==="wafer"?"Wafer Paper Only":"Burn Away Combo")+"*\n";
     text+="• Process: "+item.process+"\n";
     text+="• Review: "+item.review+"\n";
     text+="• Shape: "+item.shape+"\n";
-    text+="• Edible Image: "+item.edibleSize+"\n";
+    if(item.productMode!=="wafer")text+="• Edible Image: "+item.edibleSize+"\n";
     text+="• Wafer Paper: "+item.waferSize+"\n";
     text+="• Kuantiti: "+item.quantity+"\n";
     text+="• Anggaran: RM"+item.total.toFixed(2)+"\n";
     if(idx<cart.length-1) text+="\n";
   });
   text+="\n*Jumlah anggaran: RM"+total.toFixed(2)+"*\n\n";
-  text+="Tarikh perlu: __ / __ / 2026\n\n";
+  text+="Tarikh perlu: __ / __ / ____\n\n";
   text+="Pilihan delivery:\nPostage\nPickup — Pasir Puteh, Kelantan\n\n";
   text+="Boleh check availability dan cara nak proceed? Terima kasih.";
   return text;
@@ -302,7 +331,7 @@ function renderCart(){
   cart.forEach(item=>{
     const div=document.createElement("div");
     div.className="flex items-start justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs";
-    div.innerHTML='<div class="pr-3"><div class="font-bold text-slate-800">Burn Away Combo</div><div class="text-slate-500 mt-0.5">'+item.process+' · '+item.review+'</div><div class="text-slate-500">'+item.shape+'</div><div class="text-slate-500">Edible '+item.edibleSize+' · Wafer '+item.waferSize+'</div><div class="text-slate-500">RM'+item.unitPrice.toFixed(2)+' × '+item.quantity+'</div></div><div class="flex items-center space-x-3"><span class="font-extrabold text-orange-700 text-sm">RM'+item.total.toFixed(2)+'</span><button type="button" onclick="removeCartItem('+item.id+')" class="text-slate-400 hover:text-rose-500 p-1"><i class="fa-solid fa-xmark"></i></button></div>';
+    div.innerHTML='<div class="pr-3"><div class="font-bold text-slate-800">'+(item.productMode==="wafer"?"Wafer Paper Only":"Burn Away Combo")+'</div><div class="text-slate-500 mt-0.5">'+item.process+' · '+item.review+'</div><div class="text-slate-500">'+item.shape+'</div><div class="text-slate-500">'+(item.productMode==="wafer"?'Wafer '+item.waferSize:'Edible '+item.edibleSize+' · Wafer '+item.waferSize)+'</div><div class="text-slate-500">RM'+item.unitPrice.toFixed(2)+' × '+item.quantity+'</div></div><div class="flex items-center space-x-3"><span class="font-extrabold text-orange-700 text-sm">RM'+item.total.toFixed(2)+'</span><button type="button" onclick="removeCartItem('+item.id+')" class="text-slate-400 hover:text-rose-500 p-1"><i class="fa-solid fa-xmark"></i></button></div>';
     el.appendChild(div);
   });
 
@@ -311,16 +340,18 @@ function renderCart(){
   $("btn-clear-cart").disabled=false;
 }
 
-$("process-preorder").onclick=()=>{process="Pre-order";setActive($("process-preorder"),".process-btn")};
-$("process-urgent").onclick=()=>{process="Urgent";setActive($("process-urgent"),".process-btn")};
-$("review-no").onclick=()=>{review="No Review";setActive($("review-no"),".review-btn")};
-$("review-need").onclick=()=>{review="Need Review";setActive($("review-need"),".review-btn")};
+$("process-preorder").onclick=()=>{process="Pre-order";setActive($("process-preorder"),".process-btn");renderSizes();updateAll()};
+$("process-urgent").onclick=()=>{process="Urgent";setActive($("process-urgent"),".process-btn");renderSizes();updateAll()};
+$("review-no").onclick=()=>{review="No Review";setActive($("review-no"),".review-btn");renderSizes();updateAll()};
+$("review-need").onclick=()=>{review="Need Review";setActive($("review-need"),".review-btn");renderSizes();updateAll()};
 $("btn-minus").onclick=()=>{if(quantity>1){quantity--;updateAll()}};
 $("btn-plus").onclick=()=>{quantity++;updateAll()};
 $("add-to-cart-btn").onclick=addToCart;
 $("btn-clear-cart").onclick=clearCart;
 
-renderShape();renderSizes();updateAll();renderCart();
+$("tab-combo").onclick=()=>setMode("combo");
+$("tab-wafer").onclick=()=>setMode("wafer");
+renderShape();setMode("combo");renderCart();
 </script>
 </body>
 </html>
