@@ -24,7 +24,7 @@ const isCashCounterReview = (order) => {
     || t(order?.payment).toLowerCase() === 'paid';
   const cash = t(order?.payment_status).toLowerCase() === 'cash_counter'
     || ['cash at counter', 'cash counter', 'cash', 'counter', 'pay at pickup'].includes(t(order?.payment_method || order?.payment).toLowerCase());
-  return t(order?.source).toLowerCase() === 'customer' && Boolean(order?.customer_confirmed)
+  return ['customer', 'customer_portal'].includes(t(order?.source).toLowerCase())
     && !order?.production_approved && !paid && cash
     && t(order?.delivery_method || order?.delivery).toLowerCase().includes('pickup')
     && !['completed', 'delivered', 'customer collected'].includes(t(order?.status).toLowerCase())
@@ -179,7 +179,8 @@ async function finalNotification(id) {
     ...(cashReview ? [
       'TINDAKAN ADMIN',
       'Semak item, wording dan tarikh diperlukan.',
-      'Jika betul, tekan Confirm Production / Approve Production.',
+      'Jika betul, tekan Confirm Production sebagai admin.',
+      'Tidak perlu tunggu customer tekan pengesahan.',
       'Tekan pautan queue di bawah → Confirm Production.',
       'Production boleh mula sebelum bayaran diterima.',
       'Confirm Cash Paid hanya selepas duit diterima.',
