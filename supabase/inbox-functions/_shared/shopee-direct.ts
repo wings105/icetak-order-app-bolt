@@ -41,7 +41,7 @@ export async function shopeeRequest(c: ShopeeConfig, path: '/api/v2/sellerchat/s
 export async function checkConnection(db: any, c: ShopeeConfig, actor: string, fetcher = fetch) {
   let code = 'CREDENTIALS_REQUIRED', ok = false;
   if (c.partner_key && c.access_token && !tokenExpired(c)) {
-    const { data, error } = await db.from('conversations').select('external_conversation_id,metadata').eq('channel', 'shopee').order('last_message_at', { ascending: false }).limit(200);
+    const { data, error } = await db.from('conversations').select('external_conversation_id,metadata').eq('channel', 'shopee').eq('metadata->>shop_id', str(c.shop_id)).order('last_message_at', { ascending: false }).limit(200);
     const conversation = (data || []).find((row: any) => str(row.metadata?.shop_id) === str(c.shop_id) && row.external_conversation_id);
     if (error) code = 'INBOX_READ_FAILED';
     else if (!conversation) code = 'NO_CONVERSATION_FOR_SHOP';
