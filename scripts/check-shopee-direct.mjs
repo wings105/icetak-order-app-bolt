@@ -42,7 +42,7 @@ try {
   let claims=0, sends=0, completions=0, completionError=false, status='sending', mode='success', config={...c};
   const conversation={id:'00000000-0000-0000-0000-000000000001',channel:'shopee',external_customer_id:'789',metadata:{shop_id:'456'},external_conversation_id:'conv-provider'};
   const updates=[];
-  const db={from(table){return {select(){return this},eq(){return this},in(){return this},single:async()=>({data:conversation}),then(resolve,reject){return Promise.resolve({data:[{setting_key:'shopee_chat_direct_config',setting_value:JSON.stringify(config)}]}).then(resolve,reject)},update(value){updates.push({table,value});return this},insert:async()=>({error:null})}},rpc:async(name)=>{if(name==='complete_shopee_reply'){completions++;return {data:{replied:true},error:completionError?{message:'fixture error'}:null};}claims++;return {data:{claimed:claims===1,attempt:{id:'attempt',status,local_message_id:'local',provider_message_id:status==='sent'?'fixture-message':null}}}}};
+  const db={from(table){return {select(){return this},eq(){return this},in(){return this},not(){return this},order(){return this},limit:async()=>({data:[]}),single:async()=>({data:conversation}),then(resolve,reject){return Promise.resolve({data:[{setting_key:'shopee_chat_direct_config',setting_value:JSON.stringify(config)}]}).then(resolve,reject)},update(value){updates.push({table,value});return this},insert:async()=>({error:null})}},rpc:async(name)=>{if(name==='complete_shopee_reply'){completions++;return {data:{replied:true},error:completionError?{message:'fixture error'}:null};}claims++;return {data:{claimed:claims===1,attempt:{id:'attempt',status,local_message_id:'local',provider_message_id:status==='sent'?'fixture-message':null}}}}};
   globalThis.fetch=async()=>{sends++;return Response.json(mode==='success'?{response:{message_id:'fixture-message'}}:mode==='unknown'?{}:{error:'permission_denied'})};
   const sendBody={conversation_id:conversation.id,text:'Hello',request_id:'00000000-0000-0000-0000-000000000002'};
   const actor={id:'owner',label:'owner'};
@@ -83,7 +83,7 @@ try {
   }
   // Unknown expiry requires a fresh provider read; a failed read creates no outbox claim.
   let readAllowed=true, preflights=0, unknownClaims=0, unknownSends=0;
-  const unknownDb={from(table){return {select(){return this},eq(){return this},in(){return this},order(){return this},single:async()=>({data:conversation}),limit:async()=>({data:[conversation]}),then(resolve,reject){return Promise.resolve({data:[{setting_key:'shopee_chat_direct_config',setting_value:JSON.stringify(unknownExpiry)}]}).then(resolve,reject)},update(){return this},insert:async()=>({})}},rpc:async(name,args)=>{
+  const unknownDb={from(table){return {select(){return this},eq(){return this},in(){return this},not(){return this},order(){return this},single:async()=>({data:conversation}),limit:async()=>({data:table==='messages'?[]:[conversation]}),then(resolve,reject){return Promise.resolve({data:[{setting_key:'shopee_chat_direct_config',setting_value:JSON.stringify(unknownExpiry)}]}).then(resolve,reject)},update(){return this},insert:async()=>({})}},rpc:async(name,args)=>{
     if(name==='complete_shopee_reply')return {data:{replied:true}};
     if(name==='icetak_shopee_chat_config')return {data:{...unknownExpiry,check_ok:args.p_body.ok,checked_credential_version:args.p_body.credential_version}};
     unknownClaims++;return {data:{claimed:unknownClaims===1,attempt:{id:'attempt',status:'sending',local_message_id:'local'}}};

@@ -1,6 +1,10 @@
+## 2026-10-13 — Release catch-up uses a fixed read snapshot
+
+Prepare a first-page release tail before the provider request and decide catch-up completion against that exact time. Preserve subsequent-page ranges; never keep advancing the completion target after the read. Keep seven-day request bounds, recent overlap and six-hour polling after convergence. Correct excessive one-time scheduling errors through the existing locked cursor RPC, without replaying unrelated ranges or changing provider/auth/accounting contracts.
+
 ## 2026-10-13 — SG credentials and seller-scoped read evidence
 
-The owner explicitly authorized the existing Partner Key, bridge token and ClickUp SG Access Token destination in Inbox. Keep SG isolated from MY; filter seller shop in the database before applying the conversation limit. Provider-signed exact-order evidence can repair a missing shop identity; currency or a partial customer name alone cannot. Missing order dates use first recorded time only as a conservative release-search boundary, preserving the 90-day start cap and seven-day windows. Existing external refresh remains the sole producer. Future SG pushes are not connected until the actual producer flow is identified and verified; see SHOPEE_SG_TOKEN_PUSH.md.
+The owner explicitly authorized the existing Partner Key, bridge token and ClickUp SG Access Token destination in Inbox. Keep SG isolated from MY; filter seller shop in the database before applying the conversation limit. Provider-signed exact-order evidence can repair a missing shop identity; currency or a partial customer name alone cannot. Missing order dates use first recorded time only as a conservative release-search boundary, preserving the 90-day start cap and seven-day windows. Existing external refresh remains the sole producer. The owner subsequently wired the HTTP module independently: actual SG rotation/read readiness is receiver-verified at 10:59 MYT, with separate MY/SG access tokens and key hashes. The external enabled schedule/next scheduled refresh remain unobserved; a producer URL is needed only for direct automation inspection/editing. See SHOPEE_SG_TOKEN_PUSH.md.
 
 ## 2026-10-12 — Durable Shopee recovery and evidence-based finance
 
