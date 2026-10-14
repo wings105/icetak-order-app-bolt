@@ -1,6 +1,6 @@
 # Stock management
 
-Status: backend PRODUCTION; controlled Admin V2 rendering VERIFIED. Owner authorized the GitHub push and production merge on 14 October 2026. Frontend publication/smoke checks are in progress; authenticated hosted owner interaction remains unexercised.
+Status: backend and hosted frontend delivery PRODUCTION; controlled Admin V2 rendering VERIFIED. Owner authorized publication on 14 October 2026. Authenticated hosted owner interaction remains unexercised.
 
 ## Owner contract (14 October 2026)
 
@@ -48,3 +48,11 @@ No opening balance may be invented to demonstrate a production deduction. Render
 - Admin V2 real App/component rendered at 1440×980 and 390×844 with a controlled owner transport: material search, 71-row completeness, retired edible removal, opening count, failed purchase/retry using the same UUID, rates, equal glossy/tape quantities, movement history, pause/resume and viewport bounds pass. Mobile sidebar transition is allowed to finish before visual inspection. Browser plugin unavailable: Playwright used; existing external Google font request is isolated in QA with the normal font fallback.
 - Admin/root builds, Admin V2 source check, lint and git diff checks pass. Lint has existing warnings outside this feature. No real customer notification/send, finance posting, historical opening balance or fake production count was created.
 - Hosted authenticated owner interactions remain unexercised. Opening balances, primary wafer choice, inch/shape rates and glossy 1pc rate still need owner input before the respective materials/items can auto consume.
+
+## Hosted production delivery (14 October 2026)
+
+PR #89 merged as e72a1cb317aa9fa1baaf656df61fd02a5e9bb5c1. Remote source tree exactly matches the tested tree dc698d148be42d512dfe8c040fa3a5252b613195. Workers Builds, Public Domain Guard (including stock gateway authorization checks) and deploy checks passed. Live Worker version: 122bdd22-94b2-4ec6-bca2-53a8c7f66541.
+
+The exact URL https://shop.decocake.my/?admin=v2&view=stock rendered the existing Admin Login gate with no application errors and retained the stock route. Hosted main-Bwq0DgAv.js → admin-v2-route-DK_yK0QB.js → App-BBimVOrw.js references Stock-CR6_NWfM.js and Stock-BxKzzk0a.css. CSS bytes match the tested build. Component JS matches after canonicalizing scoped minifier variable names and omitting environment-dependent import declarations; all behavior, literals and member keys are preserved in that comparison. Remote JS SHA256: 4000b7d5264cbbcee4c2584adc41774f5a274b38f26401abe28d9668b7219dbb.
+
+Post-release backend smoke: 71 materials, zero entered opening counts, zero physical order deductions, zero reserve/allocation mismatches, zero failed jobs, active every-minute worker with a successful 15:22 MYT run. Signed-in owner use remains unexercised; opening balances/activation, wafer choice and unconfirmed inch/1pc rates still need actual owner input.
