@@ -1,5 +1,8 @@
 project_id = "buivecgahhmrhlmfujgt"
 
+[functions.stock-admin]
+verify_jwt = true
+
 [functions.shipping-agent]
 verify_jwt = true
 

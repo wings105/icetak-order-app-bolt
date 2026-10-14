@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {stripTypeScriptTypes} from 'node:module';
+let handler;
+const raw=readFileSync('supabase/functions/stock-admin/index.ts','utf8').replace("import 'jsr:@supabase/functions-js/edge-runtime.d.ts';",'');
+let role='owner',permissions=['view_orders','manage_orders'],active=true,authValid=true,rpcCalls=[];
+const fetcher=async(url,options={})=>{
+ const u=new URL(url);
+ if(u.pathname==='/auth/v1/user')return Response.json(authValid?{id:'staff-id'}:{error:'invalid'},{status:authValid?200:401});
+ if(u.pathname==='/rest/v1/admin_users')return Response.json(active?[{username:'verified-staff',role}]:[]);
+ if(u.pathname==='/rest/v1/admin_permissions')return Response.json([{permissions}]);
+ if(u.pathname==='/rest/v1/rpc/icetak_stock_admin'){rpcCalls.push(JSON.parse(options.body));return Response.json(JSON.parse(options.body).p_action==='snapshot'?{movements:[{cost:99,reason:'Purchase'}]}:{saved:true});}
+ throw Error('Unexpected request');
+};
+const code=stripTypeScriptTypes(raw);
+await new Function('Deno','fetch',`return (async()=>{${code}})()` )({env:{get:key=>key==='SUPABASE_URL'?'https://stock.example':'test-private-key'},serve:fn=>handler=fn},fetcher);
+const id='a1000000-0000-4000-8000-000000000001';
+const request=(body,auth=true,method='POST')=>handler(new Request('https://stock.example/functions/v1/stock-admin',{method,headers:{...(auth?{authorization:'Bearer test-staff-token'}:{}),'content-type':'application/json'},body:method==='POST'?JSON.stringify(body):undefined}));
+assert.equal((await request({},false)).status,401);
+authValid=false;assert.equal((await request({})).status,401);authValid=true;
+active=false;assert.equal((await request({})).status,403);active=true;
+role='staff';permissions=[];assert.equal((await request({action:'snapshot'})).status,403);
+permissions=['view_orders'];const staffSnapshot=await request({action:'snapshot'});assert.equal(staffSnapshot.status,200);assert.equal((await staffSnapshot.json()).data.movements[0].cost,undefined);
+assert.equal((await request({action:'purchase',payload:{request_id:id}})).status,403);
+permissions=['view_orders','manage_orders'];assert.equal((await request({action:'purchase',payload:{request_id:id,material_code:'CU-test',quantity:2,actor:'forged-owner'}})).status,200);
+assert.equal(rpcCalls.at(-1).p_actor,'verified-staff');
+assert.equal((await request({action:'settings',payload:{request_id:id,enabled:false}})).status,403);
+role='owner';assert.equal((await (await request({action:'snapshot'})).json()).data.movements[0].cost,99);assert.equal((await request({action:'settings',payload:{request_id:id,enabled:false}})).status,200);
+assert.equal((await request({action:'arbitrary_sql',payload:{request_id:id}})).status,400);
+assert.equal((await request({action:'opening',payload:{}})).status,400);
+assert.equal((await request({},true,'GET')).status,405);
+assert.equal((await request({},false,'OPTIONS')).status,200);
+assert.equal((await request({action:'snapshot',padding:'x'.repeat(13000)})).status,413);
+console.log('Stock gateway auth, role separation, actor binding, payload bounds, methods and action allowlist passed.');

@@ -26,6 +26,7 @@ const navItems: NavItem[] = [
   { key: 'create-order', label: 'Create Order', icon: IconOrders },
   { key: 'payments', label: 'Payments', icon: IconPayments },
   { key: 'finance', label: 'Finance', icon: IconFinance },
+  { key: 'stock', label: 'Stok', icon: IconOrders },
   { key: 'qrpay-summary', label: 'QRPay Daily', icon: IconPayments },
   { key: 'draft-orders', label: 'Draft Orders', icon: IconOrders },
   { key: 'shipping', label: 'Shipping', icon: IconShipping },
@@ -66,14 +67,16 @@ type Props = {
   canViewPickup?: boolean;
   canViewAi?: boolean;
   canManageTemplates?: boolean;
+  canViewStock?: boolean;
 };
 
 type ShippingAttention = { attention?: number; critical?: number; oldest_hours?: number };
 type FollowupSummary = { counts?: { due?: number; failed?: number } };
 
-export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false, canViewCustomers = false, canViewPickup = false, canViewAi = false, canManageTemplates = false }: Props) {
+export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false, canViewCustomers = false, canViewPickup = false, canViewAi = false, canManageTemplates = false, canViewStock = false }: Props) {
   const visibleNavItems = navItems.filter((item) => {
     if (['finance','qrpay-summary','draft-orders'].includes(item.key) && !canViewFinance) return false;
+    if (item.key === 'stock' && !canViewStock) return false;
     if (item.key === 'customers' && !canViewCustomers) return false;
     if (['ai-dashboard','customer-focus'].includes(item.key) && !canViewAi) return false;
     if (item.key === 'pickup-counter' && !canViewPickup) return false;
