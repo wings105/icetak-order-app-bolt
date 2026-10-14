@@ -1,3 +1,7 @@
+# 2026-10-14 — Stock management
+
+Backend PRODUCTION / controlled Admin V2 VERIFIED: private Order stock ledger, 71 materials and owner/manual count/purchase workflow; canonical To Ship reserve, Shipped consumption, pickup consumption only after a current successful ready notification. Bounded every-minute worker is active; actual 45-order reserves match allocations, no failed work or physical deduction with all openings unknown. JWT stock-admin v2 exact source/auth and native rollback/service-role tests pass. Desktop/mobile real App forms and retry behavior, rates, ledger and builds pass. Opening counts, primary wafer and unconfirmed inch/1pc rates await owner input; hosted authenticated owner interaction remains unexercised. See STOCK_MANAGEMENT.md.
+
 # 2026-10-13 — Verified SG token push and release polling
 
 Backend PRODUCTION: the owner generated SG's dedicated rotation key and its actual HTTP push persisted credential version 2 at 10:59:25 MYT, followed by CHAT_READ_VERIFIED / READY. MY independently rotated to version 20 at 10:53 MYT; private boolean checks prove different tokens/key hashes. The external scenario's enabled schedule and next scheduled token refresh remain unobserved.
