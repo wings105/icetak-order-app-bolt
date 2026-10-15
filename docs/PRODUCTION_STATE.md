@@ -1,3 +1,7 @@
+# 2026-10-16 — Shopee read warning delivery confirmed
+
+Production 038d219 passed Cloudflare build/guard. Actual hosted Inbox serves the exact tested read-warning asset; login browser smoke passes. The earlier frontend delivery block is resolved. Backend sender v14 / bridge v12 and controlled desktop/mobile verification remain as recorded; authenticated next-reply receipt is still unexercised. See docs/SHOPEE_CHAT_DIRECT_SETUP.md.
+
 # 2026-10-15 — Shopee read receipt verification
 
 Inbox sender v14 and AI bridge v12 deployed with exact source/auth readback; corrected audit fields, post-read provider verification and non-resend warnings. Controlled sender and actual desktop/mobile composer verified; live provider GET reports unread=0 for the latest replied chat and service-role rollback audit passes. Hosted authenticated next-send receipt remains unexercised. See docs/SHOPEE_CHAT_DIRECT_SETUP.md.

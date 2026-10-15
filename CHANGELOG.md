@@ -1,3 +1,7 @@
+## 2026-10-16 — Shopee read receipts hosted delivery
+
+- [PRODUCTION backend and hosted delivery / VERIFIED controlled frontend] PR #91, production 038d219 passed Cloudflare Workers Builds and guard. Live Inbox JS exactly matches the desktop/mobile-tested read-warning build; login smoke has no runtime errors. Provider POST/GET and corrected audit schema were verified. Authenticated next reply remains unexercised. See docs/SHOPEE_CHAT_DIRECT_SETUP.md.
+
 # 2026-10-14 — Material stock management
 
 ## 2026-10-15
