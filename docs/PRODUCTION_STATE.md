@@ -1,3 +1,7 @@
+# 2026-10-15 — Shopee read receipt verification
+
+Inbox sender v14 and AI bridge v12 deployed with exact source/auth readback; corrected audit fields, post-read provider verification and non-resend warnings. Controlled sender and actual desktop/mobile composer verified; live provider GET reports unread=0 for the latest replied chat and service-role rollback audit passes. Hosted authenticated next-send receipt remains unexercised. See docs/SHOPEE_CHAT_DIRECT_SETUP.md.
+
 # 2026-10-14 — Stock management
 
 Backend and hosted delivery PRODUCTION / controlled Admin V2 VERIFIED: PR #89 e72a1cb / Worker 122bdd22 passed Workers Builds/guard/deploy. Exact stock URL renders the secure Admin Login gate; hosted Stock JS/component and CSS match the tested behavior/styles. Private Order stock ledger, 71 materials and owner/manual count/purchase workflow; canonical To Ship reserve, Shipped consumption, pickup consumption only after a current successful ready notification. Bounded every-minute worker is active; actual 45-order reserves match allocations, no failed work or physical deduction with all openings unknown. JWT stock-admin v2 exact source/auth and native rollback/service-role tests pass. Desktop/mobile real App forms and retry behavior, rates, ledger and builds pass. Opening counts, primary wafer and unconfirmed inch/1pc rates await owner input; hosted authenticated owner interaction remains unexercised. See STOCK_MANAGEMENT.md.

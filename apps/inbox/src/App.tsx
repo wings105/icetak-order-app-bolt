@@ -248,7 +248,7 @@ function InboxApp() {
     reload();
   }
 
-  async function handleSend(text: string, file?: File | null, sticker?: ShopeeSticker): Promise<void> {
+  async function handleSend(text: string, file?: File | null, sticker?: ShopeeSticker): Promise<string | void> {
     if (!activeConversation) return;
     const convId = activeConversation.id;
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -257,15 +257,15 @@ function InboxApp() {
     setOptimisticMessages((previous) => ({ ...previous, [convId]: [...(previous[convId] ?? []), tempMsg] }));
 
     const sendToProvider = async () => {
-      if (sticker) await sendStickerMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderSummaryId: selectedOrder?.id ?? null, orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, sticker });
-      else if (file) await sendMediaMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderSummaryId: selectedOrder?.id ?? null, orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, file, caption: text || undefined });
-      else await sendTestMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderSummaryId: selectedOrder?.id ?? null, orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, text });
+      if (sticker) return sendStickerMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderSummaryId: selectedOrder?.id ?? null, orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, sticker });
+      else if (file) return sendMediaMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderSummaryId: selectedOrder?.id ?? null, orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, file, caption: text || undefined });
+      else return sendTestMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderSummaryId: selectedOrder?.id ?? null, orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, text });
     };
     const queuedSend = sendChainRef.current.then(sendToProvider, sendToProvider);
-    sendChainRef.current = queuedSend.catch(() => undefined);
+    sendChainRef.current = queuedSend.then(() => undefined, () => undefined);
 
     try {
-      await queuedSend;
+      const sent = await queuedSend;
       setOptimisticMessages(previous => ({...previous,[convId]:(previous[convId] ?? []).map(message => message.id === tempId ? {...message,status:'sent'} : message)}));
       reload();
       setMsgReloadKey((key) => key + 1);
@@ -277,6 +277,7 @@ function InboxApp() {
         });
         if (previewUrl) URL.revokeObjectURL(previewUrl);
       }, 2500);
+      return sent.sendWarning;
     } catch (reason) {
       setOptimisticMessages((previous) => ({ ...previous, [convId]: (previous[convId] ?? []).filter((message) => message.id !== tempId) }));
       if (previewUrl) URL.revokeObjectURL(previewUrl);

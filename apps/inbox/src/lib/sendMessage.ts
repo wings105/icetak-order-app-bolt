@@ -2,6 +2,14 @@ import { ShopeeSticker, officialOrangutanSticker } from './shopeeStickers';
 import { supabase } from './supabase';
 import { Message } from '../types';
 
+type SendResult = Message & { sendWarning?: string };
+
+function shopeeWarning(payload: Record<string, unknown>): string | undefined {
+  const warnings = [payload.read_warning, payload.warning].filter((value): value is string => typeof value === 'string' && value.length > 0);
+  if (payload.read_synced !== true && !payload.read_warning) warnings.unshift('Mesej sudah dihantar. Status dibaca Shopee belum disahkan; jangan hantar semula mesej.');
+  return warnings.length ? warnings.join(' ') : undefined;
+}
+
 async function requireStaffSession(): Promise<string> {
   const {
     data: { session },
@@ -30,7 +38,7 @@ export interface SendMediaParams {
   caption?: string;
 }
 
-export async function sendTestMessage(params: SendMessageParams): Promise<Message> {
+export async function sendTestMessage(params: SendMessageParams): Promise<SendResult> {
   if (params.channel === 'shopee') {
     const token = await requireStaffSession();
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
@@ -49,7 +57,7 @@ export async function sendTestMessage(params: SendMessageParams): Promise<Messag
       }),
     });
     const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
-    if (!response.ok) {
+    if (!response.ok || payload.ok !== true) {
       throw new Error(String(payload.error ?? `Penghantaran Shopee gagal (${response.status}).`));
     }
     return {
@@ -60,6 +68,7 @@ export async function sendTestMessage(params: SendMessageParams): Promise<Messag
       status: 'sent',
       messageType: 'text',
       providerMessageId: payload.provider_message_id ? String(payload.provider_message_id) : undefined,
+      sendWarning: shopeeWarning(payload),
     };
   }
   if (params.channel !== 'whatsapp') {
@@ -96,7 +105,7 @@ export async function sendTestMessage(params: SendMessageParams): Promise<Messag
   };
 }
 
-export async function sendMediaMessage(params: SendMediaParams): Promise<Message> {
+export async function sendMediaMessage(params: SendMediaParams): Promise<SendResult> {
   if (params.channel === 'shopee') {
     const token = await requireStaffSession();
     const form = new FormData();
@@ -110,9 +119,10 @@ export async function sendMediaMessage(params: SendMediaParams): Promise<Message
     });
     const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
     if (!response.ok || payload.ok !== true) throw new Error(String(payload.error ?? 'Penghantaran gambar Shopee gagal.'));
+    let captionWarning: string | undefined;
     if (params.caption?.trim()) {
       try {
-        await sendTestMessage({ ...params, text: params.caption.trim() });
+        captionWarning = (await sendTestMessage({ ...params, text: params.caption.trim() })).sendWarning;
       } catch {
         throw new Error('Gambar sudah dihantar, tetapi teks gagal dihantar. Hantar semula teks sahaja.');
       }
@@ -122,6 +132,7 @@ export async function sendMediaMessage(params: SendMediaParams): Promise<Message
       timestamp: new Date(), status: 'sent', messageType: 'image',
       mediaUrl: payload.media_url ? String(payload.media_url) : undefined,
       providerMessageId: payload.provider_message_id ? String(payload.provider_message_id) : undefined,
+      sendWarning: [shopeeWarning(payload), captionWarning].filter(Boolean).join(' ') || undefined,
     };
   }
   if (params.channel !== 'whatsapp') {
@@ -159,7 +170,7 @@ export async function sendMediaMessage(params: SendMediaParams): Promise<Message
 }
 
 
-export async function sendStickerMessage(params: Omit<SendMessageParams, 'text'> & {sticker:ShopeeSticker}):Promise<Message> {
+export async function sendStickerMessage(params: Omit<SendMessageParams, 'text'> & {sticker:ShopeeSticker}):Promise<SendResult> {
   const sticker=officialOrangutanSticker(params.sticker);
   if(params.channel!=='shopee'||!sticker)throw new Error('Pilih sticker rasmi orangutan Shopee.');
   const token=await requireStaffSession();
@@ -169,5 +180,5 @@ export async function sendStickerMessage(params: Omit<SendMessageParams, 'text'>
   });
   const payload=await response.json().catch(()=>({}));
   if(!response.ok||payload.ok!==true)throw new Error(String(payload.error||'Sticker gagal dihantar. Semak Shopee sebelum cuba semula.'));
-  return {id:String(payload.local_message_id),content:'[Sticker]',direction:'outbound',timestamp:new Date(),status:'sent',messageType:'sticker',mediaUrl:sticker.url,mediaMetadata:{sticker_id:sticker.sticker_id,sticker_package_id:sticker.sticker_package_id},providerMessageId:payload.provider_message_id};
+  return {id:String(payload.local_message_id),content:'[Sticker]',direction:'outbound',timestamp:new Date(),status:'sent',messageType:'sticker',mediaUrl:sticker.url,mediaMetadata:{sticker_id:sticker.sticker_id,sticker_package_id:sticker.sticker_package_id},providerMessageId:payload.provider_message_id,sendWarning:shopeeWarning(payload)};
 }
