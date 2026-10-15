@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
-import { taskFields, RM_FIELD_ID } from './task-fields.ts';
+import { taskFields, RM_FIELD_ID, JOB_FIELD_ID } from './task-fields.ts';
 import { code as mapTaskMagic } from '../../../scripts/taskmagic-production-map.mjs';
 
 const manifest = { field_id: 'set-field', options: { 1: 'option-1', 2: 'option-2', 3: 'option-3' } };
@@ -72,6 +72,47 @@ test('unmapped set beyond manifest is never changed to another set', () => {
   assert.equal(result.set_label, 'set11');
   assert.equal(result.set_manifest_complete, false);
   assert.deepEqual(result.set_option_ids, []);
+});
+
+test('job CF covers the actual ClickUp labels as typed option arrays', () => {
+  const expected = {
+    edible: ['Edible Image', '7ce9cddf-c929-44fd-95a2-9769f1ed7ea3'],
+    printed: ['Cake topper', '9cb59719-685e-48c4-b204-c08950298360'],
+    acrylic: ['Acrylic cake topper', '9d2fd770-0bbe-4bcf-82bf-dff004ebde4f'],
+    wafer: ['wafer paper', 'fd7d7117-aadb-49fe-ad83-5ca7b205a022'],
+    mirror: ['Artpaper', 'f5dc9027-9871-475d-ae8a-d86649e8fc8c'],
+    'print-edible': ['print-edible', 'fcd6eb8b-c15a-402b-8002-710e8d96a80d'],
+    'print-wafer': ['print-wafer', 'ababb2e4-235b-416a-b49e-91d524bbffc5'],
+  };
+  for (const [type, [label, id]] of Object.entries(expected)) {
+    const c = { ...row('a', 1, 'item', 12), component_type: type };
+    const fields = taskFields(c, [c], manifest);
+    assert.deepEqual(fields.job_labels, [label]);
+    assert.deepEqual(fields.job_option_ids, [id]);
+    assert.deepEqual(fields.custom_fields.find(f => f.id === JOB_FIELD_ID), { id: JOB_FIELD_ID, value: [id] });
+    assert.equal(fields.task_amount, 12);
+    assert.equal(fields.set_required, false);
+  }
+});
+
+test('split Burn Away follows component type; unknown custom products stay unclassified', () => {
+  for (const type of ['edible', 'wafer']) {
+    const c = { ...row(type, 1, 'burnaway', 18), component_type: type };
+    c.order_items.k = 'burnaway';
+    assert.equal(taskFields(c, [c], manifest).job_labels.length, 1);
+  }
+  const combined = { ...row('a', 1, 'item', 18), component_type: 'burnaway' };
+  assert.deepEqual(taskFields(combined, [combined], manifest).job_labels, ['Edible Image', 'wafer paper']);
+  const custom = { ...row('a', 1, 'item', 18), component_type: 'design', order_items: { k: 'Birthday Banner', price: 18, qty: 1 } };
+  assert.equal(taskFields(custom, [custom], manifest).job_matched, false);
+  assert.ok(!taskFields(custom, [custom], manifest).custom_fields.some(f => f.id === JOB_FIELD_ID));
+});
+
+test('existing TaskMagic adapter forwards backend job without another mapping step', async () => {
+  const c = { ...row('a', 1, 'item', 6), component_type: 'edible' };
+  const fields = taskFields(c, [c], manifest);
+  const mapped = await mapTaskMagic({ component: fields });
+  assert.deepEqual(mapped.custom_fields.find(f => f.id === JOB_FIELD_ID).value, ['7ce9cddf-c929-44fd-95a2-9769f1ed7ea3']);
 });
 
 test('TaskMagic mapper carries IDs/courier and merges typed RM/set only when present', async () => {
