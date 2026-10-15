@@ -25,7 +25,7 @@ interface ChatAreaProps {
   showCustomerPanel: boolean;
   composerText: string;
   onComposerChange: (text: string) => void;
-  onSend: (text: string, file?: File | null, sticker?: ShopeeSticker) => Promise<void>;
+  onSend: (text: string, file?: File | null, sticker?: ShopeeSticker) => Promise<string | void>;
   onMarkReplied: (id: string) => Promise<void>;
   searchQuery?: string;
   initialMatchMessageId?: string;
@@ -122,6 +122,10 @@ export function ChatArea({
   const latestSaveCallbackRef = useRef<() => void>(() => undefined);
   const messageCountByConversationRef = useRef<Record<string, number>>({});
   const [pendingSends, setPendingSends] = useState(0);
+  const noticeConversationRef = useRef(conversation?.id);
+  noticeConversationRef.current = conversation?.id;
+  const [sendWarning, setSendWarning] = useState<string | null>(null);
+  useEffect(() => { setSendWarning(null); }, [conversation?.id]);
   const [sendError, setSendError] = useState<string | null>(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templateSentNotice, setTemplateSentNotice] = useState(false);
@@ -389,13 +393,14 @@ export function ChatArea({
     setDraftText('');
     onComposerChange('');
     setQueuedImage(null);
+    setSendWarning(null);
     setSendError(null);
     setPendingSends((count) => count + 1);
     atBottomRef.current = true;
     window.requestAnimationFrame(() => textareaRef.current?.focus({ preventScroll: true }));
 
     void onSend(text, file)
-      .then(() => window.setTimeout(() => scrollToBottom('smooth'), 40))
+      .then((warning) => { if (noticeConversationRef.current === conversationId) setSendWarning(warning || null); window.setTimeout(() => scrollToBottom('smooth'), 40); })
       .catch((err) => setSendError(err instanceof Error ? err.message : 'Ralat menghantar mesej. Cuba lagi.'))
       .finally(() => setPendingSends((count) => Math.max(0, count - 1)));
   }
@@ -482,6 +487,7 @@ export function ChatArea({
       </div>
 
       <div className="flex flex-col bg-[#f0f2f5] dark:bg-[var(--surface-muted)] border-t border-[#e9edef] dark:border-[var(--border)] relative z-10">
+        {sendWarning && <div role="status" className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800/40"><AlertCircle size={14} className="shrink-0 text-amber-700 dark:text-amber-300" /><span className="text-xs text-amber-900 dark:text-amber-200 flex-1">{sendWarning}</span><button aria-label="Tutup amaran status dibaca" onClick={() => setSendWarning(null)}><X size={14} /></button></div>}
         {sendError && <div className="flex items-center gap-2 px-4 py-1.5 bg-red-50 dark:bg-red-950/40 border-b border-red-200 dark:border-red-800/40"><AlertCircle size={12} className="text-red-500" /><span className="text-xs text-red-600 dark:text-red-400 flex-1">{sendError}</span><button onClick={() => setSendError(null)}><X size={12} /></button></div>}
         {templateSentNotice && <div className="flex items-center justify-between gap-2 border-b border-emerald-200 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2 text-xs text-emerald-700 dark:text-emerald-300"><span>Template berjaya dihantar dan direkodkan.</span><button onClick={() => setTemplateSentNotice(false)}><X size={12} /></button></div>}
 
@@ -524,7 +530,7 @@ export function ChatArea({
               <ImageIcon size={18} />
             </button>
           )}
-          {conversation.channel === 'shopee' && <ShopeeStickerPicker key={conversation.id} recipient={conversation.customer.shopeeUsername || conversation.customer.name} onSend={(sticker)=>onSend('', null, sticker)} />}
+          {conversation.channel === 'shopee' && <ShopeeStickerPicker key={conversation.id} recipient={conversation.customer.shopeeUsername || conversation.customer.name} onSend={async(sticker)=>{ const warning=await onSend('', null, sticker); if (noticeConversationRef.current === conversationId) setSendWarning(warning || null); }} />}
           <textarea
             ref={textareaRef}
             rows={1}

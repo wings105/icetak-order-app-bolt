@@ -77,11 +77,11 @@ export async function sendShopee(db:any,body:Record<string,any>,actor:{id:string
  const now=new Date().toISOString();
  const {error:messageError}=await db.from('messages').update({status:result.status,provider_message_id:result.id||null,sent_at:result.status==='sent'?now:null,failed_at:result.status==='failed'?now:null,failure_reason:result.error,updated_at:now}).eq('id',attempt.local_message_id);
  const {error:auditError}=await db.from('shopee_chat_send_attempts').update({status:result.status,upstream_status:httpStatus,provider_message_id:result.id||null,error_message:result.error,completed_at:now}).eq('id',attempt.id);
- let replyRecorded=true;let readSynced:boolean|null=null;
+ let replyRecorded=true;let readSynced:boolean|null=null;let readCode:string|null=null;let readAuditRecorded:boolean|null=null;
  if(result.status==='sent'){
   replyRecorded=await completeReply(db,attempt.local_message_id);
-  if(direct?.shop_id)readSynced=readMessageId?await markShopeeRead(db,direct,conversation,readMessageId,actor):false;
-  await db.from('conversation_activity_logs').insert({conversation_id:conversation.id,event_type:'shopee_message_sent',actor_type:'staff',actor_id:actor.id,actor_label:actor.label,source:'shopee-chat-send',summary:'Mesej Shopee dihantar dari iCetak',metadata:{request_id:requestId,provider_message_id:result.id},importance:'normal'});
+  if(direct?.shop_id){const read=await markShopeeRead(db,direct,conversation,readMessageId,actor);readSynced=read.confirmed;readCode=read.code;readAuditRecorded=read.auditRecorded;}
+  await db.from('conversation_activity_logs').insert({conversation_id:conversation.id,event_type:'shopee_message_sent',actor_type:actor.id?'user':'integration',actor_user_id:actor.id||null,actor_label:actor.label,source:'shopee-chat-send',summary:'Mesej Shopee dihantar dari iCetak',metadata:{request_id:requestId,provider_message_id:result.id},importance:'normal'});
  }
- return out({ok:result.status==='sent',status:result.status,local_message_id:attempt.local_message_id,provider_message_id:result.id||null,error:result.error,media_url:sticker?.url||image?.url||null,read_synced:readSynced,...(readSynced===false?{read_warning:'Mesej dihantar; status dibaca Shopee belum disahkan.'}:{}),...(messageError||auditError||!replyRecorded?{warning:'Status provider diterima; rekod atau status balasan Inbox perlu disemak.'}:{})},result.status==='sent'?200:502);
+ return out({ok:result.status==='sent',status:result.status,local_message_id:attempt.local_message_id,provider_message_id:result.id||null,error:result.error,media_url:sticker?.url||image?.url||null,read_synced:readSynced,read_code:readCode,read_audit_recorded:readAuditRecorded,...(readSynced===false?{read_warning:'Mesej sudah dihantar. Status dibaca Shopee belum disahkan; jangan hantar semula mesej.'}:{}),...(messageError||auditError||!replyRecorded||readAuditRecorded===false?{warning:'Mesej sudah dihantar; rekod pengesahan Inbox perlu disemak. Jangan hantar semula mesej.'}:{})},result.status==='sent'?200:502);
 }
