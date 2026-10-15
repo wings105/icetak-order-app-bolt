@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { taskFields } from './task-fields.ts';
 
 const db = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -296,6 +297,7 @@ function description(
   item: any,
   total: number,
   payment: any,
+  fields: ReturnType<typeof taskFields>,
 ) {
   const snapshot = item.product_snapshot &&
       typeof item.product_snapshot === 'object'
@@ -339,7 +341,7 @@ function description(
     ai.conversation_id ? `Conversation ID: ${ai.conversation_id}` : '',
     `Date Need: ${text(order.date_need) || 'Not provided'}`,
     `Delivery: ${text(order.delivery_method || order.delivery)}`,
-    set
+    fields.set_required && set
       ? `Order Component: set${set} of ${total}`
       : `Order Components: ${total}`,
     `Product: ${text(item.title || component.label)}`,
@@ -362,6 +364,13 @@ function description(
       ? `Reference Message IDs: ${ai.reference_message_ids.join(', ')}`
       : '',
     `Quantity: ${Number(item.qty || 1)}`,
+    fields.price_ready
+      ? `Item Price: RM${fields.unit_price!.toFixed(2)} x ${Number(item.qty || 1)} = RM${fields.item_total!.toFixed(2)}`
+      : 'Item Price: Not available',
+    fields.price_ready ? `Task Amount: RM${fields.task_amount!.toFixed(2)}` : '',
+    fields.price_allocation === 'included_in_primary_component'
+      ? `Price included in component: ${fields.price_primary_component_id}`
+      : '',
     `Order item ID: ${text(component.order_item_id)}`,
     `Component ID: ${text(component.id)}`,
     text(order.admin_remark)
@@ -377,7 +386,7 @@ function description(
   return lines.filter(Boolean).join('\n');
 }
 
-async function prepareEvent(candidate: any, settingsValue: any) {
+async function prepareEvent(candidate: any, settingsValue: any, preview = false) {
   const started = nowMs();
 
   const [
@@ -417,7 +426,7 @@ async function prepareEvent(candidate: any, settingsValue: any) {
   }
 
   const components = (all || []).filter((component: any) =>
-    !text(component.clickup_task_id)
+    preview || !text(component.clickup_task_id)
   );
 
   if (!components.length) {
@@ -430,7 +439,6 @@ async function prepareEvent(candidate: any, settingsValue: any) {
   const total = (all || []).length;
   const orderLinks = links(settingsValue.baseUrl, order);
   const wa = text(identity.link);
-  const setField = text(settingsValue.manifest?.field_id);
   const mapped: any[] = [];
 
   // Activepieces is deliberately given one component per claim. This keeps
@@ -447,22 +455,13 @@ async function prepareEvent(candidate: any, settingsValue: any) {
     const spec = componentSpec(component, item);
     const word = spec.wording;
     const orderNo = text(order.order_no || order.order_id);
-    const setIndex = Number(
-      component.set_index ||
-        ((all || []).findIndex((row: any) => row.id === component.id) + 1),
-    );
-    const setLabel = text(component.set_label) || `set${setIndex}`;
-    const setOption = text(component.clickup_set_option_id) ||
-      text(settingsValue.manifest?.options?.[String(setIndex)]);
+    const fields = taskFields(component, all || [], settingsValue.manifest);
     const componentLinks = links(
       settingsValue.baseUrl,
       order,
       text(component.id),
     );
     const ai = aiMeta(item);
-    const customFields = setField && setOption
-      ? [{ id: setField, value: [setOption] }]
-      : [];
     const reviewRequired = Boolean(
       component.review_required ?? item.review_required,
     );
@@ -475,7 +474,7 @@ async function prepareEvent(candidate: any, settingsValue: any) {
       order_item_id: component.order_item_id,
       title: component.label || item.title || `Component ${pendingIndex + 1}`,
       task_name:
-        `${orderNo} — ${setLabel}/${total} — ${Number(item.qty || 1)}x ${
+        `${orderNo} — ${fields.set_required ? `${fields.set_label}/${total} — ` : ''}${Number(item.qty || 1)}x ${
           text(item.title || component.label || `Component ${pendingIndex + 1}`)
         }${word ? ` — ${word}` : ''}`,
       task_description: description(
@@ -485,6 +484,7 @@ async function prepareEvent(candidate: any, settingsValue: any) {
         item,
         total,
         payment,
+        fields,
       ),
       task_external_key: `icetak-component:${component.id}`,
       component_type: component.component_type,
@@ -519,13 +519,8 @@ async function prepareEvent(candidate: any, settingsValue: any) {
       reference_media: ai.reference_media,
       initial_clickup_status: initialStatus,
       status_source: 'icetak_clickup_initial_status_v2',
-      set_index: setIndex,
-      set_label: setLabel,
-      set_option_id: setOption || null,
-      set_custom_field_id: setField || null,
-      set_manifest_complete: Boolean(setField && setOption),
-      custom_fields: customFields,
-      awb_primary: setIndex === 1,
+      ...fields,
+      awb_primary: fields.set_index === 1,
       webapp_order_id: order.id,
       webapp_component_id: component.id,
       ...componentLinks,
@@ -567,6 +562,7 @@ async function prepareEvent(candidate: any, settingsValue: any) {
         admin_status: order.admin_status,
         admin_remark: order.admin_remark,
         total_components: total,
+        total_items: mapped[0]?.total_items || 0,
         shipping_guard: {
           required_components: total,
           block_until_all_components_ready: total > 1,
@@ -631,6 +627,28 @@ Deno.serve(async (req: Request) => {
     }
 
     const url = new URL(req.url);
+    // Authenticated, read-only payload inspection. Never claim a real job or
+    // create ClickUp tasks while checking mappings, including completed orders.
+    const previewOrderId = text(url.searchParams.get('preview_order_id'));
+    if (previewOrderId) {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(previewOrderId)) {
+        return json({ error: 'invalid_preview_order_id', request_id: requestId }, 400, requestId);
+      }
+      const prepared = await prepareEvent({
+        id: null,
+        order_id: previewOrderId,
+        event_type: 'clickup.production.preview',
+      }, settingsValue, true);
+      return json({
+        ok: true,
+        preview: true,
+        queue_claimed: false,
+        count: prepared.kind === 'ready' ? 1 : 0,
+        events: prepared.kind === 'ready' ? [prepared.result] : [],
+        request_id: requestId,
+        payload_contract: 'task-price-set-v1',
+      }, 200, requestId);
+    }
     const limit = Math.max(
       1,
       Math.min(Number(url.searchParams.get('limit') || 1), 10),
@@ -772,6 +790,7 @@ Deno.serve(async (req: Request) => {
       claim_strategy: 'prepare_then_claim_v3',
       component_dispatch_mode: 'one_per_claim',
       whatsapp_identity_mode: 'cached_only',
+      payload_contract: 'task-price-set-v1',
     }, 200, requestId);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -791,3 +810,4 @@ Deno.serve(async (req: Request) => {
     return json({ error: message, request_id: requestId }, 500, requestId);
   }
 });
+
