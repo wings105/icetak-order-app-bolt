@@ -106,7 +106,7 @@ SG slot 1635364464 is enabled with explicitly authorized credentials. CHAT_READ_
 
 ## 2026-10-15 — Official orangutan sticker picker
 
-Status: VERIFIED in controlled real ChatArea desktop/mobile; hosting publication pending.
+Status: VERIFIED in controlled real ChatArea desktop/mobile; production hosting published and publicly smoke-checked. Hosted signed-in picker/send remains unexercised.
 
 - Shopee chat composer has an orangutan sticker button beside image upload. It offers the 30 official `orangutan_my_new` stickers (`01`–`30`), selected preview, recipient label and explicit Hantar sticker. Text/image drafts are preserved. Selection resets on conversation change; WhatsApp does not expose this picker.
 - Shared catalog is `supabase/inbox-functions/_shared/shopee-stickers.ts`, imported by Inbox frontend and sender validation. Asset URLs are fixed to Shopee's official MY CDN; all 30 returned PNG/HTTP 200. Sticker OK is `02`.
@@ -116,3 +116,5 @@ Status: VERIFIED in controlled real ChatArea desktop/mobile; hosting publication
 - Actual ChatArea + real frontend send function verified in Playwright at 1280×850 and 390×844 with original official PNG assets, controlled staff session/provider responses: selection makes no send, explicit send uses exact conversation and ID, double click produces one request, sticker bubble appears, text draft remains, failures stay visible without retry, switching chats resets selection, no WhatsApp control, no horizontal overflow/runtime errors. Browser plugin absent; fresh local Chromium used after replacing a truncated older test binary.
 - TypeScript, full shop + Inbox production build, source ownership guard and diff whitespace checks passed. Earlier owner-authorized real Shopee API tests of sticker 02 to maryamnurjannah and sitinorshakirahjusoh were provider/receiver verified. No additional customer messages were sent while building this feature. Hosted signed-in picker/send remains unexercised until a staff user opens it.
 - No schema, RLS, canonical order/payment, webhook ingestion, automation or credential configuration change. AI Dashboard bridge retains its prior deployed sender until intentionally redeployed; this release adds the Inbox feature only.
+
+Release evidence: production `2ce1f4e34d37512682563c1297e159cc44186b69`; Workers Builds and guard both succeeded, Cloudflare version `d36884a1-b71f-468b-a5b0-c501bcdce532`. Live `/inbox/` serves `index-DVk11YAt.js` with SHA-256 identical to the locally rendered/tested build and all picker/send/catalog markers. Actual production browser at 390×844 renders the staff login without runtime errors and loads that exact asset. No staff session was present, so live authenticated picker/send is not claimed as verified. Controlled mobile scrolling/selecting sticker 30 and sending to a changed conversation also passed.
