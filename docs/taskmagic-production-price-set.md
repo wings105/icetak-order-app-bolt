@@ -1,4 +1,39 @@
-# TaskMagic: harga setiap task dan set
+# TaskMagic: harga setiap task, set dan job
+
+## CF job — 16 Oktober 2026
+
+Backend PRODUCTION: outbox v41 adds `job_custom_field_id`, `job_labels`,
+`job_option_id`, `job_option_ids`, `job_matched`, and the typed job entry inside
+component `custom_fields`. Existing Map ClickUp Task V2 forwards `c.custom_fields`
+automatically; no new Code input is needed. Body must consume that full output,
+`{{step_8['custom_fields']}}` in the owner's original export (select by step name
+if the internal ID differs). For a body that still manually lists fields, append
+`{"id":"83c94d47-6886-4c89-a55f-301f958b9879","value":"{{step_2['body']['events'][0]['components'][0]['job_option_ids']}}"}`.
+Refresh the HTTP sample before retesting Code; cached samples from v40 have no job.
+
+| Component type | ClickUp job |
+|---|---|
+| edible | Edible Image |
+| wafer | wafer paper |
+| printed | Cake topper |
+| acrylic | Acrylic cake topper |
+| mirror | Artpaper |
+| print-edible | print-edible |
+| print-wafer | print-wafer |
+
+Explicit component type wins over the commercial parent; split Burn Away gets
+only the corresponding layer job. A legacy combined burnaway component gets both
+edible and wafer labels. Unknown custom work remains `job_matched=false`, with no
+job field guessed. Print-only labels require explicit print-edible/print-wafer
+identity; status alone never invents a print-only job.
+
+Evidence: 11 controlled tests pass, exact v41 bundle/auth readback matches, and an
+authenticated production preview for IC261015-7962 returns the real Edible Image
+option ID inside custom_fields while RM6/set1 remain correct. Queue stays
+processed with 3/3 linked. Backend job payload is PRODUCTION; actual downstream
+job write by the owner's TM flow awaits a fresh run. No historical task update,
+queue claim, payment change or customer send was made for job QA.
+
 
 Queue production kini menghantar kontrak `task-price-set-v1`. Flow polling 1 minit,
 create task dan webhook task-created kekal. Perubahan ini tidak mengubah task lama.
@@ -81,6 +116,4 @@ custom fields hanya RM; IC261015-6949 → komponen pertama `task_amount=12`,
 selepas adalah sama. Preview tanpa secret ditolak 401. Set2/set3, harga × kuantiti,
 retry dan pecahan komponen dibuktikan dalam ujian terkawal.
 
-Baki tindakan pemilik: pasang mapping canvas seperti di atas dan publish.
-Penulisan RM/set pada task ClickUp baharu melalui TaskMagic belum diuji hujung
-ke hujung kerana mapping canvas belum diubah. Tiada task ujian/customer send dibuat.
+Owner subsequently tested the actual TM flow successfully. IC261015-7962 has three linked tasks: set1 14zbjdpn020, set2 14zbjdpn023, set3 14zbjdpn024; queue is processed. The provided set1 ClickUp create response proves RM6 and set1. The new job write still awaits a fresh TM run. QA preview itself did not create/send anything.

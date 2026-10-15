@@ -1,3 +1,7 @@
+# 2026-10-16 — ClickUp job CF in queue
+
+Backend PRODUCTION: outbox v41 adds typed job labels/option IDs by explicit component identity and appends the real ClickUp job CF to component custom_fields. Existing TM adapter forwards it without new inputs; stale cached samples need refreshing. Eleven tests, exact source/auth readback and a real Edible Image production preview pass while price/set remain intact. Earlier owner test now has 3/3 tasks linked and queue processed. Downstream job write awaits a fresh TM run; no historical task update or customer send. See docs/taskmagic-production-price-set.md.
+
 # 2026-10-16 — ClickUp task price and conditional set payload
 
 Backend PRODUCTION / TaskMagic mapping pending owner: Order `clickup-production-outbox` v40 adds saved item unit price × quantity and typed RM/set custom fields, with no set for a single commercial item. Persisted component indices remain stable across one-per-claim retries and split-item amounts are recorded once. Existing shared-secret auth, cached identity, claim and webhook linking contracts remain. Exact two-file bundle/auth readback and eight controlled tests pass; authenticated read-only production previews prove single RM6/no-set and multi RM12/set1 with unchanged queue/task linkage; missing secret is 401. No ClickUp task or customer send was created for QA. Owner must install the prepared Map ClickUp Task V2 adapter and map the active Create Task custom_fields before new tasks receive these values. See docs/taskmagic-production-price-set.md.

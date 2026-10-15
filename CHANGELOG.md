@@ -1,3 +1,7 @@
+## 2026-10-16 — ClickUp job
+
+- [PRODUCTION] Outbox v41 includes existing ClickUp job label option IDs in typed custom_fields by component type; unknown custom jobs stay unmatched. Eleven controlled tests and real authenticated preview/source/auth readback pass, preserving RM/set and processed queue state. Existing TM Code forwards job; downstream job task write awaits a fresh run.
+
 ## 2026-10-16
 
 - [PRODUCTION] ClickUp production queue v40 projects per-task MYR prices and conditional set labels; exact deployed source/auth and real single/multi-order read-only previews verified with unchanged queue/linkage. Eight controlled payload/handler/adapter tests pass. TaskMagic canvas mapping and downstream RM/set task writes remain pending owner action; see docs/taskmagic-production-price-set.md.
