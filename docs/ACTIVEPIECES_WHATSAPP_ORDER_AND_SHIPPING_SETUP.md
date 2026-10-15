@@ -1,3 +1,9 @@
+## Current TaskMagic mapping — 16 October 2026
+
+The owner's active flow polls one component per claim each minute, creates the task with Webapp Order/Component IDs and uses the existing ClickUp task-created webhook to return linkage. A separate acknowledgement step is not required in this exported flow. Do not reintroduce the historical multi-component runner loop below. Backend v40 now projects item/task prices and sets; the TaskMagic canvas mapping is still an owner action. Follow [taskmagic-production-price-set.md](taskmagic-production-price-set.md) and use [the tested adapter](../scripts/taskmagic-production-map.mjs). Single commercial item: no set custom field, even for multiple units. Multiple items: persisted per-component set indices, not polling position. Backend production preview is verified; downstream RM/set writes await the canvas mapping.
+
+The remaining sections describe the historical integration contracts and should be read with this current one-per-claim configuration in mind.
+
 # Activepieces setup — ClickUp component production sync
 
 ## Scope

@@ -66,3 +66,21 @@ queue atau mencipta task; jangan gunakan URL preview sebagai URL polling sebenar
 
 Meliputi single/multi item, kuantiti, harga 0/tiada harga, MYR cents, split item,
 set yang tiada dalam manifest, HTTP auth/preview/one-per-claim dan mapper TaskMagic.
+
+## Status dan bukti, 16 Oktober 2026 MYT
+
+Backend PRODUCTION: `clickup-production-outbox` v40 ACTIVE, kedua-dua fail bundle
+sepadan tepat dengan source; `verify_jwt=false` sedia ada dan pemeriksaan
+`x-ap-secret` SHA-256 dikekalkan. Lapan ujian terkawal lulus, termasuk adapter
+TaskMagic dan handler sebenar dengan DB fixture.
+
+Preview production sebenar: IC261015-4700 → `task_amount=6`, `set_label=null`,
+custom fields hanya RM; IC261015-6949 → komponen pertama `task_amount=12`,
+`set_label=set1`, RM + set option ID sah. Kedua-dua response
+`preview=true, queue_claimed=false`; snapshot queue processed dan task IDs sebelum
+selepas adalah sama. Preview tanpa secret ditolak 401. Set2/set3, harga × kuantiti,
+retry dan pecahan komponen dibuktikan dalam ujian terkawal.
+
+Baki tindakan pemilik: pasang mapping canvas seperti di atas dan publish.
+Penulisan RM/set pada task ClickUp baharu melalui TaskMagic belum diuji hujung
+ke hujung kerana mapping canvas belum diubah. Tiada task ujian/customer send dibuat.

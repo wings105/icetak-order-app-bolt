@@ -1,3 +1,7 @@
+## 2026-10-16 — ClickUp prices project commercial items without duplication
+
+Order System remains the source of saved unit prices and quantities. `task_amount` is the item line total for a single production component, excluding delivery fees and order-level pricing adjustments. If one commercial item has multiple components without separately stored prices, record its amount once on the first persisted component and expose zero/included-in-primary on the others; do not invent an equal or catalog-derived split. Include linked siblings when projecting retries. Gate visible set labels on multiple commercial items, but retain internal persisted component indices and AWB-primary behavior. TaskMagic merges the backend typed extra custom_fields into its existing create payload. This is an integration projection, not a change to order/payment/accounting facts; historical tasks are not backfilled.
+
 ## 2026-10-13 — Release catch-up uses a fixed read snapshot
 
 Prepare a first-page release tail before the provider request and decide catch-up completion against that exact time. Preserve subsequent-page ranges; never keep advancing the completion target after the read. Keep seven-day request bounds, recent overlap and six-hour polling after convergence. Correct excessive one-time scheduling errors through the existing locked cursor RPC, without replaying unrelated ranges or changing provider/auth/accounting contracts.

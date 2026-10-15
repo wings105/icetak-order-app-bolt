@@ -1,3 +1,7 @@
+# 2026-10-16 — ClickUp task price and conditional set payload
+
+Backend PRODUCTION / TaskMagic mapping pending owner: Order `clickup-production-outbox` v40 adds saved item unit price × quantity and typed RM/set custom fields, with no set for a single commercial item. Persisted component indices remain stable across one-per-claim retries and split-item amounts are recorded once. Existing shared-secret auth, cached identity, claim and webhook linking contracts remain. Exact two-file bundle/auth readback and eight controlled tests pass; authenticated read-only production previews prove single RM6/no-set and multi RM12/set1 with unchanged queue/task linkage; missing secret is 401. No ClickUp task or customer send was created for QA. Owner must install the prepared Map ClickUp Task V2 adapter and map the active Create Task custom_fields before new tasks receive these values. See docs/taskmagic-production-price-set.md.
+
 # 2026-10-16 — Shopee read warning delivery confirmed
 
 Production 038d219 passed Cloudflare build/guard. Actual hosted Inbox serves the exact tested read-warning asset; login browser smoke passes. The earlier frontend delivery block is resolved. Backend sender v14 / bridge v12 and controlled desktop/mobile verification remain as recorded; authenticated next-reply receipt is still unexercised. See docs/SHOPEE_CHAT_DIRECT_SETUP.md.

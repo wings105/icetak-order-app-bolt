@@ -1,3 +1,7 @@
+## 2026-10-16
+
+- [PRODUCTION] ClickUp production queue v40 projects per-task MYR prices and conditional set labels; exact deployed source/auth and real single/multi-order read-only previews verified with unchanged queue/linkage. Eight controlled payload/handler/adapter tests pass. TaskMagic canvas mapping and downstream RM/set task writes remain pending owner action; see docs/taskmagic-production-price-set.md.
+
 ## 2026-10-16 — Shopee read receipts hosted delivery
 
 - [PRODUCTION backend and hosted delivery / VERIFIED controlled frontend] PR #91, production 038d219 passed Cloudflare Workers Builds and guard. Live Inbox JS exactly matches the desktop/mobile-tested read-warning build; login smoke has no runtime errors. Provider POST/GET and corrected audit schema were verified. Authenticated next reply remains unexercised. See docs/SHOPEE_CHAT_DIRECT_SETUP.md.
