@@ -1,3 +1,4 @@
+import {officialOrangutanSticker} from './shopee-stickers.ts';
 import {validateShopeeImage,uploadShopeeImage} from './shopee-image.ts';
 import {markShopeeRead} from './shopee-read.ts';
 import {providerResult} from './shopee-provider-result.ts';
@@ -9,7 +10,10 @@ async function completeReply(db:any,messageId:string){
 }
 export async function sendShopee(db:any,body:Record<string,any>,actor:{id:string|null,label:string}) {
  const file=body.file instanceof File?body.file:null;
- const content=file?'[Image]':text(body.text),requestId=text(body.request_id);
+ const wantsSticker=body.message_type==='sticker'||body.sticker!==undefined;
+ const sticker=wantsSticker?officialOrangutanSticker(body.sticker):undefined;
+ if(wantsSticker&&(!sticker||file||text(body.text)))return out({ok:false,error:'Hanya sticker rasmi orangutan Shopee dibenarkan, tanpa teks atau fail.'},400);
+ const content=sticker?`[Sticker ${sticker.sticker_package_id}/${sticker.sticker_id}]`:file?'[Image]':text(body.text),requestId=text(body.request_id);
  if(file&&!await validateShopeeImage(file))return out({ok:false,error:'Gambar mesti JPG, PNG atau GIF yang sah, maksimum 10 MB.'},400);
  if(!content||content.length>4000||!/^[0-9a-f-]{36}$/i.test(requestId)) return out({ok:false,error:'Mesej dan request ID yang sah diperlukan.'},400);
  let conversation:any=null,order:any=null;
@@ -27,7 +31,7 @@ export async function sendShopee(db:any,body:Record<string,any>,actor:{id:string
  const selectedConfig=settings[`shopee_chat_direct_config:${shop}`]||settings.shopee_chat_direct_config;
  let direct=selectedConfig?JSON.parse(selectedConfig):null;
  const endpoint=text(settings.shopee_chat_send_endpoint),token=text(settings.shopee_chat_send_token);
- if(file&&!direct?.shop_id)return out({ok:false,error:'Penghantaran gambar memerlukan sambungan direct Shopee.'},503);
+ if((file||sticker)&&!direct?.shop_id)return out({ok:false,error:'Penghantaran media memerlukan sambungan direct Shopee.'},503);
  // Do not create a pending message when the provider is not connected.
  if(direct?.shop_id && readiness(direct,shop)!=='READY')return out({ok:false,error:'Sambungan direct Shopee belum sedia. Semak token dan sambungan dalam Admin v2 → Settings.',code:readiness(direct,shop)},503);
  // With no supplied expiry, prove provider access immediately before claiming an outbound send.
@@ -52,19 +56,24 @@ export async function sendShopee(db:any,body:Record<string,any>,actor:{id:string
   return out({ok:attempt.status==='sent',duplicate:true,status:attempt.status,local_message_id:attempt.local_message_id,provider_message_id:attempt.provider_message_id,error:attempt.status==='sent'?null:'Permintaan ini sudah direkod. Semak status sebelum menghantar semula.',...(!repaired?{warning:'Mesej sudah dihantar; status balasan Inbox perlu disemak.'}:{})},attempt.status==='sent'?200:409);
  }
  let result:{status:string,id:string,error:string|null};let httpStatus:number|null=null;
- let image:any=null;let uploadComplete=!file;
+ let image:any=null;let uploadComplete=!file;let providerStarted=false;
  try{
+  if(sticker){
+   const {error}=await db.from('messages').update({message_type:'sticker',text_content:null,media_url:sticker.url,media_metadata:{sticker_id:sticker.sticker_id,sticker_package_id:sticker.sticker_package_id},updated_at:new Date().toISOString()}).eq('id',attempt.local_message_id);
+   if(error)throw new Error('STICKER_RECORD_FAILED');
+  }
   if(file){
    image=await uploadShopeeImage(direct,file);
    const {error}=await db.from('messages').update({message_type:'image',text_content:null,media_url:image.url,media_metadata:{thumbnail:image.thumbnail,file_name:file.name,mime_type:file.type,size_bytes:file.size},updated_at:new Date().toISOString()}).eq('id',attempt.local_message_id);
    if(error)throw new Error('IMAGE_RECORD_FAILED');
    uploadComplete=true;
   }
+  providerStarted=true;
   const response=direct?.shop_id
-   ? await shopeeRequest(direct,'/api/v2/sellerchat/send_message',{to_id:Number(buyer),message_type:file?'image':'text',content:file?{image_url:image.url}:{text:content}},'POST')
+   ? await shopeeRequest(direct,'/api/v2/sellerchat/send_message',{to_id:Number(buyer),message_type:sticker?'sticker':file?'image':'text',content:sticker?{sticker_id:sticker.sticker_id,sticker_package_id:sticker.sticker_package_id}:file?{image_url:image.url}:{text:content}},'POST')
    : await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`,'x-icetak-token':token,'Idempotency-Key':requestId},body:JSON.stringify({action:'send_message',provider:'shopee',request_id:requestId,conversation_id:conversation.id,provider_conversation_id:conversation.external_conversation_id,shop_id:shop,buyer_user_id:buyer,buyer_shop_id:conversation.metadata?.buyer_shop_id,order_sn:order?.order_no||null,message_type:'text',text:content}),signal:AbortSignal.timeout(20000),redirect:'error'});
   httpStatus=response.status;result=providerResult(response.status,await response.json().catch(()=>({})));
- }catch{result=uploadComplete?{status:'unknown',id:'',error:'Status tidak pasti. Semak Shopee asal sebelum cuba semula.'}:{status:'failed',id:'',error:'Upload gambar gagal. Tiada mesej dihantar kepada customer.'};}
+ }catch{result=sticker&&!providerStarted?{status:'failed',id:'',error:'Rekod sticker gagal. Tiada mesej dihantar.'}:uploadComplete?{status:'unknown',id:'',error:'Status tidak pasti. Semak Shopee asal sebelum cuba semula.'}:{status:'failed',id:'',error:'Upload gambar gagal. Tiada mesej dihantar kepada customer.'};}
  const now=new Date().toISOString();
  const {error:messageError}=await db.from('messages').update({status:result.status,provider_message_id:result.id||null,sent_at:result.status==='sent'?now:null,failed_at:result.status==='failed'?now:null,failure_reason:result.error,updated_at:now}).eq('id',attempt.local_message_id);
  const {error:auditError}=await db.from('shopee_chat_send_attempts').update({status:result.status,upstream_status:httpStatus,provider_message_id:result.id||null,error_message:result.error,completed_at:now}).eq('id',attempt.id);
@@ -74,5 +83,5 @@ export async function sendShopee(db:any,body:Record<string,any>,actor:{id:string
   if(direct?.shop_id)readSynced=readMessageId?await markShopeeRead(db,direct,conversation,readMessageId,actor):false;
   await db.from('conversation_activity_logs').insert({conversation_id:conversation.id,event_type:'shopee_message_sent',actor_type:'staff',actor_id:actor.id,actor_label:actor.label,source:'shopee-chat-send',summary:'Mesej Shopee dihantar dari iCetak',metadata:{request_id:requestId,provider_message_id:result.id},importance:'normal'});
  }
- return out({ok:result.status==='sent',status:result.status,local_message_id:attempt.local_message_id,provider_message_id:result.id||null,error:result.error,media_url:image?.url||null,read_synced:readSynced,...(readSynced===false?{read_warning:'Mesej dihantar; status dibaca Shopee belum disahkan.'}:{}),...(messageError||auditError||!replyRecorded?{warning:'Status provider diterima; rekod atau status balasan Inbox perlu disemak.'}:{})},result.status==='sent'?200:502);
+ return out({ok:result.status==='sent',status:result.status,local_message_id:attempt.local_message_id,provider_message_id:result.id||null,error:result.error,media_url:sticker?.url||image?.url||null,read_synced:readSynced,...(readSynced===false?{read_warning:'Mesej dihantar; status dibaca Shopee belum disahkan.'}:{}),...(messageError||auditError||!replyRecorded?{warning:'Status provider diterima; rekod atau status balasan Inbox perlu disemak.'}:{})},result.status==='sent'?200:502);
 }

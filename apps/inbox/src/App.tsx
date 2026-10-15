@@ -1,3 +1,4 @@
+import { ShopeeSticker } from './lib/shopeeStickers';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Conversation, Message } from './types';
 import { UnifiedInboxList } from './components/UnifiedInboxList';
@@ -19,7 +20,7 @@ import { useOrderSessionStatuses } from './lib/useOrderSessionStatuses';
 import { useConversationTags } from './lib/conversationTags';
 import { normalizePhone, useGoogleContactNames } from './lib/googleContactCache';
 import { ExternalOrderSummary, findExternalOrderConversationId, getExternalOrderSummary } from './lib/externalOrderSummaries';
-import { sendTestMessage, sendMediaMessage } from './lib/sendMessage';
+import { sendTestMessage, sendMediaMessage, sendStickerMessage } from './lib/sendMessage';
 import {
   markConversationReplied,
   markConversationUnread,
@@ -247,16 +248,17 @@ function InboxApp() {
     reload();
   }
 
-  async function handleSend(text: string, file?: File | null): Promise<void> {
+  async function handleSend(text: string, file?: File | null, sticker?: ShopeeSticker): Promise<void> {
     if (!activeConversation) return;
     const convId = activeConversation.id;
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const previewUrl = file ? URL.createObjectURL(file) : undefined;
-    const tempMsg: Message = { id: tempId, content: file ? (text || '[Image]') : text, direction: 'outbound', timestamp: new Date(), status: 'pending', messageType: file ? 'image' : 'text', mediaUrl: previewUrl };
+    const tempMsg: Message = { id: tempId, content: sticker ? '[Sticker]' : file ? (text || '[Image]') : text, direction: 'outbound', timestamp: new Date(), status: 'pending', messageType: sticker ? 'sticker' : file ? 'image' : 'text', mediaUrl: sticker?.url || previewUrl, mediaMetadata: sticker ? {sticker_id:sticker.sticker_id,sticker_package_id:sticker.sticker_package_id} : undefined };
     setOptimisticMessages((previous) => ({ ...previous, [convId]: [...(previous[convId] ?? []), tempMsg] }));
 
     const sendToProvider = async () => {
-      if (file) await sendMediaMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderSummaryId: selectedOrder?.id ?? null, orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, file, caption: text || undefined });
+      if (sticker) await sendStickerMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderSummaryId: selectedOrder?.id ?? null, orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, sticker });
+      else if (file) await sendMediaMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderSummaryId: selectedOrder?.id ?? null, orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, file, caption: text || undefined });
       else await sendTestMessage({ conversationId: selectedOrderConversationId ?? (selectedConversation ? convId : null), orderSummaryId: selectedOrder?.id ?? null, orderId: activeConversation.orderId ?? null, channel: activeConversation.channel, text });
     };
     const queuedSend = sendChainRef.current.then(sendToProvider, sendToProvider);

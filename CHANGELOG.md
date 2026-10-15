@@ -1,5 +1,9 @@
 # 2026-10-14 — Material stock management
 
+## 2026-10-15
+
+- [VERIFIED] Unified Inbox Shopee composer offers 30 official orangutan stickers with preview and explicit send, preserved text drafts and existing authenticated/idempotent sender audit/reply guards. Real ChatArea desktop/mobile and 40 sender checks pass; Inbox sender v13 source/auth and rollback persistence verified. Hosted signed-in use pending. See docs/SHOPEE_CHAT_DIRECT_SETUP.md.
+
 - [PRODUCTION backend and hosted delivery / VERIFIED controlled frontend] PR #89 e72a1cb / Worker 122bdd22 passed builds/guard/deploy and hosted Stock URL/bundle smoke. Add Admin V2 Stok with balances, opening counts, purchases, physical count/waste/manual usage, size rates, reusable item mappings, review and movements. Canonical orders reserve at To Ship; Shipped or successfully notified ready pickups consume once. Equal glossy/double tape, separate Burn Away sizes, artpaper gold and acrylic colour quantities are preserved. Private service-only ledger/JWT gateway, bounded cron, request receipts, cutover, rate freeze and late linking pass native rollback/auth and desktop/mobile interaction checks. Actual reserves reconcile; all 71 opening balances remain unknown and no physical production deduction is invented. Owner must enter counts, choose wafer and confirm inch/1pc rates. Hosted signed-in owner flow remains unexercised. See docs/STOCK_MANAGEMENT.md.
 
 # 2026-10-13 — SG token delivery and bounded release polling

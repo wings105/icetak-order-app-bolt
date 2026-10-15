@@ -10,6 +10,8 @@ import {
   Send, AlertCircle, LayoutTemplate, Copy, ImageIcon,
 } from 'lucide-react';
 import { getMatchingMessageIds } from '../lib/hooks';
+import { ShopeeStickerPicker } from './ShopeeStickerPicker';
+import { ShopeeSticker } from '../lib/shopeeStickers';
 import { ReplySuggestion } from './ReplySuggestion';
 
 interface ChatAreaProps {
@@ -23,7 +25,7 @@ interface ChatAreaProps {
   showCustomerPanel: boolean;
   composerText: string;
   onComposerChange: (text: string) => void;
-  onSend: (text: string, file?: File | null) => Promise<void>;
+  onSend: (text: string, file?: File | null, sticker?: ShopeeSticker) => Promise<void>;
   onMarkReplied: (id: string) => Promise<void>;
   searchQuery?: string;
   initialMatchMessageId?: string;
@@ -522,6 +524,7 @@ export function ChatArea({
               <ImageIcon size={18} />
             </button>
           )}
+          {conversation.channel === 'shopee' && <ShopeeStickerPicker key={conversation.id} recipient={conversation.customer.shopeeUsername || conversation.customer.name} onSend={(sticker)=>onSend('', null, sticker)} />}
           <textarea
             ref={textareaRef}
             rows={1}

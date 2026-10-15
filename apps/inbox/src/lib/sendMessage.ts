@@ -1,3 +1,4 @@
+import { ShopeeSticker, officialOrangutanSticker } from './shopeeStickers';
 import { supabase } from './supabase';
 import { Message } from '../types';
 
@@ -157,3 +158,16 @@ export async function sendMediaMessage(params: SendMediaParams): Promise<Message
   };
 }
 
+
+export async function sendStickerMessage(params: Omit<SendMessageParams, 'text'> & {sticker:ShopeeSticker}):Promise<Message> {
+  const sticker=officialOrangutanSticker(params.sticker);
+  if(params.channel!=='shopee'||!sticker)throw new Error('Pilih sticker rasmi orangutan Shopee.');
+  const token=await requireStaffSession();
+  const response=await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/shopee-chat-send`, {
+    method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+    body:JSON.stringify({request_id:crypto.randomUUID(),conversation_id:params.conversationId,order_summary_id:params.orderSummaryId,order_no:params.orderId,message_type:'sticker',sticker:{sticker_id:sticker.sticker_id,sticker_package_id:sticker.sticker_package_id}}),
+  });
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok||payload.ok!==true)throw new Error(String(payload.error||'Sticker gagal dihantar. Semak Shopee sebelum cuba semula.'));
+  return {id:String(payload.local_message_id),content:'[Sticker]',direction:'outbound',timestamp:new Date(),status:'sent',messageType:'sticker',mediaUrl:sticker.url,mediaMetadata:{sticker_id:sticker.sticker_id,sticker_package_id:sticker.sticker_package_id},providerMessageId:payload.provider_message_id};
+}

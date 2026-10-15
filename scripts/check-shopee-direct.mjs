@@ -52,6 +52,29 @@ try {
   completionError=true;const repairFailure=await sendShopee(db,sendBody,actor);assert.equal(repairFailure.status,200);assert.ok((await repairFailure.json()).warning);assert.equal(sends,1);completionError=false;checks++;
   const beforeFailedCompletion=completions;claims=0; mode='error'; assert.equal((await sendShopee(db,{...sendBody,request_id:'00000000-0000-0000-0000-000000000003'},actor)).status,502);assert.ok(updates.some(x=>x.table==='messages'&&x.value.status==='failed'));assert.equal(completions,beforeFailedCompletion);checks++;
   claims=0;mode='unknown';const uncertain=await sendShopee(db,{...sendBody,request_id:'00000000-0000-0000-0000-000000000004'},actor);assert.equal(uncertain.status,502);assert.equal(completions,beforeFailedCompletion);checks++;
+  // Official orangutan sticker follows the same durable outbox and reply guards.
+  let stickerPayload=null;
+  globalThis.fetch=async(url,init)=>{sends++;stickerPayload=JSON.parse(init.body);return Response.json({response:{message_id:'fixture-sticker'}})};
+  claims=0;config={...c};updates.length=0;
+  const stickerBody={...sendBody,text:undefined,message_type:'sticker',sticker:{sticker_id:'02',sticker_package_id:'orangutan_my_new'}};
+  const stickerResponse=await sendShopee(db,stickerBody,actor);
+  assert.equal(stickerResponse.status,200);
+  assert.deepEqual(stickerPayload,{to_id:789,message_type:'sticker',content:{sticker_id:'02',sticker_package_id:'orangutan_my_new'}});
+  assert.ok(updates.some(x=>x.table==='messages'&&x.value.message_type==='sticker'&&x.value.media_url.endsWith('/02@1x.png')&&x.value.text_content===null));
+  assert.ok(updates.some(x=>x.table==='shopee_chat_send_attempts'&&x.value.status==='sent'&&x.value.provider_message_id==='fixture-sticker'));checks++;
+  const beforeDuplicate=sends;status='sent';await sendShopee(db,stickerBody,actor);assert.equal(sends,beforeDuplicate);checks++;
+  for(const invalid of [{sticker_id:'02',sticker_package_id:'custom'},{sticker_id:'31',sticker_package_id:'orangutan_my_new'},{sticker_id:'../../02',sticker_package_id:'orangutan_my_new'}]){
+    assert.equal((await sendShopee(db,{...stickerBody,sticker:invalid},actor)).status,400);assert.equal(sends,beforeDuplicate);checks++;
+  }
+  assert.equal((await sendShopee(db,{...stickerBody,text:'mixed'},actor)).status,400);checks++;
+  claims=0;globalThis.fetch=async()=>{sends++;return Response.json({error:'permission_denied'})};
+  const priorCompletions=completions;
+  assert.equal((await sendShopee(db,stickerBody,actor)).status,502);assert.equal(completions,priorCompletions);checks++;
+  claims=0;globalThis.fetch=async()=>{sends++;throw new Error('timeout')};
+  assert.equal((await sendShopee(db,stickerBody,actor)).status,502);assert.ok(updates.some(x=>x.table==='shopee_chat_send_attempts'&&x.value.status==='unknown'));assert.equal(completions,priorCompletions);checks++;
+  const recordFailDb={...db,from(table){const q=db.from(table);if(table==='messages')q.update=()=>({eq:async()=>({error:{message:'fixture persistence error'}})});return q;}};
+  claims=0;const beforeRecordFail=sends;
+  const recordFailed=await sendShopee(recordFailDb,stickerBody,actor);assert.equal(recordFailed.status,502);assert.equal(sends,beforeRecordFail);assert.match((await recordFailed.json()).error,/Tiada mesej dihantar/);checks++;
   async function handler(file, fixtureDb){
     globalThis.fixtureDB=fixtureDb;
     let fn; globalThis.Deno={env:{get:()=> 'https://fixture.supabase.co'},serve:value=>fn=value};
