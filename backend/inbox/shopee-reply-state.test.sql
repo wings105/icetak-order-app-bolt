@@ -5,11 +5,12 @@ begin
  select x.* into m from public.messages x join public.shopee_chat_send_attempts a on a.local_message_id=x.id
  where x.channel='shopee' and x.status='sent' and a.status='sent' and a.provider_message_id=x.provider_message_id
  and exists(select 1 from public.messages y where y.conversation_id=x.conversation_id and y.direction='inbound' and y.created_at<x.created_at)
+ and not exists(select 1 from public.messages y where y.conversation_id=x.conversation_id and y.direction='inbound' and y.created_at>x.created_at)
  order by x.created_at desc limit 1;
  if m.id is null then raise exception 'A proven send with earlier inbound is required'; end if;
  select * into c from public.conversations where id=m.conversation_id for update;
  select id into i from public.messages where conversation_id=c.id and direction='inbound' order by created_at desc limit 1;
- update public.conversations set needs_reply=true,unread_count=2,last_inbound_at=m.created_at-interval '1 second',last_message_at=m.sent_at,last_message_sender='seller' where id=c.id;
+ update public.conversations set manual_replied_at=null,needs_reply=true,unread_count=2,last_inbound_at=m.created_at-interval '1 second',last_message_at=m.sent_at,last_message_sender='seller' where id=c.id;
  r:=public.complete_shopee_reply(m.id);
  if r->>'replied'<>'true' or not exists(select 1 from public.conversations where id=c.id and needs_reply=false and unread_count=0) then raise exception 'Successful reply not resolved'; end if;
  perform public.complete_shopee_reply(m.id);

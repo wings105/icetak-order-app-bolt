@@ -10,6 +10,10 @@
 
 - [PRODUCTION backend and hosted delivery / VERIFIED controlled frontend] PR #91, production 038d219 passed Cloudflare Workers Builds and guard. Live Inbox JS exactly matches the desktop/mobile-tested read-warning build; login smoke has no runtime errors. Provider POST/GET and corrected audit schema were verified. Authenticated next reply remains unexercised. See docs/SHOPEE_CHAT_DIRECT_SETUP.md.
 
+# 2026-10-15 — Chat reply state survives fulfillment
+
+- [PRODUCTION backend] Shopee needs_reply/unread are independent of shipped, completed and cancelled order sessions. Sessions still close at fulfillment; successful-send proof, concurrent-inbound protection, manual reply and history guards remain. The latest matched order removes Urgent priority/tag on fulfillment/cancellation and blocks later AI/manual re-addition; a newer active order remains eligible. Service-role native rollback tests cover shipped/cancelled reply retention, closed sessions, urgent removal/re-addition, newer-order protection and successful/failed/concurrent sends; 40 sender and 59 operations checks pass. Provider GET evidence restored three still-unanswered chats without sending or marking provider chats read; newer provider replies/manual completion were preserved. Terminal urgent remaining: zero. Frontend source is unchanged; hosted staff rendering has not been exercised. See docs/SHOPEE_CHAT_DIRECT_SETUP.md.
+
 # 2026-10-14 — Material stock management
 
 ## 2026-10-15
