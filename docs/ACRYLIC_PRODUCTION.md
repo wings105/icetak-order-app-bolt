@@ -1,6 +1,6 @@
 # Acrylic & Artpaper production
 
-Status: controlled Admin V2 VERIFIED; backend deployed; hosted delivery pending release.
+Status: hosted delivery PRODUCTION / controlled Admin V2 VERIFIED; authenticated hosted owner interaction remains unexercised.
 
 Route: `https://shop.decocake.my/?admin=v2&view=acrylic-production`.
 Sidebar: **Production Acrylic**. Existing admin login and owner / view_orders / approve_production access required.
@@ -36,3 +36,7 @@ At most 500 qualifying tasks are returned, with a visible truncation warning if 
 Commands: `npm run check:acrylic-production`, `npm run check:stock-admin`, `node --experimental-strip-types scripts/check-awb-preview.mjs`, `npm run build`, `npm --prefix icetak-admin run build`.
 
 Rollback: revert the Admin route/sidebar/page and disable the new gateway if necessary. The read-only RPC may remain private; no source records or workflows require reversal.
+
+## Hosted release
+
+PR #92 merged as `fea396a4f53e6cc1d53caf8db826965d817444e4`; its tree `27accd0c42d2788a7de6c02cb875c6abe665220a` exactly matches the tested source. Workers Builds, guard and deploy succeeded. Worker version `80867d5e-1742-4945-bf0d-cd9a685158c6`. The main domain serves the same new `main-CsEGlHPM.js` entry observed on the feature preview; the exact route renders Admin Login. Cloud logs show an existing multiple-GoTrue-client warning and an extension metadata error, without an app failure. Authenticated hosted task rendering has not been exercised. Direct JavaScript-asset navigation is blocked by the cloud browser; exact feature asset bytes were not read through that browser. Controlled bundled App behavior remains verified above.

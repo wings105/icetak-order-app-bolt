@@ -1,3 +1,7 @@
+# 2026-10-16 — Acrylic & Artpaper production queue
+
+Hosted delivery PRODUCTION / controlled Admin V2 VERIFIED: PR #92 release `fea396a4f53e6cc1d53caf8db826965d817444e4` / Cloudflare Worker `80867d5e-1742-4945-bf0d-cd9a685158c6` passed Workers Builds, guard and deploy. Release tree exactly matches the tested source. The hosted root serves the new `main-CsEGlHPM.js` entry and the exact production URL reaches secure Admin Login. JWT acrylic-production v2 and a service-only invoker read expose CF Job Acrylic cake topper / Artpaper only, material/colour/stage filters, design zoom, size/quantity and separate Task IDs. Real 13-task read, model/auth checks and bundled desktop/mobile interactions passed. Live examples have no captured artwork URL; authenticated hosted owner interaction remains unexercised. Existing ClickUp ingestion, source records, stock and notification lifecycles remain. See docs/ACRYLIC_PRODUCTION.md.
+
 # 2026-10-16 — ClickUp job CF in queue
 
 Backend PRODUCTION: outbox v41 adds typed job labels/option IDs by explicit component identity and appends the real ClickUp job CF to component custom_fields. Existing TM adapter forwards it without new inputs; stale cached samples need refreshing. Eleven tests, exact source/auth readback and a real Edible Image production preview pass while price/set remain intact. Earlier owner test now has 3/3 tasks linked and queue processed. Downstream job write awaits a fresh TM run; no historical task update or customer send. See docs/taskmagic-production-price-set.md.
