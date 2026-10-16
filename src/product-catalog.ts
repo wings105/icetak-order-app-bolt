@@ -84,6 +84,12 @@ async function shareProduct(title: string, text: string, url: string, button?: H
     if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable');
     await navigator.clipboard.writeText(url);
     if (button) {
+      if (button.closest('.catalog-utility-actions')) {
+        button.setAttribute('aria-label', 'Link disalin');
+        button.dataset.copied = 'true';
+        window.setTimeout(() => { button.setAttribute('aria-label','Kongsi produk'); delete button.dataset.copied; },1800);
+        return;
+      }
       const original = button.textContent || 'Kongsi produk';
       button.textContent = 'Link disalin ✓';
       window.setTimeout(() => { button.textContent = original; }, 1800);
@@ -198,7 +204,7 @@ async function renderSearch(q: string) {
     bindShell();
     document.querySelector<HTMLFormElement>('#catalogRouteSearch')!.onsubmit = (event) => {
       event.preventDefault();
-      const next = String(new FormData(event.currentTarget).get('q') || '').trim();
+      const next = String(new FormData(event.currentTarget as HTMLFormElement).get('q') || '').trim();
       if (next) {
         history.pushState({ catalog: 'search' }, '', searchUrl(next));
         void renderSearch(next);

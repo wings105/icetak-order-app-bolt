@@ -66,7 +66,7 @@ function esc(value: string) {
 function money(value: number) { return `RM${Number.isInteger(value) ? value : value.toFixed(2)}`; }
 function currentSlug() {
   const hash = decodeURIComponent(location.hash.replace(/^#\/?/, ''));
-  return hash.match(/^product\/(.+)$/)?.[1] || '';
+  return hash.match(/^product\/(.+)$/)?.[1] || decodeURIComponent(location.pathname).match(/^\/product\/(.+)$/)?.[1] || new URL(location.href).searchParams.get('product') || '';
 }
 function isBasicSlug(slug: string) {
   return ['edible-image', 'burn-away-combo', 'wafer-paper', 'cake-topper', 'mirror-gold-artpaper', 'acrylic-cake-topper'].includes(slug);
@@ -113,6 +113,11 @@ async function getProduct(slug: string) {
   if (!data) throw new Error('Product not found');
   const row = data as unknown as CatalogProduct;
   if (row.product_order_profiles?.config.catalog_models) row.product_order_profiles.config.size_options = row.product_variants.filter(v=>v.active&&Number(v.price)>0&&Number(v.stock)>0).map(v=>({value:'model:'+v.id,label:v.name,price:Number(v.price),stock:v.stock,image:String(v.metadata.image_url||row.main_image_url||'')}));
+  if (row.product_order_profiles?.product_type === 'printed') {
+    row.product_order_profiles.config.wording_options = row.product_order_profiles.config.wording_options?.map(option =>
+      option.value === 'custom_name' || option.value === 'model_custom'
+        ? { ...option, label: 'Custom Words', placeholder: 'Tulis wording di sini. Contoh: Happy Birthday Aiman 6' } : option);
+  }
   if(row.product_order_profiles?.config.catalog_models){const c=row.product_order_profiles.config;c.default_process=row.metadata?.website_order?.process||'Pre-order';if(row.metadata?.website_order?.allow_custom===false)c.wording_options=c.wording_options?.filter(w=>w.value!=='model_custom');if(row.metadata?.website_order?.review_required)c.wording_options=c.wording_options?.map(w=>({...w,review_required:true}));}
   productCache.set(slug, row);
   return row;
@@ -198,6 +203,7 @@ function bindEditor(container: HTMLElement, product: CatalogProduct, state: Edit
   const profile = product.product_order_profiles!;
   const sizes = profile.config.size_options || [];
   const wording = profile.config.wording_options || [];
+  let customDraft = state.wording.requires_text ? state.customText : '';
   const paint = () => {
     container.querySelector<HTMLElement>('[data-config-price]')!.textContent = money(Number(state.size.price || product.base_price || 0));
     container.querySelector<HTMLElement>('[data-config-qty]')!.textContent = String(state.qty);
@@ -205,6 +211,8 @@ function bindEditor(container: HTMLElement, product: CatalogProduct, state: Edit
     textWrap.hidden = !state.wording.requires_text;
     const textArea = container.querySelector<HTMLTextAreaElement>('[data-config-text]')!;
     textArea.placeholder = state.wording.placeholder || 'Masukkan wording';
+    textArea.value = state.wording.requires_text ? state.customText : '';
+    textArea.required = Boolean(state.wording.requires_text);
     container.querySelectorAll<HTMLButtonElement>('[data-config-group]').forEach((button) => {
       const current = button.dataset.configGroup === 'size' ? state.size.value : state.wording.value;
       button.classList.toggle('active', button.dataset.configValue === current);
@@ -215,8 +223,10 @@ function bindEditor(container: HTMLElement, product: CatalogProduct, state: Edit
     button.onclick = () => {
       if (button.dataset.configGroup === 'size') state.size = sizes.find((item) => item.value === button.dataset.configValue) || state.size;
       if (button.dataset.configGroup === 'wording') {
+        if (state.wording.requires_text) customDraft = state.customText;
         state.wording = wording.find((item) => item.value === button.dataset.configValue) || state.wording;
-        if (!state.wording.requires_text) state.customText = state.wording.default_text || '';
+        state.customText = state.wording.requires_text ? customDraft : (state.wording.default_text || '');
+        container.querySelector<HTMLElement>('[data-config-error]')!.hidden = true;
       }
       paint();
     };
@@ -249,14 +259,56 @@ function addCartItem(item: CartItem, buyNow: boolean) {
   sessionStorage.setItem('catalog_cart_notice', `${item.title} ditambah ke cart`);
   location.assign(homeUrl(buyNow));
 }
+function utilityIcon(kind: 'chat' | 'shop' | 'share') {
+  const paths = {
+    chat: '<path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/>',
+    shop: '<path d="M6 7h12l2 14H4L6 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2M10 11c0-1 4-1 4 .5s-4 1-4 3 4 2 4 .5"/>',
+    share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/>',
+  };
+  return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[kind]}</svg>`;
+}
+let closeProductSheet: (() => void) | undefined;
+function productOptions(product: CatalogProduct, state: EditorState, opener: HTMLElement) {
+  closeProductSheet?.();
+  const overlay = document.createElement('div');
+  overlay.className = 'catalog-config-overlay catalog-glossy-overlay';
+  overlay.innerHTML = `<div class="catalog-config-dialog" role="dialog" aria-modal="true" aria-label="Pilihan tempahan ${esc(product.display_name)}"><button type="button" class="catalog-config-close" aria-label="Tutup pilihan">×</button>${editorMarkup(product, state)}</div>`;
+  const previousOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
+  const close = () => {
+    overlay.remove();
+    document.body.style.overflow = previousOverflow;
+    document.removeEventListener('keydown', keyboard);
+    closeProductSheet = undefined;
+    if (opener.isConnected) opener.focus();
+  };
+  const keyboard = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') { event.preventDefault(); close(); }
+    if (event.key !== 'Tab') return;
+    const controls = Array.from(overlay.querySelectorAll<HTMLElement>('button,select,textarea')).filter(node => !node.closest('[hidden]') && !(node as HTMLButtonElement).disabled);
+    const first = controls[0], last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  };
+  closeProductSheet = close;
+  document.body.append(overlay);
+  const editor = overlay.querySelector<HTMLElement>('[data-catalog-editor]')!;
+  bindEditor(editor, product, state, item => addCartItem(item, false), item => addCartItem(item, true));
+  overlay.querySelector<HTMLButtonElement>('.catalog-config-close')!.onclick = close;
+  overlay.onclick = event => { if (event.target === overlay) close(); };
+  document.addEventListener('keydown', keyboard);
+  overlay.querySelector<HTMLButtonElement>('.catalog-config-close')!.focus();
+}
 async function enhanceProductDetail() {
   const slug = currentSlug();
   if (!slug || isBasicSlug(slug) || enhancingSlug === slug) return;
   const article = document.querySelector<HTMLElement>('.catalog-product-detail');
-  if (!article || document.querySelector(`[data-catalog-editor="${CSS.escape(slug)}"]`)) return;
+  if (!article || article.dataset.catalogReady || document.querySelector(`[data-catalog-editor="${CSS.escape(slug)}"]`)) return;
   enhancingSlug = slug;
   try {
     const product = await getProduct(slug);
+    if (!article.isConnected || currentSlug() !== slug) return;
+    article.dataset.catalogReady = '1';
     if (!product.product_order_profiles) {
       const note = document.createElement('section');
       note.className = 'catalog-config-unavailable';
@@ -264,15 +316,62 @@ async function enhanceProductDetail() {
       article.insertAdjacentElement('afterend', note);
       return;
     }
-    const images=(product.product_images||[]).slice().sort((a,b)=>a.position-b.position);if(images.length>1){const gallery=document.createElement('div');gallery.className='catalog-product-gallery';gallery.style.cssText='display:flex;gap:8px;overflow:auto;padding:12px 0';gallery.innerHTML=images.map(im=>`<a href="${esc(im.public_url||im.source_url)}" target="_blank" rel="noreferrer"><img src="${esc(im.public_url||im.source_url)}" alt="" loading="lazy" style="width:90px;height:90px;object-fit:contain;border-radius:8px"/></a>`).join('');article.append(gallery);}
+    const glossy = product.product_order_profiles.product_type === 'printed';
+    const images = (product.product_images || []).slice().sort((a,b) => a.position-b.position);
+    if (images.length > 1) {
+      const gallery = document.createElement('div');
+      gallery.className = 'catalog-product-gallery';
+      gallery.innerHTML = images.map((im,i) => `<button type="button" aria-label="Gambar produk ${i+1}" aria-pressed="${i===0}"><img src="${esc(im.public_url||im.source_url)}" alt="" loading="lazy"/></button>`).join('');
+      gallery.querySelectorAll('button').forEach((button,i) => button.onclick = () => {
+        article.querySelector<HTMLImageElement>(':scope > img')!.src = images[i].public_url || images[i].source_url;
+        gallery.querySelectorAll('button').forEach((node,j) => node.setAttribute('aria-pressed',String(i===j)));
+      });
+      article.append(gallery);
+    }
     const state = defaults(product);
-    const wrap = document.createElement('div');
-    wrap.innerHTML = editorMarkup(product, state);
-    const editor = wrap.firstElementChild as HTMLElement;
-    article.insertAdjacentElement('afterend', editor);
-    bindEditor(editor, product, state, (item) => addCartItem(item, false), (item) => addCartItem(item, true));
-  } catch (error) { const note=document.createElement('p');note.className='catalog-config-unavailable';note.dataset.catalogEditor=slug;note.textContent=error instanceof Error?error.message:'Produk tidak tersedia';article.insertAdjacentElement('afterend',note); }
-  finally { enhancingSlug = ''; }
+    if (glossy) {
+      article.classList.add('catalog-glossy-detail');
+      article.closest('main')?.classList.add('catalog-glossy-main');
+      const actions = article.querySelector<HTMLElement>('.catalog-detail-actions');
+      if (actions) {
+        actions.className = 'catalog-utility-actions';
+        actions.setAttribute('aria-label','Pautan produk');
+        actions.querySelectorAll<HTMLElement>('a,button').forEach(node => {
+          const kind = node.tagName === 'BUTTON' ? 'share' : (node.getAttribute('href')?.includes('wa.me') ? 'chat' : 'shop');
+          const label = kind === 'share' ? 'Kongsi produk' : kind === 'shop' ? 'Buka di Shopee' : 'Tanya seller melalui WhatsApp';
+          node.setAttribute('aria-label', label);
+          node.setAttribute('title', label);
+          node.innerHTML = utilityIcon(kind);
+        });
+        article.prepend(actions);
+      }
+      const price = document.createElement('strong');
+      price.className = 'catalog-glossy-price';
+      price.textContent = money(Number(state.size.price || product.base_price || 0));
+      article.querySelector('.catalog-detail-copy h2')?.insertAdjacentElement('beforebegin',price);
+      const bar = document.createElement('section');
+      bar.className = 'catalog-glossy-buybar';
+      bar.dataset.catalogEditor = slug;
+      bar.setAttribute('aria-label','Beli cake topper');
+      bar.innerHTML = `<div><small>Harga dari</small><strong>${esc(price.textContent)}</strong></div><button type="button" data-glossy-add>Add to Cart</button><button type="button" class="primary" data-glossy-buy>Buy Now</button>`;
+      article.insertAdjacentElement('afterend',bar);
+      bar.querySelectorAll<HTMLButtonElement>('button').forEach(button => button.onclick = () => productOptions(product,state,button));
+    } else {
+      const wrap = document.createElement('div');
+      wrap.innerHTML = editorMarkup(product,state);
+      const editor = wrap.firstElementChild as HTMLElement;
+      article.insertAdjacentElement('afterend',editor);
+      bindEditor(editor,product,state,item => addCartItem(item,false),item => addCartItem(item,true));
+    }
+  } catch (error) {
+    if (!article.isConnected) return;
+    article.dataset.catalogReady = '1';
+    const note = document.createElement('p');
+    note.className = 'catalog-config-unavailable';
+    note.dataset.catalogEditor = slug;
+    note.textContent = error instanceof Error ? error.message : 'Produk tidak tersedia';
+    article.insertAdjacentElement('afterend',note);
+  } finally { enhancingSlug = ''; }
 }
 async function editCartItem(index: number) {
   const cart = readCart();
@@ -304,15 +403,13 @@ function enhanceCheckout() {
     if (image && snapshotImage) image.src = snapshotImage;
     const copy = node.querySelector<HTMLElement>('.checkout-item > div');
     if (!copy) return;
-    const meta = document.createElement('small');
-    meta.className = 'catalog-cart-meta';
-    meta.textContent = `${item.style}${item.customText ? `: ${item.customText}` : ''}`;
     const edit = document.createElement('button');
     edit.type = 'button';
     edit.className = 'catalog-cart-edit';
     edit.textContent = 'Edit pilihan';
     edit.onclick = () => void editCartItem(index);
-    copy.append(meta, edit);
+    // The checkout item already renders size, wording choice and custom text.
+    copy.append(edit);
   });
 }
 function openCheckoutWhenRequested() {
@@ -339,6 +436,7 @@ function showCartNotice() {
 }
 
 const observer = new MutationObserver(() => {
+  if (closeProductSheet && !document.querySelector('.catalog-glossy-buybar')) closeProductSheet();
   void enhanceProductDetail();
   enhanceCheckout();
 });
