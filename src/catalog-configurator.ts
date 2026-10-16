@@ -1,6 +1,6 @@
 import { supabase } from './supabase-client';
 
-type SizeOption = { value: string; label?: string; price: number };
+type SizeOption = { value: string; label?: string; price: number; stock?: number; image?: string };
 type WordingOption = {
   value: string;
   label: string;
@@ -10,6 +10,7 @@ type WordingOption = {
   review_required?: boolean;
 };
 type ProfileConfig = {
+  catalog_models?: boolean;
   default_process?: string;
   size_options?: SizeOption[];
   wording_options?: WordingOption[];
@@ -23,20 +24,24 @@ type CatalogProduct = {
   parent_sku: string | null;
   clickup_task_id: string | null;
   main_image_url: string | null;
+  metadata: {website_order?:{process?:string;review_required?:boolean;allow_custom?:boolean}};
   base_price: number | string | null;
+  product_images: Array<{public_url:string;source_url:string;position:number}>;
+  product_variants: Array<{id:string;name:string;price:number;stock:number;active:boolean;metadata:Record<string,unknown>}>;
   product_order_profiles: {
     code: string;
-    product_type: 'printed' | 'edible';
+    product_type: 'printed' | 'edible' | 'burnaway' | 'wafer' | 'mirror' | 'acrylic';
     config: ProfileConfig;
   } | null;
 };
 type CartItem = {
   id: string;
-  k: 'printed' | 'edible';
+  k: 'printed' | 'edible' | 'burnaway' | 'wafer' | 'mirror' | 'acrylic';
   title: string;
   process: string;
   review: 'Need Review' | 'No Review';
   size: string;
+  sizeCode?: string;
   style: string;
   customText?: string;
   price: number;
@@ -99,7 +104,7 @@ async function getProduct(slug: string) {
   if (cached) return cached;
   const { data, error } = await supabase
     .from('products')
-    .select('id,slug,display_name,source_title,description,parent_sku,clickup_task_id,main_image_url,base_price,product_order_profiles(code,product_type,config)')
+    .select('id,slug,display_name,source_title,description,parent_sku,clickup_task_id,main_image_url,metadata,base_price,product_images(public_url,source_url,position),product_variants(id,name,price,stock,active,metadata),product_order_profiles(code,product_type,config)')
     .eq('slug', slug)
     .eq('is_published', true)
     .eq('status', 'active')
@@ -107,6 +112,8 @@ async function getProduct(slug: string) {
   if (error) throw error;
   if (!data) throw new Error('Product not found');
   const row = data as unknown as CatalogProduct;
+  if (row.product_order_profiles?.config.catalog_models) row.product_order_profiles.config.size_options = row.product_variants.filter(v=>v.active&&Number(v.price)>0&&Number(v.stock)>0).map(v=>({value:'model:'+v.id,label:v.name,price:Number(v.price),stock:v.stock,image:String(v.metadata.image_url||row.main_image_url||'')}));
+  if(row.product_order_profiles?.config.catalog_models){const c=row.product_order_profiles.config;c.default_process=row.metadata?.website_order?.process||'Pre-order';if(row.metadata?.website_order?.allow_custom===false)c.wording_options=c.wording_options?.filter(w=>w.value!=='model_custom');if(row.metadata?.website_order?.review_required)c.wording_options=c.wording_options?.map(w=>({...w,review_required:true}));}
   productCache.set(slug, row);
   return row;
 }
@@ -114,9 +121,10 @@ function defaults(product: CatalogProduct, existing?: CartItem): EditorState {
   const profile = product.product_order_profiles;
   if (!profile) throw new Error('Order profile not configured');
   const sizes = profile.config.size_options || [{ value: '1 pc', label: '1 pc', price: Number(product.base_price || 0) }];
+  if (!sizes.length) throw new Error('Semua variasi kehabisan stok.');
   const wording = profile.config.wording_options || [{ value: 'no_wording', label: 'No Wording', requires_text: false, review_required: false }];
   return {
-    size: sizes.find((item) => item.value === existing?.size) || sizes[0],
+    size: sizes.find((item) => item.value === (existing?.sizeCode || existing?.size)) || sizes[0],
     wording: wording.find((item) => item.value === existing?.wording_mode) || wording[0],
     customText: existing?.customText || wording[0].default_text || '',
     qty: existing?.qty || 1,
@@ -132,13 +140,14 @@ function buildItem(product: CatalogProduct, state: EditorState): CartItem {
     title: product.display_name,
     process: profile.config.default_process || 'Pre-order',
     review: reviewRequired ? 'Need Review' : 'No Review',
-    size: state.size.value,
+    size: profile.config.catalog_models ? (state.size.label || state.size.value) : state.size.value,
+    sizeCode: state.size.value,
     style: state.wording.label,
     customText: text,
     price: Number(state.size.price || product.base_price || 0),
     qty: state.qty,
     product_id: product.id,
-    product_variant_id: null,
+    product_variant_id: profile.config.catalog_models ? state.size.value.slice(6) : null,
     catalog_slug: product.slug,
     catalog_clickup_task_id: product.clickup_task_id || '',
     wording_mode: state.wording.value,
@@ -149,12 +158,13 @@ function buildItem(product: CatalogProduct, state: EditorState): CartItem {
       wording_label: state.wording.label,
       custom_text: text,
       review_required: reviewRequired,
+      admin_process: profile.config.default_process || 'Pre-order',
     },
     product_snapshot: {
       product_name: product.display_name,
       source_title: product.source_title || product.display_name,
       parent_sku: product.parent_sku || '',
-      image_url: product.main_image_url || '',
+      image_url: state.size.image || product.main_image_url || '',
       catalog_slug: product.slug,
       catalog_clickup_task_id: product.clickup_task_id || '',
       selected_size: state.size.value,
@@ -176,7 +186,7 @@ function editorMarkup(product: CatalogProduct, state: EditorState, compact = fal
   const wording = profile.config.wording_options || [];
   return `<section class="catalog-configurator ${compact ? 'catalog-configurator-modal' : ''}" data-catalog-editor="${esc(product.slug)}">
     <header><div><small>Pilihan tempahan</small><h3>${esc(product.display_name)}</h3></div><strong data-config-price>${money(Number(state.size.price || product.base_price || 0))}</strong></header>
-    ${sizes.length > 1 ? `<h4>Saiz</h4>${optionsHtml('size', sizes, state.size.value)}` : `<div class="catalog-config-single"><span>Saiz</span><b>${esc(state.size.label || state.size.value)}</b></div>`}
+    ${profile.config.catalog_models ? `<h4>Variasi</h4><select data-config-model aria-label="Variasi produk">${sizes.map(s=>`<option value="${esc(s.value)}" ${s.value===state.size.value?'selected':''}>${esc(s.label||s.value)} · ${money(s.price)}</option>`).join('')}</select><img data-config-model-image src="${esc(state.size.image||product.main_image_url||'')}" alt="" style="max-width:140px;max-height:140px;object-fit:contain;margin-top:12px"/>` : sizes.length > 1 ? `<h4>Saiz</h4>${optionsHtml('size', sizes, state.size.value)}` : `<div class="catalog-config-single"><span>Saiz</span><b>${esc(state.size.label || state.size.value)}</b></div>`}
     <h4>Wording</h4>${optionsHtml('wording', wording, state.wording.value)}
     <label class="catalog-config-text" ${state.wording.requires_text ? '' : 'hidden'}>Nama / wording<textarea data-config-text rows="3" placeholder="${esc(state.wording.placeholder || 'Masukkan wording')}">${esc(state.customText)}</textarea><small>Wording ini akan dipaparkan semula dalam cart dan checkout.</small></label>
     <div class="catalog-config-qty"><span>Quantity</span><div><button type="button" data-config-minus>−</button><b data-config-qty>${state.qty}</b><button type="button" data-config-plus>+</button></div></div>
@@ -200,6 +210,7 @@ function bindEditor(container: HTMLElement, product: CatalogProduct, state: Edit
       button.classList.toggle('active', button.dataset.configValue === current);
     });
   };
+  container.querySelector<HTMLSelectElement>('[data-config-model]')?.addEventListener('change',e=>{state.size=sizes.find(s=>s.value===(e.target as HTMLSelectElement).value)||state.size;state.qty=Math.min(state.qty,state.size.stock||1);const img=container.querySelector<HTMLImageElement>('[data-config-model-image]');if(img)img.src=state.size.image||product.main_image_url||'';paint();});
   container.querySelectorAll<HTMLButtonElement>('[data-config-group]').forEach((button) => {
     button.onclick = () => {
       if (button.dataset.configGroup === 'size') state.size = sizes.find((item) => item.value === button.dataset.configValue) || state.size;
@@ -212,7 +223,7 @@ function bindEditor(container: HTMLElement, product: CatalogProduct, state: Edit
   });
   container.querySelector<HTMLTextAreaElement>('[data-config-text]')!.oninput = (event) => { state.customText = (event.target as HTMLTextAreaElement).value; };
   container.querySelector<HTMLButtonElement>('[data-config-minus]')!.onclick = () => { state.qty = Math.max(1, state.qty - 1); paint(); };
-  container.querySelector<HTMLButtonElement>('[data-config-plus]')!.onclick = () => { state.qty += 1; paint(); };
+  container.querySelector<HTMLButtonElement>('[data-config-plus]')!.onclick = () => { state.qty = Math.min(state.qty + 1, state.size.stock ?? 999); paint(); };
   const commit = (handler: (item: CartItem) => void) => {
     const error = validate(state);
     const errorNode = container.querySelector<HTMLElement>('[data-config-error]')!;
@@ -253,13 +264,14 @@ async function enhanceProductDetail() {
       article.insertAdjacentElement('afterend', note);
       return;
     }
+    const images=(product.product_images||[]).slice().sort((a,b)=>a.position-b.position);if(images.length>1){const gallery=document.createElement('div');gallery.className='catalog-product-gallery';gallery.style.cssText='display:flex;gap:8px;overflow:auto;padding:12px 0';gallery.innerHTML=images.map(im=>`<a href="${esc(im.public_url||im.source_url)}" target="_blank" rel="noreferrer"><img src="${esc(im.public_url||im.source_url)}" alt="" loading="lazy" style="width:90px;height:90px;object-fit:contain;border-radius:8px"/></a>`).join('');article.append(gallery);}
     const state = defaults(product);
     const wrap = document.createElement('div');
     wrap.innerHTML = editorMarkup(product, state);
     const editor = wrap.firstElementChild as HTMLElement;
     article.insertAdjacentElement('afterend', editor);
     bindEditor(editor, product, state, (item) => addCartItem(item, false), (item) => addCartItem(item, true));
-  } catch (error) { console.error('Catalogue configurator failed', error); }
+  } catch (error) { const note=document.createElement('p');note.className='catalog-config-unavailable';note.dataset.catalogEditor=slug;note.textContent=error instanceof Error?error.message:'Produk tidak tersedia';article.insertAdjacentElement('afterend',note); }
   finally { enhancingSlug = ''; }
 }
 async function editCartItem(index: number) {

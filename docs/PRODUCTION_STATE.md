@@ -1,3 +1,7 @@
+# 2026-10-16 — Shared product catalogue
+
+Backend/data PRODUCTION, controlled UI VERIFIED; frontend delivery pending. Order has 2,004 MY listings / 6,488 models; Inbox cache mirrors all with cover images. Live provider reads: 1,967 NORMAL, 37 UNLIST. Canonical products 2,011 because one legacy product linked; original eight published products preserved, new products start as website drafts. Product admin v3, provider bridge v3 and guarded ClickUp catalogue sync v10 deployed. Catalogue checkout validates price/model/stock before payment reservation. No changed-value provider write performed. See [implementation and verification](catalog/IMPLEMENTATION.md).
+
 # 2026-10-16 — Standalone acrylic office display
 
 PRODUCTION: owner-requested `https://shop.decocake.my/acrylic-production/` renders the shared cutting UI without login/admin shell. PR #93 `ee3dc16ea6363431c8123613d092e755e9f6836e` / Worker `a3d8141c-b35b-4baa-b27d-6499531284ab`; Workers Builds and backend deploy passed. Main-domain no-login stage/Gold/exact-order-search smoke read 14 design tasks with correct A6/2 pcs/set2 evidence. Public GET-only `acrylic-production-display` v1 has exact source/auth readback and a narrow field allowlist; original JWT admin gateway is unchanged and rejects anonymous access. Public possession of the URL permits read access; it is not restricted to office PC/IP. No source/task/stock/customer writes were introduced. See ACRYLIC_PRODUCTION.md.

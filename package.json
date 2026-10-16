@@ -13,12 +13,14 @@
     "build": "npm run check:admin-v2 && vite build",
     "preview": "vite preview",
     "check:ai-dashboard": "node --experimental-strip-types scripts/check-ai-dashboard.mjs",
-    "build:inbox": "npm --prefix apps/inbox ci --include=dev && npm --prefix apps/inbox run build"
+    "build:inbox": "npm --prefix apps/inbox ci --include=dev && npm --prefix apps/inbox run build",
+    "check:product-catalog": "node --experimental-strip-types scripts/check-product-catalog.mjs"
   },
   "dependencies": {
     "@cloudflare/puppeteer": "1.4.0",
     "@supabase/supabase-js": "^2.51.0",
     "exceljs": "4.4.0",
+    "jszip": "3.10.1",
     "lucide": "^0.469.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

@@ -478,7 +478,7 @@ export function ChatArea({
             {groupedMessages.map((group) => (
               <div key={group.date.toISOString()} className="flex flex-col gap-1.5">
                 <div className="flex justify-center my-2"><span className="bg-[#ffffff] dark:bg-[#1d282f] text-[#54656f] dark:text-[var(--text-secondary)] text-xs px-3 py-1 rounded-full shadow-sm">{formatDaySeparator(group.date)}</span></div>
-                {group.messages.map((msg) => <MessageBubble key={msg.id} message={msg} searchQuery={searchQuery} isCurrentMatch={msg.id === currentMatchId} />)}
+                {group.messages.map((msg) => <MessageBubble key={msg.id} message={msg} shopId={String(conversation?.metadata?.shop_id||'')} searchQuery={searchQuery} isCurrentMatch={msg.id === currentMatchId} />)}
               </div>
             ))}
             <div ref={bottomRef} />
