@@ -112,7 +112,9 @@ if (!window.__ICETAK_CATALOG_ROUTE_CONTEXT_FIX__) {
 
   function enhanceCatalogHome() {
     const catalog = document.querySelector<HTMLElement>('main.catalog');
-    if (!catalog) return;
+    // A hash navigation can briefly show the legacy home while the product loads.
+    // Do not erase that pending product/search route before its renderer runs.
+    if (!catalog || routeKind() !== 'none') return;
 
     replaceWithCleanCatalogUrl();
     dedupeSearchForms(catalog);
