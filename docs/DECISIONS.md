@@ -271,3 +271,7 @@ Reply Knowledge belongs in Order System and is managed in AI Dashboard's Knowled
 ## 2026-10-14 — Canonical fulfillment owns material stock
 
 Reserve from real orders becoming To Ship, consume on actual Shipped or pickup readiness with a successful current customer notification. Do not infer inventory use from ClickUp statuses. Use A4-equivalent size × quantity with independent Burn Away layers, acrylic selected colour, separate artpaper gold and equal glossy/double tape. Keep other materials manual. Owner counts and purchases establish stock; seed names only, never invent/backfill opening quantities. Use private service-only invoker ledger/RPCs with a JWT active-admin gateway, immutable receipts/audit and bounded event-driven cron. Retain first fulfillment evidence and freeze fulfilled usage; late Shopee/direct links transfer reserves or require review of independently consumed identities. Confirm unknown inch/1pc rates explicitly. See STOCK_MANAGEMENT.md.
+
+## 2026-10-16 — Acrylic production is a read-only ClickUp work filter
+
+Admin V2 Production Acrylic reuses existing raw task/work/image projections. Only CF Job Acrylic cake topper and Artpaper qualify; ClickUp status owns design/review/production placement. Material and colour filtering preserve per-task identity, including shared Order IDs. Unknown or conflicting evidence stays visible for review, with no default Gold. A JWT active-admin gateway mediates a service-only invoker read; no new ClickUp fields/writes, task lifecycle, stock or notifications. See ACRYLIC_PRODUCTION.md.

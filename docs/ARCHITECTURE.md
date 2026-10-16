@@ -212,3 +212,7 @@ Private marketplace_ops in Order System owns durable raw-event recovery, audit a
 ## Material stock (14 October 2026)
 
 Order System owns the private stock schema and canonical-event work queue. Admin V2 Stok uses JWT stock-admin to call service-only invoker stock RPCs; browser roles cannot query the private tables. Actual order/item changes and sent pickup-ready receipts feed a bounded 20-order every-minute worker. To Ship reserves; shipping evidence or a current sent pickup-ready notice consumes once. ClickUp is outside this inventory event path. Materials, per-size/shape/exact-item usage, allocations, immutable ledger, admin request receipts and review/audit remain separate from Finance. Opening counts and purchases are manual; unknown units/mappings/counts block physical use. See STOCK_MANAGEMENT.md for rates, cutover and ownership transfer.
+
+## Acrylic & Artpaper production (16 October 2026)
+
+Admin V2 reads existing ClickUp work, latest complete task snapshots and image projections through JWT active-admin `acrylic-production` and service-only invoker `icetak_acrylic_production_snapshot`. CF job gates material eligibility; ClickUp status controls stage, and task/item evidence supplies colour/size/quantity. This is a read-only cutting queue, independent of stock consumption and customer review mutations. See `ACRYLIC_PRODUCTION.md`.

@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "check:acrylic-production": "node --experimental-strip-types scripts/check-acrylic-production.mjs",
     "dev": "vite",
     "check:admin-v2": "node scripts/check-admin-v2-source.mjs",
     "check:stock-admin": "node scripts/check-stock-admin.mjs",
