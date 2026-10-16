@@ -231,7 +231,10 @@ function bindEditor(container: HTMLElement, product: CatalogProduct, state: Edit
       paint();
     };
   });
-  container.querySelector<HTMLTextAreaElement>('[data-config-text]')!.oninput = (event) => { state.customText = (event.target as HTMLTextAreaElement).value; };
+  container.querySelector<HTMLTextAreaElement>('[data-config-text]')!.oninput = (event) => {
+    state.customText = (event.target as HTMLTextAreaElement).value;
+    if (!validate(state)) container.querySelector<HTMLElement>('[data-config-error]')!.hidden = true;
+  };
   container.querySelector<HTMLButtonElement>('[data-config-minus]')!.onclick = () => { state.qty = Math.max(1, state.qty - 1); paint(); };
   container.querySelector<HTMLButtonElement>('[data-config-plus]')!.onclick = () => { state.qty = Math.min(state.qty + 1, state.size.stock ?? 999); paint(); };
   const commit = (handler: (item: CartItem) => void) => {
