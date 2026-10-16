@@ -1,3 +1,5 @@
+- [VERIFIED] Products uses a compact Shopee-style ERP list with status-count tabs, separate Shopee/website prices, aggregate source stock, inline model rows and page selection for status checks. Live read-contract and rendered desktop/mobile search/filter/expand/Edit/pagination/error states pass; hosted list delivery pending. See docs/catalog/IMPLEMENTATION.md.
+
 - [PRODUCTION] Shared Shopee/website catalogue: imported 2,004 MY listings and 6,488 models with complete cover/cache images; provider reads confirmed 1,967 active / 37 unlisted. Admin Products, exact Inbox model fallback and storefront variation/cart passed rendered desktop/mobile tests. Server-authoritative order/payment price, model ownership, import preservation and outbound queue recovery passed rollback assertions. PR #94 / `370c2d3` passed hosting builds and domain guard; hosted Products/configurator code and Inbox asset match the tested release. Changed-value Shopee writes and authenticated hosted owner session have not been exercised. See docs/catalog/IMPLEMENTATION.md.
 
 ## 2026-10-16 — Standalone acrylic office display
