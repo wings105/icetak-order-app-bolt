@@ -1,3 +1,7 @@
+## 2026-10-16 — Standalone acrylic office display
+
+- [PRODUCTION] `/acrylic-production/` opens a dedicated read-only cutting display without login or Admin V2 navigation. Owner-authorized public GET gateway exposes only task/display fields; original admin access remains protected. PR #93 / Worker a3d8141c passed build/deploy and actual main-domain stage/Gold/search smoke with 14 tasks. Usual ClickUp ingestion and one-minute visible-page refresh remain. This public URL is not PC/IP restricted. See docs/ACRYLIC_PRODUCTION.md.
+
 - [VERIFIED] Admin V2 Production Acrylic separates Acrylic/Artpaper work by CF Job, stage and material colour; live 13-task read, bundled desktop/mobile filters/search/zoom/retry and active-admin gateway checks passed. Backend deployed; authenticated hosted owner flow remains unexercised. See docs/ACRYLIC_PRODUCTION.md.
 
 ## 2026-10-16 — ClickUp job
