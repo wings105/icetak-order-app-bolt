@@ -1,5 +1,8 @@
 project_id = "buivecgahhmrhlmfujgt"
 
+[functions.acrylic-production]
+verify_jwt = true
+
 [functions.stock-admin]
 verify_jwt = true
 

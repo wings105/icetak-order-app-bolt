@@ -29,9 +29,11 @@ const AiDashboard = lazy(() => import('./pages/AiDashboard'));
 const AiLearningSettings = lazy(() => import('./pages/AiLearningSettings'));
 const CreateOrder = lazy(() => import('./pages/CreateOrder'));
 const PickupCounter = lazy(() => import('./pages/PickupCounter'));
+const AcrylicProduction = lazy(() => import('./pages/AcrylicProduction'));
 const Stock = lazy(() => import('./pages/Stock'));
 
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
+  'acrylic-production': {title:'Production Acrylic',subtitle:'Acrylic & Artpaper · Cutting'},
   stock: {title:'Stok',subtitle:'Baki bahan, belian & auto deduct'},
   'shopee-monitor': {title:'Shopee Monitor',subtitle:'Webhook, alert & return'},
   'channel-inbox': { title: 'Channel / Inbox', subtitle: 'WhatsApp & Shopee' },
@@ -79,7 +81,7 @@ export default function App({ adminData }: Props) {
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
   const initialDraftTab=linkedView==='draft-followups'||initialParams.get('draft_tab')==='followup'?'followup':'all';
-  const [page, setPage] = useState(linkedView === 'shopee-monitor'?'shopee-monitor':linkedView === 'customer-focus' ? 'customer-focus' : linkedView === 'channel-inbox' ? 'channel-inbox' : linkedView === 'render-templates' ? 'render-templates' : linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','stock','settings','clickup-queue','integrations','whatsapp-control'].includes(linkedView)?linkedView:'dashboard');
+  const [page, setPage] = useState(linkedView === 'shopee-monitor'?'shopee-monitor':linkedView === 'customer-focus' ? 'customer-focus' : linkedView === 'channel-inbox' ? 'channel-inbox' : linkedView === 'render-templates' ? 'render-templates' : linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','stock','acrylic-production','settings','clickup-queue','integrations','whatsapp-control'].includes(linkedView)?linkedView:'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [inboxOpened, setInboxOpened] = useState(linkedView === 'channel-inbox');
   const [marketplaceSearch,setMarketplaceSearch]=useState(initialParams.get('marketplace_q')?.trim() || '');
@@ -115,7 +117,7 @@ export default function App({ adminData }: Props) {
     else if (key === 'draft-orders') url.searchParams.set('view','draft-orders');
     else if (key === 'ai-learning') url.searchParams.set('view','ai-learning');
     else if (key === 'create-order') url.searchParams.set('view','create-order');
-    else if (key === 'finance' || key === 'settings' || key === 'stock') url.searchParams.set('view',key);
+    else if (key === 'finance' || key === 'settings' || key === 'stock' || key === 'acrylic-production') url.searchParams.set('view',key);
     else { url.searchParams.delete('view'); url.searchParams.delete('date'); }
     if(key!=='ai-dashboard')url.searchParams.delete('ai_conversation');
     ['qrpay_tx','qrpay_amount','qrpay_phone','qrpay_name','qrpay_paid_at'].forEach((param)=>url.searchParams.delete(param));
@@ -184,6 +186,7 @@ export default function App({ adminData }: Props) {
   const info = pageMap[page] || pageMap.dashboard;
   const renderPage = () => {
     switch (page) {
+      case 'acrylic-production': return canViewStock ? <Suspense fallback={<p>Memuatkan production…</p>}><AcrylicProduction/></Suspense> : <div>Akses production diperlukan.</div>;
       case 'stock': return canViewStock ? <Suspense fallback={<p>Memuatkan stok…</p>}><Stock/></Suspense> : <div>Akses stok diperlukan.</div>;
       case 'render-templates': return canManageTemplates ? <Suspense fallback={<div style={{padding:24}}>Memuatkan editor template...</div>}><RenderTemplates /></Suspense> : <div style={{padding:24}}>Akses Owner / Manage Admins diperlukan.</div>;
       case 'customer-focus': return canViewAi ? <Suspense fallback={<div style={{padding:24}}>Memuatkan Fokus Customer...</div>}><CustomerFocus onOpenDrafts={query=>{setAiDraftQuery(query);navigate('draft-orders');}} onOpenOrder={openOrder} onOpenMarketplace={openMarketplace} onOpenChat={id=>{navigate('ai-dashboard');const url=new URL(window.location.href);url.searchParams.set('ai_conversation',id);window.history.replaceState({},'',url);}} /></Suspense> : <div style={{padding:24}}>Akses CRM diperlukan.</div>;

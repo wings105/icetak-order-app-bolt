@@ -1,3 +1,5 @@
+- [VERIFIED] Admin V2 Production Acrylic separates Acrylic/Artpaper work by CF Job, stage and material colour; live 13-task read, bundled desktop/mobile filters/search/zoom/retry and active-admin gateway checks passed. Backend deployed; authenticated hosted owner flow remains unexercised. See docs/ACRYLIC_PRODUCTION.md.
+
 ## 2026-10-16 — ClickUp job
 
 - [PRODUCTION] Outbox v41 includes existing ClickUp job label option IDs in typed custom_fields by component type; unknown custom jobs stay unmatched. Eleven controlled tests and real authenticated preview/source/auth readback pass, preserving RM/set and processed queue state. Existing TM Code forwards job; downstream job task write awaits a fresh run.

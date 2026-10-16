@@ -47,6 +47,9 @@ jobs:
       - name: Check stock gateway authorization and retries
         run: npm run check:stock-admin
 
+      - name: Check acrylic production colour and access boundaries
+        run: npm run check:acrylic-production
+
       - name: Vite dev server smoke test
         shell: bash
         run: |
