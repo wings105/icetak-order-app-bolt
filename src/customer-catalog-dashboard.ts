@@ -29,8 +29,8 @@ function selectedOrderToken() {
 }
 function dashboard(token: string) {
   if (!cache.has(token)) {
-    cache.set(token, supabase
-      .rpc('icetak_customer_order_dashboard' as never, { p_order_token: token } as never)
+    cache.set(token, Promise.resolve(supabase
+      .rpc('icetak_customer_order_dashboard' as never, { p_order_token: token } as never))
       .then(({ data, error }) => {
         if (error) throw error;
         return (data || null) as DashboardResponse | null;
@@ -52,6 +52,7 @@ function selectionText(item: DashboardItem) {
   const wording = String(item.wording || item.customization?.custom_text || '').trim();
   const values = [
     item.size ? `Saiz: ${item.size}` : '',
+    item.customization?.requested_size ? `Saiz diminta: ${item.customization.requested_size}` : '',
     wordingLabel ? `Pilihan: ${wordingLabel}` : '',
     wording && wording !== wordingLabel ? `Wording: ${wording}` : '',
   ].filter(Boolean);
@@ -97,6 +98,8 @@ async function enrichOrderPage() {
     const image = card.querySelector<HTMLImageElement>('header img');
     const source = itemImage(item);
     if (image && source) image.src = source;
+    const refs=item.customization?.reference_files;
+    if(Array.isArray(refs)&&!card.querySelector('.cp-catalog-files')){const files=document.createElement('div');files.className='cp-catalog-files';files.innerHTML=refs.filter((file:any)=>/^https:\/\/buivecgahhmrhlmfujgt\.supabase\.co\/functions\/v1\/catalog-file\?/.test(String(file.url))).map((file:any)=>`<a href="${esc(file.url)}" target="_blank" rel="noreferrer">Gambar rujukan: ${esc(file.name)}</a>`).join('');card.append(files);}
     if (!card.querySelector('.cp-catalog-selection')) {
       const values = selectionText(item);
       if (values.length) {

@@ -1,4 +1,5 @@
 import { supabase } from './supabase-client';
+import {customerProductTitle} from './catalog-display';
 
 type SizeOption = { value: string; label?: string; price: number; stock?: number; image?: string };
 type WordingOption = {
@@ -24,7 +25,7 @@ type CatalogProduct = {
   parent_sku: string | null;
   clickup_task_id: string | null;
   main_image_url: string | null;
-  metadata: {website_order?:{process?:string;review_required?:boolean;allow_custom?:boolean}};
+  metadata: {website_order?:{process?:string;review_required?:boolean;allow_custom?:boolean;allow_upload?:boolean;upload_required?:boolean;wording_required?:boolean}};
   base_price: number | string | null;
   product_images: Array<{public_url:string;source_url:string;position:number}>;
   product_variants: Array<{id:string;name:string;price:number;stock:number;active:boolean;metadata:Record<string,unknown>}>;
@@ -53,8 +54,11 @@ type CartItem = {
   wording_mode?: string;
   customization?: Record<string, unknown>;
   product_snapshot?: Record<string, unknown>;
+  catalog_uploads?:CatalogUpload[];
+  catalog_spec_note?:string;
 };
-type EditorState = { size: SizeOption; wording: WordingOption; customText: string; qty: number };
+type CatalogUpload={id:string;token:string;name:string;mime?:string;bytes?:number;layer?:string};
+type EditorState = { size: SizeOption; wording: WordingOption; customText: string; qty: number;files:CatalogUpload[];uploadBusy:boolean;specNote:string };
 
 const root = document.querySelector<HTMLDivElement>('#app')!;
 const productCache = new Map<string, CatalogProduct>();
@@ -92,6 +96,7 @@ function toast(message: string) {
 function homeUrl(checkout = false) {
   const url = new URL(location.href);
   url.hash = '';
+  if (/^\/(product|search)\//.test(url.pathname)) url.pathname='/';
   url.searchParams.delete('q');
   url.searchParams.delete('product');
   url.searchParams.delete('catalogAdded');
@@ -112,33 +117,35 @@ async function getProduct(slug: string) {
   if (error) throw error;
   if (!data) throw new Error('Product not found');
   const row = data as unknown as CatalogProduct;
-  if (row.product_order_profiles?.config.catalog_models) row.product_order_profiles.config.size_options = row.product_variants.filter(v=>v.active&&Number(v.price)>0&&Number(v.stock)>0).map(v=>({value:'model:'+v.id,label:v.name,price:Number(v.price),stock:v.stock,image:String(v.metadata.image_url||row.main_image_url||'')}));
+  row.display_name=customerProductTitle(row.display_name);
+  if (row.product_order_profiles?.config.catalog_models) row.product_order_profiles.config.size_options = row.product_variants.filter(v=>v.active&&Number(v.price)>0&&Number(v.stock)>0).map(v=>({value:'model:'+v.id,label:v.name==='Default'?'1 set':v.name,price:Number(v.price),stock:v.stock,image:String(v.metadata.image_url||row.main_image_url||'')}));
   if (row.product_order_profiles?.product_type === 'printed') {
     row.product_order_profiles.config.wording_options = row.product_order_profiles.config.wording_options?.map(option =>
       option.value === 'custom_name' || option.value === 'model_custom'
         ? { ...option, label: 'Custom Words', placeholder: 'Tulis wording di sini. Contoh: Happy Birthday Aiman 6' } : option);
   }
   if(row.product_order_profiles?.config.catalog_models){const c=row.product_order_profiles.config;c.default_process=row.metadata?.website_order?.process||'Pre-order';if(row.metadata?.website_order?.allow_custom===false)c.wording_options=c.wording_options?.filter(w=>w.value!=='model_custom');if(row.metadata?.website_order?.review_required)c.wording_options=c.wording_options?.map(w=>({...w,review_required:true}));}
+  if(row.product_order_profiles?.config.catalog_models)row.product_order_profiles.config.size_options=row.product_order_profiles.config.size_options?.filter(option=>wordingChoices(row,option).length>0);
   productCache.set(slug, row);
   return row;
 }
-function defaults(product: CatalogProduct, existing?: CartItem): EditorState {
-  const profile = product.product_order_profiles;
-  if (!profile) throw new Error('Order profile not configured');
-  const sizes = profile.config.size_options || [{ value: '1 pc', label: '1 pc', price: Number(product.base_price || 0) }];
-  if (!sizes.length) throw new Error('Semua variasi kehabisan stok.');
-  const wording = profile.config.wording_options || [{ value: 'no_wording', label: 'No Wording', requires_text: false, review_required: false }];
-  return {
-    size: sizes.find((item) => item.value === (existing?.sizeCode || existing?.size)) || sizes[0],
-    wording: wording.find((item) => item.value === existing?.wording_mode) || wording[0],
-    customText: existing?.customText || wording[0].default_text || '',
-    qty: existing?.qty || 1,
-  };
+function wordingChoices(product:CatalogProduct,size:SizeOption){
+ let options=product.product_order_profiles!.config.wording_options||[{value:'no_wording',label:'No Wording',requires_text:false}];
+ if(product.metadata?.website_order?.wording_required||/add wording|custom name/i.test(size.label||''))options=options.filter(w=>w.requires_text);
+ if(/no wording/i.test(size.label||''))options=options.filter(w=>!w.requires_text);
+ return options;
+}
+function defaults(product:CatalogProduct,existing?:CartItem):EditorState{
+ const profile=product.product_order_profiles;if(!profile)throw Error('Order profile not configured');
+ const sizes=profile.config.size_options||[{value:'1 pc',label:'1 pc',price:Number(product.base_price||0)}];if(!sizes.length)throw Error('Semua variasi tidak tersedia buat sementara.');
+ const size=sizes.find(item=>item.value===(existing?.sizeCode||existing?.size))||(profile.product_type==='acrylic'?sizes.find(item=>/^Gold,A6/i.test(item.label||'')):undefined)||sizes[0];const options=wordingChoices(product,size);if(!options.length)throw Error('Pilihan wording belum disediakan.');
+ const wording=options.find(w=>w.value===existing?.wording_mode)||options[0];
+ return{size,wording,customText:wording.requires_text?(existing?.customText||''):(wording.default_text||''),qty:existing?.qty||1,files:existing?.catalog_uploads||[],uploadBusy:false,specNote:existing?.catalog_spec_note||''};
 }
 function buildItem(product: CatalogProduct, state: EditorState): CartItem {
   const profile = product.product_order_profiles!;
   const text = state.wording.requires_text ? state.customText.trim() : (state.wording.default_text || '').trim();
-  const reviewRequired = Boolean(state.wording.review_required);
+  const reviewRequired = Boolean(state.wording.review_required)||customSize(state.size);
   return {
     id: cartIdentity(product, { ...state, customText: text }),
     k: profile.product_type,
@@ -151,6 +158,8 @@ function buildItem(product: CatalogProduct, state: EditorState): CartItem {
     customText: text,
     price: Number(state.size.price || product.base_price || 0),
     qty: state.qty,
+    catalog_spec_note: state.specNote,
+    catalog_uploads: state.files.map(({id,token,name,mime,bytes,layer})=>({id,token,name,mime,bytes,layer})),
     product_id: product.id,
     product_variant_id: profile.config.catalog_models ? state.size.value.slice(6) : null,
     catalog_slug: product.slug,
@@ -179,7 +188,9 @@ function buildItem(product: CatalogProduct, state: EditorState): CartItem {
     },
   };
 }
+function customSize(size:SizeOption){return /custom\s+(a[456]|any\s+size|size)/i.test(size.label||'');}
 function validate(state: EditorState) {
+  if(state.uploadBusy)return 'Tunggu gambar selesai dimuat naik.';
   return state.wording.requires_text && !state.customText.trim() ? 'Isi nama atau wording dahulu.' : '';
 }
 function optionsHtml(group: string, values: Array<{ value: string; label?: string }>, current: string) {
@@ -188,12 +199,14 @@ function optionsHtml(group: string, values: Array<{ value: string; label?: strin
 function editorMarkup(product: CatalogProduct, state: EditorState, compact = false) {
   const profile = product.product_order_profiles!;
   const sizes = profile.config.size_options || [];
-  const wording = profile.config.wording_options || [];
+  const wording = wordingChoices(product,state.size);
   return `<section class="catalog-configurator ${compact ? 'catalog-configurator-modal' : ''}" data-catalog-editor="${esc(product.slug)}">
     <header><div><small>Pilihan tempahan</small><h3>${esc(product.display_name)}</h3></div><strong data-config-price>${money(Number(state.size.price || product.base_price || 0))}</strong></header>
     ${profile.config.catalog_models ? `<h4>Variasi</h4><select data-config-model aria-label="Variasi produk">${sizes.map(s=>`<option value="${esc(s.value)}" ${s.value===state.size.value?'selected':''}>${esc(s.label||s.value)} · ${money(s.price)}</option>`).join('')}</select><img data-config-model-image src="${esc(state.size.image||product.main_image_url||'')}" alt="" style="max-width:140px;max-height:140px;object-fit:contain;margin-top:12px"/>` : sizes.length > 1 ? `<h4>Saiz</h4>${optionsHtml('size', sizes, state.size.value)}` : `<div class="catalog-config-single"><span>Saiz</span><b>${esc(state.size.label || state.size.value)}</b></div>`}
-    <h4>Wording</h4>${optionsHtml('wording', wording, state.wording.value)}
-    <label class="catalog-config-text" ${state.wording.requires_text ? '' : 'hidden'}>Nama / wording<textarea data-config-text rows="3" placeholder="${esc(state.wording.placeholder || 'Masukkan wording')}">${esc(state.customText)}</textarea><small>Wording ini akan dipaparkan semula dalam cart dan checkout.</small></label>
+    <h4>Wording</h4><div data-wording-options>${optionsHtml('wording', wording, state.wording.value)}</div>
+    <label class="catalog-config-text" ${state.wording.requires_text ? '' : 'hidden'}>Nama / wording<textarea data-config-text maxlength="1000" rows="3" placeholder="${esc(state.wording.placeholder || 'Masukkan wording')}">${esc(state.customText)}</textarea><small>Wording ini akan dipaparkan semula dalam cart dan checkout.</small></label>
+    <label class="catalog-config-text" data-spec-wrap ${customSize(state.size)?'':'hidden'}>Saiz / bentuk diminta<textarea data-config-spec maxlength="300" rows="2" placeholder="Contoh: bulat 5 inci. Untuk Burn Away, nyatakan saiz Edible dan Wafer.">${esc(state.specNote)}</textarea><small>Saiz mestilah dalam had variasi yang dipilih. Tempahan custom size akan melalui review design.</small></label>
+    ${product.metadata?.website_order?.allow_upload?`<section class="catalog-upload-section"><h4>Gambar rujukan${product.metadata.website_order.upload_required?' · wajib':''}</h4><small>JPG, PNG atau WEBP · maksimum 8 MB setiap gambar · 3 gambar.</small>${(profile.product_type==='burnaway'?[['edible','Gambar Edible (bawah)'],['wafer','Gambar Wafer (atas)']]:[['general','Pilih gambar']]).map(([layer,label])=>`<label>${label}<input type="file" data-catalog-upload="${layer}" accept="image/jpeg,image/png,image/webp" ${layer==='general'?'multiple':''}></label>`).join('')}<ul data-upload-list></ul><p data-upload-status role="status"></p></section>`:''}
     <div class="catalog-config-qty"><span>Quantity</span><div><button type="button" data-config-minus>−</button><b data-config-qty>${state.qty}</b><button type="button" data-config-plus>+</button></div></div>
     <p class="catalog-config-error" data-config-error hidden></p>
     <div class="catalog-config-actions"><button type="button" data-config-add>${compact ? 'Simpan perubahan' : 'Add to Cart'}</button>${compact ? '<button type="button" data-config-cancel>Batal</button>' : '<button type="button" class="primary" data-config-buy>Buy Now</button>'}</div>
@@ -207,8 +220,12 @@ function bindEditor(container: HTMLElement, product: CatalogProduct, state: Edit
   const paint = () => {
     container.querySelector<HTMLElement>('[data-config-price]')!.textContent = money(Number(state.size.price || product.base_price || 0));
     container.querySelector<HTMLElement>('[data-config-qty]')!.textContent = String(state.qty);
+    container.querySelector<HTMLElement>('[data-spec-wrap]')!.hidden=!customSize(state.size);
     const textWrap = container.querySelector<HTMLElement>('.catalog-config-text')!;
     textWrap.hidden = !state.wording.requires_text;
+    container.querySelectorAll<HTMLButtonElement>('[data-config-add],[data-config-buy]').forEach(button=>button.disabled=state.uploadBusy);
+    container.querySelectorAll<HTMLInputElement>('[data-catalog-upload]').forEach(input=>input.disabled=state.uploadBusy);
+    const list=container.querySelector<HTMLElement>('[data-upload-list]');if(list){list.innerHTML=state.files.map((file,index)=>`<li><span>${esc(file.layer==='edible'?'Edible · ':file.layer==='wafer'?'Wafer · ':'')}${esc(file.name)}</span><button type="button" data-remove-upload="${index}" ${state.uploadBusy?'disabled':''} aria-label="Buang ${esc(file.name)}">Buang</button></li>`).join('');list.querySelectorAll<HTMLButtonElement>('button').forEach(button=>button.onclick=()=>{state.files.splice(Number(button.dataset.removeUpload),1);paint();});}
     const textArea = container.querySelector<HTMLTextAreaElement>('[data-config-text]')!;
     textArea.placeholder = state.wording.placeholder || 'Masukkan wording';
     textArea.value = state.wording.requires_text ? state.customText : '';
@@ -218,27 +235,46 @@ function bindEditor(container: HTMLElement, product: CatalogProduct, state: Edit
       button.classList.toggle('active', button.dataset.configValue === current);
     });
   };
-  container.querySelector<HTMLSelectElement>('[data-config-model]')?.addEventListener('change',e=>{state.size=sizes.find(s=>s.value===(e.target as HTMLSelectElement).value)||state.size;state.qty=Math.min(state.qty,state.size.stock||1);const img=container.querySelector<HTMLImageElement>('[data-config-model-image]');if(img)img.src=state.size.image||product.main_image_url||'';paint();});
-  container.querySelectorAll<HTMLButtonElement>('[data-config-group]').forEach((button) => {
-    button.onclick = () => {
-      if (button.dataset.configGroup === 'size') state.size = sizes.find((item) => item.value === button.dataset.configValue) || state.size;
-      if (button.dataset.configGroup === 'wording') {
-        if (state.wording.requires_text) customDraft = state.customText;
-        state.wording = wording.find((item) => item.value === button.dataset.configValue) || state.wording;
-        state.customText = state.wording.requires_text ? customDraft : (state.wording.default_text || '');
-        container.querySelector<HTMLElement>('[data-config-error]')!.hidden = true;
-      }
-      paint();
-    };
+  const wireOptions=()=>container.querySelectorAll<HTMLButtonElement>('[data-config-group]').forEach(button=>{
+   button.onclick=()=>{
+    if(button.dataset.configGroup==='size')state.size=sizes.find(item=>item.value===button.dataset.configValue)||state.size;
+    if(button.dataset.configGroup==='wording'){
+     if(state.wording.requires_text)customDraft=state.customText;
+     state.wording=wording.find(item=>item.value===button.dataset.configValue)||state.wording;
+     state.customText=state.wording.requires_text?customDraft:(state.wording.default_text||'');container.querySelector<HTMLElement>('[data-config-error]')!.hidden=true;
+    }paint();
+   };
+  });
+  container.querySelector<HTMLSelectElement>('[data-config-model]')?.addEventListener('change',e=>{
+   if(state.wording.requires_text)customDraft=state.customText;
+   state.size=sizes.find(s=>s.value===(e.target as HTMLSelectElement).value)||state.size;state.qty=Math.min(state.qty,state.size.stock||1);
+   const options=wordingChoices(product,state.size);state.wording=options.find(w=>w.value===state.wording.value)||options[0];state.customText=state.wording?.requires_text?customDraft:(state.wording?.default_text||'');
+   container.querySelector<HTMLElement>('[data-wording-options]')!.innerHTML=optionsHtml('wording',options,state.wording.value);wireOptions();
+   const img=container.querySelector<HTMLImageElement>('[data-config-model-image]');if(img)img.src=state.size.image||product.main_image_url||'';paint();
+  });
+  wireOptions();
+  container.querySelectorAll<HTMLInputElement>('[data-catalog-upload]').forEach(input=>input.onchange=async()=>{
+   const status=container.querySelector<HTMLElement>('[data-upload-status]')!,layer=input.dataset.catalogUpload||'general';
+   const selected=Array.from(input.files||[]);if(!selected.length)return;
+   const retained=layer==='general'?state.files:state.files.filter(file=>file.layer!==layer);
+   if(retained.length+selected.length>3){status.textContent='Maksimum 3 gambar untuk satu item.';input.value='';return;}
+   state.uploadBusy=true;paint();status.textContent='Memuat naik gambar…';
+   try{
+    const uploaded:CatalogUpload[]=[];
+    for(const file of selected){if(file.size>8388608)throw Error('Maksimum 8 MB setiap gambar.');const body=new FormData();body.set('file',file);body.set('product_id',product.id);const {data,error}=await supabase.functions.invoke('catalog-upload',{body});if(error||!data?.ok)throw Error(data?.error||error?.message||'Upload gagal');uploaded.push({...data.file,layer});}
+    state.files=[...retained,...uploaded];status.textContent='Gambar siap dimuat naik.';container.querySelector<HTMLElement>('[data-config-error]')!.hidden=true;
+   }catch(error){status.textContent=(error as Error).message;}finally{state.uploadBusy=false;input.value='';paint();}
   });
   container.querySelector<HTMLTextAreaElement>('[data-config-text]')!.oninput = (event) => {
     state.customText = (event.target as HTMLTextAreaElement).value;
     if (!validate(state)) container.querySelector<HTMLElement>('[data-config-error]')!.hidden = true;
   };
+  container.querySelector<HTMLTextAreaElement>('[data-config-spec]')!.oninput=event=>{state.specNote=(event.target as HTMLTextAreaElement).value;container.querySelector<HTMLElement>('[data-config-error]')!.hidden=true;};
   container.querySelector<HTMLButtonElement>('[data-config-minus]')!.onclick = () => { state.qty = Math.max(1, state.qty - 1); paint(); };
   container.querySelector<HTMLButtonElement>('[data-config-plus]')!.onclick = () => { state.qty = Math.min(state.qty + 1, state.size.stock ?? 999); paint(); };
   const commit = (handler: (item: CartItem) => void) => {
-    const error = validate(state);
+    const needsImages=product.metadata?.website_order?.upload_required;
+    const error = validate(state)||(customSize(state.size)&&state.specNote.trim().length<2?'Isi saiz / bentuk diminta dahulu.':'')||(needsImages&&state.files.length===0?'Muat naik gambar rujukan dahulu.':'')||(needsImages&&profile.product_type==='burnaway'&&(!state.files.some(f=>f.layer==='edible')||!state.files.some(f=>f.layer==='wafer'))?'Muat naik gambar untuk kedua-dua layer Edible dan Wafer.':'');
     const errorNode = container.querySelector<HTMLElement>('[data-config-error]')!;
     if (error) {
       errorNode.hidden = false;
@@ -319,7 +355,7 @@ async function enhanceProductDetail() {
       article.insertAdjacentElement('afterend', note);
       return;
     }
-    const glossy = product.product_order_profiles.product_type === 'printed';
+    const glossy = true; // Reuse the owner-approved purchase surface for all catalogue design categories.
     const images = (product.product_images || []).slice().sort((a,b) => a.position-b.position);
     if (images.length > 1) {
       const gallery = document.createElement('div');
@@ -355,7 +391,7 @@ async function enhanceProductDetail() {
       const bar = document.createElement('section');
       bar.className = 'catalog-glossy-buybar';
       bar.dataset.catalogEditor = slug;
-      bar.setAttribute('aria-label','Beli cake topper');
+      bar.setAttribute('aria-label','Beli produk');
       bar.innerHTML = `<div><small>Harga dari</small><strong>${esc(price.textContent)}</strong></div><button type="button" data-glossy-add>Add to Cart</button><button type="button" class="primary" data-glossy-buy>Buy Now</button>`;
       article.insertAdjacentElement('afterend',bar);
       bar.querySelectorAll<HTMLButtonElement>('button').forEach(button => button.onclick = () => productOptions(product,state,button));
@@ -411,6 +447,7 @@ function enhanceCheckout() {
     edit.className = 'catalog-cart-edit';
     edit.textContent = 'Edit pilihan';
     edit.onclick = () => void editCartItem(index);
+    if(item.catalog_uploads?.length){const files=document.createElement('small');files.textContent=`${item.catalog_uploads.length} gambar rujukan disimpan`;copy.append(files);}
     // The checkout item already renders size, wording choice and custom text.
     copy.append(edit);
   });

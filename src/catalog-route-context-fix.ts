@@ -10,7 +10,7 @@ if (!window.__ICETAK_CATALOG_ROUTE_CONTEXT_FIX__) {
   window.__ICETAK_CATALOG_ROUTE_CONTEXT_FIX__ = true;
 
   const SESSION_PARAMS = ['order', 'c', 'confirm', 'login', 'magic_token', 'token'];
-  const HOME_PARAMS = [...SESSION_PARAMS, 'q', 'product'];
+  const HOME_PARAMS = [...SESSION_PARAMS, 'q', 'product','catalog','category','sort','page'];
 
   function currentState() {
     return history.state && typeof history.state === 'object' ? history.state : {};
@@ -24,7 +24,7 @@ if (!window.__ICETAK_CATALOG_ROUTE_CONTEXT_FIX__) {
   function routeKind(url = new URL(location.href)) {
     const hash = decodeURIComponent(url.hash.replace(/^#\/?/, ''));
     const path = decodeURIComponent(url.pathname.replace(/^\//, ''));
-    if (url.searchParams.get('q') || /^search\/.+/.test(hash) || /^search\/.+/.test(path)) return 'search';
+    if (url.searchParams.has('catalog') || url.searchParams.get('q') || /^search\/.+/.test(hash) || /^search\/.+/.test(path)) return 'search';
     if (url.searchParams.get('product') || /^product\/.+/.test(hash) || /^product\/.+/.test(path)) return 'product';
     return 'none';
   }

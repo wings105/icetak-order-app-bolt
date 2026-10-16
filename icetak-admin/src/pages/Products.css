@@ -40,3 +40,5 @@
 .product-list-table .product-list-empty{text-align:center;padding:50px;color:var(--text-secondary,#64748b)}
 .products-pagination{align-items:center;font-size:12px;color:var(--text-secondary,#64748b)}
 @media(max-width:600px){.product-list-tabs{padding:0 12px;gap:17px}.product-list-info{padding:14px}.product-list-scroll{max-height:calc(100dvh - 330px)}.product-list-product{min-width:300px}.product-list-table>tbody>tr>td{padding-left:12px;padding-right:12px}.product-list-table .product-list-check{padding-right:0}.products-toolbar{gap:8px}.products-toolbar>input{flex-basis:100%}.products-toolbar select{max-width:100%}}
+
+.catalog-bulk-overlay{z-index:11000}.products-form small{line-height:1.5}.product-list-table td>small{display:block;max-width:210px;white-space:normal;color:#64748b;margin-top:5px}

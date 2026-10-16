@@ -356,10 +356,12 @@ function description(
     text(item.catalog_clickup_task_id)
       ? `Source design task: ${text(item.catalog_clickup_task_id)}`
       : '',
+    text(item.customization?.requested_size) ? `Customer requested size (review required): ${text(item.customization.requested_size)}` : '',
     spec.size ? `Size: ${clickupSize(spec.size)}` : '',
     spec.style ? `Style: ${spec.style}` : '',
     spec.wording ? `Wording: ${spec.wording}` : '',
     reference ? `Reference: ${reference}` : '',
+    ...(Array.isArray(item.customization?.reference_files) ? item.customization.reference_files.map((file:any) => `Customer reference${file.layer ? ' ('+text(file.layer)+')' : ''}: ${text(file.name)} — ${text(file.url)}`) : []),
     ai.reference_message_ids.length
       ? `Reference Message IDs: ${ai.reference_message_ids.join(', ')}`
       : '',
