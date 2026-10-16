@@ -1,23 +1,28 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {supabase} from '../lib/supabase';
 import './AcrylicProduction.css';
 
 type Item={task_id:string;title:string;order_reference:string;stage:string;status:string;material:string;colour:string;colour_source:string;size:string;quantity:number|null;sets:string[];sku:string;due_at:string|null;updated_at:string;issues:string[];images:{url:string;name:string}[];task_url:string};
-type Snapshot={ok:boolean;items:Item[];read_at:string;truncated:boolean;error?:string};
+export type Snapshot={ok:boolean;items:Item[];read_at:string;truncated:boolean;error?:string};
 const stages=[['production','Sedia cut'],['review','Review'],['design','Menunggu design'],['all','Semua peringkat']];
 const swatches:Record<string,string>={'Gold':'#c5a24c','Silver':'#a4b0bd','Rose Gold':'#c78d86','Black':'#292b32','White':'#fff','Bronze':'#9d7049','Clear / Transparent':'#d8ebef','Pink':'#ef9cc1','Red':'#d94343','Blue':'#4685d5','Green':'#5c9e67','Yellow':'#efcf4e','Orange':'#e69b40','Purple':'#9a72be'};
 const time=(value:string)=>new Date(value).toLocaleString('en-MY',{timeZone:'Asia/Kuala_Lumpur',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 
-export default function AcrylicProduction(){
+async function readAdminSnapshot():Promise<Snapshot>{
+ const {supabase}=await import('../lib/supabase');
+ const {data,error}=await supabase.functions.invoke('acrylic-production',{body:{}});
+ if(error)throw Error(error.message);return data as Snapshot;
+}
+
+export default function AcrylicProduction({readSnapshot=readAdminSnapshot}:{readSnapshot?:()=>Promise<Snapshot>}={}){
  const [data,setData]=useState<Snapshot|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(false);
  const [stage,setStage]=useState('production'),[material,setMaterial]=useState('Acrylic'),[colour,setColour]=useState(''),[query,setQuery]=useState(''),[auto,setAuto]=useState(true);
  const [zoom,setZoom]=useState<{item:Item;index:number}|null>(null);const dialog=useRef<HTMLDialogElement>(null),inflight=useRef(false),mounted=useRef(true);
  const load=useCallback(async()=>{
   if(inflight.current)return;inflight.current=true;setLoading(true);
-  try{const {data:next,error:e}=await supabase.functions.invoke('acrylic-production',{body:{}});if(e)throw Error(e.message);if(!next?.ok)throw Error(next?.error||'Data production tidak tersedia.');if(mounted.current){setData(next);setError('');}}
+  try{const next=await readSnapshot();if(!next?.ok)throw Error(next?.error||'Data production tidak tersedia.');if(mounted.current){setData(next);setError('');}}
   catch(e){if(mounted.current)setError(e instanceof Error?e.message:'Data gagal dimuat.');}
   finally{inflight.current=false;if(mounted.current)setLoading(false);}
- },[]);
+ },[readSnapshot]);
  useEffect(()=>{mounted.current=true;void load();return()=>{mounted.current=false;};},[load]);
  useEffect(()=>{if(!auto)return;const timer=window.setInterval(()=>{if(document.visibilityState==='visible')void load();},60000);const visible=()=>{if(document.visibilityState==='visible')void load();};document.addEventListener('visibilitychange',visible);return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',visible);};},[auto,load]);
  useEffect(()=>{if(zoom){dialog.current?.showModal();}else{dialog.current?.close();}},[zoom]);

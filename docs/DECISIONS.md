@@ -275,3 +275,8 @@ Reserve from real orders becoming To Ship, consume on actual Shipped or pickup r
 ## 2026-10-16 — Acrylic production is a read-only ClickUp work filter
 
 Admin V2 Production Acrylic reuses existing raw task/work/image projections. Only CF Job Acrylic cake topper and Artpaper qualify; ClickUp status owns design/review/production placement. Material and colour filtering preserve per-task identity, including shared Order IDs. Unknown or conflicting evidence stays visible for review, with no default Gold. A JWT active-admin gateway mediates a service-only invoker read; no new ClickUp fields/writes, task lifecycle, stock or notifications. See ACRYLIC_PRODUCTION.md.
+
+
+## 2026-10-16 — Owner-authorized standalone cutting display
+
+Expose only the existing cutting-display DTO through a separate public GET-only Edge Function for an owner-requested office link without login. Reuse the same component, work/status/image projections and colour rules; keep existing admin authentication intact. Store no display session, do not mutate source records, and do not expose raw/contact/payment/finance data. Noindex is an indexing hint and does not make the URL private or bind it to a trusted PC. See ACRYLIC_PRODUCTION.md.
