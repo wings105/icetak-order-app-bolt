@@ -12,7 +12,7 @@ Provider read verification: 41 batch reads returned all 2,004 item IDs: 1,967 NO
 
 ## Admin and storefront
 
-Admin V2 `?admin=v2&view=products`: cards/search/status/pagination, source gallery, browser XLSX/ZIP import with preview, website profiles and model prices, selected-field Shopee edits and audit/recovery. Owner only imports, edits, publishes, or sends provider updates. Active order/production staff can read.
+Admin V2 `?admin=v2&view=products`: compact ERP list/search/status/pagination, source gallery, browser XLSX/ZIP import with preview, website profiles and model prices, selected-field Shopee edits and audit/recovery. Owner only imports, edits, publishes, or sends provider updates. Active order/production staff can read.
 
 Storefront extends the existing configurator/cart/checkout. Model UUID is passed as sizeCode, while human variation label remains in cart. Server validates model belongs to the published product, stock/quantity, wording, unit price, variant ID and production settings. Catalogue totals are calculated before creating order/payment session; submitted prices cannot set catalogue payment amounts. Basic-service checkout is retained.
 
@@ -45,3 +45,11 @@ Workers Builds and Public Domain Guard passed for release `370c2d3`. Cloudflare 
 Actual root entry: `main-C9ThU8Ip.js`. Followed its module references to actual served files rather than assuming local asset filenames. Hosted `Products-lvwPWkSI.js` and `catalog-configurator-B9FqDMv_.js` match the locked local build after normalizing only imported JS/CSS content-hash filenames (deployment public environment changes the dependency filenames). Hosted Inbox `index-D4ejgXNz.js` is byte-identical: SHA256 `7768738760be991b958b59ea5ee6de95f38224c72e42332cf17449ffaaa6e1b4`. Release source tree is exactly the tested source tree.
 
 Final provider bridge v3 stock verification-only read returned VERIFIED for model location `MYZ` / stock 14, without issuing a write. All 2,004 listing statuses and 2,004 import audit rows persist; no outbound product jobs or QA orders remain. Authenticated hosted owner mutations and a changed-value provider write remain unexercised.
+
+## Shopee-style ERP list — 2026-10-16
+
+VERIFIED controlled UI and live read contract; hosted delivery pending. Product cards become one compact row per product inside the existing ERP shell: thumbnail/title, Parent SKU and Product ID, Shopee min/max price, aggregate model stock, provider status, website draft/publication and Edit/View/Shopee links. Status tabs include DB counts scoped to search. Website price is a separate secondary label. Expand variants inline to see individual images, labels, SKU/model IDs, provider price/stock and website price; details load only on expansion and are cached until row refresh. Selection is page-scoped and can perform only the existing owner status-read action. No product value is changed by selecting/expanding a row.
+
+Read-only migration extends the existing service-only list RPC with one bounded snapshot summary per visible row and status counts. Source prices/stock remain explicitly labelled as last import/API snapshots; no sales/traffic metrics are invented. Existing product detail/edit/import/publish/provider queue contracts remain intact. A qualification follow-up avoids collision with the RPC's existing PL/pgSQL `n` variable.
+
+Live assertions compared one actual 60-model product's min/max price and summed stock with the raw listing models, plus empty and UNLIST filter/count behavior. All pass. Actual Products + Sidebar + Topbar rendered at 1600×1000 and 390×844. Forty rows, status tabs, inline 60-model expansion/cache, select-all status read, Edit dialog, empty/search/error recovery, paging and contained horizontal mobile scrolling passed without runtime errors or document overflow. Read responses used actual catalogue data with mocked gateways; CDN thumbnails were fixture images in this controlled run. Browser plugin absent; Playwright used. No import/save/provider queue/process request was issued in QA.
