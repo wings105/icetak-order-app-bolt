@@ -3,6 +3,10 @@ project_id = "buivecgahhmrhlmfujgt"
 [functions.acrylic-production]
 verify_jwt = true
 
+# Owner-authorized read-only office production display, without admin login.
+[functions.acrylic-production-display]
+verify_jwt = false
+
 [functions.stock-admin]
 verify_jwt = true
 

@@ -40,3 +40,14 @@ Rollback: revert the Admin route/sidebar/page and disable the new gateway if nec
 ## Hosted release
 
 PR #92 merged as `fea396a4f53e6cc1d53caf8db826965d817444e4`; its tree `27accd0c42d2788a7de6c02cb875c6abe665220a` exactly matches the tested source. Workers Builds, guard and deploy succeeded. Worker version `80867d5e-1742-4945-bf0d-cd9a685158c6`. The main domain serves the same new `main-CsEGlHPM.js` entry observed on the feature preview; the exact route renders Admin Login. Cloud logs show an existing multiple-GoTrue-client warning and an extension metadata error, without an app failure. Authenticated hosted task rendering has not been exercised. Direct JavaScript-asset navigation is blocked by the cloud browser; exact feature asset bytes were not read through that browser. Controlled bundled App behavior remains verified above.
+
+
+## Standalone office display — 16 October 2026
+
+Owner explicitly requested one URL without Admin V2 or login for the acrylic office desktop. New route `/acrylic-production/` mounts the same AcrylicProduction component through a supplied display reader, without App/sidebar/topbar or admin-session bootstrap. Its HTML has noindex/nofollow/noarchive and no-referrer metadata; these are indexing hints, not access control.
+
+The distinct `acrylic-production-display` Edge Function is intentionally public (`verify_jwt=false`) and supports GET/OPTIONS only. It calls the same private read RPC and returns an explicit cutting-display allowlist: task identity/name/reference, stage/material/colour, size/quantity/set, due/update times, issues and safe image/task links. SKU and colour-source metadata are blanked; raw fields, contacts, addresses, prices, payment data and private errors are excluded. Browser requests omit credentials and do not instantiate or call the admin client. Existing `acrylic-production` remains JWT=true and active-admin checked; no database/RLS/auth changes are made.
+
+This is a public read-only URL; possession of the URL permits viewing, and it is not restricted by PC, office IP or network. It does not grant access to task edits, completion actions, customer messages or inventory operations. ClickUp links may independently require ClickUp login. The normal webhook and 60-second visible-page refresh remain unchanged.
+
+Validation so far: root/Inbox build, model/auth regression and new public GET-only/field-allowlist/failure tests pass. Live endpoint source/auth readback is exact. Hosted standalone UI verification is pending publication.

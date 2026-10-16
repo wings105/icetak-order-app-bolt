@@ -40,3 +40,19 @@ permissions=['approve_production'];assert.equal((await request()).status,200);
 assert.equal((await request(true,'GET')).status,405);assert.equal((await request(false,'OPTIONS')).status,200);
 assert(calls.every(p=>/auth\/v1\/user|admin_users|admin_permissions|icetak_acrylic_production_snapshot/.test(p)));
 console.log('Acrylic production: colour/material/size/quantity, stage filtering, task identity, image safety, missing/conflicting evidence and active staff authorization checks passed.');
+
+// Public display is a distinct GET-only allowlist, not an anonymous admin gateway.
+let displayHandler,displayCalls=0,failRead=false;
+const displaySource=readFileSync('supabase/functions/acrylic-production-display/index.ts','utf8').replace("import 'jsr:@supabase/functions-js/edge-runtime.d.ts';",'').replace("import {productionItem,type SourceRow} from '../acrylic-production/model.ts';",'');
+await new Function('Deno','fetch','productionItem',`return (async()=>{${stripTypeScriptTypes(displaySource)}})()` )({env:{get:k=>k==='SUPABASE_URL'?'https://production.example':'test-key'},serve:fn=>displayHandler=fn},async(url,options)=>{
+ assert.equal(url,'https://production.example/rest/v1/rpc/icetak_acrylic_production_snapshot');assert.equal(options.body,'{}');displayCalls++;
+ return Response.json(failRead?{message:'private database error'}:{rows:[{...base,sku:'private-sku',customer_phone:'secret',price:99,raw_payload:{secret:'hidden'}}],truncated:false},{status:failRead?500:200});
+},productionItem);
+const displayRequest=method=>displayHandler(new Request('https://production.example?admin=true&action=delete',{method}));
+const displayResponse=await displayRequest('GET');assert.equal(displayResponse.status,200);
+const displayData=await displayResponse.json();assert.equal(displayData.items[0].colour,'Gold');assert.equal(displayData.items[0].sku,'');assert.equal(displayData.items[0].colour_source,'');
+assert.deepEqual(Object.keys(displayData.items[0]).sort(),['task_id','title','order_reference','stage','status','material','colour','colour_source','size','quantity','sets','sku','due_at','updated_at','issues','images','task_url'].sort());
+assert(!JSON.stringify(displayData).includes('private-sku'));assert(!JSON.stringify(displayData).includes('customer_phone'));
+assert.equal((await displayRequest('POST')).status,405);assert.equal((await displayRequest('DELETE')).status,405);assert.equal((await displayRequest('OPTIONS')).status,204);assert.equal(displayCalls,1);
+failRead=true;const failedDisplay=await displayRequest('GET');assert.equal(failedDisplay.status,503);assert(!(await failedDisplay.text()).includes('private database error'));
+console.log('Standalone display: anonymous GET, exact field allowlist, private data redaction, mutation rejection and safe read failure passed.');
