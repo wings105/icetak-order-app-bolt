@@ -1,6 +1,6 @@
 ## 2026-10-16 — Glossy product purchase UI
 
-- [VERIFIED] Required Custom Words feedback clears immediately on valid input; controlled customer UI and full build pass. Follow-up delivery pending.
+- [PRODUCTION] Required Custom Words feedback clears immediately on valid input. PR #97 / cbed08b, Worker a7222f2e; repeated actual public-domain product, image/gallery, clipboard, custom validation, cart and Edit checks pass at mobile/desktop without order/payment creation.
 
 - [PRODUCTION] Catalogue Cake Topper Glossy pages use small corner seller/Shopee/share icons and fixed bottom purchase actions opening a selection sheet. Happy Birthday keeps its field hidden; Custom Words opens an empty required field and preserves toggled input. Cart wording is no longer duplicated; edit, hash/path navigation and the basic-service controls pass actual customer-app desktop/mobile checks. No product publication or real order/payment/provider write. PR #96 / e9a86de and Cloudflare 0a1a3918 deployed; actual public product/mobile/desktop options, clipboard, cart and Edit smoke passed without application errors or order creation.
 

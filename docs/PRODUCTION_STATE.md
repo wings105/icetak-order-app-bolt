@@ -1,5 +1,7 @@
 # 2026-10-16 — Glossy product storefront
 
+Follow-up PRODUCTION: PR #97 `cbed08b`, Worker `a7222f2e-a272-4e5e-bce2-1ed50926e8ed` clears required-wording feedback immediately on valid input. Actual public-domain mobile/desktop product, gallery, clipboard, options, cart and Edit repeated successfully at 13:50 UTC; served configurator matches tested build. No order/payment submitted.
+
 PRODUCTION: PR #96 `e9a86de`, tested tree `e503ee1`, Worker `0a1a3918-8f00-488e-a764-1eae415bee09` passed hosting/guard. Printed catalogue product pages have compact upper-corner seller/Shopee/share controls and fixed bottom actions opening the existing selection sheet. Happy Birthday hides its field; Custom Words is required and starts blank; cart wording displays once. Pending product navigation is preserved. Actual public CN0790 product, real cover, clipboard, options, cart and Edit passed mobile/desktop without page errors; hosted configurator matches tested code. Basic services retained; no catalogue publication, price/provider changes or actual order/payment submission. See [catalogue evidence](catalog/IMPLEMENTATION.md).
 
 # 2026-10-16 — Products ERP list
