@@ -1,3 +1,7 @@
+# 2026-10-16 — Glossy product storefront
+
+PRODUCTION: PR #96 `e9a86de`, tested tree `e503ee1`, Worker `0a1a3918-8f00-488e-a764-1eae415bee09` passed hosting/guard. Printed catalogue product pages have compact upper-corner seller/Shopee/share controls and fixed bottom actions opening the existing selection sheet. Happy Birthday hides its field; Custom Words is required and starts blank; cart wording displays once. Pending product navigation is preserved. Actual public CN0790 product, real cover, clipboard, options, cart and Edit passed mobile/desktop without page errors; hosted configurator matches tested code. Basic services retained; no catalogue publication, price/provider changes or actual order/payment submission. See [catalogue evidence](catalog/IMPLEMENTATION.md).
+
 # 2026-10-16 — Products ERP list
 
 Hosted delivery PRODUCTION / controlled UI VERIFIED: PR #95 `b6478e4`, Worker `f3d1c904-0ffd-4561-9598-7dc17fac290e` passed hosting and guard. Products now has compact Shopee-style rows, source price range/stock, separate website price/status, count tabs, inline variations and selected status reads. Live list-contract checks plus rendered ERP desktop/mobile filter/search/expand/Edit/paging/error states pass. Hosted JS matches tested code after normalizing imported filenames; CSS is byte-identical. Exact route reaches Admin Login without app errors; signed-in hosted session is not exercised. No product/provider values were changed. See [catalogue verification](catalog/IMPLEMENTATION.md).

@@ -1,6 +1,8 @@
 ## 2026-10-16 — Glossy product purchase UI
 
-- [VERIFIED] Catalogue Cake Topper Glossy pages use small corner seller/Shopee/share icons and fixed bottom purchase actions opening a selection sheet. Happy Birthday keeps its field hidden; Custom Words opens an empty required field and preserves toggled input. Cart wording is no longer duplicated; edit, hash/path navigation and the basic-service controls pass actual customer-app desktop/mobile checks. No product publication or real order/payment/provider write. Production delivery pending.
+- [VERIFIED] Required Custom Words feedback clears immediately on valid input; controlled customer UI and full build pass. Follow-up delivery pending.
+
+- [PRODUCTION] Catalogue Cake Topper Glossy pages use small corner seller/Shopee/share icons and fixed bottom purchase actions opening a selection sheet. Happy Birthday keeps its field hidden; Custom Words opens an empty required field and preserves toggled input. Cart wording is no longer duplicated; edit, hash/path navigation and the basic-service controls pass actual customer-app desktop/mobile checks. No product publication or real order/payment/provider write. PR #96 / e9a86de and Cloudflare 0a1a3918 deployed; actual public product/mobile/desktop options, clipboard, cart and Edit smoke passed without application errors or order creation.
 
 - [PRODUCTION] Products uses a compact Shopee-style ERP list with status-count tabs, separate Shopee/website prices, aggregate source stock, inline model rows and page selection for status checks. Live read-contract and rendered desktop/mobile search/filter/expand/Edit/pagination/error states pass; PR #95 / b6478e4 passed hosting and guard; hosted Products JS matches the tested module after normalizing imported filenames and CSS is byte-identical. Authenticated hosted session remains unexercised. See docs/catalog/IMPLEMENTATION.md.
 
