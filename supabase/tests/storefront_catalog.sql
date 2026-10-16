@@ -1,0 +1,70 @@
+begin;
+do $$
+declare p products%rowtype;e products%rowtype;v product_variants%rowtype;st jsonb;b jsonb;r jsonb;sel jsonb;order_result jsonb;again jsonb;request uuid:=gen_random_uuid();eid uuid;order_payload jsonb;before_count int;expected numeric;first_expected numeric;second_expected numeric;bad_model uuid;good_model uuid;burn products%rowtype;bv product_variants%rowtype;ui uuid;uj uuid;upload uuid:=gen_random_uuid();cap text:=repeat('a',64);path text;
+begin
+ select * into p from products where not is_published and(icetak_catalog_state(id)->>'suggested_kind')='printed'and(icetak_catalog_state(id)->>'can_prepare')::boolean limit 1;
+ if p.id is null then raise exception 'NO_ROLLOUT_CANDIDATE';end if;
+ b:=jsonb_build_object('request_id',request,'operation','prepare','publish',true,'items',jsonb_build_array(jsonb_build_object('id',p.id,'updated_at',p.updated_at)));
+ r:=icetak_catalog_admin('preview',b,'rollback-qa');if not(r#>>'{rows,0,ok}')::boolean or(select is_published from products where id=p.id)then raise exception 'PREVIEW_MUTATED';end if;
+ r:=icetak_catalog_admin('apply',b,'rollback-qa');if not(r#>>'{rows,0,ok}')::boolean then raise exception 'PREPARE_FAILED: %',r;end if;
+ if icetak_catalog_admin('apply',b,'rollback-qa')<>r then raise exception 'BULK_REPLAY_CHANGED';end if;
+ select id into eid from product_catalog_bulk_events where request_id=request;
+ select * into v from product_variants where product_id=p.id and active and price>0 and stock>0 limit 1;
+ sel:=icetak_validate_catalog_selection(p.slug,'model_none','','model:'||v.id);
+ if sel->>'custom_text'<>'Happy Birthday' or(sel->>'price')::numeric<>v.price then raise exception 'MODEL_DEFAULT_OR_PRICE_WRONG';end if;
+ begin perform icetak_validate_catalog_selection(p.slug,'model_custom','','model:'||v.id);raise exception 'EMPTY_CUSTOM_ACCEPTED';exception when others then if sqlerrm<>'custom_wording_required'then raise;end if;end;
+ order_payload:=jsonb_build_object('checkout_request_id',gen_random_uuid(),'customer',jsonb_build_object('name','Catalogue rollback QA','phone','60100000000'),'items',jsonb_build_array(jsonb_build_object('catalog_slug',p.slug,'sizeCode','model:'||v.id,'wording_mode','model_custom','customText','Happy Birthday QA','qty',1,'price',0.01)),'date_need','2030-10-20','delivery','spx','payment','QR Pay','notify_whatsapp',false,'consent',true);
+ -- Delivery requires a real complete customer address; use pickup in the contract test.
+ order_payload:=jsonb_set(order_payload,'{delivery}','"pickup"');
+ select count(*) into before_count from orders;
+ order_result:=icetak_create_order(order_payload);again:=icetak_create_order(order_payload);
+ if again->>'order_token'<>order_result->>'order_token' or not(again->>'duplicate')::boolean or(select count(*)from orders)<>before_count+1 then raise exception 'CHECKOUT_RETRY_DUPLICATE';end if;
+ if(select price from order_items where order_token=order_result->>'order_token')<>v.price then raise exception 'CLIENT_PRICE_TRUSTED';end if;
+ if not exists(select 1 from payment_sessions ps join orders o on o.id=ps.order_id where o.public_token=order_result->>'order_token'and ps.base_amount=v.price)then raise exception 'PAYMENT_TOTAL_WRONG';end if;
+ select ps.expected_amount into first_expected from payment_sessions ps join orders o on o.id=ps.order_id where o.public_token=order_result->>'order_token'order by ps.created_at desc limit 1;
+ if not exists(select 1 from production_components pc join orders o on o.id=pc.order_id where o.public_token=order_result->>'order_token'and pc.component_type='printed'and pc.review_required)then raise exception 'PRODUCTION_PROFILE_WRONG';end if;
+ begin perform icetak_create_order(jsonb_set(order_payload,'{date_need}','"2030-10-21"'));raise exception 'REUSED_KEY_ACCEPTED';exception when others then if sqlerrm<>'CHECKOUT_REQUEST_REUSED'then raise;end if;end;
+ -- A real registered private object, represented in this rollback transaction only.
+ path:='qa/'||upload::text||'.png';insert into storage.objects(bucket_id,name)values('catalog-customer-files',path);
+ insert into catalog_customer_uploads(id,product_id,storage_path,original_name,mime_type,bytes,token_hash,ready)values(upload,p.id,path,'original.png','image/png',10,encode(sha256(convert_to(cap,'UTF8')),'hex'),true);
+ perform icetak_catalog_check_uploads(p.id,jsonb_build_array(jsonb_build_object('id',upload,'token',cap)));
+ begin perform icetak_catalog_check_uploads(p.id,jsonb_build_array(jsonb_build_object('id',upload,'token','wrong')));raise exception 'WRONG_FILE_TOKEN_ACCEPTED';exception when others then if sqlerrm<>'CATALOG_FILE_UNAVAILABLE'then raise;end if;end;
+ order_payload:=jsonb_set(order_payload,'{checkout_request_id}',to_jsonb(gen_random_uuid()));order_payload:=jsonb_set(order_payload,'{items,0,catalog_uploads}',jsonb_build_array(jsonb_build_object('id',upload,'token',cap,'layer','general')));
+ order_result:=icetak_create_order(order_payload);
+ select ps.expected_amount into second_expected from payment_sessions ps join orders o on o.id=ps.order_id where o.public_token=order_result->>'order_token'order by ps.created_at desc limit 1;
+ if first_expected=second_expected or second_expected>v.price or second_expected<v.price-.5 then raise exception 'EQUAL_TOTAL_PAYMENT_COLLISION';end if;
+ if not exists(select 1 from catalog_order_files cf join order_items oi on oi.id=cf.order_item_id where cf.upload_id=upload and oi.order_token=order_result->>'order_token'and oi.customization#>>'{reference_files,0,name}'='original.png'and position(cap in oi.customization::text)=0)then raise exception 'FILE_LINK_OR_CAPABILITY_LEAK';end if;
+ begin perform icetak_catalog_check_uploads(p.id,jsonb_build_array(jsonb_build_object('id',upload,'token',cap)));raise exception 'CLAIMED_FILE_REUSED';exception when others then if sqlerrm<>'CATALOG_FILE_UNAVAILABLE'then raise;end if;end;
+ select * into p from products where id=p.id;
+ r:=icetak_catalog_admin('apply',jsonb_build_object('request_id',gen_random_uuid(),'operation','restore','event_id',eid,'items',jsonb_build_array(jsonb_build_object('id',p.id,'updated_at',p.updated_at))),'rollback-qa');
+ if not(r#>>'{rows,0,ok}')::boolean or(select is_published from products where id=p.id)then raise exception 'RESTORE_FAILED: %',r;end if;
+ select * into e from products where not is_published and(icetak_catalog_state(id)->>'suggested_kind')='edible'and(icetak_catalog_state(id)->>'can_prepare')::boolean and exists(select 1 from product_variants where product_id=products.id and name ilike '%Add Wording%') limit 1;
+ r:=icetak_catalog_admin('apply',jsonb_build_object('request_id',gen_random_uuid(),'operation','prepare','publish',true,'items',jsonb_build_array(jsonb_build_object('id',e.id,'updated_at',e.updated_at))),'rollback-qa');
+ select id into good_model from product_variants where product_id=e.id and name ilike '%Add Wording%'and active and stock>0 limit 1;
+ select id into bad_model from product_variants where product_id=e.id and name ilike '%No Wording%'and active and stock>0 limit 1;
+ begin perform icetak_validate_catalog_selection(e.slug,'model_none','','model:'||good_model);raise exception 'ADD_WORDING_MODEL_BYPASSED';exception when others then if sqlerrm<>'custom_wording_required'then raise;end if;end;
+ begin perform icetak_validate_catalog_selection(e.slug,'model_custom','wrong option','model:'||bad_model);raise exception 'NO_WORDING_MODEL_BYPASSED';exception when others then if sqlerrm<>'catalog_wording_model_mismatch'then raise;end if;end;
+
+ sel:=icetak_validate_catalog_selection(e.slug,'model_custom','Edible QA','model:'||good_model);
+ if sel#>>'{customization,catalog_model_label}' ~* 'custom[[:space:]]+(a[456]|any[[:space:]]+size|size)'then
+  begin perform icetak_catalog_item_details(sel,'{}');raise exception 'MISSING_CUSTOM_SIZE_ACCEPTED';exception when others then if sqlerrm<>'catalog_custom_size_required'then raise;end if;end;
+  sel:=icetak_catalog_item_details(sel,'{"catalog_spec_note":"Bulat 5 inci"}');
+  if sel#>>'{customization,requested_size}'<>'Bulat 5 inci'or not(sel->>'review_required')::boolean then raise exception 'CUSTOM_SIZE_REVIEW_MISSING';end if;
+ end if;
+ select * into burn from products where not is_published and icetak_catalog_state(id)->>'suggested_kind'='burnaway'limit 1;
+ r:=icetak_catalog_admin('apply',jsonb_build_object('request_id',gen_random_uuid(),'operation','prepare','publish',true,'items',jsonb_build_array(jsonb_build_object('id',burn.id,'updated_at',burn.updated_at))),'rollback-qa');
+ if not(r#>>'{rows,0,ok}')::boolean then raise exception 'BURN_PREPARE_FAILED';end if;
+ select * into bv from product_variants where product_id=burn.id and active and stock>0 and name !~* 'custom'limit 1;
+ begin perform icetak_catalog_check_uploads(burn.id,'[]');raise exception 'MISSING_BURN_IMAGES_ACCEPTED';exception when others then if sqlerrm<>'CATALOG_IMAGE_REQUIRED'then raise;end if;end;
+ ui:=gen_random_uuid();uj:=gen_random_uuid();
+ insert into storage.objects(bucket_id,name)values('catalog-customer-files','qa/'||ui),('catalog-customer-files','qa/'||uj);
+ insert into catalog_customer_uploads(id,product_id,storage_path,original_name,mime_type,bytes,token_hash,ready)values(ui,burn.id,'qa/'||ui,'edible.png','image/png',10,encode(sha256(convert_to(cap,'UTF8')),'hex'),true),(uj,burn.id,'qa/'||uj,'wafer.png','image/png',10,encode(sha256(convert_to(cap,'UTF8')),'hex'),true);
+ order_payload:=jsonb_build_object('checkout_request_id',gen_random_uuid(),'customer',jsonb_build_object('name','Catalogue rollback QA','phone','60100000000','address_line1','No 1 Jalan QA','city','Pasir Puteh','postcode','16800','state','Kelantan'),'items',jsonb_build_array(jsonb_build_object('catalog_slug',burn.slug,'sizeCode','model:'||bv.id,'wording_mode','model_none','qty',1,'price',0.01,'catalog_uploads',jsonb_build_array(jsonb_build_object('id',ui,'token',cap,'layer','edible'),jsonb_build_object('id',uj,'token',cap,'layer','wafer')))),'date_need','2030-10-20','delivery','spx','payment','QR Pay','notify_whatsapp',false,'consent',true);
+ order_result:=icetak_create_order(order_payload);again:=icetak_create_order(order_payload);
+ if order_result->>'order_token'<>again->>'order_token' or (order_result->>'total')::numeric<>bv.price+4.5 then raise exception 'BURN_SHIPPING_OR_RETRY';end if;
+ if(select count(*)from production_components pc join orders o on o.id=pc.order_id where o.public_token=order_result->>'order_token')<>2 then raise exception 'BURN_COMPONENT_SPLIT';end if;
+ if not exists(select 1 from order_items where order_token=order_result->>'order_token'and customization#>>'{layers,edible,size}'=icetak_catalog_layer_size(split_part(bv.name,',',1))and customization#>>'{layers,wafer,size}'=icetak_catalog_layer_size(split_part(bv.name,',',2))and customization#>>'{layers,edible,reference_url}'like '%'||ui::text and customization#>>'{layers,wafer,reference_url}'like '%'||uj::text)then raise exception 'BURN_LAYER_IDENTITY_OR_REFERENCE';end if;
+ if has_function_privilege('anon','public.icetak_catalog_admin(text,jsonb,text)','execute')or has_table_privilege('anon','public.catalog_customer_uploads','select')then raise exception 'PRIVATE_CATALOG_EXPOSED';end if;
+ raise notice 'PASS bulk preview/idempotency/restore, exact model/wording/price, payment amount, retry one order, production, private upload capability/link/no reuse';
+end $$;
+rollback;

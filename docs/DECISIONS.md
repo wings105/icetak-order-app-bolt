@@ -284,3 +284,7 @@ Admin V2 Production Acrylic reuses existing raw task/work/image projections. Onl
 ## 2026-10-16 — Owner-authorized standalone cutting display
 
 Expose only the existing cutting-display DTO through a separate public GET-only Edge Function for an owner-requested office link without login. Reuse the same component, work/status/image projections and colour rules; keep existing admin authentication intact. Store no display session, do not mutate source records, and do not expose raw/contact/payment/finance data. Noindex is an indexing hint and does not make the URL private or bind it to a trusted PC. See ACRYLIC_PRODUCTION.md.
+
+## 2026-10-16 — Shared catalogue prepares website sales without provider mutations
+
+Use existing products/models/profiles and the owner-approved purchase UI. Apply evidence-based model preparation only to clear source listings; keep website prices/publication separate from Shopee. Owner bulk mutations use versioned previews, idempotent receipts and snapshot-checked recovery. Public browse remains invoker/RLS protected. Customer originals are private, capability bound before checkout and order bound afterwards; never store pre-order upload capabilities in public snapshots. Exact checkout retry reuses one order/payment and only this flow uses the existing serialized QR allocator at insertion. Explicit profile and exact catalogue Burn Away model size must survive legacy normalization. See `catalog/STOREFRONT_ROLLOUT.md` for contracts and proof.

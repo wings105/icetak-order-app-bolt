@@ -1,3 +1,7 @@
+## 2026-10-16 — Shared storefront catalogue
+
+- [VERIFIED] Owner bulk preview/configure/readiness/publish/restore, bounded public browse/filter/sort/pagination and the approved catalogue purchase sheet with exact models, wording, custom measurements and private customer originals. Production rollback tests prove authoritative pricing/payment/retry/production/layer/file behavior; rendered ERP/customer desktop/mobile tests and real private upload/cleanup HTTP checks pass. Backend deployed and 1,736 further products prepared; final frontend delivery/publication pending. See docs/catalog/STOREFRONT_ROLLOUT.md.
+
 ## 2026-10-16 — Glossy product purchase UI
 
 - [PRODUCTION] Required Custom Words feedback clears immediately on valid input. PR #97 / cbed08b, Worker a7222f2e; repeated actual public-domain product, image/gallery, clipboard, custom validation, cart and Edit checks pass at mobile/desktop without order/payment creation.

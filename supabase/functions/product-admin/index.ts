@@ -11,12 +11,14 @@ Deno.serve(async req=>{
   const {data:permissions}=await db.from('admin_permissions').select('permissions').eq('username',admin.username).maybeSingle();const owner=admin.role==='owner';
   if(!owner&&!permissions?.permissions?.includes('view_orders')&&!permissions?.permissions?.includes('approve_production'))return out({ok:false,error:'CATALOG_ACCESS_REQUIRED'},403);
   const raw=await req.text();if(raw.length>1500000)return out({ok:false,error:'PAYLOAD_TOO_LARGE'},413);const b=JSON.parse(raw),action=String(b.action||'list');
-  if(!['list','detail','import','complete_import','save','queue','process','close_job','refresh','cache'].includes(action))throw Error('INVALID_ACTION');
+  if(!['list','detail','import','complete_import','save','queue','process','close_job','refresh','cache','catalog_preview','catalog_apply'].includes(action))throw Error('INVALID_ACTION');
   if(!['list','detail'].includes(action)&&!owner)return out({ok:false,error:'OWNER_REQUIRED'},403);
   const call=async(name:string,args:any)=>{const {data,error}=await db.rpc(name,args);if(error)throw Error(error.message);return data;};
   const bridge=async(payload:any)=>{const {data:s}=await db.from('private_runtime_settings').select('setting_value').eq('setting_key','admin_window_bridge_token').single();if(!s?.setting_value)throw Error('PRODUCT_BRIDGE_REQUIRED');const r=await fetch('https://uujcqcsfghqkukaydruc.supabase.co/functions/v1/shopee-product-api',{method:'POST',headers:{'content-type':'application/json','x-admin-window-token':s.setting_value},body:JSON.stringify(payload),signal:AbortSignal.timeout(55000)});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'PRODUCT_BRIDGE_FAILED');return d;};
   const body=b.payload||{};let data:any;
-  if(action==='close_job'){
+  if(action==='list'||action==='detail'||action==='catalog_preview'||action==='catalog_apply'){
+   data=await call('icetak_catalog_admin',{p_action:action.replace('catalog_',''),p_body:body,p_actor:admin.username});
+  }else if(action==='close_job'){
    if(body.acknowledge!==true)throw Error('ACKNOWLEDGEMENT_REQUIRED');data=await call('icetak_product_job',{p_id:body.id,p_action:'close',p_result:{actor:admin.username}});
   }else if(action==='process'){
    const c=await call('icetak_product_job',{p_id:body.id,p_action:'claim'});if(!c.job)return out({ok:true,data:c,is_owner:owner});

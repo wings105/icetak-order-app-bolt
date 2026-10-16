@@ -336,6 +336,8 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
           {draft.reviewRequired && <label className="wide"><span>Design Preview URL</span><input disabled={!canEdit || structuralLocked} value={draft.previewUrl} onChange={(e) => update(draft.clientId, { previewUrl: e.target.value })} /></label>}
         </div>
 
+        {draft.customization?.requested_size&&<p>Saiz diminta (review): {String(draft.customization.requested_size)}</p>}
+        {Array.isArray(draft.customization?.reference_files)&&<div className="struct-components"><b>Gambar rujukan customer</b>{(draft.customization.reference_files as Array<{id:string;name:string;url:string}>).filter(file=>/^https:\/\/buivecgahhmrhlmfujgt\.supabase\.co\/functions\/v1\/catalog-file\?/.test(file.url)).map(file=><a key={file.id} href={file.url} target="_blank" rel="noreferrer">{file.name} ↗</a>)}</div>}
         {(draft.components || []).length > 0 && <div className="struct-components">{(draft.components || []).map((component) => <div className="struct-component" key={component.id}>
           <div className="struct-component-main">
             {component.previewUrl && <a className="struct-component-thumb" href={component.previewUrl} target="_blank" rel="noreferrer"><img src={component.previewUrl} alt="Component preview" onError={(e) => { e.currentTarget.style.display = 'none'; }} /></a>}

@@ -93,3 +93,12 @@ verify_jwt = false
 # Staff-authenticated Knowledge management. Permissions are checked again in code.
 [functions.admin-ai-knowledge]
 verify_jwt = true
+
+[functions.product-admin]
+verify_jwt = true
+
+[functions.catalog-upload]
+verify_jwt = false
+
+[functions.catalog-file]
+verify_jwt = false
