@@ -1,0 +1,39 @@
+# Shared product catalogue
+
+Status: VERIFIED backend/data and controlled UI; production UI delivery pending. Branch `feat/shared-product-catalog`, baseline `eab7199`; preserve later standalone acrylic display commits `ee3dc16` / `14affa8`.
+
+## Catalogue ownership
+
+Order project `buivecgahhmrhlmfujgt` owns products, variants, images, order profiles, channel listings, import receipts and outbound jobs. Inbox project `uujcqcsfghqkukaydruc` owns its bounded product-card cache. Identity is shop + item + model; never SKU. URLs stay on Shopee.
+
+The MY export imported 2,004 listings and 6,488 models; all covers present. One existing product attached by its legacy Shopee ID: 2,011 total canonical products, original 8 published. New website products are drafts until owner chooses a production profile and publishes. Website title/description/prices/stock/publish/production settings are independent of Shopee snapshots. Reimport preserves website changes. Imported file descriptions and variation labels are retained.
+
+Provider read verification: 41 batch reads returned all 2,004 item IDs: 1,967 NORMAL and 37 UNLIST. Stock zero is not listing status. Product pages can refresh actual status.
+
+## Admin and storefront
+
+Admin V2 `?admin=v2&view=products`: cards/search/status/pagination, source gallery, browser XLSX/ZIP import with preview, website profiles and model prices, selected-field Shopee edits and audit/recovery. Owner only imports, edits, publishes, or sends provider updates. Active order/production staff can read.
+
+Storefront extends the existing configurator/cart/checkout. Model UUID is passed as sizeCode, while human variation label remains in cart. Server validates model belongs to the published product, stock/quantity, wording, unit price, variant ID and production settings. Catalogue totals are calculated before creating order/payment session; submitted prices cannot set catalogue payment amounts. Basic-service checkout is retained.
+
+Every imported item is available to Inbox through shop-scoped cache; original message images take precedence. Exact model image wins; cover is fallback. Browser requests deduplicate and batch up to 40 tuples; RPC requires active workspace membership.
+
+## Outbound provider changes
+
+Fixed server-only product endpoints; existing shop credentials remain in Inbox. Private bridge token never enters browser. Supported title, description (extended format), item SKU, Shopee image URLs, model SKU, price, single-location stock and list/unlist. Website values do not change when Shopee changes.
+
+Each owner submission captures provider state and listing revision, records idempotent job, claims it exclusively, compares current state, writes selected fields, then reads actual provider state. Only matching readback is VERIFIED. Unknown outcomes are verification-only on retry; no blind replay. Owner can explicitly close an unknown record without resending. Multi-location stock requires a location-aware extension and is rejected safely. Verified snapshots and Inbox cache refresh separately from website fields.
+
+## Verification evidence
+
+- `node --experimental-strip-types scripts/check-product-catalog.mjs`: parser identity, export mismatch/duplicate/stock guards, exact image matching, API selected-field payloads, extended descriptions, location and readback.
+- `supabase/tests/shared_product_catalog.sql`: transaction rollback assertions for server model/price/stock/wording, persisted order variant/style/price, payment amount, reimport preserving website edits, exclusive/idempotent jobs, unknown recovery, verified provider snapshot preserving website price. No QA orders/jobs remain.
+- Rendered actual Products component at desktop/mobile, parsed all three real exports, edited website price, submitted selected title through mocked provider, matched Inbox model image, selected storefront model and checked cart ID/price. No runtime errors/overflow. Browser plugin unavailable; Playwright used.
+- Actual deployed provider read and verification-only existing-title readback succeeded. Unauthenticated admin and wrong bridge token both rejected (401). Actual member cache lookup returned one exact shop and zero wrong-shop results.
+- No real Shopee product field was changed for QA. Outbound write acceptance remains untested on a changed live listing; UI/DB payload and provider readback paths verified separately.
+
+## Deployment
+
+Apply `supabase/migrations/*catalog*` / product import guard files to Order only. `supabase/inbox-migrations/20261016051429_inbox_catalog_lookup.sql` and `20261016053255_inbox_catalog_invoker.sql` belong to Inbox only. Deploy `product-admin` (JWT + active admin authorization), `shopee-product-api` (custom server bridge auth), and updated `product-catalog-sync` (existing custom auth).
+
+New Order tables use RLS, service-only grants and explicit service policies; no browser direct mutation. Existing public product RLS remains published + active. ClickUp sync stores a source snapshot instead of overwriting owner-managed products.

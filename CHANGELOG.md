@@ -1,3 +1,5 @@
+- [VERIFIED] Shared Shopee/website catalogue: imported 2,004 MY listings and 6,488 models with complete cover/cache images; provider reads confirmed 1,967 active / 37 unlisted. Admin Products, exact Inbox model fallback and storefront variation/cart passed rendered desktop/mobile tests. Server-authoritative order/payment price, model ownership, import preservation and outbound queue recovery passed rollback assertions. Backend deployed; changed-value Shopee writes and authenticated hosted owner session have not been exercised. See docs/catalog/IMPLEMENTATION.md.
+
 ## 2026-10-16 — Standalone acrylic office display
 
 - [PRODUCTION] `/acrylic-production/` opens a dedicated read-only cutting display without login or Admin V2 navigation. Owner-authorized public GET gateway exposes only task/display fields; original admin access remains protected. PR #93 / Worker a3d8141c passed build/deploy and actual main-domain stage/Gold/search smoke with 14 tasks. Usual ClickUp ingestion and one-minute visible-page refresh remain. This public URL is not PC/IP restricted. See docs/ACRYLIC_PRODUCTION.md.

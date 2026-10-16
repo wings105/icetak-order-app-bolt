@@ -27,6 +27,7 @@ const navItems: NavItem[] = [
   { key: 'payments', label: 'Payments', icon: IconPayments },
   { key: 'finance', label: 'Finance', icon: IconFinance },
   { key: 'acrylic-production', label: 'Production Acrylic', icon: IconOrders },
+  { key: 'products', label: 'Produk', icon: IconOrders },
   { key: 'stock', label: 'Stok', icon: IconOrders },
   { key: 'qrpay-summary', label: 'QRPay Daily', icon: IconPayments },
   { key: 'draft-orders', label: 'Draft Orders', icon: IconOrders },
@@ -77,7 +78,7 @@ type FollowupSummary = { counts?: { due?: number; failed?: number } };
 export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false, canViewCustomers = false, canViewPickup = false, canViewAi = false, canManageTemplates = false, canViewStock = false }: Props) {
   const visibleNavItems = navItems.filter((item) => {
     if (['finance','qrpay-summary','draft-orders'].includes(item.key) && !canViewFinance) return false;
-    if (['stock','acrylic-production'].includes(item.key) && !canViewStock) return false;
+    if (['products','stock','acrylic-production'].includes(item.key) && !canViewStock) return false;
     if (item.key === 'customers' && !canViewCustomers) return false;
     if (['ai-dashboard','customer-focus'].includes(item.key) && !canViewAi) return false;
     if (item.key === 'pickup-counter' && !canViewPickup) return false;

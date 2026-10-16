@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {normalizeExports} from '../shared/catalog/import.ts';
+import {validateChange,readState,writeRequest,desiredMatches} from '../supabase/inbox-functions/_shared/product-sync.ts';
+const sheet=(kind,rows)=>({name:kind,rows:[{row:2,cells:{A:kind,D:'188218638'}},...rows.map((cells,i)=>({row:i+7,cells}))]});
+const basic={A:'100',B:'same-sku',C:'Product',D:'Desc'};const media={A:'100',C:'Product',E:'https://cf.shopee.com.my/file/testimage123',Q:'Gold',R:'https://cf.shopee.com.my/file/goldimage123',S:'Rose Gold',T:'https://cf.shopee.com.my/file/roseimage123'};const sale={A:'100',C:'200',D:'Gold,A5',F:'.',G:'12.50',L:'3'};
+const sources=[sheet('basic_info',[basic]),sheet('media_info',[media]),sheet('sales_info',[sale])];
+const d=normalizeExports(sources);assert.equal(d.model_count,1);assert.equal(d.products[0].models[0].image_url,media.R);assert.equal(d.products[0].models[0].sku,'');
+assert.throws(()=>normalizeExports([...sources,sheet('sales_info',[sale])]));assert.throws(()=>normalizeExports([sources[0],sources[1],sheet('sales_info',[{...sale,L:'-1'}])]));assert.throws(()=>normalizeExports(sources,'999'));
+assert.throws(()=>validateChange('item',{unknown:'x'}));assert.throws(()=>validateChange('price',{model_id:'2',original_price:-1}));assert.throws(()=>validateChange('item',{image:{image_id_list:['https://bad']}}));
+const patch=validateChange('price',{model_id:'200',original_price:12.5});assert.deepEqual(writeRequest('100','price',patch),{path:'update_price',body:{item_id:100,price_list:[{model_id:200,original_price:12.5}]}});
+const state=readState({},{model:[{model_id:200,price_info:[{original_price:12.5}]}]},'price',patch);assert(desiredMatches(state,patch,'price'));
+assert.throws(()=>readState({},{model:[{model_id:200,stock_info_v2:{seller_stock:[{stock:1},{stock:2}]}}]},'stock',{model_id:200,stock:3}));
+assert.equal(readState({description_type:'extended',description_info:{extended_description:{field_list:[{field_type:'text',text:'A'},{field_type:'text',text:'B'}]}}},null,'item',{description:'AB'}).description,'AB');
+assert.equal(writeRequest('100','item',{description:'New'}).body.description_info.extended_description.field_list[0].text,'New');
+assert.equal(writeRequest('100','stock',{model_id:200,stock:7},{location_id:'MYZ'}).body.stock_list[0].seller_stock[0].location_id,'MYZ');
+assert(desiredMatches({model_id:200,stock:7,location_id:'MYZ'},{model_id:200,stock:7},'stock'));
+console.log('PASS importer identity, image matching, invalid files, selected fields, payloads, readback and location guard');

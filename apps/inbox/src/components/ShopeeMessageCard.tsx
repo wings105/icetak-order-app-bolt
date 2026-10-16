@@ -1,6 +1,10 @@
+import {useEffect,useState} from 'react';
+import {lookupProduct,productIdentity} from '../lib/productCatalog';
 import {shopeeCard} from '../lib/shopeeCards';
-export function ShopeeMessageCard({type,data}:{type?:string;data?:unknown}){
- const card=shopeeCard(type,data);if(!card)return null;
+export function ShopeeMessageCard({type,data,shopId}:{type?:string;data?:unknown;shopId?:string}){
+ const original=shopeeCard(type,data);const [fallback,setFallback]=useState<{image?:string;title?:string}|null>(null);const identity=productIdentity(data,shopId);
+ useEffect(()=>{let active=true;setFallback(null);if(original&&!original.image&&identity.shop&&identity.item)void lookupProduct(identity.shop,identity.item).then(p=>{if(active&&p){const m=p.models?.find(x=>x.model_id===identity.model);setFallback({image:m?.image_url||p.image_url,title:p.name});}});return()=>{active=false;};},[identity.shop,identity.item,identity.model,original?.image]);
+ if(!original)return null;const card={...original,image:original.image||fallback?.image,title:original.title===original.label?(fallback?.title||original.title):original.title};
  return <section aria-label={card.label} className="mb-1 min-w-[180px] max-w-[300px] overflow-hidden rounded-md border border-black/10 bg-black/[.025] p-3 dark:border-white/15 dark:bg-white/5">
   <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">{card.label}</span>
   {card.image&&<img src={card.image} alt="" loading="lazy" className="mt-2 max-h-28 max-w-full rounded object-contain" onError={e=>{e.currentTarget.hidden=true;}}/>}

@@ -1,0 +1,42 @@
+-- Non-destructive production contract test. Everything, including queued jobs/notifications, rolls back.
+begin;
+do $$
+declare pid uuid; vid uuid; other uuid:=gen_random_uuid(); slug_value text; selection jsonb; created jsonb; oi public.order_items%rowtype; count_before bigint; imported jsonb; request uuid:=gen_random_uuid(); queued jsonb; listing public.product_channel_listings%rowtype;
+begin
+ select p.id,p.slug into pid,slug_value from products p join product_channel_listings c on c.product_id=p.id limit 1;
+ if pid is null then raise exception 'IMPORT_FIRST'; end if;
+ update products set is_published=true,order_profile_id=(select id from product_order_profiles where code='shopee_model_printed') where id=pid;
+ select id into vid from product_variants where product_id=pid limit 1;
+ update product_variants set price=17.35,stock=3,active=true where id=vid;
+ selection:=icetak_validate_catalog_selection(slug_value,'model_none','','model:'||vid);
+ if (selection->>'price')::numeric<>17.35 or (selection->>'product_variant_id')::uuid<>vid then raise exception 'AUTHORITATIVE_PRICE_FAILED'; end if;
+ begin perform icetak_validate_catalog_selection(slug_value,'model_none','','model:'||other); raise exception 'FOREIGN_VARIANT_ACCEPTED'; exception when others then if sqlerrm<>'catalog_model_unavailable' then raise; end if; end;
+ begin perform icetak_validate_catalog_selection(slug_value,'model_custom','','model:'||vid); raise exception 'WORDING_GUARD_FAILED'; exception when others then if sqlerrm<>'custom_wording_required' then raise; end if; end;
+ created:=icetak_create_order(jsonb_build_object('customer',jsonb_build_object('name','Catalog rollback QA','phone','60100000000'),'items',jsonb_build_array(jsonb_build_object('catalog_slug',slug_value,'sizeCode','model:'||vid,'wording_mode','model_none','product_variant_id',other,'price',0.01,'qty',2,'style','FORGED')),'date_need','2030-10-20','delivery','pickup','payment','QR Pay','notify_whatsapp',false,'consent',true));
+ select * into oi from order_items where product_id=pid and order_token=created->>'order_token' limit 1;
+ if oi.id is null or oi.product_variant_id<>vid or oi.price<>17.35 or oi.style='FORGED' or oi.qty<>2 then raise exception 'ORDER_MODEL_PRICE_SNAPSHOT_FAILED'; end if;
+ if (created->>'total')::numeric<>34.70 or not exists(select 1 from payment_sessions ps join orders o on o.id=ps.order_id where o.public_token=created->>'order_token' and ps.base_amount=34.70 and ps.expected_amount=34.70) then raise exception 'AUTHORITATIVE_PAYMENT_TOTAL_FAILED'; end if;
+ begin perform icetak_create_order(jsonb_build_object('customer',jsonb_build_object('name','Catalog rollback QA','phone','60100000000'),'items',jsonb_build_array(jsonb_build_object('catalog_slug',slug_value,'sizeCode','model:'||vid,'wording_mode','model_none','qty',4)),'date_need','2030-10-20','delivery','pickup','payment','QR Pay','notify_whatsapp',false)); raise exception 'STOCK_GUARD_FAILED'; exception when others then if sqlerrm<>'catalog_insufficient_stock' then raise; end if; end;
+ select * into listing from product_channel_listings where product_id=pid limit 1;
+ select count(*) into count_before from products;
+ imported:=icetak_product_admin('import',jsonb_build_object('request_id',gen_random_uuid(),'batch_id',gen_random_uuid(),'shop_id',listing.shop_id,'file_name','rollback-import-regression','products',jsonb_build_array(listing.snapshot)),'qa');
+ if (select count(*) from products)<>count_before or (select price from product_variants where id=vid)<>17.35 or not (select is_published from products where id=pid) then raise exception 'REIMPORT_OVERWROTE_WEBSITE'; end if;
+ select * into listing from product_channel_listings where id=listing.id;
+ queued:=icetak_product_admin('queue',jsonb_build_object('request_id',request,'listing_id',listing.id,'revision',listing.revision,'operation','item','desired',jsonb_build_object('patch',jsonb_build_object('item_name','QA'),'expected',jsonb_build_object('item_name','Original'))),'qa');
+ perform icetak_product_admin('queue',jsonb_build_object('request_id',request,'listing_id',listing.id,'revision',listing.revision,'operation','item','desired',jsonb_build_object('patch',jsonb_build_object('item_name','QA'),'expected',jsonb_build_object('item_name','Original'))),'qa');
+ if (select count(*) from product_sync_jobs where request_id=request)<>1 then raise exception 'QUEUE_IDEMPOTENCY_FAILED'; end if;
+ perform icetak_product_job((queued->>'id')::uuid,'claim');
+ begin perform icetak_product_job((queued->>'id')::uuid,'claim');raise exception 'DOUBLE_CLAIM_ALLOWED'; exception when others then if sqlerrm<>'JOB_NOT_PROCESSABLE' then raise; end if; end;
+ perform icetak_product_job((queued->>'id')::uuid,'finish','{"status":"unknown"}');
+ if not (icetak_product_job((queued->>'id')::uuid,'claim')->>'verify_only')::boolean then raise exception 'UNKNOWN_WRITE_REPLAY_ALLOWED'; end if;
+ perform icetak_product_job((queued->>'id')::uuid,'finish','{"status":"unknown"}');
+ perform icetak_product_job((queued->>'id')::uuid,'close','{"actor":"qa"}');
+ if (select status from product_sync_jobs where id=(queued->>'id')::uuid)<>'cancelled' then raise exception 'OWNER_CLOSE_FAILED'; end if;
+ select * into listing from product_channel_listings where product_id=pid limit 1;
+ queued:=icetak_product_admin('queue',jsonb_build_object('request_id',gen_random_uuid(),'listing_id',listing.id,'revision',listing.revision,'operation','price','desired',jsonb_build_object('patch',jsonb_build_object('model_id',(select metadata->>'shopee_model_id' from product_variants where id=vid),'original_price',9.99),'expected','{}'::jsonb)),'qa');
+ perform icetak_product_job((queued->>'id')::uuid,'claim');
+ perform icetak_product_job((queued->>'id')::uuid,'finish',jsonb_build_object('status','verified','state',jsonb_build_object('model_id',(select metadata->>'shopee_model_id' from product_variants where id=vid),'original_price',9.99)));
+ if (select price from product_variants where id=vid)<>17.35 or (select (metadata#>>'{provider_snapshot,price}')::numeric from product_variants where id=vid)<>9.99 then raise exception 'PROVIDER_WRITE_OVERWROTE_WEBSITE'; end if;
+ raise notice 'PASS authoritative model price, model ownership, wording, persisted order variant/style/price, stock limit, queue idempotency, exclusive claim and unknown verification-only';
+end $$;
+rollback;

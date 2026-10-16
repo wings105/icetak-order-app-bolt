@@ -156,7 +156,12 @@ Deno.serve(async (request) => {
 
     const { data: batch, error: batchError } = await admin.from('product_import_batches').insert({ source: 'clickup', status: 'processing', row_count: rows.length, summary: { list_id: targetListId, mode: rows.length === 1 ? 'single' : 'batch' } }).select('id').single();
     if (batchError) throw batchError;
-    const { data: products, error: productError } = await admin.from('products').upsert(rows, { onConflict: 'clickup_task_id' }).select('id,clickup_task_id,slug,order_profile_id');
+    const {data:managed,error:managedError}=await admin.from('products').select('id,clickup_task_id,metadata').in('clickup_task_id',rows.map(x=>x.clickup_task_id)).eq('metadata->>catalog_managed','true');
+    if(managedError)throw managedError;
+    const managedIds=new Set((managed||[]).map(x=>x.clickup_task_id));
+    for(const p of managed||[]){const snapshot=rows.find(x=>x.clickup_task_id===p.clickup_task_id);const {error}=await admin.from('products').update({metadata:{...p.metadata,clickup_snapshot:snapshot}}).eq('id',p.id);if(error)throw error;}
+    const writable=rows.filter(x=>!managedIds.has(x.clickup_task_id));
+    const { data: products, error: productError } = writable.length?await admin.from('products').upsert(writable, { onConflict: 'clickup_task_id' }).select('id,clickup_task_id,slug,order_profile_id'):{data:[],error:null};
     if (productError) {
       await admin.from('product_import_batches').update({ status: 'failed', error_count: rows.length, summary: { error: productError.message } }).eq('id', batch.id);
       throw productError;

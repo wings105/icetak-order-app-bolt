@@ -1,3 +1,7 @@
+## Shared Shopee catalogue extension — 2026-10-16
+
+Admin V2 Products (`?admin=v2&view=products`) now manages Shopee exports, website profiles/model prices and selected-field provider updates. Canonical products are reused; website publication and provider status are independent. Exact shop/item/model identities and source image URLs are retained. New imports remain website drafts until owner configures and publishes. Existing basic-service checkout remains available. See [implementation](catalog/IMPLEMENTATION.md) for the deployed contracts, verification, supported fields and recovery semantics.
+
 # Product catalogue — Supabase runtime
 
 Supabase is the source of truth for the iCetak order system and product catalogue.
