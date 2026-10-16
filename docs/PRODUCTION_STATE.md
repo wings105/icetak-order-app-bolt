@@ -1,3 +1,7 @@
+# 2026-10-17 — Full storefront catalogue
+
+PRODUCTION storefront/backend/data; controlled ERP owner UI VERIFIED. PR #98 `0c87db99981967baf069913a1e6ac1b6427ba7f6` / Worker `70652bce-1f42-4a55-b470-c2da6a3d709b` passed Workers Builds, guard and deploy. Public shop has 1,738 searchable/buyable designs and six basic services; 266 source products remain for readiness review. Exact models/wording/custom size and private originals reach authoritative checkout/production; preview/configure/publish/restore is audited and bounded. Actual public mobile/desktop home/browse/search/sort/page, five categories, upload/cart/Edit passed without page errors or real orders. Hosted catalogue/configurator/dashboard/Products JS matches tested code after import-filename normalization; Products CSS is exact. Seven migrations and product-admin v4, upload/file v1 and outbox v43 verified. Private QA originals cleaned; no QA order/payment/provider job. Signed-in owner browser and changed-value Shopee writes remain unexercised. See [rollout evidence and review counts](catalog/STOREFRONT_ROLLOUT.md).
+
 # 2026-10-16 — Glossy product storefront
 
 Follow-up PRODUCTION: PR #97 `cbed08b`, Worker `a7222f2e-a272-4e5e-bce2-1ed50926e8ed` clears required-wording feedback immediately on valid input. Actual public-domain mobile/desktop product, gallery, clipboard, options, cart and Edit repeated successfully at 13:50 UTC; served configurator matches tested build. No order/payment submitted.

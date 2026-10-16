@@ -1,6 +1,6 @@
 # Storefront catalogue rollout
 
-Status: VERIFIED backend/data and controlled rendered customer/ERP flow; production frontend delivery and final publication pending. Owner authorized the complete original storefront plan on 2026-10-16 after approving the Glossy purchase surface. Based on production `a9920ca`; existing basic services, Inbox and independent Shopee edit jobs are retained.
+Status: PRODUCTION storefront/backend/data; controlled rendered ERP owner actions VERIFIED. PR #98 / `0c87db99981967baf069913a1e6ac1b6427ba7f6`, Cloudflare Worker `70652bce-1f42-4a55-b470-c2da6a3d709b`; production Workers Build, guard and shipping deploy passed. Owner authorized the complete original storefront plan on 2026-10-16 after approving the Glossy purchase surface. Based on production `a9920ca`; existing basic services, Inbox and independent Shopee edit jobs are retained.
 
 ## Catalogue and administration
 
@@ -8,7 +8,7 @@ Status: VERIFIED backend/data and controlled rendered customer/ERP flow; product
 
 Preparation uses evidence from source title, SKU and material description to suggest one production type, selects its exact model profile/category, preserves website model prices, and stores website-only description and order settings. NORMAL source status, one source listing, a cover and available priced models are required for automatic preparation. Ready-stock, unsupported, unavailable, unlisted or ambiguous records remain visible for owner review. Provider status and website publication remain independent. Manual configuration can explicitly choose the category, process, price source/fixed price and wording/review/upload flags. Reimport preserves website changes. No SKU identity joins or Shopee field writes are introduced.
 
-Original 8 published products preserved. One real Spiderman product published through audited owner-authorized preparation (`00e02ee8-bd3d-414f-bbf4-01b63dbfd89f`, request `ad9b2465-5590-43dd-8e4d-28adc305433c`). A further 1,736 products prepared as drafts through the same bounded audited RPC, ready for publication after frontend delivery. All 2,004 source listings remain; zero outbound product jobs.
+Original 8 published products preserved. One real Spiderman product published through audited owner-authorized preparation (`00e02ee8-bd3d-414f-bbf4-01b63dbfd89f`, request `ad9b2465-5590-43dd-8e4d-28adc305433c`). A further 1,736 products were prepared and then published after hosted frontend delivery, through 44 audited batches of at most 40. Final public catalogue: 1,738 designs (1,379 printed, 355 edible, two acrylic, one wafer and one Burn Away), alongside the six basic service shortcuts. Database publication count is 1,745, including six basic services and the legacy no-cover demo omitted from browsing. All published Shopee products pass readiness. The remaining 266 source products stay in review: ready-stock/non-custom policy (238), inactive/unreviewed listing (37), unknown production category (4), no available priced variation (3); reasons overlap. All 2,004 source listings and 6,488 models remain; zero outbound product jobs.
 
 ## Customer storefront
 
@@ -32,7 +32,7 @@ Two legacy trigger defects were found by real rollback tests and corrected narro
 
 Order migrations: 20261016140328 readiness, 140336 uploads, 141230 checkout integrity, 141916 profile guard, 142041 payment allocation, 143504 custom-size details, 143917 Burn Away sizes (all dated 2026-10-16).
 
-product-admin v4: existing JWT/active admin gates. catalog-upload v1: public upload admission plus random capability/private cleanup authentication. catalog-file v1: exact order capability. clickup-production-outbox v43: existing custom secret/one-per-claim behavior retained. Exact source/auth readback of v4/v1/v1/v42 passed before the final one-line requested-size outbox addition; repeat final v43 readback on release. No provider credentials enter browsers or source.
+product-admin v4: existing JWT/active admin gates. catalog-upload v1: public upload admission plus random capability/private cleanup authentication. catalog-file v1: exact order capability. clickup-production-outbox v43: existing custom secret/one-per-claim behavior retained. Exact source/auth readback of v4/v1/v1 and final outbox v43 passed, including its unchanged task-fields module. No provider credentials enter browsers or source.
 
 ## Verification
 
@@ -40,8 +40,12 @@ product-admin v4: existing JWT/active admin gates. catalog-upload v1: public upl
 - A separate rollback assertion proves partial bulk success and website fixed-price changes leave the provider snapshot unchanged. Previous shared catalogue test passes.
 - Actual Vite storefront and Products + ERP shell with real product read fixtures and mocked gateways: 1440×1000, 390×844, 320×640. Selected bulk preview/partial result, restore preview, website description, home cards, sort/pagination, Glossy custom/image cart, Edible model-specific wording, Acrylic required wording, Wafer required image, Burn Away separate images and contained mobile layout pass without page errors. Browser plugin absent; Playwright used. Screenshots compared to the approved existing orange/white purchase design; titles, gallery framing, corner utilities, modal controls and bottom footer checked. No generated visual concept needed for this extension of the accepted design system.
 - Actual deployed upload/preview/signed original download 200; downloaded bytes exactly match original. Wrong upload token 404, public object 400, wrong order 404, anonymous admin 401. Cleanup returned 200/removed 1; smoke record and storage object both absent. No customer/provider send.
-- Eleven ClickUp task field/handler tests, importer checks, targeted TypeScript, full root+Inbox build and diff whitespace pass. Security advisor baseline 7 / after 7, no new findings.
+- Eleven ClickUp task field/handler tests, importer checks, targeted TypeScript, full root+Inbox build and diff whitespace pass. Security advisor lint categories remain seven; private catalogue tables intentionally have service-only RLS without browser policies. Existing unrelated findings remain outside this release.
 
-## Release work remaining
+## Production verification and operating boundary
 
-Merge/deploy the tested frontend, publish the prepared ready products in bounded audited batches, verify real public search/category/price/page and product/options/cart/upload with live data, record exact release/Worker/bundle and final published/review counts. Hosted signed-in staff actions are not available in this session; controlled ERP and live service contracts are the verification boundary.
+Actual `https://shop.decocake.my/` smoke passed with real anonymous reads, no mocked gateway: home twelve-card grid; full 1,738-design catalogue; Spiderman search; category counts; page two; price sort resetting the page; real cover decoding; contained 320/390/1440 layouts. Exact SKU `YS0213` and item ID `13275066192` each return one catalogue record. Printed, acrylic, edible, Burn Away and wafer exact model/options/required inputs, Buy Now to cart and Edit passed. Three real harmless original uploads (two Burn Away layers and one wafer) reached the live cart; local test cart cleared and originals cleaned afterward. No page errors, real order submission, payment or customer/provider send.
+
+Hosted modules match the tested source after normalizing only imported build filenames: `product-catalog-DmNeDyMB.js`, `catalog-configurator-BtE5azkw.js`, `customer-catalog-dashboard-CmEm3Rz2.js`, `Products-DeTDR035.js`. Products CSS `Products-Czg1sPpT.css` is byte-identical. Public main entry is `main-D5KWTd1l.js`.
+
+Hosted signed-in staff actions are not available in this session; controlled rendered ERP plus live service/audit contracts are the verification boundary. Owner can use Products > website readiness / selected bulk controls to review the remaining products. Changed-value Shopee API writes remain unexercised to preserve live listings. Payment/order/production writes were validated in real production database transactions that rolled back; no actual paid customer order was created for QA.

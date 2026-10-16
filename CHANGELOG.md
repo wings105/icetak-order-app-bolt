@@ -1,6 +1,6 @@
-## 2026-10-16 — Shared storefront catalogue
+## 2026-10-17 — Shared storefront catalogue
 
-- [VERIFIED] Owner bulk preview/configure/readiness/publish/restore, bounded public browse/filter/sort/pagination and the approved catalogue purchase sheet with exact models, wording, custom measurements and private customer originals. Production rollback tests prove authoritative pricing/payment/retry/production/layer/file behavior; rendered ERP/customer desktop/mobile tests and real private upload/cleanup HTTP checks pass. Backend deployed and 1,736 further products prepared; final frontend delivery/publication pending. See docs/catalog/STOREFRONT_ROLLOUT.md.
+- [PRODUCTION] PR #98 / `0c87db9`, Worker `70652bce` delivers owner bulk preview/configure/readiness/publish/restore and the approved customer purchase sheet with exact models, wording, custom measurements and private originals. The live shop now browses/searches 1,738 designs alongside six basic services; 266 source products remain in review. Actual desktop/mobile browse, five production categories, upload/cart/Edit and hosted bundle checks pass; real rollback tests cover pricing, QR retry/allocation, shipping, components and private files. No QA order/payment/provider send. See docs/catalog/STOREFRONT_ROLLOUT.md.
 
 ## 2026-10-16 — Glossy product purchase UI
 
