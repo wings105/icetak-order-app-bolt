@@ -1,6 +1,6 @@
 # Shared product catalogue
 
-Status: VERIFIED backend/data and controlled UI; production UI delivery pending. Branch `feat/shared-product-catalog`, baseline `eab7199`; preserve later standalone acrylic display commits `ee3dc16` / `14affa8`.
+Status: PRODUCTION delivery and backend/data; controlled UI VERIFIED. PR #94 merged as `370c2d34838881577fe934e9d85028ce27bda28e`, tree `ae3eb4736a7dac0ee6e566598c6e6e935cc6f654`. Later standalone acrylic display commits `ee3dc16` / `14affa8` are preserved.
 
 ## Catalogue ownership
 
@@ -37,3 +37,11 @@ Each owner submission captures provider state and listing revision, records idem
 Apply `supabase/migrations/*catalog*` / product import guard files to Order only. `supabase/inbox-migrations/20261016051429_inbox_catalog_lookup.sql` and `20261016053255_inbox_catalog_invoker.sql` belong to Inbox only. Deploy `product-admin` (JWT + active admin authorization), `shopee-product-api` (custom server bridge auth), and updated `product-catalog-sync` (existing custom auth).
 
 New Order tables use RLS, service-only grants and explicit service policies; no browser direct mutation. Existing public product RLS remains published + active. ClickUp sync stores a source snapshot instead of overwriting owner-managed products.
+
+## Hosted release evidence — 2026-10-16 05:42 UTC
+
+Workers Builds and Public Domain Guard passed for release `370c2d3`. Cloudflare version `a69a5033-5389-46b2-9bb2-fd033f24dbbb`. Main-domain `?admin=v2&view=products` renders the expected secure Admin V2 login without app runtime errors; no authenticated staff session was available.
+
+Actual root entry: `main-C9ThU8Ip.js`. Followed its module references to actual served files rather than assuming local asset filenames. Hosted `Products-lvwPWkSI.js` and `catalog-configurator-B9FqDMv_.js` match the locked local build after normalizing only imported JS/CSS content-hash filenames (deployment public environment changes the dependency filenames). Hosted Inbox `index-D4ejgXNz.js` is byte-identical: SHA256 `7768738760be991b958b59ea5ee6de95f38224c72e42332cf17449ffaaa6e1b4`. Release source tree is exactly the tested source tree.
+
+Final provider bridge v3 stock verification-only read returned VERIFIED for model location `MYZ` / stock 14, without issuing a write. All 2,004 listing statuses and 2,004 import audit rows persist; no outbound product jobs or QA orders remain. Authenticated hosted owner mutations and a changed-value provider write remain unexercised.
