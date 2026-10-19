@@ -81,7 +81,7 @@ function localConversationMatches(conversation: Conversation, rawQuery: string):
   if (searchableText.includes(query)) return true;
 
   const queryDigits = digitsOnly(rawQuery);
-  if (queryDigits.length < 3) return false;
+  if (!/^[+0-9() .-]+$/.test(rawQuery.trim()) || queryDigits.length < 7) return false;
 
   const storedPhones = [conversation.customer.phone]
     .filter((value): value is string => Boolean(value))
@@ -129,17 +129,20 @@ export function ConversationList({ conversations, selectedId, selectedOrderId, o
   const isSearchMode = currentSearch.length >= 2;
   const serverQueryMatchesCurrent = debouncedSearch.trim() === currentSearch;
 
-  const { results: remoteSearchResults, loading: remoteSearchLoading } = useSearch(debouncedSearch);
-  const searchResults = serverQueryMatchesCurrent ? remoteSearchResults : [];
-  const searchLoading = serverQueryMatchesCurrent && remoteSearchLoading;
+  const { results: remoteSearchResults, loading: remoteSearchLoading, error: remoteSearchError, retry } = useSearch(debouncedSearch);
+  const searchResults = useMemo(() => serverQueryMatchesCurrent ? remoteSearchResults : [], [serverQueryMatchesCurrent, remoteSearchResults]);
+  const searchLoading = isSearchMode && (!serverQueryMatchesCurrent || remoteSearchLoading);
+  const searchError = serverQueryMatchesCurrent ? remoteSearchError : null;
   const conversationSearchResults = useMemo(
-    () => searchResults.filter((result) => result.resultType === 'conversation' && result.conversationId),
-    [searchResults],
+    () => searchResults.filter((result) => result.resultType === 'conversation' && result.conversationId && (channelFilter === 'all' || result.channel === channelFilter)),
+    [searchResults, channelFilter],
   );
   const orderSearchResults = useMemo(
-    () => searchResults.filter((result) => result.resultType === 'order' && result.orderSummaryId),
-    [searchResults],
+    () => searchResults.filter((result) => result.resultType === 'order' && result.orderSummaryId && (channelFilter === 'all' || result.channel === channelFilter)),
+    [searchResults, channelFilter],
   );
+  const loadedIds = useMemo(() => new Set(conversations.map((row) => row.id)), [conversations]);
+  const unloadedResults = conversationSearchResults.filter((result) => !loadedIds.has(result.conversationId as string));
   const searchResultMap = useMemo(
     () => new Map(conversationSearchResults.map((result) => [result.conversationId as string, result])),
     [conversationSearchResults],
@@ -240,13 +243,15 @@ export function ConversationList({ conversations, selectedId, selectedOrderId, o
         </div>
         {isSearchMode && (
           <p className="text-[11px] text-[var(--text-secondary)] dark:text-[var(--text-secondary)] mt-1.5 px-1">
-            {filteredConversations.length === 0 && orderSearchResults.length === 0 && searchLoading
+            {searchLoading
               ? 'Mencari…'
-              : filteredConversations.length === 0 && orderSearchResults.length === 0
+              : searchError ? 'Carian gagal. Sila cuba semula.'
+              : filteredConversations.length === 0 && unloadedResults.length === 0 && orderSearchResults.length === 0
                 ? 'Tiada keputusan ditemui'
-                : `${filteredConversations.length} chat · ${orderSearchResults.length} order`}
+                : `${filteredConversations.length + unloadedResults.length} chat · ${orderSearchResults.length} order`}
           </p>
         )}
+        {isSearchMode && searchError && <button onClick={retry} className="mt-2 text-xs text-red-700 dark:text-red-300">Cuba semula carian</button>}
       </div>
 
       <div className="flex gap-1 px-3 pt-2 pb-1 overflow-x-auto overscroll-x-contain" style={{ scrollbarWidth: 'thin' }}>
@@ -301,7 +306,7 @@ export function ConversationList({ conversations, selectedId, selectedOrderId, o
       {isSearchMode && <div className="border-b border-[#e9edef] dark:border-[var(--border)]" />}
 
       <div className="flex-1 overflow-y-auto">
-        {filteredConversations.length === 0 && orderSearchResults.length === 0 && !searchLoading ? (
+        {filteredConversations.length === 0 && unloadedResults.length === 0 && orderSearchResults.length === 0 && !searchLoading && !searchError ? (
           <div className="flex h-40 flex-col items-center justify-center gap-2 text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
             <Search size={24} strokeWidth={1.5} />
             <p className="text-sm">{isSearchMode ? 'Tiada order atau perbualan ditemui' : 'Tiada perbualan ditemui'}</p>
@@ -317,6 +322,12 @@ export function ConversationList({ conversations, selectedId, selectedOrderId, o
                 onClick={() => onOrderSelect(result.orderSummaryId as string, result.conversationId)}
               />
             ))}
+            {isSearchMode && unloadedResults.map((result) => <button key={result.resultId} onClick={() => onSelect(result.conversationId as string, result.messageHits[0]?.messageId)} className="w-full border-b border-[#e9edef] px-4 py-3 text-left hover:bg-[#f5f6f6] dark:border-[#222e35] dark:hover:bg-[#202c33]">
+              <div className="flex items-center justify-between gap-2"><p className="truncate text-sm font-semibold text-[#111b21] dark:text-[#e9edef]">{result.title}</p><ChannelBadge channel={result.channel as Channel} /></div>
+              <p className="mt-0.5 truncate text-xs text-[#667781] dark:text-[#8696a0]">{result.subtitle}</p>
+              <p className="mt-1.5 line-clamp-2 text-xs text-[#41525d] dark:text-[#aebac1]"><HighlightedText text={result.snippet} query={currentSearch} /></p>
+              <p className="mt-1 text-[11px] text-[#00a884]">{result.matchedField}</p>
+            </button>)}
             {filteredConversations.map((conversation) => {
               const searchResult = searchResultMap.get(conversation.id);
               const firstHitMessageId = searchResult?.messageHits[0]?.messageId;

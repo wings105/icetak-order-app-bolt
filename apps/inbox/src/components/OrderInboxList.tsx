@@ -143,7 +143,34 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
   const inputRef = useRef<HTMLInputElement>(null);
   const debouncedSearch = useDebounce(searchQuery, 300);
   const isSearchMode = searchQuery.trim().length >= 2;
-  const { results, loading: searchLoading } = useSearch(debouncedSearch);
+  const { results, loading: remoteLoading, error: searchError, retry } = useSearch(debouncedSearch);
+  const queryMatches = searchQuery.trim() === debouncedSearch.trim();
+  const [searchOrders, setSearchOrders] = useState<ExternalOrderSummary[]>([]);
+  const [loadedSearchKey, setLoadedSearchKey] = useState('');
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const currentResults = queryMatches ? results : [];
+  const searchKey = JSON.stringify([debouncedSearch.trim(), currentResults.filter((row) => row.resultType === 'order').map((row) => row.orderSummaryId)]);
+  const searchLoading = isSearchMode && (!queryMatches || remoteLoading || loadedSearchKey !== searchKey);
+
+  useEffect(() => {
+    const ids: string[] = JSON.parse(searchKey)[1];
+    const controller = new AbortController();
+    let cancelled = false;
+    setSearchOrders([]);
+    setDetailError(null);
+    if (!ids.length) { setLoadedSearchKey(searchKey); return; }
+    const timeout = window.setTimeout(() => controller.abort(), 12000);
+    void (async () => {
+      try {
+        const { data, error } = await supabase.from('external_order_summaries').select('*').in('id', ids).abortSignal(controller.signal);
+        if (error) throw error;
+        if (!cancelled) setSearchOrders((data ?? []) as ExternalOrderSummary[]);
+      } catch (reason) {
+        if (!cancelled) setDetailError(typeof reason === 'object' && reason !== null && 'message' in reason ? String(reason.message) : String(reason));
+      } finally { window.clearTimeout(timeout); if (!cancelled) setLoadedSearchKey(searchKey); }
+    })();
+    return () => { cancelled = true; window.clearTimeout(timeout); controller.abort(); };
+  }, [searchKey]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -165,10 +192,10 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
     return () => { void supabase.removeChannel(channel); };
   }, [load]);
 
-  const orderById = useMemo(() => new Map(orders.map((order) => [order.id, order])), [orders]);
-  const remoteOrderIds = useMemo(() => results
+  const orderById = useMemo(() => new Map([...orders, ...searchOrders].map((order) => [order.id, order])), [orders, searchOrders]);
+  const remoteOrderIds = currentResults
     .filter((result) => result.resultType === 'order' && result.orderSummaryId)
-    .map((result) => result.orderSummaryId as string), [results]);
+    .map((result) => result.orderSummaryId as string);
 
   const visibleOrders = useMemo(() => {
     const source = isSearchMode
@@ -203,7 +230,7 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
           {searchQuery && <button onClick={() => { onSearchChange(''); inputRef.current?.focus(); }} className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text)]"><X size={14} /></button>}
         </div>
         <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--text-secondary)]">
-          <span>{isSearchMode ? `${visibleOrders.length} hasil order` : `${orders.length} order diselaraskan`}</span>
+          <span>{isSearchMode ? searchLoading ? 'Mencari…' : `${visibleOrders.length} hasil order` : `${orders.length} order diselaraskan`}</span>
           <button onClick={() => { void load(); }} className="inline-flex items-center gap-1 hover:text-[var(--text)]"><RefreshCw size={11} />Refresh</button>
         </div>
       </div>
@@ -225,9 +252,11 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {error ? (
+        {isSearchMode && (searchError || detailError) ? (
+          <div className="m-3 rounded-lg bg-red-50 p-3 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">Carian gagal. <button onClick={retry}>Cuba semula carian</button></div>
+        ) : error ? (
           <div className="m-3 rounded-lg border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/30 p-3 text-xs text-red-700 dark:text-red-300"><AlertCircle size={14} className="mb-1" />{error}</div>
-        ) : loading && orders.length === 0 ? (
+        ) : (isSearchMode ? searchLoading : loading && orders.length === 0) ? (
           <div className="flex h-40 items-center justify-center gap-2 text-xs text-[var(--text-secondary)]"><Loader2 size={16} className="animate-spin" />Memuatkan order…</div>
         ) : visibleOrders.length === 0 ? (
           <div className="flex h-40 flex-col items-center justify-center gap-2 text-[var(--text-secondary)]"><Clock3 size={24} /><p className="text-xs">Tiada order untuk paparan ini.</p></div>

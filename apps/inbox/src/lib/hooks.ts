@@ -56,6 +56,7 @@ export interface UseConversationsResult {
   loading: boolean;
   error: string | null;
   reload: () => void;
+  ensureConversation: (id: string) => Promise<void>;
 }
 
 export function useConversations(): UseConversationsResult {
@@ -63,6 +64,22 @@ export function useConversations(): UseConversationsResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadedOnceRef = useRef(false);
+  const ensuredIdsRef = useRef(new Set<string>());
+
+  const ensureConversation = useCallback(async (id: string) => {
+    const { data, error } = await supabase.from('conversations').select(CONVERSATION_LIST_SELECT).eq('id', id).single();
+    if (error) throw error;
+    const dbConv = data as unknown as DbConversation;
+    const [identities, addresses, items, preview] = await Promise.all([
+      supabase.from('customer_identities').select('customer_id, channel, username, normalized_phone').eq('customer_id', dbConv.customer_id),
+      supabase.from('customer_addresses').select('customer_id, address_line_1, postcode, city, state, is_default').eq('customer_id', dbConv.customer_id),
+      dbConv.order_id ? supabase.from('order_items').select('order_id, product_name, variation').eq('order_id', dbConv.order_id) : Promise.resolve({ data: [] }),
+      supabase.from('latest_conversation_message_previews').select('id, conversation_id, direction, message_type, text_content, created_at, status, media_url, provider_message_id, reply_to_provider_message_id, reactions').eq('conversation_id', id),
+    ]);
+    const mapped = mapConversation({ dbConv, identities: (identities.data ?? []) as DbCustomerIdentity[], addresses: (addresses.data ?? []) as DbCustomerAddress[], items: (items.data ?? []) as DbOrderItem[], clickup: [] }, (preview.data ?? []) as DbMessage[]);
+    ensuredIdsRef.current.add(id);
+    setConversations((previous) => previous.some((row) => row.id === id) ? previous : [...previous, mapped]);
+  }, []);
 
   const load = useCallback(async () => {
     if (!loadedOnceRef.current) setLoading(true);
@@ -133,7 +150,8 @@ export function useConversations(): UseConversationsResult {
         return mapConversation(detail, latestMsg ? [latestMsg] : []);
       });
 
-      setConversations(mapped);
+      const mappedIds = new Set(mapped.map((row) => row.id));
+      setConversations((previous) => [...mapped, ...previous.filter((row) => ensuredIdsRef.current.has(row.id) && !mappedIds.has(row.id))]);
     } catch (err) {
       const message = err instanceof Error
         ? err.message
@@ -149,7 +167,7 @@ export function useConversations(): UseConversationsResult {
 
   useEffect(() => { load(); }, [load]);
 
-  return { conversations, loading, error, reload: load };
+  return { conversations, loading, error, reload: load, ensureConversation };
 }
 
 // ── useMessages ───────────────────────────────────────────────────────────────
@@ -195,24 +213,30 @@ export interface UseSearchResult {
   results: SearchResult[];
   loading: boolean;
   error: string | null;
+  retry: () => void;
 }
 
 export function useSearch(rawQuery: string): UseSearchResult {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+  const [completedQuery, setCompletedQuery] = useState<string | null>(null);
 
   useEffect(() => {
     const q = rawQuery.trim();
-    if (q.length < 2) { setResults([]); setLoading(false); return; }
+    if (q.length < 2) { setResults([]); setLoading(false); setError(null); setCompletedQuery(q); return; }
 
     let cancelled = false;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 12000);
+    setResults([]);
     setLoading(true);
     setError(null);
 
     async function run() {
       try {
-        const { data, error: rpcError } = await supabase.rpc('search_unified_inbox', { p_query: q, p_limit: 60 });
+        const { data, error: rpcError } = await supabase.rpc('search_unified_inbox', { p_query: q, p_limit: 60 }).abortSignal(controller.signal);
         if (rpcError) throw rpcError;
         if (cancelled) return;
         const mapped = ((data ?? []) as Array<Record<string, unknown>>).map((row): SearchResult => {
@@ -240,17 +264,19 @@ export function useSearch(rawQuery: string): UseSearchResult {
         });
         setResults(mapped);
       } catch (reason) {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason));
+        if (!cancelled) setError(reason instanceof Error ? reason.message : typeof reason === 'object' && reason !== null && 'message' in reason ? String(reason.message) : String(reason));
       } finally {
-        if (!cancelled) setLoading(false);
+        window.clearTimeout(timeout);
+        if (!cancelled) { setLoading(false); setCompletedQuery(q); }
       }
     }
 
     void run();
-    return () => { cancelled = true; };
-  }, [rawQuery]);
+    return () => { cancelled = true; window.clearTimeout(timeout); controller.abort(); };
+  }, [rawQuery, retryKey]);
 
-  return { results, loading, error };
+  const pending = rawQuery.trim().length >= 2 && completedQuery !== rawQuery.trim();
+  return { results: pending ? [] : results, loading: loading || pending, error: pending ? null : error, retry: () => setRetryKey((value) => value + 1) };
 }
 
 // ── useMessagesSearch ─────────────────────────────────────────────────────────

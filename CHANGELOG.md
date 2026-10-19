@@ -1,3 +1,7 @@
+## 2026-10-19 — Unified Inbox search
+
+- [VERIFIED] Live Inbox search returns the screenshot order `2610180JM6FM25`; candidate-first message/identity search and indexed exact-order lookup replace the broad join. Final read measured 35 ms versus the original 969 ms (database only). Exact order searches retain message-only chat matches; Malaysian phone variants, literal wildcard escaping and bounded results pass authenticated read-only regressions. Search runs as invoker and is unavailable to anon. Controlled desktop/mobile UI proves historical chat visibility/opening, orders outside the first 300, loading/error/retry, channel filtering and obsolete-request cancellation. Frontend delivery awaits the hosting pipeline; signed-in hosted staff interaction remains unexercised. See docs/INBOX_SEARCH.md.
+
 ## 2026-10-17 — Shared storefront catalogue
 
 - [PRODUCTION] PR #98 / `0c87db9`, Worker `70652bce` delivers owner bulk preview/configure/readiness/publish/restore and the approved customer purchase sheet with exact models, wording, custom measurements and private originals. The live shop now browses/searches 1,738 designs alongside six basic services; 266 source products remain in review. Actual desktop/mobile browse, five production categories, upload/cart/Edit and hosted bundle checks pass; real rollback tests cover pricing, QR retry/allocation, shipping, components and private files. No QA order/payment/provider send. See docs/catalog/STOREFRONT_ROLLOUT.md.

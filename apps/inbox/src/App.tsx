@@ -100,7 +100,7 @@ function buildOrderOnlyConversation(order: ExternalOrderSummary, messages: Messa
 }
 
 function InboxApp() {
-  const { conversations, loading, error, reload } = useConversations();
+  const { conversations, loading, error, reload, ensureConversation } = useConversations();
   const orderSessionsByConversation = useOrderSessionStatuses(conversations);
   const { tags: allTags, byConversation, reload: reloadTags } = useConversationTags();
   const googleNamesByPhone = useGoogleContactNames(conversations);
@@ -172,6 +172,9 @@ function InboxApp() {
   }, [activeConversation]);
 
   function handleSelect(id: string, firstMatchMsgId?: string) {
+    if (!conversations.some((row) => row.id === id)) {
+      void ensureConversation(id).catch((reason) => window.alert(`Gagal membuka chat: ${reason?.message ?? reason}`));
+    }
     setSelectedOrder(null);
     setSelectedOrderConversationId(null);
     setSelectedId(id);
@@ -186,6 +189,7 @@ function InboxApp() {
     try {
       const order = await getExternalOrderSummary(orderSummaryId);
       const resolvedConversationId = conversationId ?? await findExternalOrderConversationId(order);
+      if (resolvedConversationId && !conversations.some((row) => row.id === resolvedConversationId)) await ensureConversation(resolvedConversationId);
       setSelectedOrder(order);
       setSelectedOrderConversationId(resolvedConversationId);
       setSelectedId(resolvedConversationId);
