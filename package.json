@@ -14,7 +14,8 @@
     "preview": "vite preview",
     "check:ai-dashboard": "node --experimental-strip-types scripts/check-ai-dashboard.mjs",
     "build:inbox": "npm --prefix apps/inbox ci --include=dev && npm --prefix apps/inbox run build",
-    "check:product-catalog": "node --experimental-strip-types scripts/check-product-catalog.mjs"
+    "check:product-catalog": "node --experimental-strip-types scripts/check-product-catalog.mjs",
+    "check:task-workspace": "node --experimental-strip-types scripts/check-task-workspace.mjs"
   },
   "dependencies": {
     "@cloudflare/puppeteer": "1.4.0",

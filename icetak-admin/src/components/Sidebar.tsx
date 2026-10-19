@@ -26,6 +26,7 @@ const navItems: NavItem[] = [
   { key: 'create-order', label: 'Create Order', icon: IconOrders },
   { key: 'payments', label: 'Payments', icon: IconPayments },
   { key: 'finance', label: 'Finance', icon: IconFinance },
+  { key: 'task-workspace', label: 'Task Workspace', icon: IconOrders },
   { key: 'acrylic-production', label: 'Production Acrylic', icon: IconOrders },
   { key: 'products', label: 'Produk', icon: IconOrders },
   { key: 'stock', label: 'Stok', icon: IconOrders },
@@ -70,15 +71,17 @@ type Props = {
   canViewAi?: boolean;
   canManageTemplates?: boolean;
   canViewStock?: boolean;
+  canViewTasks?: boolean;
 };
 
 type ShippingAttention = { attention?: number; critical?: number; oldest_hours?: number };
 type FollowupSummary = { counts?: { due?: number; failed?: number } };
 
-export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false, canViewCustomers = false, canViewPickup = false, canViewAi = false, canManageTemplates = false, canViewStock = false }: Props) {
+export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false, canViewCustomers = false, canViewPickup = false, canViewAi = false, canManageTemplates = false, canViewStock = false, canViewTasks = false }: Props) {
   const visibleNavItems = navItems.filter((item) => {
     if (['finance','qrpay-summary','draft-orders'].includes(item.key) && !canViewFinance) return false;
     if (['products','stock','acrylic-production'].includes(item.key) && !canViewStock) return false;
+    if (item.key === 'task-workspace' && !canViewTasks) return false;
     if (item.key === 'customers' && !canViewCustomers) return false;
     if (['ai-dashboard','customer-focus'].includes(item.key) && !canViewAi) return false;
     if (item.key === 'pickup-counter' && !canViewPickup) return false;

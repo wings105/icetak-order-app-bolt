@@ -7,6 +7,7 @@ Admin V1 is retired. Do not add new admin UI or admin business logic back into t
 | Area | Source |
 |---|---|
 | Admin shell/navigation | `icetak-admin/src/App.tsx`, `icetak-admin/src/components/` |
+| Designer / production task workspace | `icetak-admin/src/pages/TaskWorkspace.tsx`; see `TASK_WORKSPACE.md` |
 | Admin login/reset/first setup | `icetak-admin/src/AdminLogin.tsx` |
 | Dashboard overview | `icetak-admin/src/pages/Dashboard.tsx` |
 | Full order lifecycle | `icetak-admin/src/pages/Orders.tsx` |
