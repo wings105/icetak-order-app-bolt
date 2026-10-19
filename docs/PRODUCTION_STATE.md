@@ -1,3 +1,7 @@
+# 2026-10-20 — Simple customer-detail readiness
+
+VERIFIED controlled Admin V2 desktop/mobile; backend deployed, frontend delivery pending. Clear topper name OR age OR wording and edible/wafer/acrylic wording OR image OR both are sufficient for automatic high-confidence designer readiness. Caption-free images and bounded pre-order context are supported. Old Confirmed/paired-age/spec/same-design gates removed; actual uncertainty/conflicts remain review and final file/QC remain separate. Private context invoker preserves previous-order cutoffs across channels; no CRM/draft context change. Product matrix, real scoped reads/boundaries/closed denial, gateway permissions and actual UI passed. See [Task Workspace](TASK_WORKSPACE.md).
+
 # 2026-10-20 — Task readiness briefs
 
 Backend and hosted readiness delivery PRODUCTION / controlled Admin V2 VERIFIED. PR #101 / 90e0208 and Cloudflare 957adbae pass builds and guards; hosted brief labels and exact CSS match the tested UI, and the exact route reaches secure login. task-workspace v4 and read-only Inbox task-brief-media v1 have exact source/auth readback. Per-task product requirements, labelled/scoped chat evidence, confidence/completeness, native confirmation, stale-source reopening and explicit final/QC print readiness are active. Live rollback leaves no QA brief/audit rows. Signed-in hosted staff changes and positive cached-media downloads remain unexercised. See [Task Workspace](TASK_WORKSPACE.md).

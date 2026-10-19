@@ -46,7 +46,7 @@ const current=(await loadReadiness())['task-1'].readiness;
 const brief={action:'brief_save',task_id:'task-1',version:0,fingerprint:current.fingerprint,request_id:crypto.randomUUID(),confirm:true,brief:current.form};
 assert.equal((await call(brief)).status,403,'production staff cannot silently confirm admin details');permissions=['view_orders','edit_order'];
 assert.equal((await call(brief)).status,200);assert.equal(briefSaved.p_actor,'staff');assert.equal(briefSaved.p_confirmed,true);
-assert.equal((await call({...brief,brief:{...brief.brief,values:{...brief.brief.values,size:''}}})).status,400);
+assert.equal((await call({...brief,brief:{...brief.brief,values:{...brief.brief.values,wording:''}}})).status,400);
 assert.equal((await call({...brief,brief:{...brief.brief,final_file_id:'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa'}})).status,400);
 changed=true;assert.equal((await call(brief)).status,409);
 receipt=[{task_id:'task-1',actor:'staff',input:briefSaved.p_input,result:{ok:true,version:1}}];assert.equal((await call(brief)).status,200,'exact retry survives later source updates');
