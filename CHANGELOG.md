@@ -1,6 +1,6 @@
 ## 2026-10-19 — Unified Inbox search
 
-- [VERIFIED] Live Inbox search returns the screenshot order `2610180JM6FM25`; candidate-first message/identity search and indexed exact-order lookup replace the broad join. Final read measured 35 ms versus the original 969 ms (database only). Exact order searches retain message-only chat matches; Malaysian phone variants, literal wildcard escaping and bounded results pass authenticated read-only regressions. Search runs as invoker and is unavailable to anon. Controlled desktop/mobile UI proves historical chat visibility/opening, orders outside the first 300, loading/error/retry, channel filtering and obsolete-request cancellation. Frontend delivery awaits the hosting pipeline; signed-in hosted staff interaction remains unexercised. See docs/INBOX_SEARCH.md.
+- [PRODUCTION backend/hosted delivery; VERIFIED controlled UI] PR #99 / `5ba24cf`, Worker `e74dbe42` passes Workers Builds/guards; actual hosted Inbox JS is byte-identical to the tested build and its staff login renders without page errors. Candidate-first search and indexed exact IDs return the screenshot order `2610180JM6FM25` in 35 ms versus 969 ms before (database only), retain message-only chats and normalize Malaysian phones. Authenticated SQL regressions and desktop/mobile historical chat opening, orders outside the first 300, loading/error/retry, channel filtering and obsolete-request cancellation pass. Signed-in hosted staff interaction remains unexercised. See docs/INBOX_SEARCH.md.
 
 ## 2026-10-17 — Shared storefront catalogue
 

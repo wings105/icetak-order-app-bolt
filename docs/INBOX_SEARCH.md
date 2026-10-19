@@ -1,6 +1,6 @@
 # Unified Inbox search
 
-2026-10-19 MYT. Backend PRODUCTION; controlled frontend VERIFIED, hosting release pending.
+2026-10-19 MYT. Backend and hosted delivery PRODUCTION; controlled frontend VERIFIED. Authenticated hosted staff interaction remains unexercised.
 
 Canonical frontend remains `apps/inbox/` on `production`, served at `/inbox/`. Inbox Supabase `uujcqcsfghqkukaydruc` owns `search_unified_inbox(text,integer)`. No canonical orders, messages, customer records, provider sends or automation settings were changed.
 
@@ -16,6 +16,6 @@ Verification:
 - `backend/inbox/search.test.sql` is an authenticated read-only rollback suite covering the reported order, lowercase/trimmed and partial IDs, exact ID message-only chat matches, historical phone/message matches, local/international phone formatting, true empty searches, limit and anonymous privilege rejection.
 - Final exact-order database execution measured 35 ms; earlier warm/controlled reads varied. These are database timings, not browser end-to-end latency.
 - Browser plugin unavailable; regular Playwright exercised the actual changed components and hooks with isolated API fixtures at 1360×900 and 390×844. Exact results, historical chat hydration/opening, list refresh, orders outside the initial 300, loading, error/retry, rapid query changes/aborted old request, channel filtering and empty states passed without page errors. Fixtures did not write production records.
-- Hosted delivery still requires matching the served Inbox asset and checking the login entry after the production pipeline. Authenticated hosted staff interaction is not established by controlled fixtures or bundle equality.
+- PR #99 / release `5ba24cf1fee4bd054f93f955cac67bd5bcfb2005`, Cloudflare Worker `e74dbe42-c2bb-4c12-bbd4-b688d89204aa`: Workers Builds and both Public Domain Guard checks passed. The actual domain serves `index-BODSl5zu.js`, byte-identical to the tested build (SHA-256 `447deb5d6aacc7502d41c29e5d21cfb53231b52b445bb78c78bdb25876fc5887`). The hosted staff login entry rendered without page errors; signed-in hosted interaction remains unexercised. Live function body matches the committed final migration exactly; authenticated search still returns the reported paid READY_TO_SHIP order after release. No new security-advisor findings.
 
 Search remains capped at 60 results in the UI (RPC maximum 100); narrow a broad query for more relevant results. The default conversation/order list limits and counts are unchanged.

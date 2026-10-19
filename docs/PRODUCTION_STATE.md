@@ -1,6 +1,6 @@
 # 2026-10-19 — Unified Inbox search
 
-Backend PRODUCTION / controlled frontend VERIFIED: candidate-first RPC, exact-order indexes and authenticated invoker execution are live in Inbox only. Screenshot order search returns paid READY_TO_SHIP; final database time 35 ms versus 969 ms before. Exact ID retains unlinked message-only chats and phone normalization/empty/limit regressions pass. Frontend cancels stale searches, displays retry/errors and hydrates remote chat/order results outside initial list limits. Actual changed components/hooks pass desktop/mobile controlled interactions without page errors; hosted delivery and signed-in staff verification are pending. See [search evidence](INBOX_SEARCH.md).
+Backend and hosted delivery PRODUCTION / controlled frontend VERIFIED: PR #99 `5ba24cf`, Worker `e74dbe42` passes Workers Builds/guards; actual Inbox JS is byte-identical to the tested build and hosted login renders without page errors. Candidate-first RPC, exact-order indexes and authenticated invoker execution are live in Inbox only. Screenshot order returns paid READY_TO_SHIP in 35 ms versus 969 ms before (database only); exact ID message-only chats, phone normalization, historical messages, empty queries and limits pass. Desktop/mobile controlled interactions prove remote chat/order visibility/opening beyond initial limits, loading/error/retry, channel filtering and cancelled stale requests. Signed-in hosted staff interaction remains unexercised. See [search evidence](INBOX_SEARCH.md).
 
 # 2026-10-17 — Full storefront catalogue
 
