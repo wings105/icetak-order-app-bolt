@@ -1,3 +1,7 @@
+# 2026-10-20 — Task Workspace
+
+Backend and hosted delivery PRODUCTION / controlled Admin V2 VERIFIED. PR #100 f9bc1af / Cloudflare build e2088eb1 succeeded; exact Task Workspace route reaches secure Admin Login and hosted task CSS matches the tested build. Native PIC, notes, stage and private design uploads sit beside existing ClickUp/iCetak/Shopee task facts, with version/source checks and audit. Live 57-task read, rolled-back mutation guards, actual-gateway auth/upload tests and controlled desktop/mobile work interactions pass. Signed-in hosted staff and real Storage upload/download remain unexercised; GitHub Actions were queued (equivalent local checks passed). See [Task Workspace](TASK_WORKSPACE.md).
+
 # 2026-10-19 — Unified Inbox search
 
 Backend and hosted delivery PRODUCTION / controlled frontend VERIFIED: PR #99 `5ba24cf`, Worker `e74dbe42` passes Workers Builds/guards; actual Inbox JS is byte-identical to the tested build and hosted login renders without page errors. Candidate-first RPC, exact-order indexes and authenticated invoker execution are live in Inbox only. Screenshot order returns paid READY_TO_SHIP in 35 ms versus 969 ms before (database only); exact ID message-only chats, phone normalization, historical messages, empty queries and limits pass. Desktop/mobile controlled interactions prove remote chat/order visibility/opening beyond initial limits, loading/error/retry, channel filtering and cancelled stale requests. Signed-in hosted staff interaction remains unexercised. See [search evidence](INBOX_SEARCH.md).

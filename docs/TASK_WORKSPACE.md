@@ -1,6 +1,6 @@
 # Task Workspace — Admin V2
 
-Status: backend read/save VERIFIED; controlled Admin V2 desktop/mobile VERIFIED. Hosted release pending.
+Status: backend and hosted delivery PRODUCTION; controlled Admin V2 desktop/mobile VERIFIED. Signed-in hosted staff use remains unexercised.
 
 Route: `https://shop.decocake.my/?admin=v2&view=task-workspace`.
 
@@ -37,3 +37,9 @@ Native status/files/notes are internal work facts. They do not update ClickUp, c
 Hosted signed-in staff use and a real authenticated Storage upload/download are not yet exercised. Do not describe those as production verified solely because a build or deployment succeeds.
 
 Rollback: remove the Task Workspace route/sidebar and disable the gateway. Existing work tables/files may remain private for recovery; no source order/task/provider changes require reversal.
+
+## Hosted delivery — 20 October 2026 MYT
+
+PR #100 merged as f9bc1af1c439223600ded6807a87ffb2c22a7d5e; release tree 1bd777aa1a66cb337d9fd289e503014e8750814d exactly matches the verified local tree. Cloudflare production build e2088eb1-5500-406c-8d49-5168b182250d succeeded. Domain serves main-tnWipl7A.js, App-DiTBJqOE.js and TaskWorkspace-b5a-p2vR.js; route and work/upload labels are present, and TaskWorkspace-Di3yW633.css is byte-identical to the tested CSS. JS bundler wrappers/import aliases differ from the local build, so byte identity is not claimed.
+
+Local Chromium could not reach the hosted domain (ERR_EMPTY_RESPONSE); cloud-browser smoke of the exact route reached secure Admin Login. No app error was observed; existing multiple-GoTrue-client and extension-metadata warnings remain. GitHub Actions guard/reminder and the config-triggered existing shipping deployment were still queued at observation; equivalent local guard checks (stock, acrylic, source, Vite smoke and full build) passed. Authenticated hosted workspace interactions and real Storage upload/download remain unexercised.
