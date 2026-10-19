@@ -63,5 +63,5 @@ export function customerContent(order:Data|null,context:Data,allow:boolean,seed:
  if(chosen){values.artwork=chosen.media_url;sources.artwork={source:`${chosen.channel||'Chat'} · ${chosen.id}`,at:chosen.created_at};evidence.push({id:chosen.id,text:text(chosen.caption||chosen.text_content)||'Gambar customer diterima untuk design / cetakan.',at:chosen.created_at});}
  else if(unique.length>1)warnings.push('Beberapa gambar diterima; belum jelas gambar mana atau sama ada semuanya perlu digunakan.');
  for(const m of allow?messages:[]){const v=text(m.text_content||m.caption);if(uncertain.test(v)&&!ack.test(v)&&!operational.test(v))warnings.push('Customer ada arahan / pilihan yang belum pasti.');}
- return {values,sources,conflicts,warnings:[...new Set(warnings)],evidence};
+ return {values,sources,conflicts,warnings:[...new Set(warnings)],evidence,artwork_reference:!!chosen&&/\b(?:contoh|reference|sample|inspiration)\b/i.test(text(chosen.caption||chosen.text_content))};
 }

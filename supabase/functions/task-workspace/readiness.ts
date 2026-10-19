@@ -13,6 +13,7 @@ function requirement(values:Data){
  if(values.mode==='name_age'){if(values.name)required.push('name');if(values.age)required.push('age');if(!values.name&&!values.age)required.push('wording');}
  if(values.mode==='image'||values.mode==='image_wording')required.push('artwork');
  if(values.mode==='template'||values.mode==='standard')required.push('template');
+ if(values.product==='topper'&&!['template','standard'].includes(values.mode)&&!values.name&&!values.age&&!required.includes('wording'))required.push('wording');
  return required;
 }
 export function validateBrief(input:Data){
@@ -67,6 +68,7 @@ export async function taskReadiness(source:Data,order:Data|null,context:Data={},
  const customer=customerContent(order,context,scoped,seeds);
  for(const [field,value] of Object.entries(customer.values))add(field,value,customer.sources[field]?.source||'Detail customer');
  Object.assign(sources,customer.sources);conflicts.push(...customer.conflicts);warnings.push(...customer.warnings);
+ if(values.product==='acrylic'&&customer.artwork_reference&&!values.wording)warnings.push('Gambar contoh acrylic diterima tanpa wording; semak sama ada design itu hendak digunakan terus.');
  const code=text(fields.sku||item.sku).match(/\b(?:EI|CN|WF|WP)\d{3,6}\b/i)||spec.match(/\b(?:EI|CN|WF|WP)\d{3,6}\b/i);
  if(code)add('template',code[0],'SKU / kod task');
  if(!values.mode){
