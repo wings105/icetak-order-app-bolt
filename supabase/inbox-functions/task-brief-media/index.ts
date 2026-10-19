@@ -9,7 +9,12 @@ Deno.serve(async req=>{
  try{
   const rows=await call('/rest/v1/private_runtime_settings?setting_key=eq.admin_window_bridge_token&select=setting_value&limit=1');
   const token=req.headers.get('x-admin-window-token');if(!token||token!==rows[0]?.setting_value)return out({ok:false},401);
-  const input=await req.json();if(!Array.isArray(input.ids)||input.ids.length>20||input.ids.some((x:unknown)=>typeof x!=='string'||!/^\d{1,40}$/.test(x)))return out({ok:false},400);
+  const input=await req.json();
+  if(input.action==='context'){
+   if(!Array.isArray(input.orders)||!input.orders.length||input.orders.length>50)return out({ok:false},400);
+   return out({ok:true,contexts:await call('/rest/v1/rpc/icetak_task_brief_context',{p_orders:input.orders})});
+  }
+  if(!Array.isArray(input.ids)||input.ids.length>20||input.ids.some((x:unknown)=>typeof x!=='string'||!/^\d{1,40}$/.test(x)))return out({ok:false},400);
   const media:Record<string,unknown>={};
   await Promise.all([...new Set<string>(input.ids)].map(async id=>{
    const cached=await call(`/rest/v1/message_media?provider_media_id=eq.${id}&download_status=eq.ready&select=storage_path,mime_type&order=updated_at.desc&limit=1`);

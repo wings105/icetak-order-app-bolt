@@ -1,4 +1,5 @@
-import {clickupConfirmed,orderDetails} from '../admin-ai-dashboard/order-details.ts';
+import {orderDetails} from '../admin-ai-dashboard/order-details.ts';
+import {customerContent,customerText} from './customer-details.ts';
 type Data=Record<string,any>;
 const text=(v:unknown)=>String(v??'').trim();
 export const briefLabels:Record<string,string>={product:'Produk',quantity:'Kuantiti',size:'Saiz',shape:'Bentuk',material:'Material',colour:'Warna',mode:'Keperluan design',name:'Nama',age:'Umur',wording:'Wording tepat',artwork:'Gambar dipilih (URL)',template:'Kod / template',instructions:'Arahan designer'};
@@ -7,14 +8,12 @@ export const briefProducts=['edible','topper','acrylic','wafer'];
 const stable=(v:any):string=>JSON.stringify(v&&typeof v==='object'?Array.isArray(v)?v.map(x=>JSON.parse(stable(x))):Object.fromEntries(Object.keys(v).sort().map(k=>[k,JSON.parse(stable(v[k]))])):v??null);
 export async function briefFingerprint(v:unknown){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(stable(v))))].map(x=>x.toString(16).padStart(2,'0')).join('');}
 function requirement(values:Data){
- const required=['product','quantity','size','mode'];
- if(['edible','wafer'].includes(values.product))required.push('shape');
- if(['acrylic','topper'].includes(values.product))required.push('material');
- if(values.product==='acrylic')required.push('colour');
+ const required=['product','mode'];
  if(values.mode==='wording'||values.mode==='image_wording')required.push('wording');
- if(values.mode==='name_age')required.push('name','age');
+ if(values.mode==='name_age'){if(values.name)required.push('name');if(values.age)required.push('age');if(!values.name&&!values.age)required.push('wording');}
  if(values.mode==='image'||values.mode==='image_wording')required.push('artwork');
  if(values.mode==='template'||values.mode==='standard')required.push('template');
+ if(values.product==='topper'&&!['template','standard'].includes(values.mode)&&!values.name&&!values.age&&!required.includes('wording'))required.push('wording');
  return required;
 }
 export function validateBrief(input:Data){
@@ -32,7 +31,7 @@ export function validateBrief(input:Data){
 }
 // Inputs are server-owned exact task/order/session records, never browser claims.
 export async function taskReadiness(source:Data,order:Data|null,context:Data={},saved:Data|null=null,proposal?:Data){
- const fingerprint=await briefFingerprint({rules_version:'task-brief-v2',source,order:order?{items:order.items,source_fingerprint:order.source_fingerprint,state:order.state?.data?.detail_check,tasks:order.production_tasks}:null,
+ const fingerprint=await briefFingerprint({rules_version:'task-brief-simple-v1',source,order:order?{items:order.items,order_note:order.order_note,source_fingerprint:order.source_fingerprint,state:order.state?.data?.detail_check,tasks:order.production_tasks}:null,
   chat:{ambiguous:!!context.ambiguous,truncated:!!context.truncated,unavailable:!!context.unavailable,bindings:context.bindings||[],messages:context.messages||[],media_access:Object.fromEntries(Object.entries(context.media_access||{}).map(([k,v]:[string,any])=>[k,v.available===true]))}});
  const current=!!saved&&saved.source_fingerprint===fingerprint,expired=!!saved&&!current;
  const config=proposal||current&&saved?.data||{};
@@ -56,16 +55,20 @@ export async function taskReadiness(source:Data,order:Data|null,context:Data={},
  add('size',item.size||exact?.size||size?.[0],'Item / saiz task');
  add('shape',/round|bulat/i.test(spec)?'Bulat':/square|segi\s*empat\s*sama/i.test(spec)?'Segi empat sama':/rectangle|segi\s*empat\s*tepat/i.test(spec)?'Segi empat tepat':/\bA[3-7]\b/i.test(spec)&&values.product!=='acrylic'?'Helaian':'','Spesifikasi task');
  add('material',values.product==='acrylic'?'Acrylic':/artpaper|art paper/i.test(spec)?'Art paper':/mirror gold/i.test(spec)?'Mirror gold':/wafer/i.test(spec)?'Wafer paper':'','Spesifikasi task');
+ if(/^https:\/\//i.test(text(item.customization?.reference_url)))add('artwork',item.customization.reference_url,'Gambar checkout iCetak');
  const colour=spec.match(/\b(?:rose\s*gold|gold|silver|white|black|pink|blue|red|putih|hitam|emas|perak)\b/i);add('colour',colour?.[0],'Spesifikasi task');
- if(exact){
-  for(const f of ['name','age','wording','image'])add(f==='image'?'artwork':f,exact.values[f],exact.sources[f]?.source||'Detail order');
-  for(const [f,entries] of Object.entries(exact.candidates||{}) as [string,Data[]][])for(const c of entries)conflicts.push({field:f==='image'?'artwork':f,label:briefLabels[f==='image'?'artwork':f],...c});
-  if(exact.rule!=='review')add('mode',exact.rule==='name'?'wording':exact.rule,'Detail order');
-  if(exact.rule==='name'&&exact.values.name&&!exact.values.wording)add('wording',exact.values.name,exact.sources.name?.source||'Detail order');
+ const seeds:Data[]=[];
+ if(item.wording)seeds.push({data:customerText(item.wording,true),source:'Order iCetak'});
+ if(raw)seeds.push({data:customerText(raw,true),source:`Customize Name · ${source.task_id}`});
+ if(exact&&Object.values(exact.sources||{}).some((v:any)=>v.source==='Disahkan admin')){
+  const checked:Data={};for(const f of ['name','age','wording'])if(exact.sources[f]?.source==='Disahkan admin')checked[f]=exact.values[f];
+  seeds.push({data:checked,source:'Detail order disemak admin',at:order?.state?.data?.detail_check?.checked_at});
  }
- add('wording',item.wording,'Order iCetak');
- if(raw)add('wording',raw,`Customize Name · ${source.task_id}`);
- if(values.mode==='image'&&values.wording){values.mode='image_wording';sources.mode={source:'Gambar + customization task'};}
+ const scoped=!!order&&order.items?.length===1&&(!!exact||!!item.id||(order.production_tasks||[]).length<=1);
+ const customer=customerContent(order,context,scoped,seeds);
+ for(const [field,value] of Object.entries(customer.values))add(field,value,customer.sources[field]?.source||'Detail customer');
+ Object.assign(sources,customer.sources);conflicts.push(...customer.conflicts);warnings.push(...customer.warnings);
+ if(values.product==='acrylic'&&customer.artwork_reference&&!values.wording)warnings.push('Gambar contoh acrylic diterima tanpa wording; semak sama ada design itu hendak digunakan terus.');
  const code=text(fields.sku||item.sku).match(/\b(?:EI|CN|WF|WP)\d{3,6}\b/i)||spec.match(/\b(?:EI|CN|WF|WP)\d{3,6}\b/i);
  if(code)add('template',code[0],'SKU / kod task');
  if(!values.mode){
@@ -73,13 +76,13 @@ export async function taskReadiness(source:Data,order:Data|null,context:Data={},
   else if(values.wording)add('mode','wording','Customize task');
   else if(code&&/no wording|tanpa wording/i.test(spec))add('mode','template','Variasi tanpa wording');
  }
- add('instructions',fields.noted,'Noted task');
+ if(text(fields.noted)){values.instructions=[...new Set([values.instructions,text(fields.noted)].filter(Boolean))].join('\n\n');sources.instructions={source:values.instructions===text(fields.noted)?'Noted task':'Arahan customer + noted task'};}
  // Explicit labelled specifications may fill a single exactly assigned item/session.
  // Unlabelled guesses and generic multi-item conversations remain excluded.
  if(exact&&order?.items?.length===1&&!context.ambiguous&&!context.truncated){
   const specFields:Record<string,string>={size:'saiz|size',quantity:'kuantiti|quantity|qty',colour:'warna|colou?r',material:'material|bahan',shape:'bentuk|shape'};
   for(const m of context.messages||[]){
-   if(m.direction!=='inbound'||m.is_history||!(context.bindings||[]).some((b:Data)=>b.usable&&b.id===m.conversation_id))continue;
+   if(m.direction!=='inbound'||m.is_history||!(context.bindings||[]).some((b:Data)=>b.usable&&b.id===m.conversation_id&&(!b.start_at||Date.parse(m.created_at)>=Date.parse(b.start_at))&&(!b.end_at||Date.parse(m.created_at)<Date.parse(b.end_at))))continue;
    const content=text(m.text_content||m.caption);let used=false;
    for(const [field,names] of Object.entries(specFields)){
     let value=content.match(new RegExp(`(?:^|\\n)\\s*(?:${names})\\s*[:=]\\s*([^\\n]+)`,'i'))?.[1]?.trim();
@@ -91,13 +94,11 @@ export async function taskReadiness(source:Data,order:Data|null,context:Data={},
    if(used)specEvidence.push({id:m.id,text:content,at:m.created_at});
   }
  }
- if(order&&!exact&&!item.id&&order.items?.length>1)warnings.push('Item order belum dipadankan tepat dengan task ini; semak skop item / set.');
+ if(order&&!exact&&!item.id&&order.items?.length>1&&!values.wording&&!values.artwork&&!values.template)warnings.push('Item order belum dipadankan tepat dengan task ini; semak skop item / set.');
  if(source.mapping_status==='conflict')warnings.push('Pautan order / komponen bercanggah; baiki padanan dahulu.');
  if(context.unavailable)warnings.push('Chat atau data order tidak dapat disemak. Cuba semula sebelum sahkan.');
- if(context.ambiguous)warnings.push('Session chat mempunyai padanan order yang tidak jelas.');
+ if(context.ambiguous&&!values.wording&&!values.artwork&&!values.template)warnings.push('Session chat mempunyai padanan order yang tidak jelas.');
  if(context.truncated)warnings.push('Chat melebihi had bacaan; semak baki mesej sebelum sahkan.');
- if((context.messages||[]).some((m:Data)=>m.direction==='inbound'&&!m.is_history&&Date.parse(m.created_at)>Date.parse(source.source_updated_at)))warnings.push('Ada balasan customer selepas update task; semak perubahan sebelum sambung design.');
- if(expired)warnings.push('Sumber atau balasan customer berubah; pengesahan lama telah dibuka semula.');
  if(detail?.warnings?.some((w:string)=>/Item order berubah/.test(w)))warnings.push('Item berubah sejak semakan detail order terakhir.');
  // Every manual value is an explicit correction tied to this exact source fingerprint.
  for(const [field,value] of Object.entries(config.values||{})){values[field]=text(value);sources[field]={source:proposal?'Semakan admin semasa':current&&saved?.confirmed?'Disahkan admin':'Draf admin',at:saved?.updated_at};}
@@ -106,17 +107,13 @@ export async function taskReadiness(source:Data,order:Data|null,context:Data={},
  if(!briefProducts.includes(values.product)&&!missing.includes('product'))missing.push('product');
  if(!briefModes.includes(values.mode)&&!missing.includes('mode'))missing.push('mode');
  const resolved=conflicts.filter(c=>!text(config.values?.[c.field]));
- const sameRequired=Number(values.quantity)>1||(source.sets||[]).length>1;
- if(sameRequired&&config.same_design!==true)missing.push('same_design');
- if(values.artwork?.startsWith('wasapflow-media://')&&context.media_access?.[values.artwork]?.available!==true)missing.push('artwork_access');
+ const assetWarning=values.artwork?.startsWith('wasapflow-media://')&&context.media_access?.[values.artwork]?.available!==true?'Gambar customer sudah diterima. Pratonton fail belum tersedia; semak akses gambar sebelum production.':null;
  if(values.artwork?.startsWith('task-file://')&&!(source.files||[]).some((f:Data)=>f.id===values.artwork.slice(12)&&f.mime.startsWith('image/')))missing.push('artwork_access');
  if(values.artwork&&!/^(?:https:\/\/|wasapflow-media:\/\/\d+$|task-file:\/\/[a-f0-9-]{36}$)/i.test(values.artwork))missing.push('artwork_access');
  const hard=source.mapping_status==='conflict'||context.unavailable===true;
  const adminConfirmed=current&&saved?.confirmed===true&&!proposal;
- const previousAdmin=!!order?.state?.data?.detail_check?.checked_at&&exact?.state==='complete'&&!detail?.warnings.some((w:string)=>/Item order berubah/.test(w));
- const sourceConfirmed=(clickupConfirmed(fields.confirmed)===true||previousAdmin)&&!expired&&!Object.values(config.values||{}).some(Boolean)&&!proposal;
- const needsAdmin=warnings.length>0||resolved.length>0||(!sourceConfirmed&&!adminConfirmed);
- let status=hard||resolved.length||warnings.length&&!adminConfirmed?'review':missing.length?'missing':needsAdmin?'review':'ready';
+ const autoComplete=!proposal&&!hard&&!missing.length&&!resolved.length&&!warnings.length;
+ let status=hard||resolved.length||warnings.length&&!adminConfirmed?'review':missing.length?'missing':proposal&&!adminConfirmed?'review':'ready';
  // A deliberate current-source admin check can resolve extraction ambiguity, never unknown required fields or failed reads.
  if(adminConfirmed&&!hard&&!missing.length)status='ready';
  const reviewRequired=source.component?.review_required===true||item.review_required===true;
@@ -124,15 +121,15 @@ export async function taskReadiness(source:Data,order:Data|null,context:Data={},
  const final=(source.files||[]).find((f:Data)=>f.id===config.final_file_id);
  const printMissing=[...(!final?['Pilih fail final']:[]),...(config.artwork_qc!==true?['QC artwork belum disahkan']:[]),...(!reviewOK?['Kelulusan customer belum direkodkan']:[])];
  const printReady=status==='ready'&&!printMissing.length;
- const total=required.length+(sameRequired?1:0)+(/^(?:wasapflow-media|task-file):\/\//.test(values.artwork||'')?1:0),filled=total-missing.length;
+ const total=required.length,filled=total-missing.length;
  const confidence=status==='ready'?'high':missing.length||hard||resolved.length?'low':'medium';
- const evidence=[...new Map([...(detail?.evidence||[]),...specEvidence].map((e:Data)=>[e.id,{id:e.id,text:e.text,at:e.at}])).values()].slice(-12);
+ const evidence=[...new Map([...customer.evidence,...specEvidence].map((e:Data)=>[e.id,{id:e.id,text:e.text,at:e.at}])).values()].slice(-12);
  const closed=/^(?:shipped|completed|cancelled|canceled|customer_collected|returned|refunded)$/i.test(text(source.order_status));
  if(closed){status='review';warnings.push('Order telah dihantar atau ditutup; semak arahan sebelum buat kerja baharu.');}
  return {status,label:closed?'Perlu semakan admin':printReady?'Confirmed · Ready print / cut':status==='ready'?'Confirmed · Ready designer':status==='missing'?'Info belum cukup':'Perlu semakan admin',
-  completeness:Math.max(0,Math.round(filled/total*100)),confidence:closed?'low':confidence,confidence_reason:status==='ready'?(adminConfirmed?'Admin semak sumber semasa':previousAdmin?'Semakan detail order sedia ada + semua detail wajib cukup':'Confirmed pada task asal + semua detail wajib cukup'):'Detail atau pengesahan masih memerlukan semakan',
-  values,sources,required,missing:missing.map(k=>({key:k,label:briefLabels[k]||(k==='artwork_access'?'Gambar belum boleh dibuka; upload gambar asal ke task':'Sahkan semua unit / set guna design yang sama')})),conflicts,warnings,evidence,
-  fingerprint,version:saved?.version||0,expired,previous_values:expired?saved?.data?.values||{}:null,confirmed_by:status!=='ready'?null:adminConfirmed?saved?.updated_by:sourceConfirmed?(previousAdmin?'Disahkan admin · detail order':'Confirmed task asal'):null,confirmed_at:status==='ready'&&adminConfirmed?saved?.updated_at:null,
+  completeness:Math.max(0,Math.round(filled/total*100)),confidence:closed?'low':confidence,confidence_reason:status==='ready'?(adminConfirmed?'Admin semak sumber semasa':'Detail customer jelas · disahkan automatik mengikut rule produk'):'Detail atau pengesahan masih memerlukan semakan',
+  values,sources,required,missing:missing.map(k=>({key:k,label:briefLabels[k]||(k==='artwork_access'?'Gambar belum boleh dibuka; upload gambar asal ke task':'Sahkan semua unit / set guna design yang sama')})),conflicts,warnings,evidence,asset_warning:assetWarning,
+  fingerprint,version:saved?.version||0,expired,previous_values:expired?saved?.data?.values||{}:null,confirmed_by:status!=='ready'?null:adminConfirmed?saved?.updated_by:autoComplete?'Sistem · detail customer lengkap':null,confirmed_at:status==='ready'&&adminConfirmed?saved?.updated_at:null,
   can_confirm:!hard&&!closed&&!missing.length,print_ready:!closed&&printReady,print_missing:printMissing,review_required:reviewRequired,
   form:{values,same_design:config.same_design===true,final_file_id:config.final_file_id||'',artwork_qc:config.artwork_qc===true,customer_approved:config.customer_approved===true},
   chat_linked:(context.bindings||[]).some((b:Data)=>b.usable),artwork_url:context.media_access?.[values.artwork]?.url||null,source_token:source.source_token,checked_at:new Date().toISOString()};

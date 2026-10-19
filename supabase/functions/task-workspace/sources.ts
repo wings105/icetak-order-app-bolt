@@ -33,10 +33,10 @@ export async function loadReadiness(tasks:Data[],rpc:Rpc,call:(path:string,init?
    }
    const requests=snapshot.orders.map((o:Data)=>{
     const k=`${o.kind}:${o.id}`,saved=o.state.data?.detail_check?.bindings||[];
-    return {key:k,reference:o.reference,closed:/^(shipped|completed|cancelled|canceled|customer_collected|returned|refunded)$/i.test(o.status||''),
+    return {key:k,reference:o.reference,placed_at:o.created_at||o.placed_at,single_item_scope:o.items?.length===1,closed:/^(shipped|completed|cancelled|canceled|customer_collected|returned|refunded)$/i.test(o.status||''),
      bindings:saved.filter((b:Data)=>approved[k]?.has(b.conversation_id)),invalid:saved.some((b:Data)=>!approved[k]?.has(b.conversation_id))};
    });
-   if(requests.length){const data=await inbox({action:'order_details',orders:requests});
+   if(requests.length){const data=await inbox({action:'context',orders:requests},true);
     for(const r of requests)contexts[r.key]=r.invalid?{ambiguous:true,bindings:[],messages:[]}:data.contexts?.[r.key]||{unavailable:true};
    }
   }

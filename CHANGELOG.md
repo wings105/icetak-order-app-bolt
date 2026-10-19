@@ -1,3 +1,7 @@
+## 2026-10-20 — Simple task customer-detail rules
+
+- [VERIFIED controlled UI; backend deployed, hosted frontend pending] Topper name/age/custom wording, and edible/wafer/acrylic wording/image/both auto-confirm designer readiness without extra source checkbox/spec/same-design gates. Caption-free images, checkout notes and bounded exact-session pre-order chat feed the brief with provenance. Conflicts/uncertainty remain review; production final/QC remains separate. Real cross-channel cutoff/closed checks, actual gateway/model/media-context tests and desktop/mobile App verification pass. See docs/TASK_WORKSPACE.md.
+
 ## 2026-10-20 — Task readiness briefs
 
 - [PRODUCTION backend/hosted delivery; VERIFIED controlled UI] PR #101 / 90e0208, Cloudflare 957adbae and guards pass. Task Workspace shows per-task missing fields, exact scoped chat/task/order evidence, completeness/confidence, editable product briefs, current-source admin confirmation and selected final/QC print readiness. Explicit labelled chat specifications retain item/session isolation; source/rule changes expire older confirmation. Live rollback, actual gateway/model and desktop/mobile checks pass; hosted brief labels/CSS and secure route verified. Signed-in hosted staff mutations and positive cached-image downloads remain unexercised. See docs/TASK_WORKSPACE.md.
