@@ -1,3 +1,7 @@
+## 2026-10-20 — Task readiness briefs
+
+- [VERIFIED] Admin V2 Task Workspace shows per-task missing fields, source evidence, completeness and confidence, editable product briefs, current-source admin confirmation and selected final/QC print readiness. Exact task/item/session isolation, changed-source rejection/expiry, audit/idempotency and actual desktop/mobile controls passed; private backend functions deployed with exact readback. Hosted readiness release and signed-in staff production actions remain pending. See docs/TASK_WORKSPACE.md.
+
 ## 2026-10-19 — Unified Inbox search
 
 - [PRODUCTION backend/hosted delivery; VERIFIED controlled UI] PR #99 / `5ba24cf`, Worker `e74dbe42` passes Workers Builds/guards; actual hosted Inbox JS is byte-identical to the tested build and its staff login renders without page errors. Candidate-first search and indexed exact IDs return the screenshot order `2610180JM6FM25` in 35 ms versus 969 ms before (database only), retain message-only chats and normalize Malaysian phones. Authenticated SQL regressions and desktop/mobile historical chat opening, orders outside the first 300, loading/error/retry, channel filtering and obsolete-request cancellation pass. Signed-in hosted staff interaction remains unexercised. See docs/INBOX_SEARCH.md.

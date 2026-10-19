@@ -50,6 +50,9 @@ jobs:
       - name: Check acrylic production colour and access boundaries
         run: npm run check:acrylic-production
 
+      - name: Check task workspace authorization and brief readiness
+        run: npm run check:task-workspace && npm run check:task-readiness
+
       - name: Vite dev server smoke test
         shell: bash
         run: |
