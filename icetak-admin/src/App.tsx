@@ -32,8 +32,10 @@ const PickupCounter = lazy(() => import('./pages/PickupCounter'));
 const AcrylicProduction = lazy(() => import('./pages/AcrylicProduction'));
 const Products = lazy(() => import('./pages/Products'));
 const Stock = lazy(() => import('./pages/Stock'));
+const TaskWorkspace = lazy(() => import('./pages/TaskWorkspace'));
 
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
+  'task-workspace': {title:'Task Workspace',subtitle:'Designer & Production'},
   'acrylic-production': {title:'Production Acrylic',subtitle:'Acrylic & Artpaper · Cutting'},
   products: {title:'Produk',subtitle:'Katalog Shopee & website'},
   stock: {title:'Stok',subtitle:'Baki bahan, belian & auto deduct'},
@@ -83,7 +85,7 @@ export default function App({ adminData }: Props) {
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
   const initialDraftTab=linkedView==='draft-followups'||initialParams.get('draft_tab')==='followup'?'followup':'all';
-  const [page, setPage] = useState(linkedView === 'shopee-monitor'?'shopee-monitor':linkedView === 'customer-focus' ? 'customer-focus' : linkedView === 'channel-inbox' ? 'channel-inbox' : linkedView === 'render-templates' ? 'render-templates' : linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','products','stock','acrylic-production','settings','clickup-queue','integrations','whatsapp-control'].includes(linkedView)?linkedView:'dashboard');
+  const [page, setPage] = useState(linkedView === 'shopee-monitor'?'shopee-monitor':linkedView === 'customer-focus' ? 'customer-focus' : linkedView === 'channel-inbox' ? 'channel-inbox' : linkedView === 'render-templates' ? 'render-templates' : linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','products','stock','acrylic-production','task-workspace','settings','clickup-queue','integrations','whatsapp-control'].includes(linkedView)?linkedView:'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [inboxOpened, setInboxOpened] = useState(linkedView === 'channel-inbox');
   const [marketplaceSearch,setMarketplaceSearch]=useState(initialParams.get('marketplace_q')?.trim() || '');
@@ -95,6 +97,7 @@ export default function App({ adminData }: Props) {
   const canViewCustomers = permissions.includes('view_customers') || permissions.includes('manage_customers') || permissions.includes('manage_admins');
   const canViewAi = adminData?.admin?.role === 'owner' || canViewCustomers;
   const canViewPickup = canViewCustomers || permissions.includes('verify_payments') || permissions.includes('approve_production');
+  const canViewTasks = adminData?.admin?.role === 'owner' || permissions.some(p=>['view_orders','edit_order','approve_production','manage_admins'].includes(p));
   const canViewStock = adminData?.admin?.role === 'owner' || permissions.includes('view_orders') || permissions.includes('approve_production');
 
   const navigate = (key: string) => {
@@ -119,7 +122,7 @@ export default function App({ adminData }: Props) {
     else if (key === 'draft-orders') url.searchParams.set('view','draft-orders');
     else if (key === 'ai-learning') url.searchParams.set('view','ai-learning');
     else if (key === 'create-order') url.searchParams.set('view','create-order');
-    else if (key === 'finance' || key === 'settings' || key === 'products' || key === 'stock' || key === 'acrylic-production') url.searchParams.set('view',key);
+    else if (key === 'finance' || key === 'settings' || key === 'products' || key === 'stock' || key === 'acrylic-production' || key === 'task-workspace') url.searchParams.set('view',key);
     else { url.searchParams.delete('view'); url.searchParams.delete('date'); }
     if(key!=='ai-dashboard')url.searchParams.delete('ai_conversation');
     ['qrpay_tx','qrpay_amount','qrpay_phone','qrpay_name','qrpay_paid_at'].forEach((param)=>url.searchParams.delete(param));
@@ -188,6 +191,7 @@ export default function App({ adminData }: Props) {
   const info = pageMap[page] || pageMap.dashboard;
   const renderPage = () => {
     switch (page) {
+      case 'task-workspace': return canViewTasks ? <Suspense fallback={<p>Memuatkan task…</p>}><TaskWorkspace onOpenOrder={openOrder} onOpenMarketplace={openMarketplace}/></Suspense> : <div>Akses task diperlukan.</div>;
       case 'acrylic-production': return canViewStock ? <Suspense fallback={<p>Memuatkan production…</p>}><AcrylicProduction/></Suspense> : <div>Akses production diperlukan.</div>;
       case 'products': return canViewStock ? <Suspense fallback={<p>Memuatkan produk…</p>}><Products/></Suspense> : <div>Akses produk diperlukan.</div>;
       case 'stock': return canViewStock ? <Suspense fallback={<p>Memuatkan stok…</p>}><Stock/></Suspense> : <div>Akses stok diperlukan.</div>;
@@ -220,7 +224,7 @@ export default function App({ adminData }: Props) {
     }
   };
 
-  return <div className="app-layout"><Sidebar canViewStock={canViewStock} canManageTemplates={canManageTemplates} active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} canViewFinance={permissions.includes('view_finance')} canViewCustomers={canViewCustomers} canViewAi={canViewAi} canViewPickup={canViewPickup} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} onOpenInternalOrder={openOrder} onOpenMarketplace={openMarketplace} /><div className="content-area">{inboxOpened && <ChannelInbox active={page === 'channel-inbox'} />}{page !== 'channel-inbox' && renderPage()}</div></div></div>;
+  return <div className="app-layout"><Sidebar canViewTasks={canViewTasks} canViewStock={canViewStock} canManageTemplates={canManageTemplates} active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} canViewFinance={permissions.includes('view_finance')} canViewCustomers={canViewCustomers} canViewAi={canViewAi} canViewPickup={canViewPickup} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} onOpenInternalOrder={openOrder} onOpenMarketplace={openMarketplace} /><div className="content-area">{inboxOpened && <ChannelInbox active={page === 'channel-inbox'} />}{page !== 'channel-inbox' && renderPage()}</div></div></div>;
 }
 
 
