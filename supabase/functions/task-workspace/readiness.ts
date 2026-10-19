@@ -32,7 +32,7 @@ export function validateBrief(input:Data){
 }
 // Inputs are server-owned exact task/order/session records, never browser claims.
 export async function taskReadiness(source:Data,order:Data|null,context:Data={},saved:Data|null=null,proposal?:Data){
- const fingerprint=await briefFingerprint({source,order:order?{items:order.items,source_fingerprint:order.source_fingerprint,state:order.state?.data?.detail_check,tasks:order.production_tasks}:null,
+ const fingerprint=await briefFingerprint({rules_version:'task-brief-v2',source,order:order?{items:order.items,source_fingerprint:order.source_fingerprint,state:order.state?.data?.detail_check,tasks:order.production_tasks}:null,
   chat:{ambiguous:!!context.ambiguous,truncated:!!context.truncated,unavailable:!!context.unavailable,bindings:context.bindings||[],messages:context.messages||[],media_access:Object.fromEntries(Object.entries(context.media_access||{}).map(([k,v]:[string,any])=>[k,v.available===true]))}});
  const current=!!saved&&saved.source_fingerprint===fingerprint,expired=!!saved&&!current;
  const config=proposal||current&&saved?.data||{};
@@ -42,6 +42,7 @@ export async function taskReadiness(source:Data,order:Data|null,context:Data={},
  const fields=source.fields||{},item=source.item||{},title=text(source.title),spec=`${title} ${item.title||''} ${item.size||''} ${item.style||''}`;
  const warnings:string[]=[];
  const detail=order?orderDetails(order,context):null;
+ const specEvidence:Data[]=[];
  const matched=detail?.items.filter((i:Data)=>i.task_ids.includes(source.task_id))||[];
  const exact=matched.length===1?matched[0]:null;
  const raw=text(fields['customize name']||fields['customise name']);
@@ -73,6 +74,23 @@ export async function taskReadiness(source:Data,order:Data|null,context:Data={},
   else if(code&&/no wording|tanpa wording/i.test(spec))add('mode','template','Variasi tanpa wording');
  }
  add('instructions',fields.noted,'Noted task');
+ // Explicit labelled specifications may fill a single exactly assigned item/session.
+ // Unlabelled guesses and generic multi-item conversations remain excluded.
+ if(exact&&order?.items?.length===1&&!context.ambiguous&&!context.truncated){
+  const specFields:Record<string,string>={size:'saiz|size',quantity:'kuantiti|quantity|qty',colour:'warna|colou?r',material:'material|bahan',shape:'bentuk|shape'};
+  for(const m of context.messages||[]){
+   if(m.direction!=='inbound'||m.is_history||!(context.bindings||[]).some((b:Data)=>b.usable&&b.id===m.conversation_id))continue;
+   const content=text(m.text_content||m.caption);let used=false;
+   for(const [field,names] of Object.entries(specFields)){
+    let value=content.match(new RegExp(`(?:^|\\n)\\s*(?:${names})\\s*[:=]\\s*([^\\n]+)`,'i'))?.[1]?.trim();
+    if(!value||value.length>120)continue;
+    if(field==='quantity'){value=value.match(/^([1-9]\d{0,4})\s*(?:pcs?|pieces?|unit)?$/i)?.[1];if(!value)continue;}
+    if(field==='size'&&!/\bA[3-7]\b|\d\s*(?:inch(?:es)?|in\b|cm|mm)\b/i.test(value))continue;
+    add(field,value,`${m.channel||'Chat'} · ${m.id}`);used=true;
+   }
+   if(used)specEvidence.push({id:m.id,text:content,at:m.created_at});
+  }
+ }
  if(order&&!exact&&!item.id&&order.items?.length>1)warnings.push('Item order belum dipadankan tepat dengan task ini; semak skop item / set.');
  if(source.mapping_status==='conflict')warnings.push('Pautan order / komponen bercanggah; baiki padanan dahulu.');
  if(context.unavailable)warnings.push('Chat atau data order tidak dapat disemak. Cuba semula sebelum sahkan.');
@@ -108,7 +126,7 @@ export async function taskReadiness(source:Data,order:Data|null,context:Data={},
  const printReady=status==='ready'&&!printMissing.length;
  const total=required.length+(sameRequired?1:0)+(/^(?:wasapflow-media|task-file):\/\//.test(values.artwork||'')?1:0),filled=total-missing.length;
  const confidence=status==='ready'?'high':missing.length||hard||resolved.length?'low':'medium';
- const evidence=(detail?.evidence||[]).slice(-12).map((e:Data)=>({id:e.id,text:e.text,at:e.at}));
+ const evidence=[...new Map([...(detail?.evidence||[]),...specEvidence].map((e:Data)=>[e.id,{id:e.id,text:e.text,at:e.at}])).values()].slice(-12);
  const closed=/^(?:shipped|completed|cancelled|canceled|customer_collected|returned|refunded)$/i.test(text(source.order_status));
  if(closed){status='review';warnings.push('Order telah dihantar atau ditutup; semak arahan sebelum buat kerja baharu.');}
  return {status,label:closed?'Perlu semakan admin':printReady?'Confirmed · Ready print / cut':status==='ready'?'Confirmed · Ready designer':status==='missing'?'Info belum cukup':'Perlu semakan admin',

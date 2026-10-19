@@ -21,6 +21,9 @@ assert.equal((await taskReadiness(source,order,{unavailable:true},accepted)).can
 assert.equal((await taskReadiness({...source,mapping_status:'conflict'},null)).can_confirm,false);
 const multi={...order,items:[...order.items,{id:'item-b',title:'Custom acrylic',sku:'AC02',quantity:1,size:'A7'}],production_tasks:[...order.production_tasks,{id:'task-b',detail:{sku:'AC02',customize_name:'Sara'}}]};
 const isolated=await taskReadiness(source,multi,context);assert.equal(isolated.values.wording,'Happy Birthday Aina');assert(!JSON.stringify(isolated.values).includes('Sara'));
+const specifications={bindings:[{id:'chat-a',usable:true,revision:'spec-1'}],messages:[{id:'spec-1',channel:'whatsapp',conversation_id:'chat-a',direction:'inbound',text_content:'Saiz: A7\nWarna: Silver\nMaterial: Acrylic\nQty: 1',created_at:'2026-10-19T09:00:00Z'}]};
+const extracted=await taskReadiness({...source,title:'Acrylic'},order,specifications);assert.equal(extracted.values.colour,'Silver');assert.equal(extracted.values.quantity,'1');assert(extracted.conflicts.some(c=>c.field==='size'&&c.value==='A7'));assert(extracted.evidence.some(e=>e.id==='spec-1'));
+const excludedSpecs=await taskReadiness({...source,title:'Acrylic'},multi,specifications);assert(!excludedSpecs.values.colour,'multi-item specifications cannot be assigned by position');
 const unknown=await taskReadiness({...source,fields:{confirmed:true}},{...multi,production_tasks:multi.production_tasks.map(t=>({...t,detail:{sku:t.detail.sku}}))},context);assert(!unknown.values.wording,'generic multi-item chat must not fill another set');
 const two=await taskReadiness({...source,title:'2x A6 acrylic Gold'},null);assert(two.missing.some(m=>m.key==='same_design'));assert.equal(two.status,'missing');
 const twoForm=validateBrief({...two.form,same_design:true});assert((await taskReadiness({...source,title:'2x A6 acrylic Gold'},null,{},null,twoForm)).can_confirm);

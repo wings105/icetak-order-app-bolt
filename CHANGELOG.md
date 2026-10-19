@@ -1,6 +1,6 @@
 ## 2026-10-20 — Task readiness briefs
 
-- [VERIFIED] Admin V2 Task Workspace shows per-task missing fields, source evidence, completeness and confidence, editable product briefs, current-source admin confirmation and selected final/QC print readiness. Exact task/item/session isolation, changed-source rejection/expiry, audit/idempotency and actual desktop/mobile controls passed; private backend functions deployed with exact readback. Hosted readiness release and signed-in staff production actions remain pending. See docs/TASK_WORKSPACE.md.
+- [PRODUCTION backend/hosted delivery; VERIFIED controlled UI] PR #101 / 90e0208, Cloudflare 957adbae and guards pass. Task Workspace shows per-task missing fields, exact scoped chat/task/order evidence, completeness/confidence, editable product briefs, current-source admin confirmation and selected final/QC print readiness. Explicit labelled chat specifications retain item/session isolation; source/rule changes expire older confirmation. Live rollback, actual gateway/model and desktop/mobile checks pass; hosted brief labels/CSS and secure route verified. Signed-in hosted staff mutations and positive cached-image downloads remain unexercised. See docs/TASK_WORKSPACE.md.
 
 ## 2026-10-19 — Unified Inbox search
 

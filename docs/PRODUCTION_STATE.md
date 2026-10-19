@@ -1,6 +1,6 @@
 # 2026-10-20 — Task readiness briefs
 
-Controlled Admin V2 and backend contracts VERIFIED; readiness hosting release pending. task-workspace v3 and read-only Inbox task-brief-media v1 deployed; exact source, auth rejection and live uncached-media guard checked. Per-task product requirements, confidence/completeness, evidence, native confirmation, stale-source reopening and explicit final/QC print readiness use existing exact-session detail rules. Live rollback leaves no QA brief/audit rows. See [Task Workspace](TASK_WORKSPACE.md) for evidence and hosted-session limits.
+Backend and hosted readiness delivery PRODUCTION / controlled Admin V2 VERIFIED. PR #101 / 90e0208 and Cloudflare 957adbae pass builds and guards; hosted brief labels and exact CSS match the tested UI, and the exact route reaches secure login. task-workspace v4 and read-only Inbox task-brief-media v1 have exact source/auth readback. Per-task product requirements, labelled/scoped chat evidence, confidence/completeness, native confirmation, stale-source reopening and explicit final/QC print readiness are active. Live rollback leaves no QA brief/audit rows. Signed-in hosted staff changes and positive cached-media downloads remain unexercised. See [Task Workspace](TASK_WORKSPACE.md).
 
 # 2026-10-20 — Task Workspace
 
