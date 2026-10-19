@@ -3,12 +3,16 @@ import {readFileSync} from 'node:fs';
 import {stripTypeScriptTypes} from 'node:module';
 import {previewItem} from '../supabase/functions/awb-preview/preview.ts';
 import {workMatches,dueAt} from '../icetak-admin/src/lib/taskWorkspace.ts';
+import {taskReadiness,validateBrief,briefFingerprint} from '../supabase/functions/task-workspace/readiness.ts';
 const row={task_id:'task-1',title:'2x Gold A6',source_status:'acrylic',status:'acrylic',source_updated_at:'2026-10-19T01:00:00Z',version:0,assignee:'staff',phone:'01234',sets:['set1'],order_reference:'ORDER-1',due_date:'1792511940000',ship_by_at:'2026-11-01T00:00:00Z',attachments:[{extension:'png',url:'https://attachments.clickup.com/a.png',user:{email:'private@example.com'}}],comment_images:[],files:[]};
 assert(workMatches(row,'mine','order-1','staff'));assert(!workMatches(row,'mine','','other'));
 assert(workMatches({...row,status:'cake topper - printing'},'acrylic','',''));assert(!workMatches(row,'printing','',''));
 assert.equal(dueAt(row),new Date(Number(row.due_date)).toISOString());assert.equal(dueAt({...row,due_date:'99999999999999999999'}),row.ship_by_at);
 let handler,role='staff',permissions=['view_orders'],active=true,auth=true,savedBody,uploadCalls=0;
-const source=readFileSync('supabase/functions/task-workspace/index.ts','utf8').replace("import 'jsr:@supabase/functions-js/edge-runtime.d.ts';",'').replace("import {previewItem} from '../awb-preview/preview.ts';",'');
+const source=readFileSync('supabase/functions/task-workspace/index.ts','utf8').replace(/^import .*;\n/gm,'');
+const briefSource={...row,title:'1x A6 acrylic Gold',status:'acrylic',mapping_status:'linked',fields:{'customize name':'Aina',confirmed:false},files:[],source_token:'source-token'};
+let briefSaved,receipt=[],changed=false;
+const loadReadiness=async()=>({'task-1':{source:briefSource,order:null,context:{},saved:null,readiness:await taskReadiness({...briefSource,...(changed?{source_updated_at:'2026-10-19T02:00:00Z'}:{})},null)}});
 const fetcher=async(url,options={})=>{
  const path=new URL(url).pathname;
  if(path==='/auth/v1/user')return Response.json(auth?{id:'authenticated-user'}:{},{status:auth?200:401});
@@ -16,10 +20,12 @@ const fetcher=async(url,options={})=>{
  if(path.endsWith('/admin_permissions'))return Response.json([{permissions}]);
  if(path.endsWith('/icetak_task_workspace_read'))return Response.json({items:[row],staff:[],truncated:false});
  if(path.endsWith('/icetak_task_workspace_save')){savedBody=JSON.parse(options.body);return Response.json({ok:true,version:1});}
+ if(path.endsWith('/task_workspace_brief_events'))return Response.json(receipt);
+ if(path.endsWith('/icetak_task_brief_save')){briefSaved=JSON.parse(options.body);return Response.json({ok:true,version:1});}
  if(path.startsWith('/storage/v1/object/task-workspace/')){uploadCalls++;return Response.json({Key:'uploaded'});}
  throw Error('Unexpected route: '+path);
 };
-await new Function('Deno','fetch','previewItem',`return (async()=>{${stripTypeScriptTypes(source)}})()` )({env:{get:k=>k==='SUPABASE_URL'?'https://qa.supabase.co':'private-key'},serve:fn=>handler=fn},fetcher,previewItem);
+await new Function('Deno','fetch','previewItem','loadReadiness','taskReadiness','validateBrief','briefFingerprint',`return (async()=>{${stripTypeScriptTypes(source)}})()` )({env:{get:k=>k==='SUPABASE_URL'?'https://qa.supabase.co':'private-key'},serve:fn=>handler=fn},fetcher,previewItem,loadReadiness,taskReadiness,validateBrief,briefFingerprint);
 const call=(body={},authorization=true)=>handler(new Request('https://qa.example',{method:'POST',headers:authorization?{authorization:'Bearer verified','content-type':'application/json'}:{'content-type':'application/json'},body:JSON.stringify(body)}));
 assert.equal((await call({},false)).status,401);auth=false;assert.equal((await call()).status,401);auth=true;
 active=false;assert.equal((await call()).status,403);active=true;permissions=[];assert.equal((await call()).status,403);permissions=['view_orders'];
@@ -36,4 +42,13 @@ assert.equal((await handler(new Request('https://qa.example',{method:'POST',head
 assert.equal(uploadCalls,1);assert(savedBody.p_patch.file.path.startsWith('task-1/'));assert.equal(savedBody.p_patch.file.mime,'image/png');
 const bad=new FormData();bad.set('payload',JSON.stringify({...save,action:'upload'}));bad.set('file',new File(['<script>unsafe</script>'],'design.png',{type:'image/png'}));
 assert.equal((await handler(new Request('https://qa.example',{method:'POST',headers:{authorization:'Bearer verified'},body:bad}))).status,400);assert.equal(uploadCalls,1);
+const current=(await loadReadiness())['task-1'].readiness;
+const brief={action:'brief_save',task_id:'task-1',version:0,fingerprint:current.fingerprint,request_id:crypto.randomUUID(),confirm:true,brief:current.form};
+assert.equal((await call(brief)).status,403,'production staff cannot silently confirm admin details');permissions=['view_orders','edit_order'];
+assert.equal((await call(brief)).status,200);assert.equal(briefSaved.p_actor,'staff');assert.equal(briefSaved.p_confirmed,true);
+assert.equal((await call({...brief,brief:{...brief.brief,values:{...brief.brief.values,size:''}}})).status,400);
+assert.equal((await call({...brief,brief:{...brief.brief,final_file_id:'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa'}})).status,400);
+changed=true;assert.equal((await call(brief)).status,409);
+receipt=[{task_id:'task-1',actor:'staff',input:briefSaved.p_input,result:{ok:true,version:1}}];assert.equal((await call(brief)).status,200,'exact retry survives later source updates');
+assert.equal((await call({...brief,confirm:false})).status,409,'a request ID cannot change its meaning');
 console.log('Task Workspace: staff auth, read/write permissions, server actor, private DTO, grouping/search/due, input guards and authenticated file signature upload passed.');

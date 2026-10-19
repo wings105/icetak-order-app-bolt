@@ -1,3 +1,7 @@
+## 2026-10-20 — Task briefs are scoped, evidence-based operational observations
+
+Reuse the existing order detail evaluator and exact Inbox order-session context. Keep one readiness brief per ClickUp Task ID, independent from source work stage, canonical payment and fulfillment. Separate mandatory-field completeness from categorical confidence; require current source/admin confirmation and exact task-owned artwork/final-file checks. New source/chat/file revisions expire old confirmation, with previous values available for comparison. Use private versioned brief/audit tables and a fixed server-only Inbox cached-media signer; never allocate generic multi-item chat by position or send/update providers from brief actions. See docs/TASK_WORKSPACE.md.
+
 ## 2026-10-16 — Shared catalogue keeps website and provider edits independent
 
 Reuse Order products/variants/images/profiles; identify Shopee listings by shop+item and models by shop+model, never SKU. Preserve Shopee URLs and import snapshots separately from owner-managed website fields. Inbox gets a bounded shop-scoped cache; it does not own products or receive credentials. Imported products require explicit production-profile mapping and website publication. Outbound owner edits capture source/revision, claim one job, verify actual provider readback and never blindly retry an unknown write. Existing ClickUp sync keeps a snapshot for owner-managed products. See docs/catalog/IMPLEMENTATION.md.

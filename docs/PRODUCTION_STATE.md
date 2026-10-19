@@ -1,3 +1,7 @@
+# 2026-10-20 — Task readiness briefs
+
+Controlled Admin V2 and backend contracts VERIFIED; readiness hosting release pending. task-workspace v3 and read-only Inbox task-brief-media v1 deployed; exact source, auth rejection and live uncached-media guard checked. Per-task product requirements, confidence/completeness, evidence, native confirmation, stale-source reopening and explicit final/QC print readiness use existing exact-session detail rules. Live rollback leaves no QA brief/audit rows. See [Task Workspace](TASK_WORKSPACE.md) for evidence and hosted-session limits.
+
 # 2026-10-20 — Task Workspace
 
 Backend and hosted delivery PRODUCTION / controlled Admin V2 VERIFIED. PR #100 f9bc1af / Cloudflare build e2088eb1 succeeded; exact Task Workspace route reaches secure Admin Login and hosted task CSS matches the tested build. Native PIC, notes, stage and private design uploads sit beside existing ClickUp/iCetak/Shopee task facts, with version/source checks and audit. Live 57-task read, rolled-back mutation guards, actual-gateway auth/upload tests and controlled desktop/mobile work interactions pass. Signed-in hosted staff and real Storage upload/download remain unexercised; GitHub Actions were queued (equivalent local checks passed). See [Task Workspace](TASK_WORKSPACE.md).
