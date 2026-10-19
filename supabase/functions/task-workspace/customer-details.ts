@@ -7,7 +7,7 @@ const uncertain=/\b(?:tak\s*pasti|belum\s*(?:pasti|confirm)|not\s*sure|mana\s*sa
 const correction=/\b(?:tukar|ganti|betulkan|change|replace|correction|yang\s*betul|final)\b/i;
 const directive=/\b(?:font|saiz|size|warna|colou?r|material|bahan|bentuk|shape|background|latar|buang|remove|crop|cut|potong|susun|layout|bulat|petak|curve|straight|tanpa|jangan|contoh|reference|gambar|image|photo|design|print|cetak|guna|use|line|baris|tukar|letak|nama|wording|text|tulis)\b/i;
 export function customerText(raw:unknown,trusted=false):Data{
- const value=text(raw);if(!value||value.length>2000||ack.test(value)||/^(?:boleh|ok(?:ay|ey)?|baik|ya|yes)(?:\s+(?:sis|boss|ya|tq|dah))*[.!?]*$/i.test(value)||/^\d+\s*(?:pcs?|pieces?|unit|inch|in|cm|mm|ringgit)$/i.test(value)||/^(?:yang\s*ni|nak\s*(?:ini|ni)|bila|nak\s*tanya)[.!?]*$/i.test(value))return {};
+ const value=text(raw);if(!value||value.length>2000||!trusted&&(ack.test(value)||/^(?:hi|hai|hello|salam|assalamualaikum|waalaikumsalam|thanks?|thank\s+you|terima\s+kasih|ok(?:ay|ey|ie)?|yes|noted|baiklah)\b/i.test(value))||/^(?:boleh|ok(?:ay|ey)?|baik|ya|yes)(?:\s+(?:sis|boss|ya|tq|dah))*[.!?]*$/i.test(value)||/^\d+\s*(?:pcs?|pieces?|unit|inch|in|cm|mm|ringgit)$/i.test(value)||/^(?:yang\s*ni|nak\s*(?:ini|ni)|bila|nak\s*tanya)[.!?]*$/i.test(value))return {};
  const out:Data={};
  const name=value.match(/(?:^|\n)\s*(?:nama|name)(?:\s+(?:dia|anak|untuk\s+topper))?\s*[:=\-]\s*([^\n]+)/i)||value.match(/^(?:(?:nak|letak|tulis|guna|untuk)\s+)?(?:nama|name)(?:\s+(?:dia|anak))?\s+(.+?)[?.!]*$/i);
  const age=value.match(/(?:^|\n)\s*(?:umur|age)\s*[:=\-]?\s*(\d{1,3})(?:\b|$)/i)||value.match(/^(\d{1,3})\s*(?:tahun|years?(?:\s*old)?|y\/?o)?[.!]*$/i);
