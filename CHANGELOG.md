@@ -1,6 +1,6 @@
 ## 2026-10-20 — Simple task customer-detail rules
 
-- [VERIFIED controlled UI; backend deployed, hosted frontend pending] Topper name/age/custom wording, and edible/wafer/acrylic wording/image/both auto-confirm designer readiness without extra source checkbox/spec/same-design gates. Caption-free images, checkout notes and bounded exact-session pre-order chat feed the brief with provenance. Conflicts/uncertainty remain review; production final/QC remains separate. Real cross-channel cutoff/closed checks, actual gateway/model/media-context tests and desktop/mobile App verification pass. See docs/TASK_WORKSPACE.md.
+- [PRODUCTION backend/hosted delivery; VERIFIED controlled UI] PR #102 / fe2f500 and Cloudflare af1aa5eb pass builds/guards; new hosted labels, exact CSS and secure route confirmed. Topper name/age/custom wording, and edible/wafer/acrylic wording/image/both auto-confirm designer readiness without extra source checkbox/spec/same-design gates. Caption-free images, checkout notes and bounded exact-session pre-order chat feed the brief with provenance. Conflicts/uncertainty remain review; production final/QC remains separate. Real cross-channel cutoff/closed checks, actual gateway/model/media-context tests and desktop/mobile App verification pass. See docs/TASK_WORKSPACE.md.
 
 ## 2026-10-20 — Task readiness briefs
 
