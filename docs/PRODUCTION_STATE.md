@@ -1,6 +1,6 @@
 # 2026-10-20 — Unified Inbox Shopee cards
 
-Backend PRODUCTION / controlled desktop/mobile UI VERIFIED; frontend release pending. Inbox sender v17 and private bridge v15 preserve JWT/member and custom bridge authentication. Existing iCetak product cache powers bounded shop-derived search. Native order-owner and active-product verification, atomic card snapshots/outbox, actual sent+audit+activity and duplicate non-resend are proven. Shopee product wire type is item; application product selection remains product. No canonical order/product/payment mutation. See [feature and verification](INBOX_SHOPEE_CARDS.md).
+Backend/hosted delivery PRODUCTION / controlled desktop/mobile UI VERIFIED. PR #104 / 9025d443, Cloudflare aa3db808 and production guard passed; actual hosted Inbox JS/CSS are byte-identical to the tested build. Signed-in hosted staff actions remain unexercised. Inbox sender v17 and private bridge v15 preserve JWT/member and custom bridge authentication. Existing iCetak product cache powers bounded shop-derived search. Native order-owner and active-product verification, atomic card snapshots/outbox, actual sent+audit+activity and duplicate non-resend are proven. Shopee product wire type is item; application product selection remains product. No canonical order/product/payment mutation. See [feature and verification](INBOX_SHOPEE_CARDS.md).
 
 # 2026-10-20 — Background order-detail automation
 

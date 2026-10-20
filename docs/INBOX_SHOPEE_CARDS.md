@@ -1,6 +1,6 @@
 # Unified Inbox: Shopee order and product cards
 
-Status: backend PRODUCTION; actual desktop/mobile component flows VERIFIED; frontend hosting pending release confirmation (20 October 2026).
+Status: backend and hosted delivery PRODUCTION; actual desktop/mobile component flows VERIFIED (20 October 2026).
 
 ## User flow
 
@@ -34,7 +34,7 @@ The frontend immediately displays the saved card and refreshes messages/activity
 - Native database rollback tests: authenticated member search, exact Product ID, token name search, literal wildcard input, stable paging, unknown chat/nonmember denial, actual service-role atomic snapshot and duplicate/wrong-shop guards. No QA rows remain.
 - Actual Sidebar, Order/Produk tabs, dialog and MessageBubble tested with controlled gateways at 1440×1000 and 390×844: cancel, double click, both card types, paging/search/reset, aborted stale search, empty/error/retry, mobile fit, unknown non-resend and delivered/read-warning states. Browser plugin unavailable; Playwright used. No page errors or framework overlay. This is controlled component verification, not a signed-in hosted staff session.
 - Owner-authorized production sends to the specified `afifahanin217` conversation: order `2610205Q0R9W6D`, provider message `2442116222133092721`; matching purchased product `5803316307`, provider message `2442116612387930481`. Both `sent`, local message + send audit + activity persisted, provider read confirmed. Replaying each original UUID returned duplicate=true and the same provider ID without another send. Two earlier product requests were explicitly rejected and remain failed audit records; no product was delivered by those failures.
-- Live sender v17 (JWT on), private bridge v15 (custom auth/JWT off). Production frontend release evidence follows after deployment.
+- Live sender v17 (JWT on), private bridge v15 (custom auth/JWT off). Production frontend released in PR #104 as `9025d443ae37795bd700786d35d5aba1ad932071`; release tree `012b0377d19926103afd28475349fedc8cce184d` exactly matches tested source. Workers Builds `aa3db808-a819-499a-ae11-01ca0f435339` and production guard both succeeded. The real `/inbox/` serves `index-Ou0uwvgJ.js` and `index--IZFS12H.css`, byte-identical to the tested build (JS SHA256 `79af54b4d33ebb60e8426a3630e09db7d61243ad56847c6f5be1d97cd9b52623`). All four new controls are present in the served source. Hosted signed-in staff actions remain unexercised; controlled UI + live audited provider sends are the verification boundary.
 
 ## Rollback
 
