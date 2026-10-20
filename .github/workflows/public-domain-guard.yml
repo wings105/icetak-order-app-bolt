@@ -53,6 +53,13 @@ jobs:
       - name: Check task workspace authorization and brief readiness
         run: npm run check:task-workspace && npm run check:task-readiness && npm run check:detail-automation
 
+      - name: Check Shopee card sending and existing reply paths
+        run: |
+          npm run check:shopee-cards
+          node --experimental-strip-types scripts/check-shopee-direct.mjs
+          node --experimental-strip-types scripts/test-shopee-image.mjs
+          node --experimental-strip-types scripts/test-shopee-read.mjs
+
       - name: Vite dev server smoke test
         shell: bash
         run: |

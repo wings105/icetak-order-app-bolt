@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Activity, Loader2, Package, RefreshCw, UserRound, X } from 'lucide-react';
-import type { Conversation } from '../types';
+import { Activity, Loader2, Package, ShoppingBag, RefreshCw, UserRound, X } from 'lucide-react';
+import type { Conversation, Message } from '../types';
 import type { CustomTag } from '../lib/conversationTags';
 import { useConversationWorkspace } from '../lib/conversationWorkspace';
 import { ActivityWorkspaceTab } from './workspace/ActivityWorkspaceTab';
 import { CustomerWorkspaceTab } from './workspace/CustomerWorkspaceTab';
 import { OrderWorkspaceTab } from './workspace/OrderWorkspaceTab';
+import { ShopeeProductsTab } from './workspace/ShopeeProductsTab';
 import { WorkspaceMemberProfile } from './workspace/WorkspaceMemberProfile';
 
-type WorkspaceTab = 'customer' | 'order' | 'activity';
+type WorkspaceTab = 'customer' | 'order' | 'activity' | 'product';
 
 interface Props {
   conversation: Conversation;
@@ -18,6 +19,7 @@ interface Props {
   onContactChanged?: () => void;
   onClose: () => void;
   onFillComposer: (text: string) => void;
+  onMessageSent?: (conversationId: string, message: Message) => void;
   onOpenConversation: (conversationId: string) => void;
 }
 
@@ -36,7 +38,14 @@ export function ConversationWorkspaceSidebar({
   onClose,
   onFillComposer,
   onOpenConversation,
+  onMessageSent,
 }: Props) {
+  const [notice, setNotice] = useState('');
+  function cardSent(message: Message, warning?: string) {
+    onMessageSent?.(conversation.id, message);
+    setNotice(warning || 'Kad berjaya dihantar ke chat Shopee.');
+    void reload().catch(() => {});
+  }
   const [tab, setTab] = useState<WorkspaceTab>(conversation.channel === 'shopee' ? 'order' : 'customer');
   const { data, loading, error, reload } = useConversationWorkspace(conversation);
 
@@ -84,14 +93,14 @@ export function ConversationWorkspaceSidebar({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 border-b border-[var(--border)] bg-[var(--surface)]">
-        {TABS.map((item) => {
+      <div className={`grid ${conversation.channel === 'shopee' ? 'grid-cols-4' : 'grid-cols-3'} border-b border-[var(--border)] bg-[var(--surface)]`}>
+        {(conversation.channel === 'shopee' ? [...TABS.slice(0, 2), {id: 'product' as const, label: 'Produk', icon: ShoppingBag}, TABS[2]] : TABS).map((item) => {
           const Icon = item.icon;
           const count = item.id === 'order'
             ? data.linkedOrders.length
             : item.id === 'activity'
               ? data.activities.length
-              : assignedTags.length;
+              : item.id === 'customer' ? assignedTags.length : 0;
           return (
             <button
               key={item.id}
@@ -111,6 +120,7 @@ export function ConversationWorkspaceSidebar({
         })}
       </div>
 
+      {notice && <div role="status" className="border-b border-[var(--border)] bg-emerald-500/10 p-3 text-xs text-[var(--text)]">{notice}</div>}
       {error && (
         <div className="flex items-center justify-between gap-2 border-b border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-300">
           <span className="line-clamp-2">{error}</span>
@@ -143,8 +153,10 @@ export function ConversationWorkspaceSidebar({
             loading={loading}
             onFillComposer={fillComposer}
             onReload={reload}
+            onCardSent={cardSent}
           />
         )}
+        {tab === 'product' && conversation.channel === 'shopee' && <ShopeeProductsTab key={conversation.id} conversation={conversation} onSent={cardSent}/>}
         {tab === 'activity' && <ActivityWorkspaceTab activities={data.activities} loading={loading} />}
       </div>
     </div>

@@ -26,7 +26,7 @@ export function publicConfig(c: ShopeeConfig) {
   };
 }
 // Official v2 shop-level signing. Host and paths are fixed, never supplied by admin/webhook input.
-export async function shopeeRequest(c: ShopeeConfig, path: '/api/v2/sellerchat/upload_image' | '/api/v2/sellerchat/read_conversation' | '/api/v2/sellerchat/send_message' | '/api/v2/sellerchat/get_one_conversation' | '/api/v2/payment/get_escrow_detail' | '/api/v2/payment/get_escrow_list' | '/api/v2/returns/get_return_detail', payload: Record<string, unknown> | FormData, method: 'GET' | 'POST', fetcher = fetch) {
+export async function shopeeRequest(c: ShopeeConfig, path: '/api/v2/order/get_order_detail' | '/api/v2/product/get_item_base_info' | '/api/v2/sellerchat/upload_image' | '/api/v2/sellerchat/read_conversation' | '/api/v2/sellerchat/send_message' | '/api/v2/sellerchat/get_one_conversation' | '/api/v2/payment/get_escrow_detail' | '/api/v2/payment/get_escrow_list' | '/api/v2/returns/get_return_detail', payload: Record<string, unknown> | FormData, method: 'GET' | 'POST', fetcher = fetch) {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey('raw', encoder.encode(c.partner_key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);

@@ -146,8 +146,9 @@ function InboxApp() {
         notes: googleContact ? `${conversation.customer.notes ?? ''}${conversation.customer.notes ? '\n' : ''}Google Contact: ${googleContact.display_name}` : conversation.customer.notes,
       },
     };
-    if (conversation.id === selectedId && messages.length > 0) merged.messages = extra.length ? [...messages, ...extra] : messages;
-    else if (extra.length) merged.messages = [...(conversation.messages ?? []), ...extra];
+    const savedMessages = conversation.id === selectedId && messages.length > 0 ? messages : conversation.messages;
+    const savedIds = new Set(savedMessages.map(message => message.id));
+    if (extra.length || conversation.id === selectedId && messages.length > 0) merged.messages = [...savedMessages, ...extra.filter(message => !savedIds.has(message.id))];
     return merged;
   }), [conversations, overrides, selectedId, messages, optimisticMessages, byConversation, googleNamesByPhone, orderSessionsByConversation]);
 
@@ -315,6 +316,13 @@ function InboxApp() {
             />
           ) : selectedConversation ? (
             <ConversationWorkspaceSidebar
+              key={selectedConversation.id}
+              onMessageSent={(conversationId, message) => {
+                setOptimisticMessages(previous => ({...previous, [conversationId]: [...(previous[conversationId] ?? []), message]}));
+                reload();
+                setMsgReloadKey(key => key + 1);
+                window.setTimeout(() => setOptimisticMessages(previous => ({...previous, [conversationId]: (previous[conversationId] ?? []).filter(row => row.id !== message.id)})), 2500);
+              }}
               conversation={selectedConversation}
               allTags={allTags}
               assignedTags={byConversation[selectedConversation.id] ?? []}

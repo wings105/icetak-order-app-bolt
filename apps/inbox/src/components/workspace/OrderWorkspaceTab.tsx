@@ -3,7 +3,7 @@ import {
   CheckCircle2, Copy, CreditCard, ExternalLink, Link2, Loader2, MessageSquareText,
   CalendarClock, MapPin, Package, Plus, Search, Send, ShoppingBag, Star, StickyNote, Tag, Trash2, Truck,
 } from 'lucide-react';
-import type { Conversation } from '../../types';
+import type { Conversation, Message } from '../../types';
 import {
   applyWorkspaceVariables,
   buildWorkspaceOrderCard,
@@ -17,6 +17,8 @@ import {
   type WorkspaceSnippet,
   type WorkspaceSuggestedOrder,
 } from '../../lib/conversationWorkspace';
+import { ShopeeCardDialog } from './ShopeeCardDialog';
+import type { CardSelection } from '../../lib/shopeeCardSend';
 import { linkManualOrder } from '../../lib/workspaceOrderActions';
 
 interface Props {
@@ -28,6 +30,7 @@ interface Props {
   loading: boolean;
   onFillComposer: (text: string) => void;
   onReload: () => Promise<void>;
+  onCardSent?: (message: Message, warning?: string) => void;
 }
 
 function amount(value: number | null): string {
@@ -83,7 +86,9 @@ export function OrderWorkspaceTab({
   loading,
   onFillComposer,
   onReload,
+  onCardSent,
 }: Props) {
+  const [selectedCard, setSelectedCard] = useState<CardSelection | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [manualOrderNo, setManualOrderNo] = useState('');
@@ -115,6 +120,11 @@ export function OrderWorkspaceTab({
   }
 
   async function prepareOrderCard(link: WorkspaceOrderLink) {
+    if (conversation.channel === 'shopee') {
+      if (!link.summary || link.summary.source_channel !== 'shopee') throw new Error('Detail order Shopee belum tersedia.');
+      setSelectedCard({type: 'order', id: link.summary.id, orderNo: link.order_no, title: `Order #${link.order_no}`, image: orderItems(link.summary)[0]?.image});
+      return;
+    }
     const text = link.summary
       ? buildWorkspaceOrderCard(link.summary)
       : `Order #${link.order_no}`;
@@ -231,7 +241,7 @@ export function OrderWorkspaceTab({
                 )}
 
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <ActionButton icon={<Send size={12} />} label="Order Card" onClick={() => runAction(`card-${link.id}`, () => prepareOrderCard(link))} busy={busyKey === `card-${link.id}`} />
+                  <ActionButton icon={<Send size={12} />} label={conversation.channel === 'shopee' ? 'Hantar order' : 'Order Card'} disabled={conversation.channel === 'shopee' && link.summary?.source_channel !== 'shopee'} onClick={() => runAction(`card-${link.id}`, () => prepareOrderCard(link))} busy={busyKey === `card-${link.id}`} />
                   <ActionButton icon={<Truck size={12} />} label="Tracking" onClick={() => runAction(`tracking-${link.id}`, () => prepareTracking(link))} busy={busyKey === `tracking-${link.id}`} disabled={!summary?.tracking_no} />
                   {!link.is_primary && <ActionButton icon={<Star size={12} />} label="Jadi Utama" onClick={() => runAction(`primary-${link.id}`, () => setPrimaryWorkspaceOrder(link.id))} busy={busyKey === `primary-${link.id}`} />}
                   {(summary?.public_order_url || summary?.clickup_url) && <ActionButton icon={<ExternalLink size={12} />} label="Buka Order" onClick={() => window.open(summary.public_order_url || summary.clickup_url || '', '_blank', 'noopener,noreferrer')} />}
@@ -325,7 +335,7 @@ export function OrderWorkspaceTab({
         </div>
       </section>
 
-      <section className="p-4">
+      {conversation.channel !== 'shopee' && <section className="p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Cadangan Produk</h3>
           <span className="text-[10px] text-[var(--text-secondary)]">Order System ready</span>
@@ -346,7 +356,8 @@ export function OrderWorkspaceTab({
             </div>
           )}
         </div>
-      </section>
+      </section>}
+      {selectedCard && <ShopeeCardDialog conversation={conversation} selection={selectedCard} onClose={() => setSelectedCard(null)} onSent={(message, warning) => {onCardSent?.(message, warning);}}/>}
     </div>
   );
 }

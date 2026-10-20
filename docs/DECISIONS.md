@@ -1,3 +1,7 @@
+## 2026-10-20 — Shopee cards reuse catalogue cache and audited sender
+
+Keep canonical products in Order System and shop+item cache/search in Inbox. Card previews select DB resources rather than browser-supplied recipient/product data; signed provider reads prove order ownership and active product identity. Reuse existing send claims/reply/read guards, persist card snapshots before delivery and never rely on API echoes. Logical product selection maps to Shopee wire type item, verified on the real app. Search and Cancel never send. See docs/INBOX_SHOPEE_CARDS.md.
+
 ## 2026-10-20 — Task briefs are scoped, evidence-based operational observations
 
 Keep one brief per ClickUp Task ID, independent from work stage/payment/fulfillment. Clear customer customization is sufficient for automatic high-confidence designer readiness: topper name OR age OR wording; edible/wafer/acrylic wording OR image OR both. No extra Confirmed/name+age/specification/same-design gate. Preserve exact item/session identity, conflicts/uncertainty review and separate final-file/QC/customer approval for print/cut. Re-evaluate new evidence rather than requiring manual reconfirmation of every harmless revision. A narrow service-only context wrapper includes bounded pre-order chat while respecting previous closed-order cutoffs across channels; CRM/draft extraction is unchanged. Native saves remain private, versioned, audited and idempotent. See docs/TASK_WORKSPACE.md.

@@ -55,6 +55,13 @@ Deno.serve(async req=>{
     return out({ok:true,model:'gte-small',matches});
    }catch{return out({ok:true,model:null,matches:[]});}
   }
+  if(action==='send_card'){
+   if(!uuid(b.conversation_id)||!uuid(b.request_id)||!t(b.actor)||b.approved!==true||!['order','product'].includes(b.message_type))return out({ok:false,error:'Explicit card approval and identity required'},400);
+   const c=(await read(b.conversation_id)).rows[0];
+   if(c?.channel!=='shopee'||b.revision!==c.revision)return out({ok:false,error:'CHAT_CHANGED: Muat semula sebelum menghantar.'},409);
+   const client=createClient(U,K,{auth:{persistSession:false}});
+   return await sendShopee(client,{conversation_id:b.conversation_id,request_id:b.request_id,message_type:b.message_type,order_summary_id:b.order_summary_id,product_id:b.product_id},{id:null,label:t(b.actor)});
+  }
   if(action!=='send_text')return out({ok:false,error:'Unsupported action'},400);
   if(!uuid(b.conversation_id)||!uuid(b.request_id)||!t(b.actor)||!t(b.text)||t(b.text).length>4000||b.approved!==true)
    return out({ok:false,error:'Explicit approval, identity and response required'},400);
