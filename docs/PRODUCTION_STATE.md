@@ -1,3 +1,7 @@
+# 2026-10-20 — Unified Inbox Shopee cards
+
+Backend PRODUCTION / controlled desktop/mobile UI VERIFIED; frontend release pending. Inbox sender v17 and private bridge v15 preserve JWT/member and custom bridge authentication. Existing iCetak product cache powers bounded shop-derived search. Native order-owner and active-product verification, atomic card snapshots/outbox, actual sent+audit+activity and duplicate non-resend are proven. Shopee product wire type is item; application product selection remains product. No canonical order/product/payment mutation. See [feature and verification](INBOX_SHOPEE_CARDS.md).
+
 # 2026-10-20 — Background order-detail automation
 
 Backend PRODUCTION; controlled Admin V2 desktop/mobile VERIFIED. Every-minute leased worker and initial order/task triggers persist readiness, remarks and change audit without opening the dashboard. Initial per-item order observations are recorded before ClickUp tasks exist and hand off by exact SKU. Missing detail has a 30-minute reread; later questions and design changes require separate admin attention. Exact per-item notes and phone-bound WhatsApp fallback retain session boundaries. Live 72-task runs, correct Cat/Messi note extraction and unchanged-run idempotency verified. The existing hosted component contract displays backend remarks/attention, without a frontend release. Source publication is owner-authorized. See [automation contract](ORDER_DETAIL_AUTOMATION.md).

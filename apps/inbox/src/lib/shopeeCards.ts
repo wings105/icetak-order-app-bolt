@@ -1,5 +1,5 @@
 export type ShopeeCard={title:string;label:string;image?:string;fields:Array<{label:string;value:string}>;lines:string[]};
-const labels:Record<string,string>={order:'Order Shopee',item:'Produk Shopee',variation_card:'Pertanyaan variasi produk',bundle_message:'Bundle produk',new_voucher:'Voucher',return_refund_card:'Return / refund',order_cancel_card:'Pembatalan order',out_of_stock_reminder_card:'Stok habis',chat_order_invitation_card:'Jemputan order',item_list:'Senarai produk',faq_liveagent:'Pertanyaan customer',notification:'Notifikasi Shopee'};
+const labels:Record<string,string>={order:'Order Shopee',product:'Produk Shopee',item:'Produk Shopee',variation_card:'Pertanyaan variasi produk',bundle_message:'Bundle produk',new_voucher:'Voucher',return_refund_card:'Return / refund',order_cancel_card:'Pembatalan order',out_of_stock_reminder_card:'Stok habis',chat_order_invitation_card:'Jemputan order',item_list:'Senarai produk',faq_liveagent:'Pertanyaan customer',notification:'Notifikasi Shopee'};
 function objects(value:unknown,depth=0):Record<string,unknown>[] {
  if(depth>5||!value||typeof value!=='object')return [];
  if(Array.isArray(value))return value.slice(0,20).flatMap(x=>objects(x,depth+1));

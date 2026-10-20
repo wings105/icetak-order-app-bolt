@@ -1,3 +1,7 @@
+# 2026-10-20 — Shopee order and product cards
+
+- [VERIFIED UI / PRODUCTION backend] Unified Inbox adds native Shopee order cards and shop-scoped, paginated iCetak product search/cards. Explicit buyer preview, live order-owner/product-status proof, atomic card audit/history and duplicate/unknown-send guards reuse the existing sender. Actual authorized order + product sends and identical-UUID non-resend verified; desktop/mobile actual components, native rollback and existing chat tests pass. Frontend hosting awaits release confirmation. See docs/INBOX_SHOPEE_CARDS.md.
+
 # 2026-10-20
 
 - [PRODUCTION] Background task-detail worker persists initial order information before tasks exist and current active-task information, 30-minute rereads and admin attention for later questions/wording changes. Exact labelled multi-item notes and scoped WhatsApp phone fallback are supported. Live 72-task worker/idempotency and controlled desktop/mobile review/acknowledgement pass; existing hosted component compatibility verified; source publication owner-authorized. See docs/ORDER_DETAIL_AUTOMATION.md.

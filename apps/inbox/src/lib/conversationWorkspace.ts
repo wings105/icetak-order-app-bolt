@@ -264,7 +264,7 @@ export function useConversationWorkspace(conversation: Conversation | null): Use
           .in('channel', ['all', channel])
           .order('sort_order')
           .order('title'),
-        supabase
+        channel === 'shopee' ? Promise.resolve({data: [], error: null}) : supabase
           .from('product_catalog_cache')
           .select('*')
           .eq('active', true)

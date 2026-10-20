@@ -17,7 +17,8 @@
     "check:product-catalog": "node --experimental-strip-types scripts/check-product-catalog.mjs",
     "check:task-workspace": "node --experimental-strip-types scripts/check-task-workspace.mjs",
     "check:task-readiness": "node --experimental-strip-types scripts/check-task-readiness.mjs",
-    "check:detail-automation": "node --experimental-strip-types scripts/check-detail-automation.mjs"
+    "check:detail-automation": "node --experimental-strip-types scripts/check-detail-automation.mjs",
+    "check:shopee-cards": "node --experimental-strip-types scripts/check-shopee-cards.mjs"
   },
   "dependencies": {
     "@cloudflare/puppeteer": "1.4.0",
