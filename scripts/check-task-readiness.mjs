@@ -16,7 +16,7 @@ const order={items:[{id:'item-a',title:'Custom acrylic',sku:'AC01',quantity:1,si
 const conflict=await taskReadiness(source,order,context);assert.equal(conflict.status,'review');assert(conflict.conflicts.some(c=>c.value==='Happy Birthday Sara'));assert(conflict.conflicts.length>0);
 const correction=validateBrief({...conflict.form,values:{...conflict.values,wording:'Happy Birthday Sara'}});const accepted={version:1,data:correction,source_fingerprint:conflict.fingerprint,confirmed:true,updated_by:'admin'};
 assert.equal((await taskReadiness(source,order,context,accepted)).status,'ready');
-assert((await taskReadiness(source,order,{...context,bindings:[{id:'chat-a',usable:true,revision:'2'}]},accepted)).expired);
+assert(!(await taskReadiness(source,order,{...context,bindings:[{id:'chat-a',usable:true,revision:'2'}]},accepted)).expired,'operational chat revision alone preserves approved detail');
 assert.equal((await taskReadiness(source,order,{unavailable:true},accepted)).can_confirm,false);
 assert.equal((await taskReadiness({...source,mapping_status:'conflict'},null)).can_confirm,false);
 const multi={...order,items:[...order.items,{id:'item-b',title:'Custom acrylic',sku:'AC02',quantity:1,size:'A7'}],production_tasks:[...order.production_tasks,{id:'task-b',detail:{sku:'AC02',customize_name:'Sara'}}]};
@@ -58,7 +58,7 @@ await new Function('Deno','fetch',`return (async()=>{${stripTypeScriptTypes(medi
  if(url.includes('private_runtime_settings?'))return Response.json([{setting_value:'bridge-secret'}]);
  if(url.includes('/message_media?'))return Response.json([{storage_path:'incoming/2026/original.png',mime_type:mediaMime}]);
  if(url.includes('/storage/v1/object/sign/whatsapp-media/'))return Response.json({signedURL:'/object/sign/whatsapp-media/original.png?token=signed'});
- if(url.includes('/rpc/icetak_task_brief_context'))return Response.json({'order-a':{bindings:[],messages:[]}});
+ if(url.includes('/rpc/icetak_task_automation_context'))return Response.json({'order-a':{bindings:[],messages:[]}});
  throw Error('Unexpected media route');
 });
 const mediaRequest=(ids,token='bridge-secret')=>mediaHandler(new Request('https://qa.media',{method:'POST',headers:{'x-admin-window-token':token,'content-type':'application/json'},body:JSON.stringify({ids})}));

@@ -22,7 +22,7 @@ export function focusRows(snapshot:Data,chats:Data[],identities:Data,now=Date.no
   const candidates=id.identity_status==='ambiguous'?[]:id.master_id?masterOrders.get(id.master_id)||[]:c.channel==='shopee'?uidOrders.get(c.external_customer_id)||[]:[];
   // Current customer text plus exact canonical identity; never bind by name or simply newest order.
   const linkedRefs=(c.order_links||[]).filter((l:Data)=>l.source==='exact_order_id').map((l:Data)=>String(l.reference).toUpperCase());
-  const linkedOrders=linkedRefs.map((ref:string)=>refs.get(ref)).filter((o):o is Data=>!!o);
+  const linkedOrders=linkedRefs.map((ref:string)=>refs.get(ref)).filter((o:Data|undefined):o is Data=>!!o);
   const exact=[...new Map([...candidates.filter(o=>text.includes(String(o.reference).toUpperCase())&&refs.has(String(o.reference).toUpperCase())),...linkedOrders].map(o=>[`${o.kind}:${o.id}`,o])).values()];
   const related=[...new Map([...candidates,...linkedOrders].map(o=>[`${o.kind}:${o.id}`,o])).values()];
   const item={...c,identity:id,analysis:a,related_references:related.filter(o=>orderOperation(o,now).active).map(o=>o.reference)};

@@ -14,8 +14,9 @@ export function customerText(raw:unknown,trusted=false):Data{
  const wording=value.match(/(?:^|\n)\s*(?:wording|tulisan|text)(?:\s+(?:on|for|atas|pada)\s+(?:the\s+)?(?:cake\s+)?topper)?\s*[:=\-]\s*([\s\S]+)/i)||value.match(/^(?:tukar|ganti|betulkan|change|replace)\s+(?:(?:nama|name|wording|tulisan|text)\s*)?(?:(?:kepada|ke|jadi|to)\s+)?([\s\S]+)$/i)||value.match(/^(?:letak|tulis)\s+(?:wording|tulisan|text)\s+([\s\S]+)$/i);
  if(name&&!operational.test(name[1]))out.name=name[1].trim();if(age)out.age=age[1];
  if(wording){const v=wording[1].split(/\n\s*(?:(?:saiz|size|warna|colou?r|font|material|qty|kuantiti)\s*[:=])/i)[0].trim();if(v&&!operational.test(v)&&!/^(?:warna|colou?r|saiz|size|font|bentuk|shape|background|material)\b/i.test(v))out.wording=v;}
+ if(!out.wording&&!directive.test(value)&&/^[\p{L}\p{M}\s.'’&-]+\s+turns\s+\d{1,3}[.!]*$/iu.test(value)&&!operational.test(value))out.wording=value;
  const bare=value.match(/^([\p{L}][\p{L}\p{M}\s.'’&❤️♥-]{1,100}?)\s*\n?\s*(\d{1,3})\s*(?:tahun|years?(?:\s*old)?|y\/?o)?[.!]*$/iu);
- if(bare&&!operational.test(value)&&!directive.test(value)){out.name=bare[1].trim();out.age=bare[2];}
+ if(bare&&!out.wording&&!operational.test(value)&&!directive.test(value)){out.name=bare[1].trim();out.age=bare[2];}
  if(!out.name&&!out.age&&!out.wording&&!operational.test(value)){
   if(trusted||/^(?:happy\b|selamat\b|the\s+wedding\b|tahniah\b|congratulations\b|good\s*luck\b)/i.test(value))out.wording=value;
   else if(/^\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}$/.test(value))out.wording=value;

@@ -1,3 +1,7 @@
+# 2026-10-20
+
+- [PRODUCTION] Background task-detail worker persists initial order information before tasks exist and current active-task information, 30-minute rereads and admin attention for later questions/wording changes. Exact labelled multi-item notes and scoped WhatsApp phone fallback are supported. Live 72-task worker/idempotency and controlled desktop/mobile review/acknowledgement pass; existing hosted component compatibility verified; source publication owner-authorized. See docs/ORDER_DETAIL_AUTOMATION.md.
+
 ## 2026-10-20 — Simple task customer-detail rules
 
 - [PRODUCTION backend/hosted delivery; VERIFIED controlled UI] PR #102 / fe2f500 and Cloudflare af1aa5eb pass builds/guards; new hosted labels, exact CSS and secure route confirmed. Topper name/age/custom wording, and edible/wafer/acrylic wording/image/both auto-confirm designer readiness without extra source checkbox/spec/same-design gates. Caption-free images, checkout notes and bounded exact-session pre-order chat feed the brief with provenance. Conflicts/uncertainty remain review; production final/QC remains separate. Real cross-channel cutoff/closed checks, actual gateway/model/media-context tests and desktop/mobile App verification pass. See docs/TASK_WORKSPACE.md.

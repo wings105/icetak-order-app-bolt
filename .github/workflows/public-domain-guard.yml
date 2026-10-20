@@ -51,7 +51,7 @@ jobs:
         run: npm run check:acrylic-production
 
       - name: Check task workspace authorization and brief readiness
-        run: npm run check:task-workspace && npm run check:task-readiness
+        run: npm run check:task-workspace && npm run check:task-readiness && npm run check:detail-automation
 
       - name: Vite dev server smoke test
         shell: bash

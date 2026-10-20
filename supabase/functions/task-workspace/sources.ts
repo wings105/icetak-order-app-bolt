@@ -2,6 +2,7 @@ import {attachDetailSources} from '../admin-ai-dashboard/order-details.ts';
 import {focusRows} from '../admin-ai-dashboard/focus.ts';
 import {identity} from '../admin-ai-dashboard/analysis.ts';
 import {taskReadiness} from './readiness.ts';
+import {observe,applyObservation} from './automation.ts';
 type Data=Record<string,any>;
 type Rpc=(name:string,body:unknown)=>Promise<any>;
 export async function loadReadiness(tasks:Data[],rpc:Rpc,call:(path:string,init?:RequestInit)=>Promise<any>){
@@ -33,7 +34,7 @@ export async function loadReadiness(tasks:Data[],rpc:Rpc,call:(path:string,init?
    }
    const requests=snapshot.orders.map((o:Data)=>{
     const k=`${o.kind}:${o.id}`,saved=o.state.data?.detail_check?.bindings||[];
-    return {key:k,reference:o.reference,placed_at:o.created_at||o.placed_at,single_item_scope:o.items?.length===1,closed:/^(shipped|completed|cancelled|canceled|customer_collected|returned|refunded)$/i.test(o.status||''),
+    return {key:k,reference:o.reference,phone:o.phone,buyer_user_id:o.buyer_user_id,placed_at:o.created_at||o.placed_at,single_item_scope:o.items?.length===1,closed:/^(shipped|completed|cancelled|canceled|customer_collected|returned|refunded)$/i.test(o.status||''),
      bindings:saved.filter((b:Data)=>approved[k]?.has(b.conversation_id)),invalid:saved.some((b:Data)=>!approved[k]?.has(b.conversation_id))};
    });
    if(requests.length){const data=await inbox({action:'context',orders:requests},true);
@@ -47,11 +48,19 @@ export async function loadReadiness(tasks:Data[],rpc:Rpc,call:(path:string,init?
  const result:Data={};
  await Promise.all(tasks.map(async t=>{
   const k=t.marketplace_order_id?`shopee:${t.marketplace_order_id}`:t.order_id?`icetak:${t.order_id}`:'';
-  const s=source.sources?.[t.task_id];if(!s)throw Error('SOURCE_CHANGED_REFRESH');
-  const o=orders[k]||null,c=contexts[k]||{},allowedMedia=new Set((c.messages||[]).filter((m:Data)=>m.direction==='inbound'&&!m.is_history&&c.bindings?.some((b:Data)=>b.usable&&b.id===m.conversation_id)).map((m:Data)=>m.media_url));
+  const o=orders[k]||null,c=contexts[k]||{};
+  const virtual=t.virtual===true?o?.items?.[t.item_index]:null;
+  const s=source.sources?.[t.task_id]||(virtual?{task_id:t.task_id,title:virtual.title,status:'new custom',fields:{sku:virtual.sku},item:{...virtual,id:virtual.id||`line-${t.item_index}`},files:[],mapping_status:'order_intake',order_status:o.status,source_updated_at:o.source_updated_at}:null);
+  if(!s)throw Error('SOURCE_CHANGED_REFRESH');
+  const allowedMedia=new Set((c.messages||[]).filter((m:Data)=>m.direction==='inbound'&&!m.is_history&&c.bindings?.some((b:Data)=>b.usable&&b.id===m.conversation_id)).map((m:Data)=>m.media_url));
   const context=k?(unavailable||!o?{unavailable:true}:{...c,media_access:Object.fromEntries(Object.entries(mediaAccess).filter(([url])=>allowedMedia.has(url)))}):{};
-  result[t.task_id]={source:s,order:o,context,saved:source.briefs?.[t.task_id]||null,
+  const loaded={source:s,order:o,context,saved:source.briefs?.[t.task_id]||null,
    readiness:await taskReadiness(s,o,context,source.briefs?.[t.task_id]||null)};
+  const inherited=(source.intakes?.[k]?.data?.items||[]).filter((i:Data)=>i.sku&&i.sku===String(s.fields?.sku||s.item?.sku||''));
+  const previous=source.automations?.[t.task_id]||(inherited.length===1?{data:inherited[0].observation}:null);
+  const observation=await observe(loaded,previous);
+  result[t.task_id]={...loaded,raw_readiness:loaded.readiness,observation,automation_version:previous?.version||0,
+   readiness:applyObservation(loaded.readiness,{data:observation,version:previous?.version||0})};
  }));
  return result;
 }
