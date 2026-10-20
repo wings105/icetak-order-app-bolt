@@ -1,6 +1,6 @@
 # 2026-10-20 — Inbox product search keyboard focus
 
-Controlled desktop/mobile behavior VERIFIED; hosted release pending. Reproduced the owner report (`f` in search, `rozen` in composer). Global composer focus now ignores unrelated DOM updates and respects other editors/modals. Twelve real keyboard/focus checks pass with zero sends/page errors; typecheck and full build pass. This replaces the previous incomplete product-search interaction proof. See [regression evidence](INBOX_SHOPEE_CARDS.md#product-search-focus-regression-20-october-2026).
+Hosted delivery PRODUCTION / controlled desktop/mobile behavior VERIFIED. PR #105 / 545b3bfc, Workers Builds 366b5b9c and guards passed; hosted Inbox JS/CSS are byte-identical to the tested build and the staff login gate renders. Reproduced the owner report (`f` in search, `rozen` in composer). Global composer focus now ignores unrelated DOM updates and respects other editors/modals. Twelve real keyboard/focus checks pass with zero sends/page errors; typecheck, full build and actual full-App desktop/mobile typing pass, including the hosted runtime with an isolated synthetic session/backend fixtures. No real staff session or customer send was required. This replaces the previous incomplete product-search interaction proof. See [regression evidence](INBOX_SHOPEE_CARDS.md#product-search-focus-regression-20-october-2026).
 
 # 2026-10-20 — Unified Inbox Shopee cards
 

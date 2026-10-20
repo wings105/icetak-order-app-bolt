@@ -2,7 +2,7 @@
 
 ## 2026-10-20 — Inbox product search focus
 
-- [VERIFIED] Product search keeps keyboard focus while loading/results update, so `frozen` can be typed after one click. The global composer helper respects other fields/modals while preserving new-chat/post-send focus. Twelve desktop/mobile keyboard/focus regressions and Inbox typecheck/full build pass; hosted release pending. See docs/INBOX_SHOPEE_CARDS.md.
+- [PRODUCTION hosted delivery; VERIFIED controlled UI] Product search keeps keyboard focus while loading/results update, so `frozen` can be typed after one click. The global composer helper respects other fields/modals while preserving new-chat/post-send focus. Twelve desktop/mobile keyboard/focus regressions and full-App desktop/mobile typing, Inbox typecheck and full build pass. PR #105 / 545b3bfc, Workers Builds 366b5b9c and guards succeeded; hosted JS/CSS are byte-identical to the tested build and the staff login gate renders. Hosted desktop/mobile typing also passes with controlled fixtures. See docs/INBOX_SHOPEE_CARDS.md.
 
 - [PRODUCTION backend/hosted delivery; VERIFIED controlled UI] Unified Inbox adds native Shopee order cards and shop-scoped, paginated iCetak product search/cards. Explicit buyer preview, live order-owner/product-status proof, atomic card audit/history and duplicate/unknown-send guards reuse the existing sender. Actual authorized order + product sends and identical-UUID non-resend verified; desktop/mobile actual components, native rollback and existing chat tests pass. PR #104 / 9025d443 and Cloudflare aa3db808 passed CI; actual hosted Inbox JS/CSS are byte-identical to the tested build. Signed-in hosted staff actions remain unexercised. See docs/INBOX_SHOPEE_CARDS.md.
 
