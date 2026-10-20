@@ -295,3 +295,7 @@ Use existing products/models/profiles and the owner-approved purchase UI. Apply 
 # 2026-10-19 — Native task workspace alongside provider status
 
 Owner requested a ClickUp-like operational task view inside Admin V2, enriched with iCetak and Shopee data. Preserve each ClickUp Task ID/set and exact stored order links. New service-only, versioned/audited native work owns PIC, notes, uploaded files and an explicitly labelled iCetak stage. Source status remains separate and newer source revisions invalidate old stage overrides. No implicit ClickUp writeback, customer approval/send, stock/payment or fulfillment mutation is introduced. See `TASK_WORKSPACE.md` for coverage, permissions and verification.
+
+## 2026-10-20 — Detail observations are independent of approvals
+
+Persist current task detail observations and change history in Order System through a bounded leased worker. Reuse private Inbox session evidence and exact phone fallback without moving chat ownership or creating CRM links. Separate completeness from admin questions; later design changes require current-source human review. A 30-minute reread is independent of future provider message follow-up. Preserve native notes, final/QC, payment and fulfillment contracts. See ORDER_DETAIL_AUTOMATION.md.

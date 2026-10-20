@@ -93,7 +93,7 @@ Deno.serve(async req=>{
    if(brief.values.artwork?.startsWith('task-file://'))brief.artwork_url=files.find((f:any)=>f.id===brief.values.artwork.slice(12))?.url||null;
    // Whole conversations stay in Inbox; task users receive only extracted evidence for this brief.
    if(action==='list'){brief.evidence=[];brief.conflicts=[];}
-   return {...item,images,files,readiness:brief};
+   return {...item,wording:brief.values.wording||item.wording,images,files,readiness:brief};
   }));
   return out({ok:true,...data,items,can_edit:canEdit,can_confirm:canConfirm,actor:admin.username,read_at:new Date().toISOString()});
  }catch(e){

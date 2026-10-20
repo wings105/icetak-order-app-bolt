@@ -12,7 +12,7 @@ Deno.serve(async req=>{
   const input=await req.json();
   if(input.action==='context'){
    if(!Array.isArray(input.orders)||!input.orders.length||input.orders.length>50)return out({ok:false},400);
-   return out({ok:true,contexts:await call('/rest/v1/rpc/icetak_task_brief_context',{p_orders:input.orders})});
+   return out({ok:true,contexts:await call('/rest/v1/rpc/icetak_task_automation_context',{p_orders:input.orders})});
   }
   if(!Array.isArray(input.ids)||input.ids.length>20||input.ids.some((x:unknown)=>typeof x!=='string'||!/^\d{1,40}$/.test(x)))return out({ok:false},400);
   const media:Record<string,unknown>={};

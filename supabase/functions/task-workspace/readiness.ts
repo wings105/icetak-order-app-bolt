@@ -1,5 +1,7 @@
 import {orderDetails} from '../admin-ai-dashboard/order-details.ts';
 import {customerContent,customerText} from './customer-details.ts';
+import {scopeCustomer,itemContent} from './item-scope.ts';
+import {designContext} from './automation.ts';
 type Data=Record<string,any>;
 const text=(v:unknown)=>String(v??'').trim();
 export const briefLabels:Record<string,string>={product:'Produk',quantity:'Kuantiti',size:'Saiz',shape:'Bentuk',material:'Material',colour:'Warna',mode:'Keperluan design',name:'Nama',age:'Umur',wording:'Wording tepat',artwork:'Gambar dipilih (URL)',template:'Kod / template',instructions:'Arahan designer'};
@@ -31,8 +33,9 @@ export function validateBrief(input:Data){
 }
 // Inputs are server-owned exact task/order/session records, never browser claims.
 export async function taskReadiness(source:Data,order:Data|null,context:Data={},saved:Data|null=null,proposal?:Data){
- const fingerprint=await briefFingerprint({rules_version:'task-brief-simple-v1',source,order:order?{items:order.items,order_note:order.order_note,source_fingerprint:order.source_fingerprint,state:order.state?.data?.detail_check,tasks:order.production_tasks}:null,
-  chat:{ambiguous:!!context.ambiguous,truncated:!!context.truncated,unavailable:!!context.unavailable,bindings:context.bindings||[],messages:context.messages||[],media_access:Object.fromEntries(Object.entries(context.media_access||{}).map(([k,v]:[string,any])=>[k,v.available===true]))}});
+ const design=designContext(context);
+ const fingerprint=await briefFingerprint({rules_version:'task-brief-automation-v1',source,order:order?{items:order.items,order_note:order.order_note,source_fingerprint:order.source_fingerprint,state:order.state?.data?.detail_check,tasks:order.production_tasks}:null,
+  chat:{ambiguous:!!context.ambiguous,truncated:!!context.truncated,unavailable:!!context.unavailable,bindings:design.bindings||[],messages:design.messages||[],media_access:Object.fromEntries(Object.entries(context.media_access||{}).map(([k,v]:[string,any])=>[k,v.available===true]))}});
  const current=!!saved&&saved.source_fingerprint===fingerprint,expired=!!saved&&!current;
  const config=proposal||current&&saved?.data||{};
  const values:Data={},sources:Data={},conflicts:Data[]=[];
@@ -43,13 +46,23 @@ export async function taskReadiness(source:Data,order:Data|null,context:Data={},
  const detail=order?orderDetails(order,context):null;
  const specEvidence:Data[]=[];
  const matched=detail?.items.filter((i:Data)=>i.task_ids.includes(source.task_id))||[];
- const exact=matched.length===1?matched[0]:null;
- const raw=text(fields['customize name']||fields['customise name']);
+ const exact:Data|null=matched.length===1?matched[0]:null;
+ let raw=text(fields['customize name']||fields['customise name']);
+ const assigned=scopeCustomer(source,order,context,exact);
+ if(raw&&order&&order.items?.length>1){
+  const sku=text(fields.sku)||title.match(/\b(?:CN|EI|WF|WP)\d{3,6}\b/i)?.[0];
+  const item=order.items.find((i:Data)=>sku&&text(i.sku).toLowerCase()===sku.toLowerCase());
+  const part=item?itemContent(raw,item,order.items):'';
+  if(part)raw=part;
+  else if((raw.replace(/\\n/g,'\n').match(/(?:^|\n)\s*wording\s*:/gi)||[]).length>1){
+   raw='';if(!assigned.order?.order_note)warnings.push('Customize Name mengandungi beberapa wording tanpa label item; semak padanan.');
+  }
+ }
  const type=text(item.product_type||source.component?.type)+' '+source.status+' '+spec+' '+text(exact?.title);
  add('product',/wafer/i.test(type)?'wafer':/acrylic/i.test(type)?'acrylic':/edible|burn.?away/i.test(type)?'edible':/topper|artpaper|mirror gold/i.test(type)?'topper':'','Task / komponen');
  // A dimension such as 5 × 5 inch is not a quantity prefix.
  const qty=title.match(/^\s*(\d+)\s*[x×](?!\s*\d)/i)||(/round|bulat|square/i.test(title)?title.match(/^\s*(\d+)\s*x(?=\s*\d+(?:\.\d+)?\s*(?:inch|in\b|cm|mm))/i):null)||title.match(/\b[x×]\s*(\d+)\s*(?:pcs?|pieces?)\b/i)||title.match(/\b(\d+)\s*(?:pcs?|pieces?)\b/i);
- add('quantity',qty?.[1]||(exact?exact.quantity:null),'Task / item tepat');
+ add('quantity',qty?.[1]||item.quantity||(exact?exact.quantity:null),'Task / item tepat');
  const sizeTitle=qty?.index===0&&/^\s*\d+\s*[x×]/i.test(qty[0])?title.slice(qty[0].length).trim():title;
  const size=sizeTitle.match(/\bA[3-7]\b(?:\s*\([^)]*\))?/i)||sizeTitle.match(/\b\d+(?:\.\d+)?\s*(?:[x×]\s*\d+(?:\.\d+)?\s*)?(?:inch|in\b|cm|mm)/i)||sizeTitle.match(/\b\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*(?:inch|in\b|cm|mm)/i);
  add('size',item.size||exact?.size||size?.[0],'Item / saiz task');
@@ -65,7 +78,7 @@ export async function taskReadiness(source:Data,order:Data|null,context:Data={},
   seeds.push({data:checked,source:'Detail order disemak admin',at:order?.state?.data?.detail_check?.checked_at});
  }
  const scoped=!!order&&order.items?.length===1&&(!!exact||!!item.id||(order.production_tasks||[]).length<=1);
- const customer=customerContent(order,context,scoped,seeds);
+ const customer=customerContent(assigned.order,assigned.context,scoped||assigned.allow&&order?.items?.length>1,seeds);
  for(const [field,value] of Object.entries(customer.values))add(field,value,customer.sources[field]?.source||'Detail customer');
  Object.assign(sources,customer.sources);conflicts.push(...customer.conflicts);warnings.push(...customer.warnings);
  if(values.product==='acrylic'&&customer.artwork_reference&&!values.wording)warnings.push('Gambar contoh acrylic diterima tanpa wording; semak sama ada design itu hendak digunakan terus.');
