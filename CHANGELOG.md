@@ -1,12 +1,12 @@
 ## 2026-10-21 — AI task and designer workspace
 
-- [VERIFIED controlled UI; PRODUCTION backend] AI Dashboard defaults to a task/set list with product and priority filters, original scoped Shopee/WhatsApp chat and copyable task/order design materials. Adds paste/private draft and explicit ClickUp status/attachment/comment controls, owner connection settings, durable duplicate/unknown-send guards and readback. Full App desktop/mobile, clipboard/media/upload/provider replay/navigation/permission checks and backend regressions pass; live migration/claim rollback/RLS and JWT deployment readback pass. No real provider writes: production ClickUp access still needs owner setup. Frontend hosted delivery pending. See docs/AI_ACTION_DASHBOARD.md.
+- [PRODUCTION backend/hosted delivery; VERIFIED controlled UI] AI Dashboard defaults to a task/set list with product and priority filters, original scoped Shopee/WhatsApp chat and copyable task/order design materials. Adds paste/private draft and explicit ClickUp status/attachment/comment controls, owner connection settings, durable duplicate/unknown-send guards and readback. Full App desktop/mobile, clipboard/media/upload/provider replay/navigation/permission checks and backend regressions pass; live migration/claim rollback/RLS and JWT deployment readback pass. No real provider writes: production ClickUp access still needs owner setup. PR #108 / 09c918f and Cloudflare d95a32ee pass builds/guards. The hosted route delivers all new desk controls and byte-identical tested CSS, and Secure Admin Login renders. Signed-in hosted staff actions remain unexercised. See docs/AI_ACTION_DASHBOARD.md.
 
 # 2026-10-20 — Shopee order and product cards
 
 ## 2026-10-21 — AI Dashboard chat focus
 
-- [VERIFIED controlled UI] Removed the “Kerja order seluruh sistem” block and its background work requests from AI Action Dashboard. The existing chat queues, search and Knowledge tab remain. Full Admin App at 1700×1000 and 390×844 verifies the block is absent, no `work` request runs and chat search/queue and Knowledge switching work without runtime errors. Admin TypeScript and full production build pass. Hosted delivery pending.
+- [PRODUCTION hosted delivery; VERIFIED controlled UI] Removed the “Kerja order seluruh sistem” block and its background work requests from AI Action Dashboard. The existing chat queues, search and Knowledge tab remain. Full Admin App at 1700×1000 and 390×844 verifies the block is absent, no `work` request runs and chat search/queue and Knowledge switching work without runtime errors. Admin TypeScript and full production build pass. Released in PR #107 / 97162b3; absence confirmed in hosted delivery.
 
 ## 2026-10-21 — Task design desk
 
