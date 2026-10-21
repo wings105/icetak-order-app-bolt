@@ -220,3 +220,7 @@ Admin V2 reads existing ClickUp work, latest complete task snapshots and image p
 ## 2026-10-20 — Background task detail observations
 
 Order/task triggers plus an every-minute private worker persist per-task readiness, automatic remarks and audit in Order System. Inbox's read-only private context supplies exact session/phone-bound evidence. Admin V2 exposes separate customer-question attention and sticky later-detail review. Existing current-source brief confirmation acknowledges review. No provider messages, source task updates or canonical order/payment changes occur. See ORDER_DETAIL_AUTOMATION.md.
+
+## 2026-10-21 — Task design materials
+
+Order task-workspace exposes a detail-only sanitized source dossier and task-asset-ID binary reads after existing staff auth. Inbox retains original messages/media ownership; its private task-brief-media bridge may prepare four uncached originals through the existing wasapflow-media downloader and then sign the cache. No browser bridge/provider credential or new chat-send path is introduced. Native handoff reuses existing work/brief audit contracts; external ClickUp publication remains separate. See TASK_DESIGN_DESK.md.

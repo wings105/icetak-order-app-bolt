@@ -14,10 +14,23 @@ Deno.serve(async req=>{
    if(!Array.isArray(input.orders)||!input.orders.length||input.orders.length>50)return out({ok:false},400);
    return out({ok:true,contexts:await call('/rest/v1/rpc/icetak_task_automation_context',{p_orders:input.orders})});
   }
+  if(input.action&&input.action!=='prepare')return out({ok:false},400);
+  if(input.action==='prepare'&&(!Array.isArray(input.ids)||input.ids.length>4))return out({ok:false},400);
   if(!Array.isArray(input.ids)||input.ids.length>20||input.ids.some((x:unknown)=>typeof x!=='string'||!/^\d{1,40}$/.test(x)))return out({ok:false},400);
   const media:Record<string,unknown>={};
   await Promise.all([...new Set<string>(input.ids)].map(async id=>{
-   const cached=await call(`/rest/v1/message_media?provider_media_id=eq.${id}&download_status=eq.ready&select=storage_path,mime_type&order=updated_at.desc&limit=1`);
+   let cached=await call(`/rest/v1/message_media?provider_media_id=eq.${id}&download_status=eq.ready&select=storage_path,mime_type&order=updated_at.desc&limit=1`);
+   if(!cached[0]&&input.action==='prepare'){
+    // Only the selected task's gateway supplies IDs. No list poll or background mass recovery.
+    if(input.ids.length>4)throw Error('PREPARE_LIMIT');
+    const attempts=await call(`/rest/v1/message_media?provider_media_id=eq.${id}&select=download_status,updated_at&order=updated_at.desc&limit=1`);
+    const recentFailure=attempts[0]?.download_status==='failed'&&Date.now()-Date.parse(attempts[0]?.updated_at)<300000;
+    if(!recentFailure){try{
+     const response=await fetch(base+'/functions/v1/wasapflow-media?id='+id,{headers:{'x-admin-window-token':token},signal:AbortSignal.timeout(15000)});
+     await response.body?.cancel();
+     if(response.ok)cached=await call(`/rest/v1/message_media?provider_media_id=eq.${id}&download_status=eq.ready&select=storage_path,mime_type&order=updated_at.desc&limit=1`);
+    }catch{/* Return an explicit unavailable asset; never hide the rest of the task. */}}
+   }
    const file=cached[0];if(!file?.storage_path||!/^image\/(?:png|jpeg|webp|gif)$/i.test(file.mime_type||'')){media['wasapflow-media://'+id]={available:false};return;}
    const signed=await call('/storage/v1/object/sign/whatsapp-media/'+String(file.storage_path).split('/').map(encodeURIComponent).join('/'),{expiresIn:900});
    media['wasapflow-media://'+id]={available:true,url:base+'/storage/v1'+signed.signedURL};
