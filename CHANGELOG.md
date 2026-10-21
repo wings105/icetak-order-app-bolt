@@ -2,7 +2,7 @@
 
 ## 2026-10-21 — Task design desk
 
-- [VERIFIED controlled UI; backend deployed] Task Workspace opens exact specs/SKU, copyable wording, image materials and scoped original Shopee/WhatsApp messages together. Adds real image clipboard/original download, bounded WhatsApp original-cache recovery, paste/upload, direct task links and guarded native final/QC production handoff. Full Admin desktop/mobile interactions, 57 live-source detail replays, one live original recovery/download, auth/asset/session/retry guards and builds pass. Hosted delivery pending; external ClickUp/Marul delivery remains unconnected. See docs/TASK_DESIGN_DESK.md.
+- [PRODUCTION backend/hosted delivery; VERIFIED controlled UI] Task Workspace opens exact specs/SKU, copyable wording, image materials and scoped original Shopee/WhatsApp messages together. Adds real image clipboard/original download, bounded WhatsApp original-cache recovery, paste/upload, direct task links and guarded native final/QC production handoff. Full Admin desktop/mobile interactions, 57 live-source detail replays, one live original recovery/download, auth/asset/session/retry guards and builds pass. PR #106 / b77aa19, Cloudflare beffb403 and guards passed; hosted task JS matches tested code after chunk-hash normalization, CSS is exact and Secure Admin Login renders. Real staff hosted actions and external ClickUp/Marul delivery remain unexercised/unconnected. See docs/TASK_DESIGN_DESK.md.
 
 ## 2026-10-20 — Inbox product search focus
 

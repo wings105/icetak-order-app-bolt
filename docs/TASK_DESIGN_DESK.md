@@ -1,6 +1,6 @@
 # Task design desk — 21 October 2026
 
-Status: controlled desktop/mobile UI VERIFIED; backend deployed and original-media recovery VERIFIED. Hosted frontend publication pending.
+Status: backend and hosted delivery PRODUCTION; controlled desktop/mobile UI VERIFIED. Real signed-in staff use and native Photoshop paste remain unexercised.
 
 The owner needs enough trustworthy material to start Photoshop from one task. The existing Task Workspace list opens a wide design desk with a task queue, a read-first brief and an original-message panel. It is not a replacement ERP or a new customer Inbox.
 
@@ -37,4 +37,6 @@ Not verified: a real signed-in staff operation on hosted production, native Phot
 
 ## Release / rollback
 
-Publication references will be added after hosting confirmation. Revert frontend files and the Order gateway bundle to restore the prior drawer; retain native files and media cache. Revert Inbox media bundles if original recovery must be disabled; neither rollback requires deleting customer or production records.
+PR #106 merged to production as `b77aa19b442f425ad0389e4cb698372a33a399ac`, with the exact tested source tree `130fb2d21b64b01d7c8b5201a63349b06e446e59`. Feature Workers Build `749b3db6-772b-493e-830f-5cbd6672a8fa`, production Workers Build `beffb403-9418-4635-977b-8ea37b006a18` and both GitHub guards succeeded.
+
+The actual hosted route serves `main-DHmLvMNe.js → admin-v2-route-B1XE40ZQ.js → App-FZvqu4uN.js → TaskWorkspace-CZG2Rxin.js`. Task Workspace JS matches the tested production build after normalizing import/chunk hashes; `TaskWorkspace-DwCgU9LA.css` is byte-identical. All seven brief/message/image/download/recovery/task-link/handoff labels are present. A cloud browser at the exact route renders Secure Admin Login without an app error; the known extension-metadata error and multiple-GoTrue-client warning remain. This verifies hosted delivery, not a real staff mutation. Revert frontend files and the Order gateway bundle to restore the prior drawer; retain native files and media cache. Revert Inbox media bundles if original recovery must be disabled; neither rollback requires deleting customer or production records.
