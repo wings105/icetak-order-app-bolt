@@ -1,3 +1,7 @@
+## 2026-10-21 — AI task and designer workspace
+
+- [VERIFIED controlled UI; PRODUCTION backend] AI Dashboard defaults to a task/set list with product and priority filters, original scoped Shopee/WhatsApp chat and copyable task/order design materials. Adds paste/private draft and explicit ClickUp status/attachment/comment controls, owner connection settings, durable duplicate/unknown-send guards and readback. Full App desktop/mobile, clipboard/media/upload/provider replay/navigation/permission checks and backend regressions pass; live migration/claim rollback/RLS and JWT deployment readback pass. No real provider writes: production ClickUp access still needs owner setup. Frontend hosted delivery pending. See docs/AI_ACTION_DASHBOARD.md.
+
 # 2026-10-20 — Shopee order and product cards
 
 ## 2026-10-21 — AI Dashboard chat focus

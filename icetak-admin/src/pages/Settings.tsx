@@ -3,10 +3,11 @@ import { supabase } from '../lib/supabase';
 import MaterialCostSettings from './MaterialCostSettings';
 import AwbPreviewWebhookSettings from './AwbPreviewWebhookSettings';
 import ShopeeChatSettings from './ShopeeChatSettings';
+import {ClickUpConnection} from '../components/TaskClickUpControls';
 
- type Props = { permissions?: string[]; onOpenAiLearning?: () => void };
+ type Props = { permissions?: string[]; isOwner?:boolean; onOpenAiLearning?: () => void };
 
-export default function Settings({ permissions = [], onOpenAiLearning }: Props) {
+export default function Settings({ permissions = [], isOwner=false, onOpenAiLearning }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canExport = permissions.includes('export_data');
@@ -118,6 +119,7 @@ export default function Settings({ permissions = [], onOpenAiLearning }: Props) 
     {notice&&<div style={{marginBottom:12,padding:10,borderRadius:10,background:'#ecfdf3',color:'#027a48'}}>{notice}</div>}
     <div className="grid-2" style={{alignItems:'start'}}>
       {canManageMonitor&&<ShopeeChatSettings/>}
+      {(isOwner||canManageMonitor)&&<ClickUpConnection/>}
       {permissions.includes('view_finance')&&<MaterialCostSettings canManage={permissions.includes('manage_finance')}/>}
       <div className="panel"><div className="panel-header"><div><div className="panel-title">Data Export</div><div className="panel-subtitle">Replacement for V1 admin export.</div></div></div><div style={{padding:20}}>{canExport?<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button className="btn btn-primary" disabled={busy} onClick={()=>void exportData('json')}>Download JSON Backup</button><button className="btn btn-outline" disabled={busy} onClick={()=>void exportData('csv')}>Download Orders CSV</button></div>:<div className="cell-sub">Permission export_data diperlukan.</div>}</div></div>
       <div className="panel"><div className="panel-header"><div><div className="panel-title">System ownership</div><div className="panel-subtitle">Admin frontend selepas migration</div></div></div><div style={{padding:20}}><div className="kv-list"><div className="kv-row"><span className="k">Admin UI</span><span className="v">React Admin V2</span></div><div className="kv-row"><span className="k">Database / actions</span><span className="v">Supabase RPC + Edge Functions</span></div><div className="kv-row"><span className="k">Legacy V1</span><span className="v">Retiring after parity QA</span></div></div></div></div>

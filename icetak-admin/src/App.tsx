@@ -101,6 +101,7 @@ export default function App({ adminData }: Props) {
   const canViewStock = adminData?.admin?.role === 'owner' || permissions.includes('view_orders') || permissions.includes('approve_production');
 
   const navigate = (key: string) => {
+    if (!window.dispatchEvent(new Event('icetak:before-navigate',{cancelable:true}))) return;
     if (key === 'channel-inbox') setInboxOpened(true);
     setAiCustomer(null);if(key!=='draft-orders')setAiDraftQuery('');
     if (key === 'quick-order' || key === 'manual-order') key = 'create-order';
@@ -142,6 +143,7 @@ export default function App({ adminData }: Props) {
     setPage('create-order');setMobileOpen(false);
   };
   const openOrder = (orderNo: string) => {
+    if (!window.dispatchEvent(new Event('icetak:before-navigate',{cancelable:true}))) return;
     const url = new URL(window.location.href);
     url.searchParams.set('admin','v2');
     url.searchParams.set('order',orderNo);
@@ -154,6 +156,7 @@ export default function App({ adminData }: Props) {
     setPage('orders');
   };
   const openMarketplace = (query = '') => {
+    if (!window.dispatchEvent(new Event('icetak:before-navigate',{cancelable:true}))) return;
     const url = new URL(window.location.href);
     url.searchParams.set('admin','v2');
     url.searchParams.set('view','marketplace-orders');
@@ -164,6 +167,7 @@ export default function App({ adminData }: Props) {
     setPage('marketplace-orders'); setMobileOpen(false);
   };
   const openCustomer = (customerId: string) => {
+    if (!window.dispatchEvent(new Event('icetak:before-navigate',{cancelable:true}))) return;
     const url = new URL(window.location.href);
     url.searchParams.set('admin','v2'); url.searchParams.set('view','customers'); url.searchParams.set('customer',customerId);
     url.searchParams.delete('order'); url.searchParams.delete('marketplace_q');
@@ -171,6 +175,7 @@ export default function App({ adminData }: Props) {
     setPage('customers'); setMobileOpen(false);
   };
   const openPickup = (customerId?: string) => {
+    if (!window.dispatchEvent(new Event('icetak:before-navigate',{cancelable:true}))) return;
     const url = new URL(window.location.href);
     url.searchParams.set('admin','v2');
     url.searchParams.set('view','pickup-counter');
@@ -181,6 +186,7 @@ export default function App({ adminData }: Props) {
     setPage('pickup-counter'); setMobileOpen(false);
   };
   const logout = async () => {
+    if (!window.dispatchEvent(new Event('icetak:before-navigate',{cancelable:true}))) return;
     await supabase.auth.signOut();
     sessionStorage.removeItem('admin_access_token');
     sessionStorage.removeItem('admin_refresh_token');
@@ -197,7 +203,7 @@ export default function App({ adminData }: Props) {
       case 'stock': return canViewStock ? <Suspense fallback={<p>Memuatkan stok…</p>}><Stock/></Suspense> : <div>Akses stok diperlukan.</div>;
       case 'render-templates': return canManageTemplates ? <Suspense fallback={<div style={{padding:24}}>Memuatkan editor template...</div>}><RenderTemplates /></Suspense> : <div style={{padding:24}}>Akses Owner / Manage Admins diperlukan.</div>;
       case 'customer-focus': return canViewAi ? <Suspense fallback={<div style={{padding:24}}>Memuatkan Fokus Customer...</div>}><CustomerFocus onOpenDrafts={query=>{setAiDraftQuery(query);navigate('draft-orders');}} onOpenOrder={openOrder} onOpenMarketplace={openMarketplace} onOpenChat={id=>{navigate('ai-dashboard');const url=new URL(window.location.href);url.searchParams.set('ai_conversation',id);window.history.replaceState({},'',url);}} /></Suspense> : <div style={{padding:24}}>Akses CRM diperlukan.</div>;
-      case 'ai-dashboard': return canViewAi ? <Suspense fallback={<div style={{padding:24}}>Memuatkan AI Dashboard...</div>}><AiDashboard onOpenOrder={openOrder} onOpenDrafts={(query='')=>{setAiDraftQuery(query);navigate('draft-orders');}} onCreateDraft={customer=>{navigate('create-order');setLinkedPayment(null);setAiCustomer(customer);}} canCreateDraft={permissions.includes('create_order')||permissions.includes('quick_arrange')} canViewDrafts={permissions.includes('view_finance')} /></Suspense> : <div style={{padding:24}}>Akses CRM diperlukan.</div>;
+      case 'ai-dashboard': return canViewAi||canViewTasks ? <Suspense fallback={<div style={{padding:24}}>Memuatkan AI Dashboard...</div>}><AiDashboard canViewTasks={canViewTasks} canViewChat={canViewAi} onOpenOrder={openOrder} onOpenDrafts={(query='')=>{setAiDraftQuery(query);navigate('draft-orders');}} onCreateDraft={customer=>{navigate('create-order');setLinkedPayment(null);setAiCustomer(customer);}} canCreateDraft={permissions.includes('create_order')||permissions.includes('quick_arrange')} canViewDrafts={permissions.includes('view_finance')} /></Suspense> : <div style={{padding:24}}>Akses CRM diperlukan.</div>;
       case 'dashboard': return <Dashboard canViewFinance={permissions.includes('view_finance')} onOpenTarget={openTarget} onOpenFocus={canViewAi?()=>navigate('customer-focus'):undefined} adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'orders': return <Orders permissions={permissions} initialOrder={linkedOrder} />;
       case 'marketplace-orders': return <MarketplaceOrders key={marketplaceSearch || 'all'} initialSearch={marketplaceSearch} onOpenCustomer={openCustomer} canViewFinance={permissions.includes('view_finance')} canManageFinance={permissions.includes('manage_finance')} canViewDetails={canViewAi} onOpenChat={id=>{navigate('ai-dashboard');const url=new URL(window.location.href);url.searchParams.set('ai_conversation',id);window.history.replaceState({},'',url);}} />;
@@ -216,7 +222,7 @@ export default function App({ adminData }: Props) {
       case 'integrations': return <Integrations />;
       case 'staff': return <StaffRoles currentPermissions={permissions} />;
       case 'shopee-monitor': return <Suspense fallback={<p>Memuatkan Shopee Monitor…</p>}><ShopeeOperations/></Suspense>;
-      case 'settings': return <Settings permissions={permissions} onOpenAiLearning={() => navigate('ai-learning')} />;
+      case 'settings': return <Settings isOwner={adminData?.admin?.role==='owner'} permissions={permissions} onOpenAiLearning={() => navigate('ai-learning')} />;
       case 'ai-learning': return permissions.includes('view_finance') || permissions.includes('manage_admins')
         ? <Suspense fallback={<div style={{ padding: 24 }}>Loading AI Learning...</div>}><AiLearningSettings /></Suspense>
         : <Dashboard canViewFinance={permissions.includes('view_finance')} onOpenTarget={openTarget} onOpenFocus={canViewAi?()=>navigate('customer-focus'):undefined} adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;

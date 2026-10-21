@@ -8,6 +8,7 @@ import CaseSummary from '../components/ai-dashboard/CaseSummary';
 import CustomerOrders from '../components/ai-dashboard/CustomerOrders';
 import AiTraining from '../components/ai-dashboard/AiTraining';
 import ConversationReader from '../components/ai-dashboard/ConversationReader';
+import TaskActionDashboard from './TaskActionDashboard';
 
 type Data = Record<string, any>;
 type Row = Data & { id: string; name: string; channel: string; context: Data; analysis: Data };
@@ -32,7 +33,7 @@ function OrderRef({value}:{value:unknown}){
  return <span className="ai-order-ref"><span>{text}</span><button type="button" className="ai-copy-id" title={`Salin order ID ${text}`} aria-label={`Salin order ID ${text}`} onClick={async()=>{try{await navigator.clipboard.writeText(text);setResult('Disalin');}catch{setResult('Gagal salin — pilih ID dan salin manual');}}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button>{result&&<small role="status">{result}</small>}</span>;
 }
 
-type Props={onOpenOrder:(orderNo:string)=>void;onOpenDrafts:(query?:string)=>void;canViewDrafts:boolean;onCreateDraft?:(customer:{name:string;phone:string;channel?:string})=>void;canCreateDraft?:boolean};
+type Props={onOpenOrder:(orderNo:string)=>void;onOpenDrafts:(query?:string)=>void;canViewDrafts:boolean;onCreateDraft?:(customer:{name:string;phone:string;channel?:string})=>void;canCreateDraft?:boolean;canViewTasks?:boolean;canViewChat?:boolean};
 function AiDashboardWork({onOpenOrder,onOpenDrafts,canViewDrafts,onCreateDraft,canCreateDraft=false,onDirtyChange,onBusyChange}:Props & {onDirtyChange:(dirty:boolean)=>void;onBusyChange:(busy:boolean)=>void}){
  const initialQuery=new URLSearchParams(window.location.search).get('ai_q')||'';
  const initialChannel=new URLSearchParams(window.location.search).get('ai_channel')||'';
@@ -196,8 +197,8 @@ function AiDashboardWork({onOpenOrder,onOpenDrafts,canViewDrafts,onCreateDraft,c
 }
 
 export default function AiDashboard(props:Props){
- const [tab,setTab]=useState(()=>new URLSearchParams(window.location.search).get('ai_tab')==='knowledge'?'knowledge':'work');
+ const [tab,setTab]=useState(()=>{const p=new URLSearchParams(window.location.search);return p.get('ai_tab')==='knowledge'?'knowledge':props.canViewChat!==false&&(p.get('ai_tab')==='chat'||p.has('ai_conversation')||p.has('ai_q')||!props.canViewTasks)?'chat':'work';});
  const [dirty,setDirty]=useState(false),[busy,setBusy]=useState(false);
- const change=(value:string)=>{if(value===tab||busy)return;if(dirty&&!window.confirm('Perubahan belum disimpan. Tinggalkan perubahan?'))return;setDirty(false);setTab(value);const url=new URL(window.location.href);if(value==='knowledge')url.searchParams.set('ai_tab','knowledge');else url.searchParams.delete('ai_tab');window.history.replaceState({},'',url);};
- return <><nav className="ai-section-tabs" role="group" aria-label="AI Dashboard"><button disabled={busy} aria-pressed={tab==='work'} onClick={()=>change('work')}>Dashboard</button><button disabled={busy} aria-pressed={tab==='knowledge'} onClick={()=>change('knowledge')}>Knowledge</button></nav><div>{tab==='knowledge'?<KnowledgeTab onDirtyChange={setDirty} onBusyChange={setBusy}/>:<AiDashboardWork {...props} onDirtyChange={setDirty} onBusyChange={setBusy}/>}</div></>;
+ const change=(value:string)=>{if(value===tab||busy)return;if(dirty&&!window.confirm('Perubahan belum disimpan. Tinggalkan perubahan?'))return;setDirty(false);setTab(value);const url=new URL(window.location.href);if(value==='knowledge'||value==='chat')url.searchParams.set('ai_tab',value);else url.searchParams.delete('ai_tab');if(value!=='chat'){url.searchParams.delete('ai_conversation');url.searchParams.delete('ai_q');}if(value!=='work')url.searchParams.delete('task');window.history.replaceState({},'',url);};
+ return <><nav className="ai-section-tabs" role="group" aria-label="AI Dashboard">{props.canViewTasks&&<button disabled={busy} aria-pressed={tab==='work'} onClick={()=>change('work')}>Task & design</button>}{props.canViewChat!==false&&<button disabled={busy} aria-pressed={tab==='chat'} onClick={()=>change('chat')}>Chat customer</button>}<button disabled={busy} aria-pressed={tab==='knowledge'} onClick={()=>change('knowledge')}>Knowledge</button></nav><div>{tab==='knowledge'?<KnowledgeTab onDirtyChange={setDirty} onBusyChange={setBusy}/>:tab==='work'&&props.canViewTasks?<TaskActionDashboard onOpenOrder={props.onOpenOrder} onDirtyChange={setDirty} onBusyChange={setBusy}/>:props.canViewChat!==false?<AiDashboardWork {...props} onDirtyChange={setDirty} onBusyChange={setBusy}/>:<p>Akses chat diperlukan.</p>}</div></>;
 }
