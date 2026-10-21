@@ -224,3 +224,7 @@ Order/task triggers plus an every-minute private worker persist per-task readine
 ## 2026-10-21 — Task design materials
 
 Order task-workspace exposes a detail-only sanitized source dossier and task-asset-ID binary reads after existing staff auth. Inbox retains original messages/media ownership; its private task-brief-media bridge may prepare four uncached originals through the existing wasapflow-media downloader and then sign the cache. No browser bridge/provider credential or new chat-send path is introduced. Native handoff reuses existing work/brief audit contracts; external ClickUp publication remains separate. See TASK_DESIGN_DESK.md.
+
+### AI task designer workspace (2026-10-21)
+
+AI Dashboard defaults to a filtered task list, exact scoped original chat and designer brief/output panel. It reuses task-workspace read/asset/private upload contracts. Order `task-clickup` owns explicit owner-configured provider status/attachment/comment actions and readback, with service-only `task_clickup_actions` receipts and claim RPC. Inbox source ownership and native final/QC remain unchanged. See AI_ACTION_DASHBOARD.md.

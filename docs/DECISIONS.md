@@ -307,3 +307,7 @@ Persist current task detail observations and change history in Order System thro
 ## 2026-10-21 — Task evidence is the designer's primary workspace
 
 Preserve ClickUp task/set identity and the current readiness rules, but present exact specs, original wording/messages and usable image assets before edit forms. Reuse the bounded order/session context for a detail-only sanitized dossier; keep order-wide multi-item context visibly separate from per-item assignment. Extend the existing private media bridge with bounded on-demand recovery through the existing downloader, preserving JWT flow and cache ownership. Native final/QC handoff is audited but must not imply external ClickUp delivery or a guessed staff identity. See TASK_DESIGN_DESK.md.
+
+## 2026-10-21 — AI Dashboard becomes the task designer workspace
+
+Reuse the current task/readiness/dossier contracts inside AI Dashboard rather than creating another work projection or chat store. Preserve exact Task ID/set identity and keep the existing conversation review in its own tab. Explicit provider status and finished-design publication belong in a new JWT active-admin gateway with service-only durable receipts. Owner-configured ClickUp access stays private; upload bytes as a task attachment and verify the linked comment through provider readback. Unknown writes cannot be blindly retried. No automatic customer send, canonical fulfillment/payment/stock mutation or new generative model is implied. See AI_ACTION_DASHBOARD.md.

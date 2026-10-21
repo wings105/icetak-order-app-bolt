@@ -2,9 +2,27 @@
 
 Route: `?admin=v2&view=ai-dashboard`. Source branch: `production`.
 
+## 21 October 2026 — Task and designer workspace
+
+The default tab is now **Task & design**. **Chat customer** preserves the existing conversation/review workflow and its deep links; Knowledge remains available. Task staff may open this tab with existing task read permissions without gaining CRM chat-review permissions.
+
+- Product row: Semua, Edible, Topper, Acrylic, Wafer, Ready stock and Lain-lain. One product classification per task; current readiness product precedes status/title fallback.
+- Priority row: Semua, Perlu tindakan, Lewat, Due today, Perlu semakan, Sedia design and Tunggu customer. Priorities overlap. Calendar deadlines use Asia/Kuala_Lumpur. Additional search and source ClickUp status narrow the task list.
+- Left: one ClickUp Task ID/set per row, including distinct sets sharing an order. Center: original bounded order/session messages from Shopee and WhatsApp. Right: actual ClickUp status, task specs, copyable wording/SKU/order ID, original assets, order facts and finished-design paste/drop/upload.
+- Reads reuse `task-workspace` list/detail/asset and the existing private Inbox bridge. The designer summary uses current task readiness/source data; this release adds no new generative model or unrestricted historical chat matching.
+- Draft files use the existing private task file upload. Sending is a separate explicit action. The new `task-clickup` gateway validates active admin/task/file ownership, uploads actual bytes as a ClickUp task attachment, posts a comment containing its link and verifies the comment marker before showing success. The API adapter does not claim inline image comments.
+- Status options are read from ORDER LIST `18375902`. Updates compare the current provider status/revision, write only the requested status and project its readback through the existing ClickUp work RPC. Native final/QC, payments, stock and fulfillment retain their existing contracts.
+- Owner/manage_admins configures the provider in **Settings → Sambungan ClickUp untuk designer**. The password field is cleared after validation; only the service gateway can access `clickup_designer_api_token` in private runtime settings. No token is returned to the client. Without configuration, reading/private drafts work and provider send/status controls remain unavailable.
+- Durable service-only `task_clickup_actions` receipts plus the claim RPC serialize task actions, bind request IDs to exact payloads and suppress duplicate payloads. Unknown results do not resend. **Semak penghantaran** checks the provider comment marker. A timed-out attachment without a matching comment requires operator inspection; it is never blindly uploaded again.
+- Unsaved image/comment/brief changes guard task/filter/section/sidebar switching and page unload. Periodic refresh pauses while editing. Failed reads preserve the previous list; changed-task detail loads reject obsolete responses.
+
+Controlled full Admin App verification covers 1700×1000 and 390×844, both filter rows, MYT deadline intersection, shared-order task/set identity, original chat/provenance, clipboard text and original PNG, paste preview, private draft upload, exact-task provider write/readback, timeout reconciliation without duplicates, navigation guards, connection setup and viewer restrictions. The actual gateway code runs against controlled database/provider transports; no real customer message or ClickUp task is changed. `check:task-clickup` covers backend guards and provider uncertainty; existing AI/task/dossier/media regressions, Admin TypeScript and full build are required.
+
+Live Order migration and `task-clickup` v1 (JWT verification enabled) are deployed. Transactional claim/replay/duplicate/file/permission checks roll back with zero QA receipts. RLS/grants deny anon/authenticated direct table/RPC access. Source readback matches deployment and unauthenticated HTTP requests are rejected. **The production ClickUp token is not configured, so actual provider writes remain unexercised. Frontend hosted delivery is pending.**
+
 ## 21 October 2026 — Remove global order block
 
-At the owner's request, the AI Dashboard no longer mounts `OrderWorkQueue` (the “Kerja order seluruh sistem” block). Its initial and periodic `action: work` requests therefore stop on this page. Chat queues, search, conversation detail, review actions and Knowledge keep their existing contracts. The backend work projection and other operational pages are unchanged. Controlled full-App desktop/mobile verification and production build pass; hosted delivery is pending.
+At the owner's request, the AI Dashboard no longer mounts `OrderWorkQueue` (the “Kerja order seluruh sistem” block). Its initial and periodic `action: work` requests therefore stop on this page. Chat queues, search, conversation detail, review actions and Knowledge keep their existing contracts. The backend work projection and other operational pages are unchanged. Released in PR #107 / 97162b3; controlled full-App desktop/mobile verification, production build and hosted removal check pass.
 
 ## Ownership and deployment
 

@@ -83,7 +83,8 @@ export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile,
     if (['products','stock','acrylic-production'].includes(item.key) && !canViewStock) return false;
     if (item.key === 'task-workspace' && !canViewTasks) return false;
     if (item.key === 'customers' && !canViewCustomers) return false;
-    if (['ai-dashboard','customer-focus'].includes(item.key) && !canViewAi) return false;
+    if (item.key === 'customer-focus' && !canViewAi) return false;
+    if (item.key === 'ai-dashboard' && !canViewAi && !canViewTasks) return false;
     if (item.key === 'pickup-counter' && !canViewPickup) return false;
     return true;
   }).map((item) => item.key === 'settings'
