@@ -2,6 +2,10 @@
 
 Route: `?admin=v2&view=ai-dashboard`. Source branch: `production`.
 
+## 21 October 2026 — Remove global order block
+
+At the owner's request, the AI Dashboard no longer mounts `OrderWorkQueue` (the “Kerja order seluruh sistem” block). Its initial and periodic `action: work` requests therefore stop on this page. Chat queues, search, conversation detail, review actions and Knowledge keep their existing contracts. The backend work projection and other operational pages are unchanged. Controlled full-App desktop/mobile verification and production build pass; hosted delivery is pending.
+
 ## Ownership and deployment
 
 - Order System `buivecgahhmrhlmfujgt`: authenticated `admin-ai-dashboard` gateway, canonical CRM/order/payment/shipping/session reads, `ai_dashboard_reviews` and append-only `ai_dashboard_events`.
