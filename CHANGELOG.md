@@ -1,5 +1,9 @@
 # 2026-10-20 — Shopee order and product cards
 
+## 2026-10-21 — AI Dashboard chat focus
+
+- [VERIFIED controlled UI] Removed the “Kerja order seluruh sistem” block and its background work requests from AI Action Dashboard. The existing chat queues, search and Knowledge tab remain. Full Admin App at 1700×1000 and 390×844 verifies the block is absent, no `work` request runs and chat search/queue and Knowledge switching work without runtime errors. Admin TypeScript and full production build pass. Hosted delivery pending.
+
 ## 2026-10-21 — Task design desk
 
 - [PRODUCTION backend/hosted delivery; VERIFIED controlled UI] Task Workspace opens exact specs/SKU, copyable wording, image materials and scoped original Shopee/WhatsApp messages together. Adds real image clipboard/original download, bounded WhatsApp original-cache recovery, paste/upload, direct task links and guarded native final/QC production handoff. Full Admin desktop/mobile interactions, 57 live-source detail replays, one live original recovery/download, auth/asset/session/retry guards and builds pass. PR #106 / b77aa19, Cloudflare beffb403 and guards passed; hosted task JS matches tested code after chunk-hash normalization, CSS is exact and Secure Admin Login renders. Real staff hosted actions and external ClickUp/Marul delivery remain unexercised/unconnected. See docs/TASK_DESIGN_DESK.md.

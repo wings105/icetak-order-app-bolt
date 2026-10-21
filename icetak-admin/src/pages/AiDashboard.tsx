@@ -8,7 +8,6 @@ import CaseSummary from '../components/ai-dashboard/CaseSummary';
 import CustomerOrders from '../components/ai-dashboard/CustomerOrders';
 import AiTraining from '../components/ai-dashboard/AiTraining';
 import ConversationReader from '../components/ai-dashboard/ConversationReader';
-import OrderWorkQueue from '../components/ai-dashboard/OrderWorkQueue';
 
 type Data = Record<string, any>;
 type Row = Data & { id: string; name: string; channel: string; context: Data; analysis: Data };
@@ -138,7 +137,6 @@ function AiDashboardWork({onOpenOrder,onOpenDrafts,canViewDrafts,onCreateDraft,c
  const canSend=!!(selected?.channel==='whatsapp'&&caps.whatsapp_api&&caps.can_manage&&windowExpires>Date.now()&&ctx.identity_status!=='ambiguous');
  return <section className={`ai-board ${viewMode==='conversation'?'ai-conversation-home':''}`}>
   <div className="ai-heading"><div><span className="ai-eyebrow">WHATSAPP + SHOPEE</span><h1>Kerja perlu dibuat</h1><p>Mula dengan kes segera → semak tindakan → teruskan pelanggan seterusnya.</p></div><div className="ai-heading-actions"><span className="ai-mode">Semakan admin • Auto-send OFF</span><button disabled={loading||busy||hasUnsaved} onClick={()=>void load(false)}>↻ Muat semula</button></div></div>
-  <OrderWorkQueue call={call} onOpenOrder={onOpenOrder} paused={hasUnsaved||busy} onFindChat={(nextChannel,nextQuery)=>{detailSeq.current++;setSelected(null);setChannel(nextChannel);setSearch(nextQuery);setQuery(nextQuery);setQueue('');setStatus('');}}/>
   <h2 className="ai-chat-work-heading">Balasan & semakan customer</h2>
   <div className="ai-stats ai-work-queues" aria-label="Keutamaan chat dimuat">{workQueues.map(q=><button key={q.key} disabled={busy||hasUnsaved} aria-pressed={queue===q.key} className={`queue-${q.key} ${queue===q.key?'selected':''}`} onClick={()=>changeQueue(queue===q.key?'':q.key)}><span>{q.label}</span><strong>{rows.filter(r=>workQueue(r).key===q.key).length}</strong><small>{q.hint}</small></button>)}</div>
   <div className="ai-focus-guide"><strong>{queue?workQueues.find(q=>q.key===queue)?.label:status==='needs_review'?'Semua kerja aktif':states[status]||'Semua status'}</strong><span>1. Pilih pelanggan</span><span>2. Baca “Tindakan sekarang”</span><span>3. Semak / balas / selesai</span>{queue&&<button disabled={busy||hasUnsaved} onClick={()=>changeQueue('')}>Semua kerja aktif</button>}</div>
