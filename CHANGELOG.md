@@ -1,3 +1,7 @@
+# 2026-10-22
+
+- [VERIFIED] Inbox Active Orders/To Ship follow valid unshipped Shopee orders and unfinished ClickUp-backed Decocake work, including cash counter. Server counts/history paging replace the 300-row cap; terminal/test urgency and task-only sync/stale response cases are corrected. Live backend reconciliation, 351-row rollback, 40 policy checks and full Inbox desktop/mobile interactions pass. Hosted delivery evidence: release PR and [contract](docs/INBOX_ACTIVE_ORDERS.md).
+
 ## 2026-10-21 — AI task and designer workspace
 
 - [PRODUCTION backend/hosted delivery; VERIFIED controlled UI] AI Dashboard defaults to a task/set list with product and priority filters, original scoped Shopee/WhatsApp chat and copyable task/order design materials. Adds paste/private draft and explicit ClickUp status/attachment/comment controls, owner connection settings, durable duplicate/unknown-send guards and readback. Full App desktop/mobile, clipboard/media/upload/provider replay/navigation/permission checks and backend regressions pass; live migration/claim rollback/RLS and JWT deployment readback pass. No real provider writes: production ClickUp access still needs owner setup. PR #108 / 09c918f and Cloudflare d95a32ee pass builds/guards. The hosted route delivers all new desk controls and byte-identical tested CSS, and Secure Admin Login renders. Signed-in hosted staff actions remain unexercised. See docs/AI_ACTION_DASHBOARD.md.

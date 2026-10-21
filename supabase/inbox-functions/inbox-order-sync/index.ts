@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import { isOlderOrderSummary } from '../_shared/order-summary-version.ts';
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -136,7 +137,7 @@ Deno.serve(async (req) => {
     const { data: existing, error } = await db.from('external_order_summaries').select('*')
       .eq('source_project', payload.source_project).eq('order_no', payload.order_no).maybeSingle();
     if (error) return json({ ok: false, error: error.message }, 500);
-    if (existing?.metadata?.source === 'canonical_order_sync' && existing?.order_updated_at && Date.parse(existing.order_updated_at) > Date.parse(payload.order_updated_at)) continue;
+    if (isOlderOrderSummary(existing, payload)) continue;
     accepted.push(payload);
     const compared = changesBetween(existing as Record<string, unknown> | null, payload);
     if (!existing || compared.changed) changes.push({ payload, oldValue: compared.oldValue, newValue: compared.newValue, created: !existing });

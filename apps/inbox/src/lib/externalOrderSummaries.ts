@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import { normalizePhone } from './googleContactCache';
 
 export interface MarketplaceOrderItem {
   provider_item_id?: string | null;
@@ -36,6 +35,7 @@ export interface ExternalOrderSummary {
   ship_by_at?: string | null;
   shipped_at?: string | null;
   active_order: boolean;
+  work_bucket?: OrderBucket;
   priority_level: string;
   priority_reason?: string | null;
   public_order_url?: string | null;
@@ -69,33 +69,37 @@ export interface ExternalOrderSummary {
 
 const fields = '*';
 
+export type OrderBucket = 'all' | 'unpaid' | 'to_ship' | 'shipping' | 'completed' | 'cancelled' | 'return';
+export type OrderMode = 'active' | 'urgent' | 'all' | 'no_phone';
+export interface OrderPage {
+  orders: ExternalOrderSummary[];
+  total: number;
+  active_count: number;
+  urgent_count: number;
+  has_more: boolean;
+  offset: number;
+  counts: Record<OrderBucket, number>;
+}
+
+export async function listExternalOrderPage(options: {
+  query?: string; mode?: OrderMode; channel?: 'all' | 'shopee' | 'whatsapp'; bucket?: OrderBucket;
+  limit?: number; offset?: number; signal?: AbortSignal;
+} = {}): Promise<OrderPage> {
+  let request = supabase.rpc('icetak_inbox_order_page', {
+    p_query: options.query ?? '', p_mode: options.mode ?? 'active', p_channel: options.channel ?? 'all',
+    p_bucket: options.bucket ?? 'all', p_limit: options.limit ?? 100, p_offset: options.offset ?? 0,
+  });
+  if (options.signal) request = request.abortSignal(options.signal);
+  const { data, error } = await request;
+  if (error) throw error;
+  if (!data || !Array.isArray(data.orders) || typeof data.total !== 'number') throw new Error('Respons senarai order tidak lengkap.');
+  return data as OrderPage;
+}
+
 export async function getExternalOrderSummary(id: string) {
   const { data, error } = await supabase.from('external_order_summaries').select(fields).eq('id', id).single();
   if (error) throw error;
   return data as ExternalOrderSummary;
-}
-
-export async function listExternalOrderSummaries(query = '', mode: 'active' | 'urgent' | 'all' | 'no_phone' = 'active') {
-  let builder = supabase.from('external_order_summaries').select(fields)
-    .order('priority_level', { ascending: true })
-    .order('ship_by_at', { ascending: true, nullsFirst: false })
-    .order('last_synced_at', { ascending: false }).limit(300);
-
-  if (mode !== 'all') builder = builder.eq('active_order', true);
-  if (mode === 'urgent') builder = builder.in('priority_level', ['P0', 'P1', 'P2']);
-  if (mode === 'no_phone') builder = builder.is('customer_phone_normalized', null);
-
-  const trimmed = query.trim();
-  if (trimmed) {
-    const normalized = normalizePhone(trimmed);
-    const like = `%${trimmed}%`;
-    const phoneLike = `%${normalized || trimmed}%`;
-    builder = builder.or(`order_no.ilike.${like},customer_name.ilike.${like},customer_phone.ilike.${like},customer_phone_normalized.ilike.${phoneLike},shopee_username.ilike.${like},shopee_buyer_id.ilike.${like},buyer_message.ilike.${like}`);
-  }
-
-  const { data, error } = await builder;
-  if (error) throw error;
-  return (data ?? []) as ExternalOrderSummary[];
 }
 
 

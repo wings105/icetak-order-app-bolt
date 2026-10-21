@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import { marketplaceWorkPriority } from './inbox-order-policy.ts';
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -6,24 +7,6 @@ function json(body: unknown, status = 200) {
 function num(value: unknown) {
   const result = Number(value);
   return Number.isFinite(result) ? result : null;
-}
-function priority(order: Record<string, unknown>) {
-  const status = String(order.current_status ?? '').toUpperCase();
-  if (['SHIPPED','COMPLETED','CANCELLED','TO_RETURN','RETURNED','TO_CONFIRM_RECEIVE'].includes(status)) {
-    return { active: false, level: 'P4', reason: 'Order cutoff/terminal' };
-  }
-  if (status === 'IN_CANCEL') {
-    return { active: true, level: 'P1', reason: 'Cancellation pending seller action' };
-  }
-  const shipBy = order.ship_by_at ? new Date(String(order.ship_by_at)) : null;
-  if (shipBy && !Number.isNaN(shipBy.getTime())) {
-    const hours = (shipBy.getTime() - Date.now()) / 3600000;
-    if (hours < 0) return { active: true, level: 'P0', reason: 'Ship-by overdue' };
-    if (hours <= 24) return { active: true, level: 'P1', reason: 'Ship-by within 24 hours' };
-    if (hours <= 48) return { active: true, level: 'P2', reason: 'Ship-by within 48 hours' };
-  }
-  if (String(order.payment_status ?? '').toLowerCase() === 'paid') return { active: true, level: 'P3', reason: 'Paid order' };
-  return { active: true, level: 'P4', reason: 'Marketplace order' };
 }
 
 export async function syncMarketplace(req: Request) {
@@ -41,6 +24,7 @@ export async function syncMarketplace(req: Request) {
   const limit = Math.max(1, Math.min(Number(body.limit ?? 500), 1000));
   const offset = Math.max(0, Number(body.offset ?? 0));
   const db = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+  const sourceObservedAt = new Date().toISOString();
 
   let bridgeToken = '';
   if (!inboxServiceKey) {
@@ -110,8 +94,8 @@ export async function syncMarketplace(req: Request) {
     const raw = order.raw_detail && typeof order.raw_detail === 'object' ? order.raw_detail as Record<string, unknown> : {};
     const buyerPaid = num(raw.buyer_paid);
     const shippingFee = num(raw.shipping_fee);
-    const p = priority(order);
     const rawShippedAt = shippedAtByOrder.get(String(order.order_sn)) ?? null;
+    const p = marketplaceWorkPriority(order, rawShippedAt);
     return {
       source_project: 'icetak-order-system',
       source_channel: 'shopee',
@@ -139,7 +123,7 @@ export async function syncMarketplace(req: Request) {
       shipment_status: shipment?.shipment_status ?? shipment?.fulfillment_status ?? order.fulfillment_status,
       tracking_no: shipment?.tracking_number,
       order_updated_at: order.updated_at,
-      source_payload_version: 'marketplace-order-v3-raw-shipped-cutoff',
+      source_payload_version: 'marketplace-order-v4-active-work',
       region: order.region,
       shop_id: order.shop_id,
       buyer_shop_id: order.buyer_shop_id,
@@ -155,6 +139,9 @@ export async function syncMarketplace(req: Request) {
       fulfillment_status: order.fulfillment_status,
       package_number: shipment?.package_number,
       metadata: {
+        source_observed_at: sourceObservedAt,
+        dashboard_excluded: order.metadata?.dashboard_excluded === true,
+        dashboard_excluded_reason: order.metadata?.dashboard_excluded_reason ?? null,
         completed_scenario: order.completed_scenario,
         detail_received_at: order.detail_received_at,
         latest_provider_update_at: order.latest_provider_update_at,
