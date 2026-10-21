@@ -303,3 +303,7 @@ Owner requested a ClickUp-like operational task view inside Admin V2, enriched w
 ## 2026-10-20 — Detail observations are independent of approvals
 
 Persist current task detail observations and change history in Order System through a bounded leased worker. Reuse private Inbox session evidence and exact phone fallback without moving chat ownership or creating CRM links. Separate completeness from admin questions; later design changes require current-source human review. A 30-minute reread is independent of future provider message follow-up. Preserve native notes, final/QC, payment and fulfillment contracts. See ORDER_DETAIL_AUTOMATION.md.
+
+## 2026-10-21 — Task evidence is the designer's primary workspace
+
+Preserve ClickUp task/set identity and the current readiness rules, but present exact specs, original wording/messages and usable image assets before edit forms. Reuse the bounded order/session context for a detail-only sanitized dossier; keep order-wide multi-item context visibly separate from per-item assignment. Extend the existing private media bridge with bounded on-demand recovery through the existing downloader, preserving JWT flow and cache ownership. Native final/QC handoff is audited but must not imply external ClickUp delivery or a guessed staff identity. See TASK_DESIGN_DESK.md.

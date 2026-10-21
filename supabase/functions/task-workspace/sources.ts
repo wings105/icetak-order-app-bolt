@@ -5,7 +5,7 @@ import {taskReadiness} from './readiness.ts';
 import {observe,applyObservation} from './automation.ts';
 type Data=Record<string,any>;
 type Rpc=(name:string,body:unknown)=>Promise<any>;
-export async function loadReadiness(tasks:Data[],rpc:Rpc,call:(path:string,init?:RequestInit)=>Promise<any>){
+export async function loadReadiness(tasks:Data[],rpc:Rpc,call:(path:string,init?:RequestInit)=>Promise<any>,detail=false,preferredMessage=''){
  if(!tasks.length)return {};
  const source=await rpc('icetak_task_readiness_sources',{p_task_ids:tasks.map(t=>t.task_id)});
  const keys=[...new Set(tasks.map(t=>t.marketplace_order_id?`shopee:${t.marketplace_order_id}`:t.order_id?`icetak:${t.order_id}`:'').filter(Boolean))];
@@ -42,9 +42,15 @@ export async function loadReadiness(tasks:Data[],rpc:Rpc,call:(path:string,init?
    }
   }
  }catch{unavailable=true;}
- const mediaIds=[...new Set<string>(Object.values(contexts).flatMap((c:Data)=>(c.messages||[]).filter((m:Data)=>m.direction==='inbound'&&!m.is_history&&c.bindings?.some((b:Data)=>b.usable&&b.id===m.conversation_id)).map((m:Data)=>String(m.media_url||''))).filter((v:string)=>/^wasapflow-media:\/\/\d{1,40}$/.test(v)))];
+ const mediaIds=[...new Set<string>(Object.values(contexts).flatMap((c:Data)=>(c.messages||[]).filter((m:Data)=>(detail||m.direction==='inbound')&&!m.is_history&&c.bindings?.some((b:Data)=>b.usable&&b.id===m.conversation_id)).map((m:Data)=>String(m.media_url||''))).filter((v:string)=>/^wasapflow-media:\/\/\d{1,40}$/.test(v)))];
  let mediaAccess:Data={};
+ const candidates=Object.values(contexts).flatMap((c:Data)=>(c.messages||[]).filter((m:Data)=>m.message_type==='image'&&!m.is_history&&c.bindings?.some((b:Data)=>b.usable&&b.id===m.conversation_id)))
+  .filter((m:Data)=>'message:'+m.id===preferredMessage||m.direction==='inbound'&&!/resit|receipt|payment|bayar|transfer|bank|screenshot\s*(?:order|checkout)/i.test(String(m.text_content||m.caption||'')))
+  .sort((a:Data,b:Data)=>Number('message:'+b.id===preferredMessage)-Number('message:'+a.id===preferredMessage)||String(b.created_at).localeCompare(String(a.created_at)));
+ const orderedIds=[...new Set<string>(candidates.map((m:Data)=>String(m.media_url||'')).filter((v:string)=>/^wasapflow-media:\/\/\d{1,40}$/.test(v)))];
  for(let n=0;n<mediaIds.length;n+=20){try{Object.assign(mediaAccess,(await inbox({ids:mediaIds.slice(n,n+20).map(v=>v.slice('wasapflow-media://'.length))},true)).media);}catch{/* Unknown artwork stays blocked; textual details can still be reviewed. */}}
+ if(detail){const missing=orderedIds.filter(id=>mediaAccess[id]?.available!==true).slice(0,4);if(missing.length)try{Object.assign(mediaAccess,(await inbox({action:'prepare',ids:missing.map(id=>id.slice('wasapflow-media://'.length))},true)).media);}catch{/* Bounded recovery is optional; unavailable originals stay labelled. */}}
+
  const result:Data={};
  await Promise.all(tasks.map(async t=>{
   const k=t.marketplace_order_id?`shopee:${t.marketplace_order_id}`:t.order_id?`icetak:${t.order_id}`:'';
@@ -53,7 +59,7 @@ export async function loadReadiness(tasks:Data[],rpc:Rpc,call:(path:string,init?
   const s=source.sources?.[t.task_id]||(virtual?{task_id:t.task_id,title:virtual.title,status:'new custom',fields:{sku:virtual.sku},item:{...virtual,id:virtual.id||`line-${t.item_index}`},files:[],mapping_status:'order_intake',order_status:o.status,source_updated_at:o.source_updated_at}:null);
   if(!s)throw Error('SOURCE_CHANGED_REFRESH');
   const allowedMedia=new Set((c.messages||[]).filter((m:Data)=>m.direction==='inbound'&&!m.is_history&&c.bindings?.some((b:Data)=>b.usable&&b.id===m.conversation_id)).map((m:Data)=>m.media_url));
-  const context=k?(unavailable||!o?{unavailable:true}:{...c,media_access:Object.fromEntries(Object.entries(mediaAccess).filter(([url])=>allowedMedia.has(url)))}):{};
+  const context=k?(unavailable||!o?{unavailable:true}:{...c,media_access:Object.fromEntries(Object.entries(mediaAccess).filter(([url])=>allowedMedia.has(url))),...(detail?{dossier_media_access:mediaAccess}:{})}):{};
   const loaded={source:s,order:o,context,saved:source.briefs?.[t.task_id]||null,
    readiness:await taskReadiness(s,o,context,source.briefs?.[t.task_id]||null)};
   const inherited=(source.intakes?.[k]?.data?.items||[]).filter((i:Data)=>i.sku&&i.sku===String(s.fields?.sku||s.item?.sku||''));

@@ -1,5 +1,9 @@
 # 2026-10-20 — Shopee order and product cards
 
+## 2026-10-21 — Task design desk
+
+- [VERIFIED controlled UI; backend deployed] Task Workspace opens exact specs/SKU, copyable wording, image materials and scoped original Shopee/WhatsApp messages together. Adds real image clipboard/original download, bounded WhatsApp original-cache recovery, paste/upload, direct task links and guarded native final/QC production handoff. Full Admin desktop/mobile interactions, 57 live-source detail replays, one live original recovery/download, auth/asset/session/retry guards and builds pass. Hosted delivery pending; external ClickUp/Marul delivery remains unconnected. See docs/TASK_DESIGN_DESK.md.
+
 ## 2026-10-20 — Inbox product search focus
 
 - [PRODUCTION hosted delivery; VERIFIED controlled UI] Product search keeps keyboard focus while loading/results update, so `frozen` can be typed after one click. The global composer helper respects other fields/modals while preserving new-chat/post-send focus. Twelve desktop/mobile keyboard/focus regressions and full-App desktop/mobile typing, Inbox typecheck and full build pass. PR #105 / 545b3bfc, Workers Builds 366b5b9c and guards succeeded; hosted JS/CSS are byte-identical to the tested build and the staff login gate renders. Hosted desktop/mobile typing also passes with controlled fixtures. See docs/INBOX_SHOPEE_CARDS.md.

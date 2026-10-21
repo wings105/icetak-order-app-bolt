@@ -4,6 +4,10 @@ Status: backend and hosted delivery PRODUCTION; controlled Admin V2 desktop/mobi
 
 Route: `https://shop.decocake.my/?admin=v2&view=task-workspace`.
 
+## Design desk — 21 October 2026
+
+Task details now open a read-first design desk with adjacent original messages, asset copy/download/recovery and native production handoff. See [TASK_DESIGN_DESK.md](TASK_DESIGN_DESK.md) for current UI, auth/media behavior, verification and remaining external integrations. The release records below describe their historical versions.
+
 ## Per-task readiness brief — simple customer rules, 20 October 2026 MYT
 
 Clear customization is sufficient for `Confirmed · Ready designer` with high categorical confidence and `Sistem · detail customer lengkap`. The old ClickUp Confirmed checkbox, paired name + age, material/colour/size and same-design checkbox are not mandatory customer-detail gates. Known order specifications still appear in the brief; unknown specifications are left blank. Completeness is the required-content field ratio, not an AI probability.
