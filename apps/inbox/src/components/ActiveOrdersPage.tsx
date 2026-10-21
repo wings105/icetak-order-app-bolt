@@ -3,7 +3,7 @@ import { ExternalLink, Loader2, MessageCircle, PackageCheck, RefreshCw, Search, 
 import type { Conversation } from '../types';
 import { useConversations } from '../lib/hooks';
 import { normalizePhone } from '../lib/googleContactCache';
-import { ExternalOrderSummary, listExternalOrderSummaries } from '../lib/externalOrderSummaries';
+import { listExternalOrderPage, type OrderPage } from '../lib/externalOrderSummaries';
 
 type Mode = 'active' | 'urgent' | 'no_phone' | 'all';
 
@@ -37,44 +37,47 @@ function waLink(phone?: string | null) {
 export function ActiveOrdersPage({ onOpenConversation }: Props) {
   const [mode, setMode] = useState<Mode>('active');
   const [query, setQuery] = useState('');
-  const [rows, setRows] = useState<ExternalOrderSummary[]>([]);
+  const [page, setPage] = useState<OrderPage | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { conversations } = useConversations();
   const conversationsByPhone = useMemo(() => conversationByPhone(conversations), [conversations]);
 
-  async function load() {
+  const rows = page?.orders ?? [];
+  useEffect(() => {
+    const controller = new AbortController();
     setLoading(true);
     setError(null);
-    try {
-      setRows(await listExternalOrderSummaries(query, mode));
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Gagal memuatkan active orders.');
-    } finally {
-      setLoading(false);
-    }
-  }
+    const timer = window.setTimeout(() => {
+      void listExternalOrderPage({ query, mode, offset, signal: controller.signal }).then((data) => {
+        if (!controller.signal.aborted) {
+          if (offset && offset >= data.total) setOffset(0);
+          else setPage(data);
+        }
+      }).catch((reason) => {
+        if (!controller.signal.aborted) setError(typeof reason?.message === 'string' ? reason.message : 'Gagal memuatkan active orders.');
+      }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    }, 250);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [query, mode, offset, revision]);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => { void load(); }, 250);
-    return () => window.clearTimeout(timer);
-  }, [query, mode]);
-
-  const activeCount = rows.filter((row) => row.active_order).length;
-  const urgentCount = rows.filter((row) => ['P0', 'P1', 'P2'].includes(row.priority_level)).length;
+  const activeCount = page?.active_count ?? 0;
+  const urgentCount = page?.urgent_count ?? 0;
 
   return <div className="h-full overflow-y-auto bg-[var(--canvas)] p-4 text-[var(--text)] sm:p-6">
     <div className="mx-auto max-w-6xl">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Active Orders</h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">Fokus customer/order yang dah paid dan belum selesai. Data ringkas dari icetak-order-system.</p>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">Shopee belum ship dan order Decocake dengan task ClickUp belum complete, termasuk cash counter.</p>
         </div>
-        <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"><RefreshCw size={15} /> Refresh</button>
+        <button onClick={() => setRevision((value) => value + 1)} className="inline-flex items-center gap-2 rounded-lg bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"><RefreshCw size={15} /> Refresh</button>
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"><p className="text-xs text-[var(--text-secondary)]">Current list</p><p className="mt-1 text-2xl font-semibold">{rows.length}</p></div>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"><p className="text-xs text-[var(--text-secondary)]">Padanan filter</p><p className="mt-1 text-2xl font-semibold">{page?.total ?? 0}</p></div>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"><p className="text-xs text-[var(--text-secondary)]">Active</p><p className="mt-1 text-2xl font-semibold text-[#00a884]">{activeCount}</p></div>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"><p className="text-xs text-[var(--text-secondary)]">Urgent</p><p className="mt-1 text-2xl font-semibold text-amber-700 dark:text-amber-400">{urgentCount}</p></div>
       </div>
@@ -83,7 +86,7 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" size={16} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari order id, nama, phone, shopee username..." className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#00a884]" />
+            <input value={query} onChange={(event) => { setQuery(event.target.value); setOffset(0); }} placeholder="Cari order id, nama, phone, shopee username..." className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#00a884]" />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 lg:pb-0">
             {[
@@ -91,10 +94,15 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
               ['urgent', 'Urgent'],
               ['no_phone', 'No Phone'],
               ['all', 'All History'],
-            ].map(([key, label]) => <button key={key} onClick={() => setMode(key as Mode)} className={`flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${mode === key ? 'bg-[#00a884] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'}`}>{label}</button>)}
+            ].map(([key, label]) => <button key={key} onClick={() => { setMode(key as Mode); setOffset(0); }} className={`flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${mode === key ? 'bg-[#00a884] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'}`}>{label}</button>)}
           </div>
         </div>
       </div>
+      {page && page.total > 100 && <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+        <button disabled={loading || offset === 0} onClick={() => setOffset((value) => Math.max(0, value - 100))} className="rounded-lg bg-[var(--surface-muted)] px-3 py-2 disabled:opacity-40">Sebelum</button>
+        <span>{offset + 1}–{Math.min(offset + rows.length, page.total)} daripada {page.total}</span>
+        <button disabled={loading || !page.has_more} onClick={() => setOffset((value) => value + 100)} className="rounded-lg bg-[var(--surface-muted)] px-3 py-2 disabled:opacity-40">Seterusnya</button>
+      </div>}
 
       <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
         {loading ? <div className="flex items-center justify-center gap-2 p-10 text-sm text-[var(--text-secondary)]"><Loader2 className="animate-spin" size={17} /> Memuatkan active orders...</div> : error ? <div className="p-8 text-center text-sm text-red-700 dark:text-red-400">{error}</div> : rows.length === 0 ? <div className="p-10 text-center text-sm text-[var(--text-secondary)]"><PackageCheck className="mx-auto mb-3" size={28} />Tiada active order untuk filter ini.</div> : rows.map((row) => {

@@ -55,6 +55,7 @@ jobs:
 
       - name: Check Shopee card sending and existing reply paths
         run: |
+          npm run check:inbox-order-work
           npm run check:shopee-cards
           node --experimental-strip-types scripts/check-shopee-direct.mjs
           node --experimental-strip-types scripts/test-shopee-image.mjs

@@ -3,7 +3,7 @@ import {
   AlertCircle, CheckCircle2, Clock3, CreditCard, Loader2, Package, RefreshCw,
   Search, ShoppingBag, StickyNote, Truck, X, XCircle,
 } from 'lucide-react';
-import { listExternalOrderSummaries, type ExternalOrderSummary } from '../lib/externalOrderSummaries';
+import { listExternalOrderPage, type ExternalOrderSummary } from '../lib/externalOrderSummaries';
 import { useSearch } from '../lib/hooks';
 import { supabase } from '../lib/supabase';
 
@@ -18,7 +18,7 @@ type OrderFilter = 'all' | 'unpaid' | 'to_ship' | 'shipping' | 'completed' | 'ca
 type ChannelFilter = 'all' | 'shopee' | 'whatsapp';
 
 const ORDER_FILTERS: Array<{ key: OrderFilter; label: string }> = [
-  { key: 'all', label: 'Semua' },
+  { key: 'all', label: 'Semua Aktif' },
   { key: 'unpaid', label: 'Unpaid' },
   { key: 'to_ship', label: 'To Ship' },
   { key: 'shipping', label: 'Shipping' },
@@ -37,6 +37,7 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 function orderBucket(order: ExternalOrderSummary): OrderFilter {
+  if (order.work_bucket) return order.work_bucket;
   const status = [order.order_status, order.shipment_status, order.fulfillment_status, order.payment_status]
     .filter(Boolean).join(' ').toUpperCase();
   if (/RETURN|REFUND/.test(status)) return 'return';
@@ -44,6 +45,11 @@ function orderBucket(order: ExternalOrderSummary): OrderFilter {
   if (/COMPLETED/.test(String(order.order_status ?? '').toUpperCase())) return 'completed';
   if (/DELIVERY_DONE|DELIVERED|TO_CONFIRM_RECEIVE/.test(status)) return 'completed';
   if (/SHIPPED|PICKUP_DONE|IN_TRANSIT|TO_RECEIVE|OUT_FOR_DELIVERY/.test(status)) return 'shipping';
+  if (order.source_channel === 'whatsapp') {
+    if (order.active_order) return 'to_ship';
+    if (/CUSTOMER COLLECTED/.test(status) || /^(complete|completed|closed)$/i.test(String(order.metadata?.clickup_status ?? ''))
+      || order.metadata?.clickup_open_task_count === 0) return 'completed';
+  }
   if (/READY_TO_SHIP|PROCESSED|LOGISTICS_READY|REQUEST_CREATED/.test(status)) return 'to_ship';
   if (/UNPAID/.test(status)) return 'unpaid';
   return 'all';
@@ -138,8 +144,13 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
   const [orders, setOrders] = useState<ExternalOrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<OrderFilter>('all');
+  const [filter, setFilter] = useState<OrderFilter>('to_ship');
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>('all');
+  const [offset, setOffset] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [counts, setCounts] = useState<Record<OrderFilter, number>>({all:0,to_ship:0,unpaid:0,shipping:0,completed:0,cancelled:0,return:0});
+  const requestRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debouncedSearch = useDebounce(searchQuery, 300);
   const isSearchMode = searchQuery.trim().length >= 2;
@@ -173,23 +184,38 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
   }, [searchKey]);
 
   const load = useCallback(async () => {
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
     setLoading(true);
     setError(null);
     try {
-      setOrders(await listExternalOrderSummaries('', 'all'));
+      const page = await listExternalOrderPage({
+        mode: filter === 'all' || filter === 'to_ship' ? 'active' : 'all',
+        channel: channelFilter, bucket: filter, offset, signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      if (offset && offset >= page.total) { setOffset(0); return; }
+      setOrders(page.orders);
+      setTotal(page.total);
+      setHasMore(page.has_more);
+      setCounts(page.counts);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+      if (!controller.signal.aborted) setError(typeof (reason as { message?: unknown })?.message === 'string' ? String((reason as {message:string}).message) : String(reason));
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
-  }, []);
+  }, [filter, channelFilter, offset]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); return () => requestRef.current?.abort(); }, [load]);
   useEffect(() => {
+    let timer: number | undefined;
     const channel = supabase.channel('order-inbox-list')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'external_order_summaries' }, () => { void load(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'external_order_summaries' }, () => {
+        window.clearTimeout(timer); timer = window.setTimeout(() => { void load(); }, 300);
+      })
       .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    return () => { window.clearTimeout(timer); void supabase.removeChannel(channel); };
   }, [load]);
 
   const orderById = useMemo(() => new Map([...orders, ...searchOrders].map((order) => [order.id, order])), [orders, searchOrders]);
@@ -203,15 +229,9 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
       : orders;
     return source.filter((order) => {
       if (channelFilter !== 'all' && orderChannel(order) !== channelFilter) return false;
-      return filter === 'all' || orderBucket(order) === filter;
+      return filter === 'all' ? order.active_order : orderBucket(order) === filter;
     });
   }, [channelFilter, filter, isSearchMode, orderById, orders, remoteOrderIds]);
-
-  const counts = useMemo(() => Object.fromEntries(ORDER_FILTERS.map(({ key }) => [
-    key,
-    orders.filter((order) => (channelFilter === 'all' || orderChannel(order) === channelFilter)
-      && (key === 'all' || orderBucket(order) === key)).length,
-  ])) as Record<OrderFilter, number>, [channelFilter, orders]);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--surface)]">
@@ -230,22 +250,22 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
           {searchQuery && <button onClick={() => { onSearchChange(''); inputRef.current?.focus(); }} className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text)]"><X size={14} /></button>}
         </div>
         <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--text-secondary)]">
-          <span>{isSearchMode ? searchLoading ? 'Mencari…' : `${visibleOrders.length} hasil order` : `${orders.length} order diselaraskan`}</span>
+          <span>{isSearchMode ? searchLoading ? 'Mencari…' : `${visibleOrders.length} hasil order` : `${total} order · sumber Order System`}</span>
           <button onClick={() => { void load(); }} className="inline-flex items-center gap-1 hover:text-[var(--text)]"><RefreshCw size={11} />Refresh</button>
         </div>
       </div>
 
       <div className="flex gap-1 overflow-x-auto border-b border-[var(--border)] px-3 py-2">
         {(['all', 'shopee', 'whatsapp'] as ChannelFilter[]).map((channel) => (
-          <button key={channel} onClick={() => setChannelFilter(channel)} className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${channelFilter === channel ? channel === 'whatsapp' ? 'bg-[#25d366] text-white' : channel === 'shopee' ? 'bg-orange-500 text-white' : 'bg-[#aebac1] text-[#111b21]' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]'}`}>
-            {channel === 'all' ? 'Semua Channel' : channel === 'shopee' ? 'Shopee' : 'WhatsApp'}
+          <button key={channel} onClick={() => { setChannelFilter(channel); setOffset(0); }} className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${channelFilter === channel ? channel === 'whatsapp' ? 'bg-[#25d366] text-white' : channel === 'shopee' ? 'bg-orange-500 text-white' : 'bg-[#aebac1] text-[#111b21]' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]'}`}>
+            {channel === 'all' ? 'Semua Channel' : channel === 'shopee' ? 'Shopee' : 'Decocake'}
           </button>
         ))}
       </div>
 
       <div className="flex gap-1 overflow-x-auto border-b border-[var(--border)] px-3 py-2">
         {ORDER_FILTERS.map((item) => (
-          <button key={item.key} onClick={() => setFilter(item.key)} className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${filter === item.key ? 'bg-orange-500 text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]'}`}>
+          <button key={item.key} onClick={() => { setFilter(item.key); setOffset(0); }} className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${filter === item.key ? 'bg-orange-500 text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]'}`}>
             {item.label}{counts[item.key] > 0 && <span className="ml-1 opacity-80">{counts[item.key]}</span>}
           </button>
         ))}
@@ -263,6 +283,11 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
         ) : visibleOrders.map((order) => (
           <OrderRow key={order.id} order={order} selected={selectedOrderId === order.id} onClick={() => onOrderSelect(order.id, null)} />
         ))}
+        {!isSearchMode && total > 100 && <div className="flex items-center justify-between gap-2 p-3 text-xs text-[var(--text-secondary)]">
+          <button disabled={loading || offset === 0} onClick={() => setOffset((value) => Math.max(0, value - 100))} className="rounded bg-[var(--surface-muted)] px-2 py-1 disabled:opacity-40">Sebelum</button>
+          <span>{offset + 1}–{Math.min(offset + orders.length, total)} / {total}</span>
+          <button disabled={loading || !hasMore} onClick={() => setOffset((value) => value + 100)} className="rounded bg-[var(--surface-muted)] px-2 py-1 disabled:opacity-40">Seterusnya</button>
+        </div>}
       </div>
     </div>
   );
