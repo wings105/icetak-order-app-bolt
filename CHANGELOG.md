@@ -1,6 +1,6 @@
 # 2026-10-22
 
-- [VERIFIED] Inbox Active Orders/To Ship follow valid unshipped Shopee orders and unfinished ClickUp-backed Decocake work, including cash counter. Server counts/history paging replace the 300-row cap; terminal/test urgency and task-only sync/stale response cases are corrected. Live backend reconciliation, 351-row rollback, 40 policy checks and full Inbox desktop/mobile interactions pass. Hosted delivery evidence: release PR and [contract](docs/INBOX_ACTIVE_ORDERS.md).
+- [PRODUCTION backend/hosted delivery; VERIFIED controlled UI] Inbox Active Orders/To Ship follow valid unshipped Shopee orders and unfinished ClickUp-backed Decocake work, including cash counter. Server counts/history paging replace the 300-row cap; terminal/test urgency and task-only sync/stale response cases are corrected. Live backend reconciliation, 351-row rollback, 40 policy checks and full Inbox desktop/mobile interactions pass. PR #110 / `11a2d176`, Cloudflare `1cdb4566` and production guard pass; the hosted Inbox entry and served JavaScript text fingerprint match the tested build and staff login renders without application errors. Real hosted staff actions remain unexercised. See [contract and release evidence](docs/INBOX_ACTIVE_ORDERS.md).
 
 ## 2026-10-21 — AI task and designer workspace
 
