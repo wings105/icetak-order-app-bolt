@@ -1,3 +1,4 @@
+import type { DueFilter, OrderDeadline } from '../../../../supabase/functions/_shared/inbox-order-deadline.ts';
 import { supabase } from './supabase';
 import type { OrderCategory, OrderCategoryCounts, OrderCategoryFilter } from './orderCategories';
 import type { DesignFilter, DesignStage } from '../../../../supabase/functions/_shared/inbox-design-work.ts';
@@ -46,6 +47,7 @@ export interface ExternalOrderSummary {
   items: MarketplaceOrderItem[];
   product_categories?: OrderCategory[];
   design_stage?: DesignStage;
+  work_deadline?: OrderDeadline;
   payment_total?: number | null;
   paid_amount?: number | null;
   balance_amount?: number | null;
@@ -86,13 +88,15 @@ export interface OrderPage {
   counts: Record<OrderBucket, number>;
   category_counts?: OrderCategoryCounts;
   design_counts?: Partial<Record<DesignFilter, number>>;
+  due_counts?: Partial<Record<DueFilter, number>>;
 }
 
 export async function listExternalOrderPage(options: {
   query?: string; mode?: OrderMode; channel?: 'all' | 'shopee' | 'whatsapp'; bucket?: OrderBucket;
-  category?: OrderCategoryFilter; design?: DesignFilter; limit?: number; offset?: number; signal?: AbortSignal;
+  category?: OrderCategoryFilter; design?: DesignFilter; due?: DueFilter; limit?: number; offset?: number; signal?: AbortSignal;
 } = {}): Promise<OrderPage> {
   let request = supabase.rpc('icetak_inbox_order_page', {
+    p_due: options.due ?? 'all',
     p_design: options.design ?? 'all',
     p_category: options.category ?? 'all',
     p_query: options.query ?? '', p_mode: options.mode ?? 'active', p_channel: options.channel ?? 'all',
