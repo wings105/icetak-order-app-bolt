@@ -1,5 +1,6 @@
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import {syncMarketplace} from '../_shared/marketplace-inbox-sync.ts';
+import {summarizeDesignWork} from '../_shared/inbox-design-work.ts';
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
 Deno.serve(async(req:Request)=>{
   if(req.method!=='POST') return json({ok:false,error:'POST required'},405);
@@ -13,16 +14,18 @@ Deno.serve(async(req:Request)=>{
     if(body.source==='marketplace') return await syncMarketplace(new Request(req.url,{method:'POST',headers:{Authorization:`Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`},body:JSON.stringify(body)}));
     if(body.source!=='direct') return json({ok:false,error:'Unknown source'},400);
     const sourceObservedAt=new Date().toISOString();
-    const [summaries,orders,items]=await Promise.all([
+    const [summaries,orders,items,work]=await Promise.all([
       db.from('active_order_summary').select('*').in('order_system_order_id',body.order_ids),
       db.from('orders').select('*').in('id',body.order_ids),
-      db.from('order_items').select('*').in('order_id',body.order_ids).order('sort_index')
+      db.from('order_items').select('*').in('order_id',body.order_ids).order('sort_index'),
+      db.from('ai_order_work_source').select('id,production_tasks').eq('kind','icetak').in('id',body.order_ids)
     ]);
-    for(const result of [summaries,orders,items]) if(result.error) return json({ok:false,error:result.error.message},500);
+    for(const result of [summaries,orders,items,work]) if(result.error) return json({ok:false,error:result.error.message},500);
+    const designByOrder=new Map((work.data||[]).map(row=>[row.id,summarizeDesignWork(row.production_tasks)]));
     const payloads=(summaries.data||[]).map(row=>{
       const order=orders.data?.find(o=>o.id===row.order_system_order_id);
       const orderItems=(items.data||[]).filter(i=>i.order_id===row.order_system_order_id).map(i=>({title:i.title,product_type:i.product_type,quantity:i.qty,unit_price:i.price,variation_name:[i.size,i.style].filter(Boolean).join(' · '),wording:i.wording,design_preview_url:i.design_preview_url,customization:i.customization}));
-      return {...row,source_channel:'whatsapp',items:orderItems,item_count:orderItems.reduce((n,i)=>n+(i.quantity||0),0),order_updated_at:row.metadata?.work_updated_at||order?.updated_at,source_payload_version:'direct-order-v2-active-work',payment_total:order?.total,paid_amount:order?.payment_status==='paid'?Number(order.total):null,balance_amount:order?.payment_status==='paid'?0:null,delivery_address:order?.delivery_address||null,metadata:{...row.metadata,source_observed_at:sourceObservedAt,order_source:order?.source,provisional:false,paid_amount_basis:'order_payment_status',customer_detail_status:row.metadata?.customer_confirmed?'confirmed':'unverified'},public_order_url:row.public_order_url?new URL(row.public_order_url,'https://shop.decocake.my').href:null};
+      return {...row,source_channel:'whatsapp',items:orderItems,item_count:orderItems.reduce((n,i)=>n+(i.quantity||0),0),order_updated_at:row.metadata?.work_updated_at||order?.updated_at,source_payload_version:'direct-order-v3-design-work',payment_total:order?.total,paid_amount:order?.payment_status==='paid'?Number(order.total):null,balance_amount:order?.payment_status==='paid'?0:null,delivery_address:order?.delivery_address||null,metadata:{...row.metadata,design_work:designByOrder.get(row.order_system_order_id)||summarizeDesignWork([]),source_observed_at:sourceObservedAt,order_source:order?.source,provisional:false,paid_amount_basis:'order_payment_status',customer_detail_status:row.metadata?.customer_confirmed?'confirmed':'unverified'},public_order_url:row.public_order_url?new URL(row.public_order_url,'https://shop.decocake.my').href:null};
     });
     if(!payloads.length) return json({ok:true,pulled:0});
     const result=await fetch('https://uujcqcsfghqkukaydruc.supabase.co/functions/v1/inbox-order-sync',{method:'POST',headers:{'Content-Type':'application/json','x-order-sync-token':credential.setting_value},body:JSON.stringify({orders:payloads}),signal:AbortSignal.timeout(55000)});

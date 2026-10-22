@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import { marketplaceWorkPriority } from './inbox-order-policy.ts';
+import { summarizeDesignWork } from './inbox-design-work.ts';
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -49,7 +50,7 @@ export async function syncMarketplace(req: Request) {
   if(customerRes.error)return json({ok:false,error:customerRes.error.message},500);
   const ids = orders.map((order) => order.id);
   const orderNos = orders.map((order) => order.order_sn).filter(Boolean);
-  const [itemsRes, shipmentsRes, shippedEventsRes] = await Promise.all([
+  const [itemsRes, shipmentsRes, shippedEventsRes, workRes] = await Promise.all([
     db.from('marketplace_order_items').select('*').in('order_id', ids).eq('is_current', true).order('line_no'),
     db.from('marketplace_shipments').select('*').in('order_id', ids).order('updated_at', { ascending: false }),
     db.from('marketplace_webhook_events')
@@ -57,11 +58,14 @@ export async function syncMarketplace(req: Request) {
       .in('order_sn', orderNos)
       .eq('provider', 'shopee')
       .eq('event_code', 3)
-      .order('received_at', { ascending: false })
+      .order('received_at', { ascending: false }),
+    db.from('ai_order_work_source').select('id,production_tasks').eq('kind', 'shopee').in('id', ids)
   ]);
   if (itemsRes.error) return json({ ok: false, error: itemsRes.error.message }, 500);
   if (shipmentsRes.error) return json({ ok: false, error: shipmentsRes.error.message }, 500);
   if (shippedEventsRes.error) return json({ ok: false, error: shippedEventsRes.error.message }, 500);
+  if (workRes.error) return json({ ok: false, error: workRes.error.message }, 500);
+  const designByOrder = new Map((workRes.data ?? []).map(row => [row.id, summarizeDesignWork(row.production_tasks)]));
 
   const shippedAtByOrder = new Map<string,string>();
   for (const evt of shippedEventsRes.data ?? []) {
@@ -123,7 +127,7 @@ export async function syncMarketplace(req: Request) {
       shipment_status: shipment?.shipment_status ?? shipment?.fulfillment_status ?? order.fulfillment_status,
       tracking_no: shipment?.tracking_number,
       order_updated_at: order.updated_at,
-      source_payload_version: 'marketplace-order-v4-active-work',
+      source_payload_version: 'marketplace-order-v5-design-work',
       region: order.region,
       shop_id: order.shop_id,
       buyer_shop_id: order.buyer_shop_id,
@@ -139,6 +143,7 @@ export async function syncMarketplace(req: Request) {
       fulfillment_status: order.fulfillment_status,
       package_number: shipment?.package_number,
       metadata: {
+        design_work: designByOrder.get(order.id) ?? summarizeDesignWork([]),
         source_observed_at: sourceObservedAt,
         dashboard_excluded: order.metadata?.dashboard_excluded === true,
         dashboard_excluded_reason: order.metadata?.dashboard_excluded_reason ?? null,
