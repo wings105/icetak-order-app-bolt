@@ -22,6 +22,7 @@
     "check:shopee-cards": "node --experimental-strip-types scripts/check-shopee-cards.mjs",
     "check:task-design": "node --experimental-strip-types scripts/check-task-design-dossier.mjs && node --experimental-strip-types scripts/check-task-media.mjs",
     "check:task-clickup": "node --experimental-strip-types scripts/check-task-clickup.mjs",
+    "check:inbox-clickup": "node --experimental-strip-types scripts/check-inbox-clickup.mjs",
     "check:conversation-lifecycle": "node --experimental-strip-types scripts/check-conversation-lifecycle.mjs"
   },
   "dependencies": {

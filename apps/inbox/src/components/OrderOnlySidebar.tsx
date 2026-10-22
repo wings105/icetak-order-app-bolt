@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { InboxClickUpDesigner } from './InboxClickUpDesigner';
 import { CalendarClock, Check, Copy, CreditCard, MapPin, MessageCircle, Package, ShoppingBag, StickyNote, Truck, UserRound, X } from 'lucide-react';
 import type { ExternalOrderSummary, MarketplaceOrderItem } from '../lib/externalOrderSummaries';
 
@@ -41,12 +42,13 @@ export function OrderOnlySidebar({ order, onClose, onOpenConversation, conversat
         <p className="truncate text-sm font-semibold">Order #{order.order_no}</p>
         <p className="mt-0.5 text-[10px] text-[var(--text-secondary)]">{conversationId ? 'Order + conversation' : 'Order sahaja · belum ada chat'}</p>
       </div>
-      <button onClick={onClose} className="rounded-full p-2 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"><X size={18} /></button>
+      <button onClick={onClose} title="Tutup sidebar" className="rounded-full p-2 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"><X size={18} /></button>
     </div>
     <div className="min-h-0 flex-1 overflow-y-auto">
+      <InboxClickUpDesigner key={order.id} orders={[{id:order.id,order_no:order.order_no}]} defaultOpen/>
       <section className="border-b border-[var(--border)] p-4">
         <div className="flex flex-wrap gap-2">
-          <span className="rounded-full bg-orange-500/15 px-2 py-1 text-[10px] font-semibold text-orange-700 dark:text-orange-300">Shopee</span>
+          <span className="rounded-full bg-orange-500/15 px-2 py-1 text-[10px] font-semibold text-orange-700 dark:text-orange-300">{order.source_channel === 'whatsapp' ? 'Decocake' : 'Shopee'}</span>
           <span className="rounded-full bg-[#00a884]/15 px-2 py-1 text-[10px] font-semibold text-[var(--accent)]">{order.order_status || 'Status belum ada'}</span>
           {order.payment_status && <span className="rounded-full bg-blue-500/15 px-2 py-1 text-[10px] font-semibold text-blue-700 dark:text-blue-300">{order.payment_status}</span>}
           {!order.detail_complete && <span className="rounded-full bg-amber-500/15 px-2 py-1 text-[10px] text-amber-700 dark:text-amber-300">Menunggu detail</span>}

@@ -1,0 +1,77 @@
+import assert from 'node:assert/strict';
+import {clickUpBridgeHandler} from '../supabase/functions/inbox-task-clickup-bridge/handler.ts';
+import {inboxClickUpHandler} from '../supabase/inbox-functions/inbox-task-clickup/handler.ts';
+import {inspectDesign,readDesignRequest,packDesign,MAX_DESIGN_BYTES} from '../supabase/functions/_shared/inbox-clickup-contract.ts';
+const canonical='00000000-0000-4000-8000-000000000001',summary='00000000-0000-4000-8000-000000000002',actor='00000000-0000-4000-8000-000000000003',conversation='00000000-0000-4000-8000-000000000004';
+const id=()=>crypto.randomUUID(),png=Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==','base64')),file=()=>new File([png],'final.png',{type:'image/png'});
+let checks=0;const check=async(name,fn)=>{await fn();checks++;};
+const payload=(action,extra={})=>({action,summary_id:summary,canonical_id:canonical,source_channel:'whatsapp',actor_id:actor,actor_role:'designer',actor_label:'Designer QA',task_id:'qa-task',request_id:id(),...extra});
+function fixture(){
+ const state={receipts:new Map(),writes:[],attachments:[],comments:[],projected:[],synced:[],status:'design edible image',updated:'100',list:'18375902',token:true,work:true,uploadTimeout:false,commentTimeout:false,commentReject:false,verifyTimeout:false,secret:'bridge-test-only'};
+ const source={id:canonical,reference:'QA-ORDER',production_tasks:[{id:'qa-task',title:'Edible A4 · Set 1',status:'design edible image'},{id:'qa-task-2',title:'Topper · Set 2',status:'review'}]};
+ async function db(path,body,method=body===undefined?'GET':'POST'){
+  const u=new URL('https://db.invalid/'+path),p=u.pathname,eq=k=>u.searchParams.get(k)?.slice(3);
+  if(p==='/private_runtime_settings')return state.token?[{setting_value:'provider-test-only'}]:[];
+  if(p==='/ai_order_work_source')return state.work&&eq('id')===canonical?[source]:[];
+  if(p==='/rpc/icetak_project_clickup_work'){state.projected.push(body);const t=source.production_tasks.find(t=>t.id===body.p_task.id);if(t)t.status=body.p_task.status.status;return true;}
+  if(p==='/rpc/icetak_claim_inbox_clickup_action'){
+   let r=state.receipts.get(body.p_request);
+   if(r){if(r.fingerprint!==body.p_fingerprint||r.actor_id!==body.p_actor||r.summary_id!==body.p_summary||r.task_id!==body.p_task)throw Error('REQUEST_CONFLICT');return {claimed:false,receipt:r};}
+   r=[...state.receipts.values()].find(r=>r.task_id===body.p_task&&r.fingerprint===body.p_fingerprint);if(r)return {claimed:false,receipt:r};
+   r={request_id:body.p_request,task_id:body.p_task,actor_id:body.p_actor,summary_id:body.p_summary,canonical_id:body.p_canonical,kind:body.p_kind,fingerprint:body.p_fingerprint,payload:body.p_payload,state:'processing',step:'claimed',result:{},updated_at:new Date().toISOString()};state.receipts.set(r.request_id,r);return {claimed:true,receipt:r};
+  }
+  if(p==='/rpc/icetak_resume_inbox_clickup_comment'){const r=state.receipts.get(body.p_request);if(!r||r.actor_id!==body.p_actor||!['attachment','attachment_saved','comment_rejected'].includes(r.step))return false;r.state='processing';r.step='comment';return true;}
+  if(p==='/inbox_clickup_actions'){
+   const rows=[...state.receipts.values()].filter(r=>['request_id','actor_id','summary_id','canonical_id','task_id'].every(k=>!eq(k)||r[k]===eq(k)));
+   if(method==='PATCH'){assert(rows.length===1);Object.assign(rows[0],body);return rows;}return rows;
+  }
+  throw Error('Unexpected DB call '+path);
+ }
+ const fetcher=async(url,opts={})=>{
+  const u=new URL(url),p=u.pathname,method=opts.method||'GET';assert.equal(u.hostname,'api.clickup.com');assert.equal(opts.headers.authorization,'provider-test-only');
+  const body=opts.body instanceof FormData?opts.body:opts.body?JSON.parse(opts.body):undefined;
+  if(method!=='GET')state.writes.push({p,method,body});
+  if(p.endsWith('/list/18375902'))return Response.json({id:'18375902',statuses:[{status:'design edible image'},{status:'review'},{status:'edible image -printing'},{status:'complete'}]});
+  if(p.endsWith('/attachment')){assert(body instanceof FormData);const f=body.get('attachment');assert.deepEqual(new Uint8Array(await f.arrayBuffer()),state.expectedBytes||png);const a={id:'a'+(state.attachments.length+1),title:f.name,url:'https://attachments.clickup.com/qa/'+f.name};state.attachments.push(a);if(state.uploadTimeout)return Response.json({}, {status:503});return Response.json(a);}
+  if(p.endsWith('/comment')){
+   if(method==='POST'){assert.equal(body.notify_all,false);if(state.commentReject){state.commentReject=false;return Response.json({}, {status:400});}const c={id:'c'+(state.comments.length+1),comment_text:body.comment_text};state.comments.unshift(c);if(state.commentTimeout)return Response.json({}, {status:503});return Response.json(c);}
+   return Response.json({comments:state.comments});
+  }
+  if(method==='PUT'){state.status=body.status;state.updated='101';if(state.moveAfterWrite)state.list='901612769752';}
+  else if(state.verifyTimeout&&state.writes.length){state.verifyTimeout=false;throw Error('controlled read timeout');}
+  return Response.json({id:p.match(/\/task\/([^/]+)/)?.[1]||'qa-task',list:{id:state.list},status:{status:state.status},date_updated:state.updated,attachments:state.attachments});
+ };
+ const handler=clickUpBridgeHandler({db,secret:async()=>state.secret,fetcher,sync:async(id,channel)=>{state.synced.push({id,channel});return true;}});
+ async function call(b,f=null,secret=state.secret){const body=packDesign(b,f);const response=await handler(new Request('https://bridge.invalid',{method:'POST',headers:{'x-admin-window-token':secret,...(typeof body==='string'?{'content-type':'application/json'}:{})},body}));return {status:response.status,...await response.json()};}
+ return {state,source,call,handler};
+}
+await check('private bridge requires its own secret',async()=>{const f=fixture();assert.equal((await f.call(payload('list'),null,'bad')).status,401);assert.equal(f.state.writes.length,0);});
+await check('list is bounded to exact canonical order',async()=>{const f=fixture();const r=await f.call(payload('list'));assert.equal(r.tasks.length,2);assert.equal(r.can_edit,true);assert.equal(f.state.writes.length,0);assert(!JSON.stringify(r).includes('provider-test-only'));assert.equal((await f.call(payload('list',{canonical_id:id()}))).status,503);});
+await check('viewer reads but cannot mutate',async()=>{const f=fixture();assert.equal((await f.call(payload('list',{actor_role:'viewer'}))).can_edit,false);assert.equal((await f.call(payload('upload',{actor_role:'viewer',comment:'x'}),file())).status,403);assert.equal(f.state.writes.length,0);});
+await check('wrong order task rejected before provider',async()=>{const f=fixture();assert.equal((await f.call(payload('status',{task_id:'unrelated'}))).status,400);assert.equal(f.state.writes.length,0);});
+await check('moved task remains readable but cannot be edited',async()=>{const f=fixture();f.state.list='901612769752';const r=await f.call(payload('options'));assert.equal(r.can_edit,false);assert(r.readonly_reason.includes('dipindahkan'));assert.equal(f.state.writes.length,0);});
+await check('missing connection does not pretend success',async()=>{const f=fixture();f.state.token=false;assert.equal((await f.call(payload('list'))).configured,false);assert.equal((await f.call(payload('options'))).status,503);});
+await check('provider options reflect real status and revision',async()=>{const f=fixture();const r=await f.call(payload('options'));assert.equal(r.status,'design edible image');assert.equal(r.updated_at,'100');assert.equal(r.statuses.length,4);});
+await check('moved task cannot be edited',async()=>{const f=fixture();f.state.list='other';assert.equal((await f.call(payload('upload',{comment:'x'}),file())).status,503);assert.equal(f.state.writes.length,0);});
+await check('stale status never writes',async()=>{const f=fixture();const r=await f.call(payload('status',{status:'review',expected_status:'design edible image',expected_updated_at:'old'}));assert.equal(r.status,409);assert.equal(f.state.writes.length,0);});
+await check('status verified, projected, synchronized and replay safe',async()=>{const f=fixture(),p=payload('status',{status:'review',expected_status:'design edible image',expected_updated_at:'100'});let r=await f.call(p);assert.equal(r.verified,true);assert.equal(r.synced,true);assert.equal(f.state.projected.length,1);assert.equal(f.state.synced[0].id,canonical);assert.equal((await f.call(p)).replayed,true);assert.equal(f.state.writes.length,1);assert.equal((await f.call({...p,status:'complete'})).status,409);});
+await check('complete status verifies after external move to history list',async()=>{const f=fixture();f.state.moveAfterWrite=true;const p=payload('status',{status:'complete',expected_status:'design edible image',expected_updated_at:'100'});const r=await f.call(p);assert.equal(r.verified,true);assert.equal(f.state.projected.length,1);assert.equal(f.state.list,'901612769752');assert.equal(f.state.writes.length,1);});
+await check('unknown status write reconciles without another PUT',async()=>{const f=fixture();f.state.verifyTimeout=true;const p=payload('status',{status:'review',expected_status:'design edible image',expected_updated_at:'100'});assert.equal((await f.call(p)).uncertain,true);const r=await f.call({...p,action:'receipt'});assert.equal(r.verified,true);assert.equal(f.state.writes.length,1);});
+await check('upload exact bytes, attachment and comment readback, no Storage',async()=>{const f=fixture(),p=payload('upload',{comment:'Final set 1'}),r=await f.call(p,file());assert.equal(r.verified,true);assert.equal(f.state.attachments.length,1);assert.equal(f.state.comments.length,1);assert(f.state.comments[0].comment_text.includes(r.attachment.url));assert(f.state.comments[0].comment_text.includes(p.request_id));const receipt=f.state.receipts.get(p.request_id);assert.equal(receipt.payload.file.sha256.length,64);assert(!JSON.stringify(receipt).includes('image/png;base64'));assert.equal((await f.call(p,file())).replayed,true);assert.equal((await f.call({...p,request_id:id()},file())).replayed,true);assert.equal(f.state.attachments.length,1);});
+await check('lost attachment response reconciles then resumes comment only',async()=>{const f=fixture();f.state.uploadTimeout=true;const p=payload('upload',{comment:'Final'});assert.equal((await f.call(p,file())).uncertain,true);let r=await f.call({...p,action:'receipt'});assert.equal(r.can_resume,true);r=await f.call({...p,action:'resume'});assert.equal(r.verified,true);assert.equal(f.state.attachments.length,1);assert.equal(f.state.comments.length,1);});
+await check('lost comment response finds marker without duplicate',async()=>{const f=fixture();f.state.commentTimeout=true;const p=payload('upload',{comment:'Final'});assert.equal((await f.call(p,file())).uncertain,true);assert.equal((await f.call({...p,action:'receipt'})).verified,true);assert.equal(f.state.attachments.length,1);assert.equal(f.state.comments.length,1);});
+await check('definitively rejected comment resumes without uploading twice',async()=>{const f=fixture();f.state.commentReject=true;const p=payload('upload',{comment:'Final'});assert.equal((await f.call(p,file())).can_resume,true);assert.equal((await f.call({...p,action:'resume'})).verified,true);assert.equal(f.state.attachments.length,1);assert.equal(f.state.comments.length,1);});
+await check('another staff cannot reconcile someone else receipt',async()=>{const f=fixture(),p=payload('upload',{comment:'Final'});await f.call(p,file());assert.equal((await f.call({...p,action:'receipt',actor_id:id()})).status,409);});
+await check('invalid file signature rejected with zero provider writes',async()=>{const f=fixture();const r=await f.call(payload('upload',{comment:''}),new File(['not a PNG'],'fake.png',{type:'image/png'}));assert.equal(r.status,400);assert.equal(f.state.writes.length,0);});
+await check('oversize/empty files rejected',async()=>{await assert.rejects(()=>inspectDesign(new File([],'a.png',{type:'image/png'})),/FILE_TOO_LARGE/);await assert.rejects(()=>inspectDesign(new File([new Uint8Array(MAX_DESIGN_BYTES+1)],'a.png',{type:'image/png'})),/FILE_TOO_LARGE/);});
+await check('PDF and WebP signatures supported',async()=>{assert.equal((await inspectDesign(new File(['%PDF-1.4\nhello'],'a.pdf',{type:'application/pdf'}))).mime,'application/pdf');assert.equal((await inspectDesign(new File(['RIFF1234WEBPmore'],'a.webp',{type:'image/webp'}))).mime,'image/webp');});
+await check('body bounded before multipart parse',async()=>{const req=new Request('https://x.invalid',{method:'POST',headers:{'content-length':String(MAX_DESIGN_BYTES+2000000)},body:'{}'});await assert.rejects(()=>readDesignRequest(req),/FILE_TOO_LARGE/);});
+await check('no arbitrary provider URL accepted',async()=>{const f=fixture();assert.equal((await f.call(payload('anything',{url:'https://evil.invalid'}))).status,400);assert.equal(f.state.writes.length,0);});
+function gatewayFixture(){let role='designer',active=true,received;const handler=inboxClickUpHandler({identity:async()=>({id:actor,role,active,label:'Staff'}),order:async(_req,id,conv)=>{assert.equal(id,summary);if(conv)assert.equal(conv,conversation);return {id:summary,order_system_order_id:canonical,source_project:'icetak-order-system',source_channel:'whatsapp'};},bridge:async(body,file)=>{received={body,file};return Response.json({ok:true});}});return {handler,setRole:r=>role=r,setActive:a=>active=a,getReceived:()=>received};}
+const gatewayCall=async(f,b,auth=true,file=null)=>{const packed=packDesign(b,file),r=await f.handler(new Request('https://inbox.invalid',{method:'POST',headers:{...(auth?{authorization:'Bearer fixture'}:{}),...(typeof packed==='string'?{'content-type':'application/json'}:{})},body:packed}));return {status:r.status,...await r.json()};};
+await check('Inbox auth and active membership required',async()=>{const f=gatewayFixture();assert.equal((await gatewayCall(f,{action:'list',summary_id:summary},false)).status,401);f.setActive(false);assert.equal((await gatewayCall(f,{action:'list',summary_id:summary})).status,403);});
+await check('Inbox viewer cannot POST',async()=>{const f=gatewayFixture();f.setRole('viewer');assert.equal((await gatewayCall(f,{action:'list',summary_id:summary})).ok,true);assert.equal((await gatewayCall(f,{action:'upload',summary_id:summary,task_id:'qa-task',request_id:id(),comment:'Final'},true,file())).status,403);});
+await check('Inbox derives trusted actor and canonical identity, strips client facts',async()=>{const f=gatewayFixture();assert.equal((await gatewayCall(f,{action:'upload',summary_id:summary,conversation_id:conversation,task_id:'qa-task',request_id:id(),comment:'Final',actor_role:'owner',actor_id:id(),canonical_id:id(),source_channel:'shopee',token:'injected'},true,file())).ok,true);const r=f.getReceived();assert.equal(r.body.actor_id,actor);assert.equal(r.body.actor_role,'designer');assert.equal(r.body.canonical_id,canonical);assert.equal(r.body.source_channel,'whatsapp');assert(!('token'in r.body));assert.deepEqual(new Uint8Array(await r.file.arrayBuffer()),png);});
+console.log(`${checks} Inbox ClickUp gateway/provider flows passed: exact task/auth/bytes, no Storage, durable replay, status readback/sync and partial-delivery recovery.`);
+
+export { fixture, png, canonical, summary, actor, conversation };

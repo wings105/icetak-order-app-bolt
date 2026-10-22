@@ -36,8 +36,9 @@ export function useConversationLifecycle(conversation:Conversation) {
   for(const orderId of orderKeys.split(',').filter(Boolean))channel.on('postgres_changes',{event:'*',schema:'public',table:'external_order_summaries',filter:`id=eq.${orderId}`},changed);
   channel.subscribe();
   const visible=()=>{if(!document.hidden)refresh();};
+  window.addEventListener('icetak-clickup-updated',visible);
   const timer=window.setInterval(visible,60000);window.addEventListener('focus',visible);document.addEventListener('visibilitychange',visible);
-  return()=>{window.clearTimeout(debounce);window.clearInterval(timer);window.removeEventListener('focus',visible);document.removeEventListener('visibilitychange',visible);void supabase.removeChannel(channel);};
+  return()=>{window.removeEventListener('icetak-clickup-updated',visible);window.clearTimeout(debounce);window.clearInterval(timer);window.removeEventListener('focus',visible);document.removeEventListener('visibilitychange',visible);void supabase.removeChannel(channel);};
  },[id,orderOnlyId,orderKeys,refresh]);
  async function setProspect(stage:ProspectStage|null){
   const current=state.id===id?state.data:undefined;if(!current?.prospect_editable)throw Error('Tahap prospek tidak tersedia untuk order ini.');

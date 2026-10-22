@@ -1,3 +1,4 @@
+import { confirmDesignNavigation } from '../lib/designDraftGuard';
 import { FormEvent, ReactNode, useEffect, useState } from 'react';
 import { Loader2, LockKeyhole, LogOut } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
@@ -114,7 +115,7 @@ export function AuthGate({ children }: AuthGateProps) {
   return (
     <div className="relative h-screen">
       <button
-        onClick={() => supabase.auth.signOut()}
+        onClick={() => {if (confirmDesignNavigation()) void supabase.auth.signOut();}}
         title="Log keluar"
         className="absolute right-3 top-3 z-[100] rounded-full bg-[var(--surface-muted)] p-2 text-[var(--text-secondary)] shadow hover:text-[var(--text)]"
       >
