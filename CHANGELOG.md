@@ -1,3 +1,7 @@
+# 2026-10-23
+
+- [PRODUCTION backend; VERIFIED controlled UI] Conversation header shows one compact prospect/order/task/shipping badge with exact task progress, Printing/Task Siap before shipment, repeat-purchase isolation and an expandable order/task popover. Staff can correct/reset session-scoped prospect labels; viewers stay read-only. JWT/RLS source and private canonical bridge, native rollback, actual source reads, 79 lifecycle checks and full desktop/mobile white/black flows pass. Hosted delivery evidence is recorded in the release PR. See [contract](docs/INBOX_CONVERSATION_LIFECYCLE.md).
+
 # 2026-10-22
 
 - [VERIFIED] QRPay Match Order candidates display their creation date and Malaysia time below the customer contact, including drafts and existing orders. Controlled desktop/mobile checks cover midnight timezone conversion, missing dates, search, selection and close, with no payment mutations; targeted TypeScript passes. Hosted production confirmation pending.

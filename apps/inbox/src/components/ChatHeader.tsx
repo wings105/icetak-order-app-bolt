@@ -1,3 +1,4 @@
+import { ConversationLifecycleBadge } from './ConversationLifecycleBadge';
 import { useState } from 'react';
 import { Conversation } from '../types';
 import { WindowBadge } from './WindowBadge';
@@ -65,7 +66,7 @@ export function ChatHeader({
 
   return (
     <div className="flex flex-col bg-[#f0f2f5] dark:bg-[var(--surface-muted)] border-b border-[#e9edef] dark:border-[var(--border)]">
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2 sm:flex-nowrap sm:gap-3 sm:px-4 sm:py-3">
         {onBack && (
           <button onClick={onBack} className="text-[#54656f] dark:text-[var(--text-secondary)] hover:text-[var(--text)] dark:hover:text-[var(--text)] transition-colors mr-1">
             <ChevronLeft size={20} />
@@ -78,7 +79,8 @@ export function ChatHeader({
           </div>
         </button>
 
-        <button onClick={onShowCustomerPanel} className="flex-1 min-w-0 text-left" title="Buka Customer Workspace">
+        <div className="flex-1 min-w-0">
+        <button onClick={onShowCustomerPanel} className="max-w-full text-left" title="Buka Customer Workspace">
           <div className="flex items-center gap-2 min-w-0">
             <p className="text-sm font-semibold text-[var(--text)] dark:text-[var(--text)] truncate">{customer.name}</p>
             <ChannelBadge channel={channel} size="xs" />
@@ -90,18 +92,21 @@ export function ChatHeader({
             {orderOnly && <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[9px] font-semibold text-orange-700 dark:text-orange-300">Order customer · belum ada chat</span>}
           </div>
         </button>
+        </div>
+        <div className="basis-full sm:hidden" aria-hidden="true" />
+        <ConversationLifecycleBadge conversation={conversation} />
 
         {channel === 'whatsapp' && (
           <div className="hidden sm:block"><WindowBadge lastInboundAt={lastInboundAt} /></div>
         )}
 
-        <div className="flex items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           {!orderOnly && needsReply && (
             <button
               onClick={handleMarkReplied}
               disabled={replying}
               title="Tandakan Sudah Dibalas"
-              className="p-2 rounded-full transition-colors text-[#00a884] hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-60"
+              className="p-1.5 sm:p-2 rounded-full transition-colors text-[#00a884] hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-60"
             >
               {replying ? <Loader2 size={18} className="animate-spin" /> : <CheckCheck size={18} strokeWidth={2} />}
             </button>
@@ -149,7 +154,7 @@ function ActionButton({
     <button
       onClick={onClick}
       title={title}
-      className={`p-2 rounded-full transition-colors ${active ? activeClass : 'text-[#54656f] dark:text-[var(--text-secondary)] hover:text-[var(--text)] dark:hover:text-[var(--text)] hover:bg-black/5 dark:hover:bg-white/5'}`}
+      className={`p-1.5 sm:p-2 rounded-full transition-colors ${active ? activeClass : 'text-[#54656f] dark:text-[var(--text-secondary)] hover:text-[var(--text)] dark:hover:text-[var(--text)] hover:bg-black/5 dark:hover:bg-white/5'}`}
     >
       {children}
     </button>
