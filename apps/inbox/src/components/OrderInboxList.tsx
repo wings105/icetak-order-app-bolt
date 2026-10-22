@@ -8,6 +8,9 @@ import { useSearch } from '../lib/hooks';
 import { supabase } from '../lib/supabase';
 import { matchesOrderCategory, type OrderCategoryCounts, type OrderCategoryFilter as Category } from '../lib/orderCategories';
 import { OrderCategoryFilter } from './OrderCategoryFilter';
+import { OrderDesignFilter } from './OrderDesignFilter';
+import { OrderDesignStatus } from './OrderDesignStatus';
+import { matchesDesignFilter, type DesignFilter } from '../../../../supabase/functions/_shared/inbox-design-work.ts';
 
 interface Props {
   selectedOrderId: string | null;
@@ -136,6 +139,7 @@ function OrderRow({ order, selected, onClick }: { order: ExternalOrderSummary; s
             {order.buyer_message && <span title="Ada nota checkout" className="inline-flex items-center gap-1 text-[9px] text-amber-700 dark:text-amber-300"><StickyNote size={10} />Nota</span>}
             {!order.detail_complete && <span className="text-[9px] text-[var(--text-secondary)]">Ringkasan</span>}
           </div>
+          <OrderDesignStatus metadata={order.metadata} />
         </div>
       </div>
     </button>
@@ -150,6 +154,8 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>('all');
   const [category, setCategory] = useState<Category>('all');
   const [categoryCounts, setCategoryCounts] = useState<OrderCategoryCounts>();
+  const [design, setDesign] = useState<DesignFilter>('needs_design');
+  const [designCounts, setDesignCounts] = useState<Partial<Record<DesignFilter, number>>>();
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -196,7 +202,7 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
     try {
       const page = await listExternalOrderPage({
         mode: filter === 'all' || filter === 'to_ship' ? 'active' : 'all',
-        channel: channelFilter, category, bucket: filter, offset, signal: controller.signal,
+        channel: channelFilter, category, design, bucket: filter, offset, signal: controller.signal,
       });
       if (controller.signal.aborted) return;
       if (offset && offset >= page.total) { setOffset(0); return; }
@@ -205,12 +211,13 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
       setHasMore(page.has_more);
       setCounts(page.counts);
       setCategoryCounts(page.category_counts);
+      setDesignCounts(page.design_counts);
     } catch (reason) {
       if (!controller.signal.aborted) setError(typeof (reason as { message?: unknown })?.message === 'string' ? String((reason as {message:string}).message) : String(reason));
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
-  }, [filter, channelFilter, category, offset]);
+  }, [filter, channelFilter, category, design, offset]);
 
   useEffect(() => { void load(); return () => requestRef.current?.abort(); }, [load]);
   useEffect(() => {
@@ -235,9 +242,10 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
     return source.filter((order) => {
       if (channelFilter !== 'all' && orderChannel(order) !== channelFilter) return false;
       if (!matchesOrderCategory(order, category)) return false;
+      if (!matchesDesignFilter(order, design)) return false;
       return filter === 'all' ? order.active_order : orderBucket(order) === filter;
     });
-  }, [channelFilter, category, filter, isSearchMode, orderById, orders, remoteOrderIds]);
+  }, [channelFilter, category, design, filter, isSearchMode, orderById, orders, remoteOrderIds]);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--surface)]">
@@ -279,6 +287,8 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
 
       <div className="border-b border-[var(--border)] px-3 py-2">
         <OrderCategoryFilter value={category} counts={isSearchMode ? undefined : categoryCounts} onChange={(value) => { setCategory(value); setOffset(0); }} />
+        <div className="mt-2"><OrderDesignFilter value={design} counts={isSearchMode ? undefined : designCounts} onChange={(value) => { setDesign(value); setOffset(0); }} /></div>
+        {!isSearchMode && design !== 'unknown' && (designCounts?.unknown ?? 0) > 0 && <button onClick={() => { setDesign('unknown'); setOffset(0); }} className="mt-1.5 text-[10px] text-amber-700 dark:text-amber-300">{designCounts?.unknown} order perlu semakan status task</button>}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">

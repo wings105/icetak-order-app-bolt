@@ -6,6 +6,9 @@ import { normalizePhone } from '../lib/googleContactCache';
 import { listExternalOrderPage, type OrderPage } from '../lib/externalOrderSummaries';
 import type { OrderCategoryFilter as Category } from '../lib/orderCategories';
 import { OrderCategoryFilter } from './OrderCategoryFilter';
+import { OrderDesignFilter } from './OrderDesignFilter';
+import { OrderDesignStatus } from './OrderDesignStatus';
+import type { DesignFilter } from '../../../../supabase/functions/_shared/inbox-design-work.ts';
 
 type Mode = 'active' | 'urgent' | 'no_phone' | 'all';
 
@@ -40,6 +43,7 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
   const [mode, setMode] = useState<Mode>('active');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<Category>('all');
+  const [design, setDesign] = useState<DesignFilter>('needs_design');
   const [page, setPage] = useState<OrderPage | null>(null);
   const [offset, setOffset] = useState(0);
   const [revision, setRevision] = useState(0);
@@ -54,7 +58,7 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
     setLoading(true);
     setError(null);
     const timer = window.setTimeout(() => {
-      void listExternalOrderPage({ query, category, mode, offset, signal: controller.signal }).then((data) => {
+      void listExternalOrderPage({ query, category, design, mode, offset, signal: controller.signal }).then((data) => {
         if (!controller.signal.aborted) {
           if (offset && offset >= data.total) setOffset(0);
           else setPage(data);
@@ -64,7 +68,7 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
       }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     }, 250);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [query, category, mode, offset, revision]);
+  }, [query, category, design, mode, offset, revision]);
 
   const activeCount = page?.active_count ?? 0;
   const urgentCount = page?.urgent_count ?? 0;
@@ -102,6 +106,8 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
         </div>
         <div className="mt-3 max-w-sm">
           <OrderCategoryFilter value={category} counts={page?.category_counts} onChange={(value) => { setCategory(value); setOffset(0); }} />
+          <div className="mt-2"><OrderDesignFilter value={design} counts={page?.design_counts} onChange={(value) => { setDesign(value); setOffset(0); }} /></div>
+          {(page?.design_counts?.unknown ?? 0) > 0 && design !== 'unknown' && <button onClick={() => { setDesign('unknown'); setOffset(0); }} className="mt-2 text-xs text-amber-700 dark:text-amber-300">{page?.design_counts?.unknown} order perlu semakan status task</button>}
         </div>
       </div>
       {page && page.total > 100 && <div className="mt-4 flex items-center justify-between gap-3 text-sm">
@@ -124,6 +130,7 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
                 </div>
                 <h2 className="truncate text-base font-semibold text-[var(--text)]">{row.order_no}</h2>
                 <p className="mt-0.5 text-sm text-[var(--text)]">{row.customer_name || row.shopee_username || 'Unknown customer'}</p>
+                <OrderDesignStatus metadata={row.metadata} />
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-secondary)]">
                   {row.customer_phone_normalized && <span>Phone: {row.customer_phone_normalized}</span>}
                   {row.shopee_username && <span>Shopee: {row.shopee_username}</span>}
