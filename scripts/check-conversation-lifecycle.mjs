@@ -39,6 +39,10 @@ assert.equal(conversationLifecycle({...source,orders:[order([task('a','complete'
 assert.equal(conversationLifecycle({...source,orders:[order([task('a','complete')],{order_status:'COMPLETED'})],messages:[msg(1,'inbound','nak order edible A4 lagi')]},{},now).stage,'interested');checks++;
 assert.equal(conversationLifecycle({...source,orders:[order([task('a','complete')],{order_status:'SHIPPED'})],messages:[msg(1,'inbound','tracking parcel mana?')]},{},now).stage,'shipped');checks++;
 assert.equal(conversationLifecycle({...source,orders:[order([task('a','complete')],{order_status:'SHIPPED'})],messages:[msg(1,'inbound','semak order DEMO-1')]},{},now).stage,'shipped');checks++;
+// A reference before a fresh purchase stays in history; a later explicit follow-up may reopen it.
+const repeatSource={...source,conversation:{id,channel:'shopee'},orders:[order([task('a','complete')],{source_channel:'shopee',order_status:'SHIPPED'})],messages:[msg(0,'inbound','tracking DEMO-1 mana?'),msg(1,'inbound','nak order edible A4 lagi')]};
+r=conversationLifecycle(repeatSource,{},now);assert.equal(r.stage,'interested');assert.equal(r.history_count,1);checks+=2;
+assert.equal(conversationLifecycle({...repeatSource,messages:[...repeatSource.messages,msg(2,'inbound','semak tracking DEMO-1 dulu')]},{},now).stage,'shipped');checks++;
 assert.equal(conversationLifecycle({...source,orders:[order([task('a','complete')])],messages:[]},{session:{session_id:'new',opened_at:new Date(now).toISOString()}},now).stage,'survey');checks++;
 assert.equal(conversationLifecycle(source,{session:{session_id:'s'},drafts:[{id:'d',status:'ready_customer',order_session_id:'s',created_at:new Date(now).toISOString()}]},now).stage,'draft');checks++;
 assert.equal(conversationLifecycle({...source,missing_links:1},{},now).stage,'unknown');checks++;

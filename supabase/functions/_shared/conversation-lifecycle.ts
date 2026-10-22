@@ -86,7 +86,9 @@ export function conversationLifecycle(source:HeaderSource,canonical:HeaderCanoni
  const freshRequest=messages.filter(m=>m.direction==='inbound'&&newPurchase.test(text(m))).slice(-1)[0];
  const scope_key=[source.conversation.id,session.session_id||'',boundary||'',hasEpisode(messages,all)].join(':');
  const latestText=text(latestInbound??{id:'',direction:'',created_at:''});
- const refs=orders.filter(o=>messages.some(m=>m.direction==='inbound'&&new RegExp('(?:^|[^a-z0-9])'+o.order_no.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?:$|[^a-z0-9])','i').test(text(m))));
+ // An earlier tracking reference must not override a later repeat-purchase request.
+ const referenceMessages=freshRequest?messages.filter(m=>at(m.created_at)>=at(freshRequest.created_at)):messages;
+ const refs=orders.filter(o=>referenceMessages.some(m=>m.direction==='inbound'&&new RegExp('(?:^|[^a-z0-9])'+o.order_no.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?:$|[^a-z0-9])','i').test(text(m))));
  const hasActiveSession=Boolean(session.session_id);
  let current=orders.filter(o=>hasActiveSession?at(o.placed_at)>=boundary:!freshRequest||at(o.placed_at)>=at(freshRequest.created_at)-300000);
  if(refs.length)current=refs;
