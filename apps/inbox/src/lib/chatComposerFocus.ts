@@ -14,7 +14,7 @@ function focusComposer(): void {
   const active = document.activeElement;
   if (document.querySelector('[role="dialog"][aria-modal="true"], dialog[open]')) return;
   if (active !== field && active instanceof HTMLElement &&
-      (active.matches('input, textarea, select') || active.isContentEditable)) return;
+      (active.matches('input, textarea, select') || active.isContentEditable || active.closest('[data-inbox-design]'))) return;
   field.focus({ preventScroll: true });
   const end = field.value.length;
   field.setSelectionRange(end, end);

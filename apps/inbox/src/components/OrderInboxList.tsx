@@ -231,12 +231,14 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
   useEffect(() => { void load(); return () => requestRef.current?.abort(); }, [load, now]);
   useEffect(() => {
     let timer: number | undefined;
+    const updated=()=>{void load();};
+    window.addEventListener('icetak-clickup-updated',updated);
     const channel = supabase.channel('order-inbox-list')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'external_order_summaries' }, () => {
         window.clearTimeout(timer); timer = window.setTimeout(() => { void load(); }, 300);
       })
       .subscribe();
-    return () => { window.clearTimeout(timer); void supabase.removeChannel(channel); };
+    return () => { window.removeEventListener('icetak-clickup-updated',updated); window.clearTimeout(timer); void supabase.removeChannel(channel); };
   }, [load]);
 
   const orderById = useMemo(() => new Map([...orders, ...searchOrders].map((order) => [order.id, order])), [orders, searchOrders]);

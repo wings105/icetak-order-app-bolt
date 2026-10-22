@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { InboxClickUpDesigner } from './InboxClickUpDesigner';
 import { Activity, Loader2, Package, ShoppingBag, RefreshCw, UserRound, X } from 'lucide-react';
 import type { Conversation, Message } from '../types';
 import type { CustomTag } from '../lib/conversationTags';
@@ -92,6 +93,8 @@ export function ConversationWorkspaceSidebar({
           </button>
         </div>
       </div>
+
+      <InboxClickUpDesigner orders={data.linkedOrders.flatMap(link=>link.summary?[{id:link.summary.id,order_no:link.order_no}]:[])} conversationId={conversation.id}/>
 
       <div className={`grid ${conversation.channel === 'shopee' ? 'grid-cols-4' : 'grid-cols-3'} border-b border-[var(--border)] bg-[var(--surface)]`}>
         {(conversation.channel === 'shopee' ? [...TABS.slice(0, 2), {id: 'product' as const, label: 'Produk', icon: ShoppingBag}, TABS[2]] : TABS).map((item) => {

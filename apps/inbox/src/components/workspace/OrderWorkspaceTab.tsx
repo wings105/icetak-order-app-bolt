@@ -1,3 +1,4 @@
+import { confirmDesignNavigation } from '../../lib/designDraftGuard';
 import { useMemo, useState } from 'react';
 import {
   CheckCircle2, Copy, CreditCard, ExternalLink, Link2, Loader2, MessageSquareText,
@@ -106,7 +107,7 @@ export function OrderWorkspaceTab({
   }, [snippetQuery, snippets]);
 
   async function runAction(key: string, action: () => Promise<void>) {
-    if (busyKey) return;
+    if (busyKey || /^(unlink|primary|manual-link|suggest)/.test(key) && !confirmDesignNavigation()) return;
     setBusyKey(key);
     setError(null);
     try {

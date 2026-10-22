@@ -1,3 +1,7 @@
+## 2026-10-23 — Inbox design files pass through to ClickUp
+
+Reuse the owner-configured Order API credential and existing source projection/cache sync. Inbox verifies staff and exact linked summary context; the private Order bridge owns provider authorization and exact task membership. Binary images remain in bounded request/browser memory and finish in ClickUp, while service-only actor/order/task receipts retain hashes and provider references. Preserve independent status/upload intent, provider revision/readback, duplicate and unknown-result guards, and explicit comment-only recovery. Existing Admin private draft files and financial/fulfillment/customer-send contracts remain separate. See docs/INBOX_CLICKUP_DESIGN.md.
+
 ## 2026-10-20 — Shopee cards reuse catalogue cache and audited sender
 
 Keep canonical products in Order System and shop+item cache/search in Inbox. Card previews select DB resources rather than browser-supplied recipient/product data; signed provider reads prove order ownership and active product identity. Reuse existing send claims/reply/read guards, persist card snapshots before delivery and never rely on API echoes. Logical product selection maps to Shopee wire type item, verified on the real app. Search and Cancel never send. See docs/INBOX_SHOPEE_CARDS.md.

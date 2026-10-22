@@ -1,3 +1,4 @@
+import { confirmDesignNavigation } from './lib/designDraftGuard';
 import { ShopeeSticker } from './lib/shopeeStickers';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Conversation, Message } from './types';
@@ -173,6 +174,7 @@ function InboxApp() {
   }, [activeConversation]);
 
   function handleSelect(id: string, firstMatchMsgId?: string) {
+    if (!confirmDesignNavigation()) return;
     if (!conversations.some((row) => row.id === id)) {
       void ensureConversation(id).catch((reason) => window.alert(`Gagal membuka chat: ${reason?.message ?? reason}`));
     }
@@ -191,6 +193,7 @@ function InboxApp() {
       const order = await getExternalOrderSummary(orderSummaryId);
       const resolvedConversationId = conversationId ?? await findExternalOrderConversationId(order);
       if (resolvedConversationId && !conversations.some((row) => row.id === resolvedConversationId)) await ensureConversation(resolvedConversationId);
+      if (!confirmDesignNavigation()) return;
       setSelectedOrder(order);
       setSelectedOrderConversationId(resolvedConversationId);
       setSelectedId(resolvedConversationId);
@@ -203,6 +206,7 @@ function InboxApp() {
   }
 
   function handleBackToList() {
+    if (!confirmDesignNavigation()) return;
     setMobileView('list');
     setSelectedId(null);
     setSelectedOrder(null);
@@ -304,14 +308,14 @@ function InboxApp() {
     <RealtimeReloader channelName="icetak-inbox-realtime" onConversationChange={reload} onMessageChange={handleRealtimeMessageChange} />
     <div className={`flex-shrink-0 w-full sm:w-[300px] lg:w-[320px] xl:w-[340px] border-r border-[var(--border)] ${mobileView === 'list' ? 'flex' : 'hidden sm:flex'} flex-col h-full`}><UnifiedInboxList conversations={mergedConversations} selectedId={selectedId} selectedOrderId={selectedOrder?.id ?? null} onSelect={handleSelect} onOrderSelect={(orderId, conversationId) => { void handleOrderSelect(orderId, conversationId); }} searchQuery={searchQuery} onSearchChange={setSearchQuery} /></div>
     <div className={`flex flex-1 min-w-0 h-full ${mobileView === 'chat' ? 'flex' : 'hidden sm:flex'}`}>
-      <div className="flex flex-col flex-1 min-w-0"><ChatArea conversation={activeConversation} messagesLoading={selectedId ? msgsLoading : false} orderOnly={Boolean(selectedOrder && !selectedOrderConversationId)} onArchiveToggle={handleArchiveToggle} onMarkUnread={handleMarkUnread} onUrgentToggle={handleUrgentToggle} onShowCustomerPanel={() => setShowCustomerPanel((value) => !value)} onBack={mobileView === 'chat' ? handleBackToList : undefined} showCustomerPanel={showCustomerPanel} composerText={composerText} onComposerChange={setComposerText} onSend={handleSend} searchQuery={searchQuery} initialMatchMessageId={initialMatchMessageId} onMarkReplied={handleMarkReplied} /></div>
+      <div className="flex flex-col flex-1 min-w-0"><ChatArea conversation={activeConversation} messagesLoading={selectedId ? msgsLoading : false} orderOnly={Boolean(selectedOrder && !selectedOrderConversationId)} onArchiveToggle={handleArchiveToggle} onMarkUnread={handleMarkUnread} onUrgentToggle={handleUrgentToggle} onShowCustomerPanel={() => {if (!showCustomerPanel || confirmDesignNavigation()) setShowCustomerPanel(value=>!value);}} onBack={mobileView === 'chat' ? handleBackToList : undefined} showCustomerPanel={showCustomerPanel} composerText={composerText} onComposerChange={setComposerText} onSend={handleSend} searchQuery={searchQuery} initialMatchMessageId={initialMatchMessageId} onMarkReplied={handleMarkReplied} /></div>
       {showCustomerPanel && (activeConversation || selectedOrder) && (
-        <div className="fixed inset-0 z-50 h-full w-full flex-shrink-0 overflow-hidden lg:relative lg:inset-auto lg:z-auto lg:w-[320px] xl:w-[360px]">
+        <div className="fixed inset-0 z-[110] h-full w-full flex-shrink-0 overflow-hidden lg:relative lg:inset-auto lg:z-auto lg:w-[320px] xl:w-[360px]">
           {selectedOrder ? (
             <OrderOnlySidebar
               order={selectedOrder}
               conversationId={selectedOrderConversationId}
-              onClose={() => setShowCustomerPanel(false)}
+              onClose={() => {if (confirmDesignNavigation()) setShowCustomerPanel(false);}}
               onOpenConversation={handleSelect}
             />
           ) : selectedConversation ? (
@@ -328,7 +332,7 @@ function InboxApp() {
               assignedTags={byConversation[selectedConversation.id] ?? []}
               onTagsChanged={() => { void reloadTags(); }}
               onContactChanged={reload}
-              onClose={() => setShowCustomerPanel(false)}
+              onClose={() => {if (confirmDesignNavigation()) setShowCustomerPanel(false);}}
               onFillComposer={setComposerText}
               onOpenConversation={handleSelect}
             />
@@ -365,11 +369,12 @@ function Dashboard() {
   }
   const [page, setPage] = useState<Page>(pageFromHash);
   useEffect(() => {
-    function onPopState() { setPage(pageFromHash()); }
+    function onPopState() { if (confirmDesignNavigation()) setPage(pageFromHash()); }
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
   function navigate(p: Page) {
+    if (!confirmDesignNavigation()) return;
     const hash = p === 'inbox' ? '#inbox' : `#${p}`;
     window.history.pushState({ page: p }, '', `${window.location.pathname}${window.location.search}${hash}`);
     setPage(p);
