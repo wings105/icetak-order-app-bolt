@@ -8,6 +8,10 @@ Implemented 2026-08-13 for the iCetak Order System.
 
 The core safety rule is **Draft != Order**. Before admin confirmation there is no real order number, no sales order, no `payment_transactions` allocation, no production release, and no ClickUp create outbox.
 
+## QRPay manual match candidates
+
+Admin V2 → QRPay → Match Order shows each candidate's `created_at` below the customer contact, formatted as day/month/year and time in `Asia/Kuala_Lumpur`. This applies to draft and existing-order candidates; missing timestamps show `—`.
+
 ## Admin draft review
 
 Edge Function: `qrpay-draft-review`.
