@@ -1,3 +1,7 @@
+import type { DueFilter } from '../../../../supabase/functions/_shared/inbox-order-deadline.ts';
+import { OrderDueFilter } from './OrderDueFilter';
+import { OrderDeadlineStatus } from './OrderDeadlineStatus';
+import { useOrderClock } from '../lib/useOrderClock';
 import { useEffect, useMemo, useState } from 'react';
 import { ExternalLink, Loader2, MessageCircle, PackageCheck, RefreshCw, Search, ShoppingBag } from 'lucide-react';
 import type { Conversation } from '../types';
@@ -10,7 +14,7 @@ import { OrderDesignFilter } from './OrderDesignFilter';
 import { OrderDesignStatus } from './OrderDesignStatus';
 import type { DesignFilter } from '../../../../supabase/functions/_shared/inbox-design-work.ts';
 
-type Mode = 'active' | 'urgent' | 'no_phone' | 'all';
+type Mode = 'active' | 'no_phone' | 'all';
 
 interface Props {
   onOpenConversation?: (conversationId: string) => void;
@@ -25,15 +29,6 @@ function conversationByPhone(conversations: Conversation[]) {
   return map;
 }
 
-function priorityLabel(value: string) {
-  if (value === 'P0') return 'Overdue';
-  if (value === 'P1') return 'Due Today';
-  if (value === 'P2') return 'Due Tomorrow';
-  if (value === 'P3') return 'Paid Baru';
-  if (value === 'P4') return 'Active';
-  return value;
-}
-
 function waLink(phone?: string | null) {
   const normalized = normalizePhone(phone);
   return normalized ? `https://wa.me/${normalized}` : '';
@@ -44,6 +39,8 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<Category>('all');
   const [design, setDesign] = useState<DesignFilter>('needs_design');
+  const [due, setDue] = useState<DueFilter>('urgent');
+  const now = useOrderClock();
   const [page, setPage] = useState<OrderPage | null>(null);
   const [offset, setOffset] = useState(0);
   const [revision, setRevision] = useState(0);
@@ -58,7 +55,7 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
     setLoading(true);
     setError(null);
     const timer = window.setTimeout(() => {
-      void listExternalOrderPage({ query, category, design, mode, offset, signal: controller.signal }).then((data) => {
+      void listExternalOrderPage({ query, category, design, due, mode, offset, signal: controller.signal }).then((data) => {
         if (!controller.signal.aborted) {
           if (offset && offset >= data.total) setOffset(0);
           else setPage(data);
@@ -68,7 +65,7 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
       }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     }, 250);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [query, category, design, mode, offset, revision]);
+  }, [query, category, design, due, mode, offset, revision, now]);
 
   const activeCount = page?.active_count ?? 0;
   const urgentCount = page?.urgent_count ?? 0;
@@ -98,14 +95,14 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
           <div className="flex gap-2 overflow-x-auto pb-1 lg:pb-0">
             {[
               ['active', 'All Active'],
-              ['urgent', 'Urgent'],
               ['no_phone', 'No Phone'],
               ['all', 'All History'],
-            ].map(([key, label]) => <button key={key} onClick={() => { setMode(key as Mode); setOffset(0); }} className={`flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${mode === key ? 'bg-[#00a884] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'}`}>{label}</button>)}
+            ].map(([key, label]) => <button key={key} onClick={() => { setMode(key as Mode); if (key === 'all') setDue('all'); setOffset(0); }} className={`flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${mode === key ? 'bg-[#00a884] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'}`}>{label}</button>)}
           </div>
         </div>
         <div className="mt-3 max-w-sm">
-          <OrderCategoryFilter value={category} counts={page?.category_counts} onChange={(value) => { setCategory(value); setOffset(0); }} />
+          <OrderDueFilter value={due} counts={page?.due_counts} onChange={(value) => { setDue(value); setOffset(0); }} />
+          <div className="mt-2"><OrderCategoryFilter value={category} counts={page?.category_counts} onChange={(value) => { setCategory(value); setOffset(0); }} /></div>
           <div className="mt-2"><OrderDesignFilter value={design} counts={page?.design_counts} onChange={(value) => { setDesign(value); setOffset(0); }} /></div>
           {(page?.design_counts?.unknown ?? 0) > 0 && design !== 'unknown' && <button onClick={() => { setDesign('unknown'); setOffset(0); }} className="mt-2 text-xs text-amber-700 dark:text-amber-300">{page?.design_counts?.unknown} order perlu semakan status task</button>}
         </div>
@@ -125,12 +122,12 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex flex-wrap items-center gap-2">
                   <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${row.active_order ? 'bg-[#00a884]/15 text-[#00a884]' : 'bg-[var(--surface-hover)] text-[var(--text-secondary)]'}`}>{row.active_order ? 'Active' : 'Inactive'}</span>
-                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">{priorityLabel(row.priority_level)}</span>
                   <span className="rounded-full bg-[var(--surface-hover)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">{row.source_channel}</span>
                 </div>
                 <h2 className="truncate text-base font-semibold text-[var(--text)]">{row.order_no}</h2>
                 <p className="mt-0.5 text-sm text-[var(--text)]">{row.customer_name || row.shopee_username || 'Unknown customer'}</p>
                 <OrderDesignStatus metadata={row.metadata} />
+                <OrderDeadlineStatus order={row} now={now} />
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-secondary)]">
                   {row.customer_phone_normalized && <span>Phone: {row.customer_phone_normalized}</span>}
                   {row.shopee_username && <span>Shopee: {row.shopee_username}</span>}
