@@ -1,6 +1,8 @@
 import { supabase } from './supabase';
+import type { OrderCategory, OrderCategoryCounts, OrderCategoryFilter } from './orderCategories';
 
 export interface MarketplaceOrderItem {
+  product_type?: string | null;
   provider_item_id?: string | null;
   provider_variation_id?: string | null;
   item_sku?: string | null;
@@ -41,6 +43,7 @@ export interface ExternalOrderSummary {
   public_order_url?: string | null;
   clickup_url?: string | null;
   items: MarketplaceOrderItem[];
+  product_categories?: OrderCategory[];
   payment_total?: number | null;
   paid_amount?: number | null;
   balance_amount?: number | null;
@@ -79,13 +82,15 @@ export interface OrderPage {
   has_more: boolean;
   offset: number;
   counts: Record<OrderBucket, number>;
+  category_counts?: OrderCategoryCounts;
 }
 
 export async function listExternalOrderPage(options: {
   query?: string; mode?: OrderMode; channel?: 'all' | 'shopee' | 'whatsapp'; bucket?: OrderBucket;
-  limit?: number; offset?: number; signal?: AbortSignal;
+  category?: OrderCategoryFilter; limit?: number; offset?: number; signal?: AbortSignal;
 } = {}): Promise<OrderPage> {
   let request = supabase.rpc('icetak_inbox_order_page', {
+    p_category: options.category ?? 'all',
     p_query: options.query ?? '', p_mode: options.mode ?? 'active', p_channel: options.channel ?? 'all',
     p_bucket: options.bucket ?? 'all', p_limit: options.limit ?? 100, p_offset: options.offset ?? 0,
   });

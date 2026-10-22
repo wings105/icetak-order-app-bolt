@@ -6,6 +6,8 @@ import {
 import { listExternalOrderPage, type ExternalOrderSummary } from '../lib/externalOrderSummaries';
 import { useSearch } from '../lib/hooks';
 import { supabase } from '../lib/supabase';
+import { matchesOrderCategory, type OrderCategoryCounts, type OrderCategoryFilter as Category } from '../lib/orderCategories';
+import { OrderCategoryFilter } from './OrderCategoryFilter';
 
 interface Props {
   selectedOrderId: string | null;
@@ -146,6 +148,8 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<OrderFilter>('to_ship');
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>('all');
+  const [category, setCategory] = useState<Category>('all');
+  const [categoryCounts, setCategoryCounts] = useState<OrderCategoryCounts>();
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -192,7 +196,7 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
     try {
       const page = await listExternalOrderPage({
         mode: filter === 'all' || filter === 'to_ship' ? 'active' : 'all',
-        channel: channelFilter, bucket: filter, offset, signal: controller.signal,
+        channel: channelFilter, category, bucket: filter, offset, signal: controller.signal,
       });
       if (controller.signal.aborted) return;
       if (offset && offset >= page.total) { setOffset(0); return; }
@@ -200,12 +204,13 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
       setTotal(page.total);
       setHasMore(page.has_more);
       setCounts(page.counts);
+      setCategoryCounts(page.category_counts);
     } catch (reason) {
       if (!controller.signal.aborted) setError(typeof (reason as { message?: unknown })?.message === 'string' ? String((reason as {message:string}).message) : String(reason));
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
-  }, [filter, channelFilter, offset]);
+  }, [filter, channelFilter, category, offset]);
 
   useEffect(() => { void load(); return () => requestRef.current?.abort(); }, [load]);
   useEffect(() => {
@@ -229,9 +234,10 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
       : orders;
     return source.filter((order) => {
       if (channelFilter !== 'all' && orderChannel(order) !== channelFilter) return false;
+      if (!matchesOrderCategory(order, category)) return false;
       return filter === 'all' ? order.active_order : orderBucket(order) === filter;
     });
-  }, [channelFilter, filter, isSearchMode, orderById, orders, remoteOrderIds]);
+  }, [channelFilter, category, filter, isSearchMode, orderById, orders, remoteOrderIds]);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--surface)]">
@@ -250,7 +256,7 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
           {searchQuery && <button onClick={() => { onSearchChange(''); inputRef.current?.focus(); }} className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text)]"><X size={14} /></button>}
         </div>
         <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--text-secondary)]">
-          <span>{isSearchMode ? searchLoading ? 'Mencari…' : `${visibleOrders.length} hasil order` : `${total} order · sumber Order System`}</span>
+          <span>{isSearchMode ? searchLoading ? 'Mencari…' : `${visibleOrders.length} hasil order` : loading ? 'Memuatkan order…' : `${total} order · sumber Order System`}</span>
           <button onClick={() => { void load(); }} className="inline-flex items-center gap-1 hover:text-[var(--text)]"><RefreshCw size={11} />Refresh</button>
         </div>
       </div>
@@ -269,6 +275,10 @@ export function OrderInboxList({ selectedOrderId, onOrderSelect, searchQuery, on
             {item.label}{counts[item.key] > 0 && <span className="ml-1 opacity-80">{counts[item.key]}</span>}
           </button>
         ))}
+      </div>
+
+      <div className="border-b border-[var(--border)] px-3 py-2">
+        <OrderCategoryFilter value={category} counts={isSearchMode ? undefined : categoryCounts} onChange={(value) => { setCategory(value); setOffset(0); }} />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">

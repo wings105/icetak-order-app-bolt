@@ -4,6 +4,8 @@ import type { Conversation } from '../types';
 import { useConversations } from '../lib/hooks';
 import { normalizePhone } from '../lib/googleContactCache';
 import { listExternalOrderPage, type OrderPage } from '../lib/externalOrderSummaries';
+import type { OrderCategoryFilter as Category } from '../lib/orderCategories';
+import { OrderCategoryFilter } from './OrderCategoryFilter';
 
 type Mode = 'active' | 'urgent' | 'no_phone' | 'all';
 
@@ -37,6 +39,7 @@ function waLink(phone?: string | null) {
 export function ActiveOrdersPage({ onOpenConversation }: Props) {
   const [mode, setMode] = useState<Mode>('active');
   const [query, setQuery] = useState('');
+  const [category, setCategory] = useState<Category>('all');
   const [page, setPage] = useState<OrderPage | null>(null);
   const [offset, setOffset] = useState(0);
   const [revision, setRevision] = useState(0);
@@ -51,7 +54,7 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
     setLoading(true);
     setError(null);
     const timer = window.setTimeout(() => {
-      void listExternalOrderPage({ query, mode, offset, signal: controller.signal }).then((data) => {
+      void listExternalOrderPage({ query, category, mode, offset, signal: controller.signal }).then((data) => {
         if (!controller.signal.aborted) {
           if (offset && offset >= data.total) setOffset(0);
           else setPage(data);
@@ -61,7 +64,7 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
       }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     }, 250);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [query, mode, offset, revision]);
+  }, [query, category, mode, offset, revision]);
 
   const activeCount = page?.active_count ?? 0;
   const urgentCount = page?.urgent_count ?? 0;
@@ -96,6 +99,9 @@ export function ActiveOrdersPage({ onOpenConversation }: Props) {
               ['all', 'All History'],
             ].map(([key, label]) => <button key={key} onClick={() => { setMode(key as Mode); setOffset(0); }} className={`flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${mode === key ? 'bg-[#00a884] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'}`}>{label}</button>)}
           </div>
+        </div>
+        <div className="mt-3 max-w-sm">
+          <OrderCategoryFilter value={category} counts={page?.category_counts} onChange={(value) => { setCategory(value); setOffset(0); }} />
         </div>
       </div>
       {page && page.total > 100 && <div className="mt-4 flex items-center justify-between gap-3 text-sm">
