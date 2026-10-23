@@ -22,6 +22,12 @@
     <div id="app"></div>
     <script type="module">
       (async () => {
+        // Roadmap is a standalone, isolated SPA route; storefront and Admin V2 remain unchanged.
+        if (location.pathname.replace(/\/+$/, '') === '/roadmap') {
+          await import('./src/roadmap.ts');
+          return;
+        }
+
         const adminRoute = new URLSearchParams(location.search).get('admin');
         const isAdmin = adminRoute === 'v2' || adminRoute === '1';
 
