@@ -1,6 +1,6 @@
 # Task Workspace side panel — 23 October 2026 MYT
 
-Status: backend ACTIVE; actual bundled Admin V2 desktop/mobile behavior VERIFIED with controlled transport. Hosted release confirmation is recorded below when available. Real signed-in hosted provider mutations, native Photoshop paste and physical printing are not exercised by the automated tests.
+Status: backend and frontend delivery PRODUCTION; actual bundled Admin V2 desktop/mobile behavior VERIFIED with controlled transport. Real signed-in hosted provider mutations, native Photoshop paste and physical printing are not exercised by the automated tests.
 
 Route: `https://shop.decocake.my/?admin=v2&view=task-workspace`.
 
@@ -46,6 +46,10 @@ No printing action changes Review customer, status or an external webhook by its
 - Both iframe print calls are observed. The reference document contains both order sets and exact A4 grid rules without action controls. The fetched AWB PDF is byte-identical; a test-only HTML viewer stand-in covers the native PDF viewer handoff because the serverless browser has no PDF plugin. Real printer dialogs/physical output and Photoshop are outside this evidence.
 - Live migration `task_panel_review_actions` is applied. Native rollback verifies actor/membership, review-only allowance, duplicate/conflict/busy behavior, safe known-rejection retry and unknown no-resend. Remaining QA receipts: zero. Browser INSERT/EXECUTE remains denied, RLS enabled, invoker security retained. Security advisors introduce no new findings.
 - Deployed function source/auth readback and anonymous 401 are checked; no real customer task, order, payment, provider send or design upload was used for verification.
+
+## Hosted release
+
+PR #119 merged as `f31be77b761b75ebb61fd18fcf97222f1cf02417`; production guard and Workers Builds passed. Build `3c9ab9fc-6926-4599-85a1-a63f116019d0` deployed Cloudflare version `5e52113a-d7b9-4431-bf8b-ae945f1ef0c4`. Browser reload of the exact Task Workspace route observed `main-DcNf6QDu.js` and `admin-v2-route-XVOMPJCr.js`, followed by the expected Admin V2 login gate with no application errors. This confirms hosted delivery; it does not extend the controlled interaction evidence to real signed-in provider writes.
 
 ## Rollback
 
