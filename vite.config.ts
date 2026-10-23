@@ -3,7 +3,8 @@ import path from 'path';
 import { execFileSync } from 'node:child_process';
 
 export default defineConfig({
-  base: './',
+  // Absolute asset URLs are required for nested routes such as /roadmap/.
+  base: '/',
   plugins: [{
     name: 'build-isolated-inbox',
     apply: 'build',
