@@ -8,6 +8,16 @@ For coding agents and maintainers, read `AGENTS.md` first.
 
 The production branch is `production`. Do not assume `main` represents the current live system.
 
+## Product Roadmap — work tracking and release history
+
+- [Live Roadmap](https://shop.decocake.my/roadmap/) — public/approved feature status, owner-reviewed planning and acceptance checklists.
+- [Roadmap Owner](https://shop.decocake.my/roadmap/?manage=1) — add ideas, edit summaries, priority, private/public visibility, progress and Markdown references.
+- [Roadmap documentation index](docs/roadmap/README.md) — where to find the full feature specifications, 71-topic baseline, process and safety rules.
+- [Master plan](docs/roadmap/ROADMAP_MASTER_PLAN_2026.md) and [release-coverage contracts](docs/roadmap/RELEASE_COVERAGE_2026.md) — feature-level scopes, current caveats and definition of done.
+- [CHANGELOG.md](CHANGELOG.md) — verified production release history. Its tagged entries automatically appear in the roadmap Changelog tab **after a production build**; this does not auto-complete roadmap feature status.
+
+For new work: record the intent and acceptance criteria in Roadmap, implement with subsystem docs, verify affected surfaces, then write the release evidence in CHANGELOG. Use branch `production` as source of truth.
+
 ## Main areas
 
 - `src/` — customer-facing storefront / customer order portal code
