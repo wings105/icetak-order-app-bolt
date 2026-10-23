@@ -16,7 +16,7 @@ export function clickUpBridgeHandler(deps: {
    ...(body === undefined ? {} : { body: multipart ? body : JSON.stringify(body) }), redirect: 'error', signal: AbortSignal.timeout(25000),
   });
   const data = await r.json().catch(() => null);
-  if (!r.ok) throw Object.assign(Error(r.status < 500 ? 'PROVIDER_REJECTED' : 'UNKNOWN'), { rejected: r.status < 500 });
+  if (!r.ok) throw Object.assign(Error(r.status < 500 ? 'PROVIDER_REJECTED' : 'UNKNOWN'), { rejected: r.status < 500 && method !== 'GET' });
   if (!data || data.err || data.error) throw Error('UNKNOWN'); return data;
  }
  const patch = (id: string, values: Data) => db(`inbox_clickup_actions?request_id=eq.${id}`, { ...values, updated_at: new Date().toISOString() }, 'PATCH');
@@ -36,7 +36,7 @@ export function clickUpBridgeHandler(deps: {
  }
  return async (req: Request) => {
   if (req.method !== 'POST') return out({ ok: false }, 405);
-  let receipt: Data | null = null, step = 'claimed', dispatched = false, attachment: Data | null = null;
+  let receipt: Data | null = null, step = 'claimed', dispatched = false, ownsClaim = false, attachment: Data | null = null;
   try {
    const supplied = req.headers.get('x-admin-window-token');
    if (!supplied || supplied !== await deps.secret()) return out({ ok: false }, 401);
@@ -98,6 +98,7 @@ export function clickUpBridgeHandler(deps: {
     if (!canResume) throw Error('UNKNOWN');
     const claimed = await db('rpc/icetak_resume_inbox_clickup_comment', { p_request: b.request_id, p_actor: b.actor_id });
     if (!claimed) throw Error('TASK_BUSY');
+    ownsClaim = true;
     step = 'comment';
    } else {
     if (file && b.action !== 'upload') throw Error('INVALID_REQUEST');
@@ -113,6 +114,7 @@ export function clickUpBridgeHandler(deps: {
      if (receipt!.state === 'succeeded') return out({ ok: true, ...receipt!.result, request_id: receipt!.request_id, replayed: true });
      throw Error('UNKNOWN');
     }
+    ownsClaim = true;
     const task = await liveTask(token, b.task_id);
     if (b.action === 'status') {
      const list = await provider(token, 'list/18375902');
@@ -144,11 +146,11 @@ export function clickUpBridgeHandler(deps: {
    return out({ ok: true, ...result, request_id: receipt!.request_id });
   } catch (e) {
    const code = e instanceof Error ? e.message : 'UNKNOWN', rejected = !!(e as { rejected?: boolean })?.rejected;
-   const uncertain = dispatched && !rejected || code === 'UNKNOWN';
-   if (receipt && dispatched) {
+   const uncertain = Boolean(receipt && !ownsClaim) || dispatched && !rejected || code === 'UNKNOWN';
+   if (receipt && ownsClaim && dispatched) {
     const savedStep = rejected ? `${step}_rejected` : step;
     await patch(receipt.request_id, { state: uncertain ? 'unknown' : 'failed', step: savedStep, ...(attachment ? { result: { attachment } } : {}) }).catch(() => {});
-   } else if (receipt && step === 'claimed' && code !== 'UNKNOWN') await patch(receipt.request_id, { state: 'failed', step }).catch(() => {});
+   } else if (receipt && ownsClaim && step === 'claimed' && code !== 'UNKNOWN') await patch(receipt.request_id, { state: 'failed', step }).catch(() => {});
    return out({ ok: false, error: messages[code] || messages.BRIDGE_UNAVAILABLE, ...(receipt ? { request_id: receipt.request_id, uncertain, can_resume: !!attachment && rejected && step === 'comment' } : {}) }, /EDIT/.test(code) ? 403 : /INVALID|LARGE/.test(code) ? 400 : /CHANGED|BUSY|CONFLICT|UNKNOWN/.test(code) ? 409 : 503);
   }
  };

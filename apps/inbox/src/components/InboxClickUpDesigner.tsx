@@ -76,7 +76,7 @@ export function InboxClickUpDesigner({ orders, conversationId, defaultOpen = fal
    if (generation.current !== current) return;
    const failure = e as ClickUpFailure; setError(failure.message); setCanResume(!!failure.result?.can_resume);
    if (failure.result?.request_id) { const actual = { ...draft, request_id: failure.result.request_id }; remember(actual); if (retry.current) retry.current.id = actual.request_id; }
-   if (!failure.result?.uncertain && !failure.result?.can_resume) remember(null);
+   if (!['receipt', 'resume'].includes(kind) && !failure.result?.uncertain && !failure.result?.can_resume) remember(null);
   } finally { if (generation.current === current) {busyRef.current=false;setBusy(false);} }
  }
  if (!summaryId) return null;
