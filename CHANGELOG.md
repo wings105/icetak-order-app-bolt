@@ -1,3 +1,7 @@
+# 2026-10-23 — Task Workspace right side panel
+
+- [VERIFIED] Task clicks retain the list beside a resizable panel with searchable live ClickUp status/review, exact-task Complete, production shortcuts, copyable fields, all original attachments and same-order AWB/reference iframe printing. Direct design POST avoids new Supabase image storage. Actual bundled Admin desktop/mobile/read-only interactions and native rollback/API guards pass; native Photoshop/physical printing and signed-in hosted provider actions remain unexercised. See `docs/TASK_WORKSPACE_SIDE_PANEL.md`.
+
 # 2026-10-23
 
 - [PRODUCTION backend; VERIFIED controlled UI] Inbox order/conversation sidebars add exact-task design paste/drop/upload, direct ClickUp attachment + linked comment and live status changes. Failed receipt reads preserve pending recovery; verification rate limits allow comment-only resume without duplicate uploads. This upload path stores no image in Supabase Storage/Postgres. Native rollback, 27 gateway/provider flows, actual internal-token sample file/comment readback and full desktop/mobile clipboard/recovery/permissions/themes pass. Hosted delivery proof is recorded in the release PR. See [contract](docs/INBOX_CLICKUP_DESIGN.md).
