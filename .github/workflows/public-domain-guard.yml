@@ -109,6 +109,19 @@ jobs:
           grep -q 'Buka dokumen rujukan' src/roadmap.ts
           grep -q 'add column if not exists reference_url' supabase/migrations/20261023183000_roadmap_reference_url.sql
 
+      - name: Check release feed and topic UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/roadmap-changelog.json
+          test -s docs/roadmap/README.md
+          test -s docs/roadmap/RELEASE_COVERAGE_2026.md
+          node -e "const x=require('./dist/roadmap-changelog.json'); if(x.total < 60 || x.total !== x.releases.length || !x.releases.some(y=>y.feature_codes.includes('IC-014'))) process.exit(1);"
+          grep -q "highlights" src/roadmap.ts
+          grep -q "acceptance_criteria" src/roadmap.ts
+          grep -q "roadmap-changelog.json" src/roadmap.ts
+          grep -q "Product Roadmap" README.md
+
       - name: Verify nested roadmap build and absolute assets
         shell: bash
         run: |
