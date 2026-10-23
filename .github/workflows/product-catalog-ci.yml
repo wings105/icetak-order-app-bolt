@@ -29,6 +29,11 @@ jobs:
       - name: Build Vite frontend
         run: npm run build
 
+      - name: Verify standalone roadmap entrypoint
+        run: |
+          test -s dist/roadmap/index.html
+          grep -q 'iCetak Roadmap' dist/roadmap/index.html
+
       - name: Verify Bolt and Supabase source parity
         run: |
           test -f src/supabase-client.ts
