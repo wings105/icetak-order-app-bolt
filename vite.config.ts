@@ -20,6 +20,12 @@ export default defineConfig({
   },
   build: {
     target: 'es2020',
-    rollupOptions: { maxParallelFileOps: 128 },
+    rollupOptions: {
+      maxParallelFileOps: 128,
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        roadmap: path.resolve(__dirname, 'roadmap/index.html'),
+      },
+    },
   },
 });
