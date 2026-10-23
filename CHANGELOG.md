@@ -1,3 +1,7 @@
+# 2026-10-23 — Display original task images
+
+- [VERIFIED] Task panel image elements now use original attachment bytes, so native right-click Copy image uses original resolution. Copy gambar reuses the displayed original without another download/API call. Actual bundled desktop/mobile checks prove original source bytes and 1200×800 displayed/clipboard pixels, no thumbnail request and unchanged panel actions. Build/typecheck pass. Hosted delivery evidence is recorded in the correction PR.
+
 # 2026-10-23 — Task Workspace right side panel
 
 - [PRODUCTION delivery; VERIFIED controlled UI] Task clicks retain the list beside a resizable panel with searchable live ClickUp status/review, exact-task Complete, production shortcuts, copyable fields, all original attachments and same-order AWB/reference iframe printing. Direct design POST avoids new Supabase image storage. Actual bundled Admin desktop/mobile/read-only interactions and native rollback/API guards pass; native Photoshop/physical printing and signed-in hosted provider actions remain unexercised. PR #119 / release `f31be77` passed production guard and Workers Builds; the live Admin entry serves the new asset chain. See `docs/TASK_WORKSPACE_SIDE_PANEL.md`.

@@ -1,7 +1,8 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {clickupRequest} from '../lib/taskDashboard';
 import type {WorkTask} from '../lib/taskWorkspace';
-import {copyOriginalImage,panelOriginal,type PanelAttachment,type PanelOptions} from '../lib/taskPanel';
+import {type PanelAttachment,type PanelOptions} from '../lib/taskPanel';
+import TaskPanelAttachment from './TaskPanelAttachment';
 import {printOtherAwb,printPanelAwb,printPanelReference} from '../lib/taskPrint';
 
 export function CopyValue({value,label}:{value:string;label:string}){
@@ -21,20 +22,6 @@ function SearchDropdown({label,value,options,disabled,onChoose}:{label:string;va
    {options.filter(o=>o.name.toLowerCase().includes(query.toLowerCase())).map(o=><button type="button" role="option" aria-selected={o.id===value} key={o.id} onClick={()=>{setOpen(false);trigger.current?.focus();if(o.id!==value)onChoose(o.id||null);}}><span className="tp-dot" style={{background:o.color||'#888'}}/><span>{o.name}</span>{o.id===value&&<span>✓</span>}</button>)}
   </div></div>}
  </div>;
-}
-function AttachmentTile({asset,taskId}:{asset:PanelAttachment;taskId:string}){
- const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[zoom,setZoom]=useState(false),[zoomUrl,setZoomUrl]=useState(''),[broken,setBroken]=useState(false),[dimensions,setDimensions]=useState('');
- const cached=useRef<Promise<Blob>|null>(null),zoomDialog=useRef<HTMLDialogElement>(null),objectUrl=useRef('');
- useEffect(()=>()=>{if(objectUrl.current)URL.revokeObjectURL(objectUrl.current);},[]);
- function original(){return cached.current||=(panelOriginal(taskId,asset).catch(e=>{cached.current=null;throw e;}));}
- async function act(copy:boolean){if(busy)return;setBusy(true);setNotice('');try{
-  if(copy){await copyOriginalImage(original());setNotice('Gambar original disalin.');}
-  else{const blob=await original(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=asset.name.replace(/[/\\\u0000-\u001f]/g,'_');document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);setNotice('Original dimuat turun.');}
- }catch(e){setNotice((e as Error).message);}finally{setBusy(false);}}
- async function show(){setZoom(true);setNotice('');zoomDialog.current?.showModal();try{const blob=await original();if(!objectUrl.current)objectUrl.current=URL.createObjectURL(blob);setZoomUrl(objectUrl.current);}catch(e){setNotice((e as Error).message);}}
- return <article className="tp-attachment"><button type="button" className="tp-thumbnail" disabled={!asset.is_image} aria-label={`Preview ${asset.name}`} onClick={()=>void show()}>{asset.is_image&&!broken?<img src={asset.thumbnail} loading="lazy" referrerPolicy="no-referrer" alt={asset.name} onError={()=>setBroken(true)}/>:<span>{asset.name.split('.').at(-1)?.toUpperCase().slice(0,7)||'FILE'}</span>}</button><strong title={asset.name}>{asset.name}</strong><small>{asset.source}{asset.size?` · ${(asset.size/1024).toFixed(0)} KB`:''}</small><div className="tp-file-actions">{asset.is_image&&<button type="button" disabled={busy} onClick={()=>void act(true)} aria-label={`Copy gambar ${asset.name}`}>Copy gambar</button>}<button type="button" disabled={busy} onClick={()=>void act(false)} aria-label={`Download original ${asset.name}`}>{busy?'Memuat…':'Download'}</button></div>{notice&&<p role="status">{notice}</p>}
-  <dialog ref={zoomDialog} className="tp-zoom" onCancel={()=>setZoom(false)}><header><span>{asset.name}</span><button type="button" aria-label="Tutup preview" onClick={()=>{zoomDialog.current?.close();setZoom(false);}}>×</button></header>{zoom&&zoomUrl?<img src={zoomUrl} alt={`Original ${asset.name}`} onLoad={e=>setDimensions(`${e.currentTarget.naturalWidth} × ${e.currentTarget.naturalHeight} px`)}/>:<p>Memuat original…</p>}<small>{dimensions}</small><div className="tp-file-actions"><button type="button" disabled={busy} onClick={()=>void act(true)}>Copy gambar</button><button type="button" disabled={busy} onClick={()=>void act(false)}>Download original</button></div>{notice&&<p role="status">{notice}</p>}</dialog>
- </article>;
 }
 export default function TaskPanelControls({task,blocked,onBusy,onChanged}:{task:WorkTask;blocked:boolean;onBusy:(busy:boolean)=>void;onChanged:(options:PanelOptions)=>Promise<void>}){
  const [options,setOptions]=useState<PanelOptions|null>(null),[error,setError]=useState(''),[notice,setNotice]=useState(''),[pending,setPending]=useState(false),[loading,setLoading]=useState(true),[receipt,setReceipt]=useState('');
@@ -74,6 +61,6 @@ export default function TaskPanelControls({task,blocked,onBusy,onChanged}:{task:
   </div>
   <dl className="tp-fields">{values.map(([label,value])=><div key={label}><dt>{label}</dt><dd><span>{value||'—'}</span>{value&&value!=='—'&&<CopyValue label={label} value={value}/ >}{label==='Phone'&&phone&&<a href={`https://wa.me/${phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" aria-label="Buka WhatsApp">↗</a>}</dd></div>)}</dl>
   <section className="tp-wording"><div><span className="tp-label">CUSTOMIZE / WORDING</span><CopyValue label="wording" value={fields?.wording||task.wording||''}/></div><p>{fields?.wording||task.wording||'—'}</p></section>
-  <section className="tp-attachments" aria-label="Semua attachment ClickUp"><div className="tp-section-heading"><h3>Attachment ClickUp <span>{assets.length}</span></h3><button type="button" disabled={assetsBusy} onClick={()=>{setAssets([]);void loadAssets();}}>Refresh</button></div><p className="tw-muted">Thumbnail kecil · Copy menggunakan gambar original.</p><div className="tp-attachment-grid">{assets.map(asset=><AttachmentTile key={asset.id} asset={asset} taskId={task.task_id}/>)}</div>{assetsBusy&&<p role="status">Memuat attachment…</p>}{!assetsBusy&&!assets.length&&!assetError&&<p className="tw-muted">Tiada attachment pada task ini.</p>}{assetError&&<p role="alert" className="tp-error">{assetError}<button type="button" onClick={()=>void loadAssets(cursor)}>Cuba semula</button></p>}{cursor&&<button type="button" disabled={assetsBusy} onClick={()=>void loadAssets(cursor)}>Muat attachment komen terdahulu</button>}</section>
+  <section className="tp-attachments" aria-label="Semua attachment ClickUp"><div className="tp-section-heading"><h3>Attachment ClickUp <span>{assets.length}</span></h3><button type="button" disabled={assetsBusy} onClick={()=>{setAssets([]);void loadAssets();}}>Refresh</button></div><p className="tw-muted">Gambar asal · Klik kanan untuk Copy image, atau gunakan Copy gambar.</p><div className="tp-attachment-grid">{assets.map(asset=><TaskPanelAttachment key={asset.id} asset={asset} taskId={task.task_id}/>)}</div>{assetsBusy&&<p role="status">Memuat attachment…</p>}{!assetsBusy&&!assets.length&&!assetError&&<p className="tw-muted">Tiada attachment pada task ini.</p>}{assetError&&<p role="alert" className="tp-error">{assetError}<button type="button" onClick={()=>void loadAssets(cursor)}>Cuba semula</button></p>}{cursor&&<button type="button" disabled={assetsBusy} onClick={()=>void loadAssets(cursor)}>Muat attachment komen terdahulu</button>}</section>
  </>;
 }
