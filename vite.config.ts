@@ -14,6 +14,8 @@ export default defineConfig({
     },
   }],
   resolve: {
+    // The root mounts Admin V2; both package installs must share one React runtime.
+    dedupe: ['react', 'react-dom'],
     alias: {
       '@appdeploy/client': path.resolve(__dirname, 'src/appdeploy-client.ts'),
     },

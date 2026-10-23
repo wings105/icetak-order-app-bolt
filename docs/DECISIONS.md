@@ -1,3 +1,7 @@
+## 2026-10-23 — Task side panel reuses provider actions and print projections
+
+Keep exact-task work in a non-modal Admin V2 panel with live provider status/review options, small original-backed attachments and direct same-order printing. Extend the existing private designer ledger for only the Review customer field, retaining cross-Inbox locks, stale checks and readback. Direct output bytes pass through to ClickUp using the shared binary inspector; native private draft/final files stay explicit and separate. Verified snapshots and design-link image metadata feed existing projections. Reuse the AWB read/PDF/layout helpers without changing the standalone page or its external action automation. See TASK_WORKSPACE_SIDE_PANEL.md.
+
 ## 2026-10-23 — Inbox design files pass through to ClickUp
 
 Reuse the owner-configured Order API credential and existing source projection/cache sync. Inbox verifies staff and exact linked summary context; the private Order bridge owns provider authorization and exact task membership. Binary images remain in bounded request/browser memory and finish in ClickUp, while service-only actor/order/task receipts retain hashes and provider references. Preserve independent status/upload intent, provider revision/readback, duplicate and unknown-result guards, and explicit comment-only recovery. Existing Admin private draft files and financial/fulfillment/customer-send contracts remain separate. See docs/INBOX_CLICKUP_DESIGN.md.

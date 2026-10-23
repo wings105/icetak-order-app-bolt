@@ -32,10 +32,10 @@ export function nextAction(task:WorkTask){
  if(r?.status==='missing')return 'Dapatkan '+(r.missing.map(m=>m.label).join(', ')||'maklumat customer');
  return r?.status==='ready'?'Buka bahan dan mula design':'Semak mesej dan arahan customer';
 }
-export type ClickUpOptions={ok:boolean;configured:boolean;can_manage:boolean;can_edit:boolean;statuses:{status:string;color:string}[];status?:string;updated_at?:string;task_url?:string};
-export async function clickupRequest(body:Record<string,unknown>){
+export type ClickUpOptions={ok:boolean;configured:boolean;can_manage:boolean;can_edit:boolean;statuses:{status:string;color:string;type?:string}[];status?:string;updated_at?:string;task_url?:string};
+export async function clickupRequest(body:Record<string,unknown>|FormData){
  const {supabase}=await import('./supabase');
  const {data,error}=await supabase.functions.invoke('task-clickup',{body});
- if(error){let message='Sambungan ClickUp gagal. Cuba semula.';try{message=(await (error as {context?:Response}).context?.json())?.error||message;}catch{}throw Error(message);}
+ if(error){let detail:{error?:string;uncertain?:boolean;request_id?:string}={};try{detail=await (error as {context?:Response}).context?.json()||{};}catch{}throw Object.assign(Error(detail.error||'Sambungan ClickUp gagal. Cuba semula.'),{uncertain:detail.uncertain,request_id:detail.request_id});}
  if(!data?.ok)throw Error(data?.error||'Tindakan ClickUp gagal.');return data;
 }

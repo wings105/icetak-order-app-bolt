@@ -4,6 +4,10 @@ Status: backend and hosted delivery PRODUCTION; controlled Admin V2 desktop/mobi
 
 Route: `https://shop.decocake.my/?admin=v2&view=task-workspace`.
 
+## Right side panel — 23 October 2026
+
+The large design modal is replaced by a non-modal resizable right panel. Provider status/Complete, Review customer and quick production review buttons, same-order AWB/reference printing, compact copyable fields and all original ClickUp attachments are the primary controls. Original chat, brief correction and native final/QC stay available below. Direct design POST uploads to ClickUp without storing new image bytes in Supabase. See [side-panel contract and verification](TASK_WORKSPACE_SIDE_PANEL.md); older sections below describe their release versions.
+
 ## Design desk — 21 October 2026
 
 Task details now open a read-first design desk with adjacent original messages, asset copy/download/recovery and native production handoff. See [TASK_DESIGN_DESK.md](TASK_DESIGN_DESK.md) for current UI, auth/media behavior, verification and remaining external integrations. The release records below describe their historical versions.
