@@ -2,7 +2,7 @@ import { supabase } from './appdeploy-client';
 import './roadmap.css';
 
 type Status = 'idea'|'planned'|'building'|'testing'|'completed'|'on_hold';
-type Item = {id:string;title:string;summary:string;category:string;status:Status;priority:string;progress:number;target_date:string|null;is_public:boolean;created_at:string;updated_at:string;completed_at:string|null};
+type Item = {id:string;title:string;summary:string;category:string;status:Status;priority:string;progress:number;target_date:string|null;reference_url:string|null;is_public:boolean;created_at:string;updated_at:string;completed_at:string|null};
 type Event = {id:string;item_id:string;body:string;kind:string;is_public:boolean;created_at:string};
 const CATS:Record<string,string>={general:'General',orders:'Orders',inbox:'Inbox',automation:'Automation',production:'Production',finance:'Finance',shopee:'Shopee',design:'Design',infrastructure:'Infrastructure'};
 const STAT:Record<Status,string>={idea:'Idea',planned:'Planned',building:'Building Now',testing:'Testing / QA',completed:'Completed',on_hold:'On Hold'};
@@ -10,6 +10,7 @@ const GROUPS:{key:string;title:string;states:Status[]}[]=[{key:'idea',title:'Und
 const root=document.querySelector<HTMLElement>('#app');
 const esc=(val:unknown):string=>String(val??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c));
 const date=(d:string|null)=>d?new Intl.DateTimeFormat('ms-MY',{day:'numeric',month:'short',year:'numeric'}).format(new Date(d)):'';
+const safeReference=(raw:string|null|undefined)=>{try{const parsed=new URL(raw||'');return parsed.protocol==='https:'?parsed.href:'';}catch{return '';}};
 const targetDate=(d:string|null)=>d?new Intl.DateTimeFormat('ms-MY',{month:'short',year:'numeric'}).format(new Date(d+'T12:00:00')):'';
 let owner=false,manage=false,tab:'roadmap'|'changelog'='roadmap',category='all',search='',items:Item[]=[],events:Event[]=[];
 let modalId:string|null=null,editId:string|null=null,loading=true,notice='',failure='';
@@ -42,12 +43,13 @@ function itemDetails(i:Item):string{
  const logs=events.filter(e=>e.item_id===i.id&&(manage||e.is_public));
  return '<div class="rm-dialog-header"><div><span class="rm-tag">'+esc(CATS[i.category]||i.category)+'</span><h2>'+esc(i.title)+'</h2><small>'+esc(STAT[i.status])+' · '+esc(i.priority.toUpperCase())+(i.target_date?' · Sasaran '+esc(targetDate(i.target_date)):'')+'</small></div><button type="button" class="rm-x" data-close>×</button></div>'+
  '<div class="rm-dialog-body"><p>'+esc(i.summary||'Belum ada penerangan.')+'</p><div class="rm-progress-label"><span>Progress</span><span>'+i.progress+'%</span></div><div class="rm-bar"><i style="width:'+i.progress+'%"></i></div>'+
+ (safeReference(i.reference_url)?'<p><a href="'+esc(safeReference(i.reference_url))+'" target="_blank" rel="noopener noreferrer" style="color:#6650be;font-weight:700">📄 Buka dokumen rujukan (Markdown) ↗</a></p>':'')+
  '<h3>Sejarah kemas kini</h3><div class="rm-history">'+(logs.length?logs.map(e=>'<section><small>'+date(e.created_at)+'</small><p>'+esc(e.body)+'</p></section>').join(''):'<section><p>Belum ada catatan.</p></section>')+'</div>'+
  (manage?'<button class="rm-btn" data-edit="'+esc(i.id)+'">Edit feature</button>':'')+'</div>';
 }
 function optionMap(values:Record<string,string>,chosen:string):string{return Object.entries(values).map(([k,v])=>'<option value="'+esc(k)+'"'+(k===chosen?' selected':'')+'>'+esc(v)+'</option>').join('');}
 function itemEditor(i:Item|null):string{
- const r=i||{title:'',summary:'',category:'general',status:'idea' as Status,priority:'p2',progress:0,target_date:null,is_public:false};
+ const r=i||{title:'',summary:'',category:'general',status:'idea' as Status,priority:'p2',progress:0,target_date:null,reference_url:null,is_public:false};
  const prior={p0:'P0 · Urgent',p1:'P1 · High',p2:'P2 · Normal',p3:'P3 · Later'};
  return '<div class="rm-dialog-header"><div><span class="rm-tag">Owner mode</span><h2>'+(i?'Edit feature':'Tambah planning')+'</h2></div><button type="button" class="rm-x" data-close>×</button></div>'+
  '<form class="rm-form" id="rmForm"><label>Nama feature<input name="title" maxlength="160" minlength="3" required placeholder="Contoh: Shopee Keyword Intelligence" value="'+esc(r.title)+'"></label>'+
@@ -58,6 +60,7 @@ function itemEditor(i:Item|null):string{
  '<label>Progress (%)<input name="progress" type="number" min="0" max="100" value="'+r.progress+'"></label>'+
  '<label>Sasaran tarikh<input name="target_date" type="date" value="'+(r.target_date||'')+'"></label>'+
  '<label class="rm-checkbox"><input type="checkbox" name="is_public"'+(r.is_public?' checked':'')+'> Papar kepada umum</label></div>'+
+ '<label>Pautan dokumen rujukan (HTTPS)<input name="reference_url" type="url" maxlength="1024" placeholder="https://github.com/.../docs/roadmap/..." value="'+esc(r.reference_url||'')+'"></label>'+ 
  '<label>Nota perkembangan (optional)<textarea name="update_note" maxlength="1000" rows="2" placeholder="Contoh: API selesai diuji."></textarea></label>'+
  '<div class="rm-form-foot"><button type="button" class="rm-cancel" data-close>Batal</button><button type="submit" class="rm-btn">Simpan</button></div><div class="rm-form-error" id="rmFormError" role="alert"></div></form>';
 }
@@ -86,7 +89,7 @@ function close():void{editId=null;modalId=null;render();}
 async function reload():Promise<void>{
  loading=true;failure='';render();
  const [a,b]=await Promise.all([
-  supabase.from('icetak_roadmap_items').select('id,title,summary,category,status,priority,progress,target_date,is_public,created_at,updated_at,completed_at').order('updated_at',{ascending:false}).limit(400),
+  supabase.from('icetak_roadmap_items').select('id,title,summary,category,status,priority,progress,target_date,reference_url,is_public,created_at,updated_at,completed_at').order('updated_at',{ascending:false}).limit(400),
   supabase.from('icetak_roadmap_updates').select('id,item_id,body,kind,is_public,created_at').order('created_at',{ascending:false}).limit(600)
  ]);
  if(a.error||b.error)failure='Tidak dapat membaca roadmap: '+(a.error?.message||b.error?.message);
@@ -98,7 +101,7 @@ async function save(form:HTMLFormElement):Promise<void>{
  const status=read('status') as Status;
  const record={title:read('title'),summary:read('summary'),category:read('category')||'general',status,priority:read('priority')||'p2',
  progress:status==='completed'?100:Math.max(0,Math.min(100,Number(field.get('progress'))||0)),
- target_date:read('target_date')||null,is_public:field.get('is_public')==='on'};
+ target_date:read('target_date')||null,reference_url:read('reference_url')||null,is_public:field.get('is_public')==='on'};
  const old=items.find(i=>i.id===editId);
  const button=form.querySelector<HTMLButtonElement>('button[type=submit]');
  if(button){button.disabled=true;button.textContent='Menyimpan...';}
