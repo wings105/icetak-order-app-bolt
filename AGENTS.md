@@ -24,6 +24,17 @@ This file is the first document any coding agent must read before changing this 
 
 Do not move responsibility between these projects casually. Cross-project bridges are deliberate.
 
+## Roadmap and changelog responsibilities
+
+- Start with [docs/roadmap/README.md](docs/roadmap/README.md) when the task comes from an iCetak roadmap feature; use its Markdown contract and acceptance checklist.
+- A new feature proposal belongs in Supabase Roadmap before claiming it is being developed. Planned, Building, Testing and Completed are owner-visible states, not substitutes for verification evidence.
+- `CHANGELOG.md` is the chronological engineering release ledger; roadmap feature status is **not** automatically changed based on a changelog entry.
+- The production build generates `/roadmap-changelog.json` from release-tagged bullets in `CHANGELOG.md`; never edit the generated JSON as the source of truth.
+- When a feature is truly verified, record scope, test surface, release/deployment evidence, remaining unverified paths and relevant subsystem document before updating roadmap status.
+- Public roadmap summaries and checked-in Markdown **must exclude customer records, credentials, sensitive amounts and private automation settings**.
+- Keep feature-specific bullet highlights and acceptance criteria readable for the owner. Distinguish a verified backend, a tested browser component, and a signed-in hosted operational test.
+- Read the current **production** branch as the active implementation; main can be behind or divergent.
+
 ## Required reading order
 
 1. `AGENTS.md`

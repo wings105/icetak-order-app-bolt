@@ -11,7 +11,7 @@
     "check:stock-admin": "node scripts/check-stock-admin.mjs",
     "check:whatsapp-optout": "node scripts/check-whatsapp-order-optout-guards.mjs",
     "check:order-id-forward": "node scripts/check-whatsapp-order-id-forward.mjs",
-    "build": "npm run check:admin-v2 && vite build",
+    "build": "npm run check:admin-v2 && node scripts/generate-roadmap-releases.mjs && vite build",
     "preview": "vite preview",
     "check:ai-dashboard": "node --experimental-strip-types scripts/check-ai-dashboard.mjs",
     "build:inbox": "npm --prefix apps/inbox ci --include=dev && npm --prefix apps/inbox run build",
