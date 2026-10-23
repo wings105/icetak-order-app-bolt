@@ -25,6 +25,10 @@
     <div id="app"></div>
     <script type="module">
       (async () => {
+        if (/^\/roadmap\/?$/.test(location.pathname)) {
+          await import('./src/roadmap.ts');
+          return;
+        }
         if (/^\/mockup\/?$/.test(location.pathname)) {
           await import('./src/cake-mockup/main.tsx');
           return;
