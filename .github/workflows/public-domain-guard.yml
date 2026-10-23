@@ -99,6 +99,16 @@ jobs:
       - name: Build production frontend
         run: npm run build
 
+      - name: Verify roadmap references and documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s docs/roadmap/ROADMAP_MASTER_PLAN_2026.md
+          test -s docs/roadmap/SHOPEE_ADS_API_TESTS_20261023.md
+          grep -q 'reference_url' src/roadmap.ts
+          grep -q 'Buka dokumen rujukan' src/roadmap.ts
+          grep -q 'add column if not exists reference_url' supabase/migrations/20261023183000_roadmap_reference_url.sql
+
       - name: Verify nested roadmap build and absolute assets
         shell: bash
         run: |
