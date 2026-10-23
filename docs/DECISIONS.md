@@ -324,3 +324,7 @@ Reuse the current task/readiness/dossier contracts inside AI Dashboard rather th
 ## 2026-10-23 — One conversation badge with factual work and scoped prospects
 
 The owner authorizes a compact header lifecycle badge and task progress without opening the sidebar. Keep prospect classification/explicit staff choice separate from canonical order/payment/fulfillment and exact ClickUp task facts. Use the existing Inbox cache/links for candidates, the exact canonical conversation session for draft boundaries, and a narrow private read bridge for source tasks/timestamps. Never merge Inbox cache IDs with canonical order IDs or use sync time as order creation time. Multiple unfinished items/orders cannot be hidden by a completed sibling or old primary. Printing is not a physical-print receipt; task completion is not shipping. Prospect overrides are session-scoped, staff-only and cannot rewrite order facts. No provider/customer send, generative credential, new stock movement or historical data rewrite is implied. See INBOX_CONVERSATION_LIFECYCLE.md.
+
+## 2026-10-23 — Trusted Task Workspace URL
+
+Reuse the existing Task Workspace UI and operation handlers through a distinct revocable capability gateway. Device access is scoped to task operations, uses its own active non-login staff audit identity and cannot manage connections or reach other admin services. The owner explicitly requested a single URL for trusted PC / ClickUp use without a person-login screen. Keep normal JWT endpoints and browser RLS unchanged. See TASK_WORKSPACE_STATION.md.

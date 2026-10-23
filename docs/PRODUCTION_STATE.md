@@ -1,3 +1,7 @@
+# 2026-10-23 — Standalone Task Workspace for trusted PC
+
+Backend ACTIVE; actual standalone desktop/mobile no-login behavior VERIFIED with controlled transport. A revocable URL capability opens the existing full Task Workspace at `/task-workspace/`, without Admin session/sidebar. New scoped station v1 checks its private digest and dedicated active non-login device actor on every request. Existing Task Workspace v19 / ClickUp v4 remain JWT true. Exact original images, status/review/Complete/upload, work/brief and print paths are reused. No browser grant/RLS change; native audit/replay transaction rolls back with zero station QA events. Hosted evidence is recorded in the release PR. See [contract](TASK_WORKSPACE_STATION.md).
+
 # 2026-10-23 — Task panel displayed original images
 
 [VERIFIED controlled UI] Attachment tiles display original bytes and full natural dimensions, with CSS sizing only. The same loaded blob feeds copy, zoom and download; copy makes no new asset/API request. Native browser right-click targets the original image. Actual bundled desktop/mobile checks prove 1200×800 displayed/clipboard pixels, byte-identical source, zero thumbnail requests and all existing panel actions. Hosted release evidence is in the correction PR. See [contract](TASK_WORKSPACE_SIDE_PANEL.md#displayed-original-images--23-october-correction).

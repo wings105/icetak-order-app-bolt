@@ -1,3 +1,4 @@
+import {taskInvoke} from './taskTransport.ts';
 import {dueAt,type WorkTask} from './taskWorkspace';
 export const taskCategories=[['all','Semua'],['edible','Edible'],['topper','Topper'],['acrylic','Acrylic'],['wafer','Wafer'],['stock','Ready stock'],['other','Lain-lain']] as const;
 export const taskPriorities=[['all','Semua'],['action','Perlu tindakan'],['late','Lewat'],['today','Due today'],['review','Perlu semakan'],['ready','Sedia design'],['waiting','Tunggu customer']] as const;
@@ -34,8 +35,7 @@ export function nextAction(task:WorkTask){
 }
 export type ClickUpOptions={ok:boolean;configured:boolean;can_manage:boolean;can_edit:boolean;statuses:{status:string;color:string;type?:string}[];status?:string;updated_at?:string;task_url?:string};
 export async function clickupRequest(body:Record<string,unknown>|FormData){
- const {supabase}=await import('./supabase');
- const {data,error}=await supabase.functions.invoke('task-clickup',{body});
+ const {data,error}=await taskInvoke('task-clickup',body);
  if(error){let detail:{error?:string;uncertain?:boolean;request_id?:string}={};try{detail=await (error as {context?:Response}).context?.json()||{};}catch{}throw Object.assign(Error(detail.error||'Sambungan ClickUp gagal. Cuba semula.'),{uncertain:detail.uncertain,request_id:detail.request_id});}
  if(!data?.ok)throw Error(data?.error||'Tindakan ClickUp gagal.');return data;
 }
