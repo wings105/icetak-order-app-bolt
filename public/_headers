@@ -1,3 +1,7 @@
 /acrylic-production/*
   X-Robots-Tag: noindex, nofollow, noarchive
   Referrer-Policy: no-referrer
+
+/task-workspace/*
+  X-Robots-Tag: noindex, nofollow, noarchive
+  Referrer-Policy: no-referrer

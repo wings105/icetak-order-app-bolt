@@ -1,3 +1,7 @@
+# 2026-10-23 — Trusted PC Task Workspace
+
+- [VERIFIED controlled UI; backend ACTIVE] A standalone Task Workspace URL opens the complete list and sidepanel without Admin navigation or person login. A revocable task-scoped capability and dedicated device audit identity preserve task/version/idempotency guards; normal admin JWT and browser RLS stay intact. Actual desktop/mobile no-session, original image/copy, dropdown/Complete/upload/print checks, gateway boundaries and native audit/replay rollback pass. See docs/TASK_WORKSPACE_STATION.md; hosted delivery evidence is recorded in the release PR.
+
 # 2026-10-23 — Display original task images
 
 - [VERIFIED] Task panel image elements now use original attachment bytes, so native right-click Copy image uses original resolution. Copy gambar reuses the displayed original without another download/API call. Actual bundled desktop/mobile checks prove original source bytes and 1200×800 displayed/clipboard pixels, no thumbnail request and unchanged panel actions. Build/typecheck pass. Hosted delivery evidence is recorded in the correction PR.

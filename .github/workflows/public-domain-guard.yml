@@ -51,7 +51,7 @@ jobs:
         run: npm run check:acrylic-production
 
       - name: Check task workspace authorization and brief readiness
-        run: npm run check:task-workspace && npm run check:task-readiness && npm run check:detail-automation && npm run check:task-design && npm run check:task-clickup
+        run: npm run check:task-workspace && npm run check:task-readiness && npm run check:detail-automation && npm run check:task-design && npm run check:task-clickup && npm run check:task-station
 
       - name: Check Shopee card sending and existing reply paths
         run: |

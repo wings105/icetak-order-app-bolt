@@ -7,7 +7,7 @@ const validTask=(v:unknown)=>typeof v==='string'&&/^[a-zA-Z0-9_-]{1,80}$/.test(v
 const validId=(v:unknown)=>typeof v==='string'&&/^[a-f0-9-]{36}$/i.test(v);
 const errorText:Record<string,string>={CLICKUP_NOT_CONNECTED:'API ClickUp belum disambungkan. Owner boleh sambungkan dalam Settings.',TASK_CHANGED:'Status task berubah. Semak status terkini sebelum cuba lagi.',TASK_NOT_ACTIVE:'Task ini tidak lagi aktif dalam ORDER LIST.',WORK_PERMISSION_REQUIRED:'Kebenaran designer diperlukan.',INVALID_TASK_FILE:'Fail mesti milik task ini.',TASK_ACTION_BUSY:'Ada tindakan task sedang diproses. Semak semula sebentar lagi.',REQUEST_CONFLICT:'Rujukan penghantaran digunakan untuk data berbeza.',DUPLICATE_ACTION:'Hasil yang sama sudah pernah dihantar atau sedang diproses. Semak rekod penghantaran.',DELIVERY_UNKNOWN:'Penghantaran belum dapat disahkan. Guna Semak penghantaran sebelum cuba hantar semula.'};
 async function fingerprint(value:unknown){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(value))))].map(n=>n.toString(16).padStart(2,'0')).join('');}
-export function createTaskClickUpHandler({url,key,fetcher=fetch}:{url:string;key:string;fetcher?:typeof fetch}){
+export function createTaskClickUpHandler({url,key,fetcher=fetch,trustedActor}:{url:string;key:string;fetcher?:typeof fetch;trustedActor?:{username:string;role:string;permissions:string[]}}){
  const service={apikey:key,authorization:`Bearer ${key}`};
  async function db(path:string,body?:unknown,method=body===undefined?'GET':'POST'){
   const r=await fetcher(url+'/rest/v1/'+path,{method,headers:{...service,'content-type':'application/json',prefer:'return=representation'+(path.includes('on_conflict=')?',resolution=merge-duplicates':'')},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(15000)});
@@ -50,10 +50,13 @@ export function createTaskClickUpHandler({url,key,fetcher=fetch}:{url:string;key
   if(req.method==='OPTIONS')return response({ok:true});if(req.method!=='POST')return response({ok:false,error:'POST_REQUIRED'},405);
   let actionId='',inputRequest='',dispatched=false,step='claimed',attachment:Data|null=null;
   try{
+   let admin:{username:string;role:string},permissions:string[];
+   if(trustedActor){admin=trustedActor;permissions=trustedActor.permissions;}else{
    const authorization=req.headers.get('authorization');if(!authorization)return response({ok:false,error:'LOGIN_REQUIRED'},401);
    const auth=await fetcher(url+'/auth/v1/user',{headers:{apikey:key,authorization},signal:AbortSignal.timeout(10000)});const user=await auth.json().catch(()=>null);if(!auth.ok||!user?.id)return response({ok:false,error:'LOGIN_REQUIRED'},401);
-   const admins=await db('admin_users?auth_user_id=eq.'+encodeURIComponent(user.id)+'&is_active=eq.true&select=username,role&limit=1');const admin=admins[0];if(!admin)return response({ok:false,error:'ADMIN_REQUIRED'},403);
-   const perms=await db('admin_permissions?username=eq.'+encodeURIComponent(admin.username)+'&select=permissions&limit=1');const permissions=perms[0]?.permissions||[];
+   const admins=await db('admin_users?auth_user_id=eq.'+encodeURIComponent(user.id)+'&is_active=eq.true&select=username,role&limit=1');admin=admins[0];if(!admin)return response({ok:false,error:'ADMIN_REQUIRED'},403);
+   const perms=await db('admin_permissions?username=eq.'+encodeURIComponent(admin.username)+'&select=permissions&limit=1');permissions=perms[0]?.permissions||[];
+   }
    const manage=admin.role==='owner'||permissions.includes('manage_admins'),edit=admin.role==='owner'||permissions.some((p:string)=>['edit_order','approve_production','manage_admins'].includes(p));
    if(!edit&&!permissions.includes('view_orders'))return response({ok:false,error:'TASK_ACCESS_REQUIRED'},403);
    const {body:b,file:directFile}=await readDesignRequest(req),action=b.action;let token=await setting();inputRequest=validId(b.request_id)?b.request_id:'';

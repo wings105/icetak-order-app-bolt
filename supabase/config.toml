@@ -105,3 +105,6 @@ verify_jwt = false
 
 [functions.task-workspace]
 verify_jwt = true
+
+[functions.task-workspace-station]
+verify_jwt = false

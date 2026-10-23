@@ -1,3 +1,4 @@
+import {taskInvoke} from './taskTransport.ts';
 export type TaskFile={id:string;name:string;mime:string;url:string;uploaded_by:string;created_at:string};
 export type BriefForm={values:Record<string,string>;same_design:boolean;final_file_id:string;artwork_qc:boolean;customer_approved:boolean};
 export type TaskReadiness={status:'ready'|'review'|'missing';label:string;completeness:number;confidence:'high'|'medium'|'low';confidence_reason:string;values:Record<string,string>;previous_values?:Record<string,string>|null;sources:Record<string,{source:string;at?:string}>;required:string[];missing:{key:string;label:string}[];conflicts:{field:string;label:string;value:string;source:string}[];warnings:string[];evidence:{id:string;text:string;at:string}[];fingerprint:string;version:number;expired:boolean;confirmed_by:string|null;confirmed_at:string|null;can_confirm:boolean;print_ready:boolean;print_missing:string[];review_required:boolean;form:BriefForm;chat_linked:boolean;checked_at:string;asset_warning?:string|null;artwork_url?:string};
@@ -22,15 +23,13 @@ export function workMatches(task:WorkTask,view:string,query:string,actor:string)
  return [task.title,task.order_reference,task.phone,task.wording,task.sku,task.customer,task.assignee,...(task.sets||[])].join(' ').toLowerCase().includes(query.toLowerCase().trim());
 }
 export async function taskRequest(payload:Record<string,unknown>|FormData):Promise<TaskSnapshot>{
- const {supabase}=await import('./supabase');
- const {data,error}=await supabase.functions.invoke('task-workspace',{body:payload});
+ const {data,error}=await taskInvoke('task-workspace',payload);
  if(error){const response=(error as {context?:Response}).context;const detail=response?await response.json().catch(()=>null):null;throw Error(detail?.error||'Task gagal dimuat. Cuba semula.');}
  if(!data?.ok)throw Error(data?.error||'Task gagal dimuat.');return data;
 }
 
 export async function taskAsset(taskId:string,assetId:string):Promise<Blob>{
- const {supabase}=await import('./supabase');
- const {data,error}=await supabase.functions.invoke('task-workspace',{body:{action:'asset',task_id:taskId,asset_id:assetId}});
+ const {data,error}=await taskInvoke('task-workspace',{action:'asset',task_id:taskId,asset_id:assetId});
  if(error||!(data instanceof Blob))throw Error('Original belum dapat dimuat. Semak semula sumber atau buka fail asal.');
  const bytes=new Uint8Array(await data.slice(0,12).arrayBuffer());const prefix=new TextDecoder().decode(bytes);
  const mime=bytes[0]===0x89&&bytes[1]===0x50?'image/png':bytes[0]===0xff&&bytes[1]===0xd8?'image/jpeg':prefix.startsWith('RIFF')?'image/webp':prefix.startsWith('GIF8')?'image/gif':prefix.startsWith('%PDF-')?'application/pdf':'';

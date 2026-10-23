@@ -10,7 +10,7 @@ assert(workMatches(row,'mine','order-1','staff'));assert(!workMatches(row,'mine'
 assert(workMatches({...row,status:'cake topper - printing'},'acrylic','',''));assert(!workMatches(row,'printing','',''));
 assert.equal(dueAt(row),new Date(Number(row.due_date)).toISOString());assert.equal(dueAt({...row,due_date:'99999999999999999999'}),row.ship_by_at);
 let handler,role='staff',permissions=['view_orders'],active=true,auth=true,savedBody,uploadCalls=0;
-const source=readFileSync('supabase/functions/task-workspace/index.ts','utf8').replace(/^import .*;\n/gm,'');
+const source=readFileSync('supabase/functions/task-workspace/handler.ts','utf8').replace(/^import .*;\n/gm,'').replace('export function createTaskWorkspaceHandler','function createTaskWorkspaceHandler');
 const briefSource={...row,title:'1x A6 acrylic Gold',status:'acrylic',mapping_status:'linked',fields:{'customize name':'Aina',confirmed:false},files:[],source_token:'source-token'};
 let briefSaved,receipt=[],changed=false,printReady=false,eventReceipt=[];
 const loadReadiness=async()=>({'task-1':{source:briefSource,order:null,context:{},saved:null,readiness:{...await taskReadiness({...briefSource,...(changed?{source_updated_at:'2026-10-19T02:00:00Z'}:{})},null),...(printReady?{print_ready:true}:{})}}});
@@ -27,7 +27,7 @@ const fetcher=async(url,options={})=>{
  if(path.startsWith('/storage/v1/object/task-workspace/')){uploadCalls++;return Response.json({Key:'uploaded'});}
  throw Error('Unexpected route: '+path);
 };
-await new Function('Deno','fetch','previewItem','loadReadiness','taskReadiness','validateBrief','briefFingerprint','taskDossier','readAsset',`return (async()=>{${stripTypeScriptTypes(source)}})()` )({env:{get:k=>k==='SUPABASE_URL'?'https://qa.supabase.co':'private-key'},serve:fn=>handler=fn},fetcher,previewItem,loadReadiness,taskReadiness,validateBrief,briefFingerprint,taskDossier,async()=>({bytes:new Uint8Array([0x89,0x50,0x4e,0x47]),mime:'image/png'}));
+handler=await new Function('fetch','previewItem','loadReadiness','taskReadiness','validateBrief','briefFingerprint','taskDossier','readAsset',`${stripTypeScriptTypes(source)};return createTaskWorkspaceHandler({url:'https://qa.supabase.co',key:'private-key',fetcher:fetch});`)(fetcher,previewItem,loadReadiness,taskReadiness,validateBrief,briefFingerprint,taskDossier,async()=>({bytes:new Uint8Array([0x89,0x50,0x4e,0x47]),mime:'image/png'}));
 const call=(body={},authorization=true)=>handler(new Request('https://qa.example',{method:'POST',headers:authorization?{authorization:'Bearer verified','content-type':'application/json'}:{'content-type':'application/json'},body:JSON.stringify(body)}));
 assert.equal((await call({},false)).status,401);auth=false;assert.equal((await call()).status,401);auth=true;
 active=false;assert.equal((await call()).status,403);active=true;permissions=[];assert.equal((await call()).status,403);permissions=['view_orders'];
