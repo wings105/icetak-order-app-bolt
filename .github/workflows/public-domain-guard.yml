@@ -98,3 +98,17 @@ jobs:
 
       - name: Build production frontend
         run: npm run build
+
+      - name: Verify nested roadmap build and absolute assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/index.html
+          test -s dist/roadmap/index.html
+          grep -q 'iCetak Roadmap' dist/roadmap/index.html
+          grep -Eq 'src="/assets/[^"]+\.js"' dist/roadmap/index.html
+          grep -Eq 'href="/assets/[^"]+\.css"' dist/roadmap/index.html
+          grep -Eq 'src="/assets/[^"]+\.js"' dist/index.html
+          test -s dist/mockup/index.html
+          test -s dist/acrylic-production/index.html
+
