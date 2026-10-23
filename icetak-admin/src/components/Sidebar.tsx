@@ -94,7 +94,18 @@ export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile,
           </div>;
         })}
       </nav>
-      <div className="sidebar-footer"><button className="sidebar-item" style={{ opacity: 0.7 }} onClick={onLogout}><span className="sidebar-item-icon"><IconLogout size={16} /></span><span className="sidebar-item-label">Log Out</span></button></div>
+      <div className="sidebar-footer">
+        <a
+          href="/roadmap/?manage=1"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Buka iCetak Roadmap"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 16px', margin: '0 10px 8px', borderRadius: 8, color: 'inherit', opacity: 0.7, fontSize: 12, textDecoration: 'none', border: '1px solid currentColor' }}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><IconIntegration size={14} /> Roadmap</span>
+          <span aria-hidden="true">↗</span>
+        </a>
+        <button className="sidebar-item" style={{ opacity: 0.7 }} onClick={onLogout}><span className="sidebar-item-icon"><IconLogout size={16} /></span><span className="sidebar-item-label">Log Out</span></button></div>
     </aside>
   </>;
 }
