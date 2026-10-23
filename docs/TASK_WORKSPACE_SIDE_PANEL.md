@@ -12,6 +12,12 @@ The task name has a small copy icon. Status ClickUp and Complete task, Review cu
 
 Compact copyable fields show exact order reference, phone/WhatsApp shortcut, username, product job labels (including Artpaper), due date, all set labels, SKU and original multiline wording. Unknown values remain blank. Live ClickUp custom fields take precedence over the existing exact-linked snapshot enrichment.
 
+## Displayed original images — 23 October correction
+
+The gallery now renders the original attachment bytes in each image element, scaled only by CSS. Browser right-click → Copy image therefore uses the original pixel dimensions. Originals load as tiles approach the viewport through the existing authenticated asset read, then remain in the tile cache for Copy gambar, zoom and download. The copy control waits until the original is ready and does not make another provider/API request. Failed reads offer retry; object URLs are released when tiles unmount. Provider thumbnails are never displayed as a fallback.
+
+Verified on the actual root-built Admin V2 with controlled transport: the displayed image source is byte-identical to the 1200×800 original, no 90×60 thumbnail request occurs, and the clipboard contains 1200×800 pixels. Copy uses zero extra asset requests (72 ms in the controlled browser; real PC timings vary). Desktop/mobile, existing dropdown/Complete/upload/print and native file-download flows pass with no page errors. Admin TypeScript and the complete production build pass. Hosted delivery evidence is recorded in the correction PR; native Photoshop paste remains unexercised.
+
 ## Provider actions and source refresh
 
 Order `task-clickup` retains JWT verification, verified active admin identity and existing task membership/permissions. It reuses the owner-configured private API token. No credential is returned to the browser.
