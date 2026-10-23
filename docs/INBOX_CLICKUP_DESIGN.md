@@ -1,6 +1,6 @@
 # Inbox design → ClickUp — 23 October 2026
 
-Backend PRODUCTION; full built Inbox desktop/mobile controlled behavior VERIFIED. Hosted release proof belongs in the release PR. Authenticated hosted staff mutations remain unexercised.
+Backend, hosted delivery and live operational outcome PRODUCTION. Full built Inbox desktop/mobile controlled behavior VERIFIED. Three existing PNG uploads and two status changes are confirmed against actual ClickUp attachments/comments and both source/cache projections. This is read-only verification of real operational actions; a fresh signed-in browser session was not exercised here.
 
 ## Staff flow
 
@@ -36,3 +36,14 @@ Service-only `inbox_clickup_actions` receipts contain actor/context, SHA-256 fil
 - Full actual built Inbox at 1440×1000 and 390×844 passes native clipboard PNG (900×620 pixels), preview/original bytes through actual gateway handlers with controlled transports, multi-task choice, POST, status/header refresh, partial/unknown/reload recovery, unsaved close protection, viewer denial, both sidebars and White/Black themes. Focused actual-component desktop/mobile checks also prove 503/401 receipt failures retain the pending ID and block another upload until a verified response clears it. Zero page errors or unexpected mutations. The real mobile logout/Close overlap was corrected by putting the full-screen sidebar above global controls. Browser plugin unavailable; existing regular Playwright/disposable Chromium was used with synthetic local-only auth and intercepted external traffic.
 
 Full production build/Inbox typecheck and hosted asset/build/login verification are separate release gates. No real staff session or customer send is inferred from controlled QA or provider transport tests.
+
+## Live operational confirmation — 23 October 2026
+
+The production ledger contains five succeeded/verified actions recorded at 10:18–10:24 MYT under the existing staff identity: three uploads and two status changes. Read-only ClickUp API requests using the internal saved token confirm exactly one matching attachment ID and one comment ID/request marker for each upload. The three files have different SHA-256 values and sizes (454304, 2753473 and 3365856 bytes). No unknown, processing or failed receipts were present at verification.
+
+| Order | Exact task | Verified uploads/comments | Status action | Source and Inbox cache |
+| --- | --- | --- | --- | --- |
+| 261022A701KQ6V | 14zbjdpnjyh | 2 PNGs / 2 comments | cake topper - printing | same exact task/status; design stage done |
+| 261022AVDPQXBB | 14zbjdpnkxc | 1 PNG / 1 comment | cake topper - printing | same exact task/status; design stage done |
+
+Both status receipts have `verified=true` and `synced=true`; live ClickUp, Order `ai_order_work_source.production_tasks` and Inbox `external_order_summaries.metadata.design_work` agree. Design stage `done` means no remaining design work and does not imply shipment or complete fulfillment. The deployed Inbox still serves tested `index-D2DzQ5Gt.js` / `index-CqizH6Dz.css`. This closes the prior operational-delivery evidence gap without changing customer tasks, attachments or statuses during this verification.
