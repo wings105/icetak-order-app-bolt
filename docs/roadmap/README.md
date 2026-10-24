@@ -8,6 +8,7 @@
 
 - [Master Roadmap (IC-001–IC-041)](./ROADMAP_MASTER_PLAN_2026.md) — initial business planning, feature scope, acceptance criteria and priority.
 - [Changelog Coverage (IC-042–IC-071)](./RELEASE_COVERAGE_2026.md) — additional modules discovered from repo `CHANGELOG.md` and earlier feature discussions.
+- [Shipping, Pricing, Profitability & Daily Business Report — 25 Oct 2026](./ICETAK_SHIPPING_FINANCE_DAILY_REPORT_2026-10-25.md) — 727-line complete discussion and backend specification for IC-072, IC-073 and IC-074.
 - [Shopee Ads API tests](./SHOPEE_ADS_API_TESTS_20261023.md) — read-only endpoint evidence, keyword examples and limitations.
 - [Production CHANGELOG](../../CHANGELOG.md) — chronological **technical release evidence**, distinct from the roadmap planning statuses.
 - [AGENTS.md](../../AGENTS.md) — engineering safety and required verification policy.
@@ -41,6 +42,6 @@ A newly edited changelog appears on the roadmap **after the relevant production 
 
 ## Coverage
 
-Baseline imported 23 October 2026: 41 initial topics plus 30 additional top-level modules = **71 roadmap items**. The release feed indexes tagged changelog bullets independently. This is a managed inventory of known features, not a claim that every historical conversation or undocumented change is exhaustively captured.
+Baseline imported 23 October 2026: 41 initial topics plus 30 additional top-level modules = **71 original roadmap items plus 3 planned items (IC-072–IC-074) = 74 items**. The release feed indexes tagged changelog bullets independently. This is a managed inventory of known features, not a claim that every historical conversation or undocumented change is exhaustively captured.
 
 To add missing work, create a new feature rather than editing a vaguely related feature into something different. Keep older entries for traceability.
