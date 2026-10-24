@@ -1,3 +1,7 @@
+# 2026-10-25 — Task Workspace status order and field actions
+
+- [VERIFIED] Task Workspace uses the owner's fixed ClickUp group/picker order and remembers its existing due/latest sort choice. Table custom fields gain exact-value copy controls; phone values in table and panel link through the native WhatsApp URI. Actual desktop/mobile, light/dark, refresh/reload, clipboard and no-mutation checks pass; native WhatsApp launch remains unexercised. Other views and backend contracts are unchanged. See docs/TASK_WORKSPACE.md; hosted release evidence is recorded in the release PR.
+
 # 2026-10-25 — Daily Business Report visual dashboard
 
 - [VERIFIED controlled UI] Replaced the text-first web report with four primary KPIs, an interactive daily sales/order trend, channel donut with MTD/day selection, like-for-like comparison/forecast bars, known cost bars, coverage ring and operational attention counts. Charts drill into a searchable, paginated order table with filtered CSV export. WhatsApp history is a separate tab and automation settings collapse below the analysis; sender, scheduler and snapshot calculations are unchanged. Exact saved-snapshot trend/channel totals and null-value coverage checks pass. Actual page with the Admin shell passes desktop 1580×1080 and mobile 390×844 chart toggle, keyboard/day/channel drill-down, paging and controlled settings save without page errors, KPI clipping or document overflow. Builds and source guard pass. Hosted authenticated owner interaction remains unexercised. See docs/DAILY_BUSINESS_REPORT.md.
