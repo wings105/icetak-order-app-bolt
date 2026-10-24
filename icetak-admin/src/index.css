@@ -150,6 +150,31 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .sidebar-subitem.active { color: var(--sidebar-active); font-weight: 700; }
 
 .sidebar-footer { margin-top: auto; padding-top: 8px; border-top: 1px solid #2d2e38; }
+.sidebar-roadmap-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 2px 12px;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.sidebar-roadmap-links a {
+  color: var(--sidebar-text);
+  text-decoration: none;
+  opacity: 0.8;
+  transition: color 0.15s, opacity 0.15s;
+}
+.sidebar-roadmap-links a:hover,
+.sidebar-roadmap-links a:focus-visible {
+  color: #f7c948;
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sidebar-roadmap-separator { color: #70717f; user-select: none; }
+
 
 .sidebar-overlay {
   display: none;

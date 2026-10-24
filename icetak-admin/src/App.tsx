@@ -234,7 +234,7 @@ export default function App({ adminData }: Props) {
     }
   };
 
-  return <div className="app-layout"><Sidebar canViewTasks={canViewTasks} canViewStock={canViewStock} canManageTemplates={canManageTemplates} active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} canViewFinance={permissions.includes('view_finance')} canViewCustomers={canViewCustomers} canViewAi={canViewAi} canViewPickup={canViewPickup} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} onOpenInternalOrder={openOrder} onOpenMarketplace={openMarketplace} /><div className="content-area">{inboxOpened && <ChannelInbox active={page === 'channel-inbox'} />}{page !== 'channel-inbox' && renderPage()}</div></div></div>;
+  return <div className="app-layout"><Sidebar isOwner={adminData?.admin?.role === 'owner'} canViewTasks={canViewTasks} canViewStock={canViewStock} canManageTemplates={canManageTemplates} active={page} onNavigate={navigate} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)} onLogout={()=>void logout()} canViewFinance={permissions.includes('view_finance')} canViewCustomers={canViewCustomers} canViewAi={canViewAi} canViewPickup={canViewPickup} /><div className="main-content"><Topbar title={info.title} subtitle={info.subtitle} onOpenMobile={()=>setMobileOpen(true)} onOpenInternalOrder={openOrder} onOpenMarketplace={openMarketplace} /><div className="content-area">{inboxOpened && <ChannelInbox active={page === 'channel-inbox'} />}{page !== 'channel-inbox' && renderPage()}</div></div></div>;
 }
 
 
