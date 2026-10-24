@@ -73,6 +73,14 @@ Deno.serve(async (req) => {
     if (!admin) return json({ success: false, error: "Finance access is restricted to Zaim" }, 403);
     const body = await req.json().catch(() => ({})) as JsonObject;
     const action = String(body.action || "snapshot");
+    if (action === 'business_report') {
+      const operation=String(body.operation||'read');
+      if(operation!=='read'&&!admin.permissions.includes('manage_finance'))return json({success:false,error:'Finance write permission required'},403);
+      const date=String(body.date||'');
+      if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({success:false,error:'Tarikh tidak sah'},400);
+      return json({success:true,data:await rpc('finance_business_control',{p_action:operation,p_date:date||null,p_settings:body.settings||{}})});
+    }
+
 
     if (action === "contribution_report") return json({success:true,data:await rpc("finance_contribution_report",{p_filter:{month:body.month||null,channel:body.channel||"all",state:body.state||"all",query:String(body.query||"").slice(0,200),from:body.from||null,to:body.to||null,sort:body.sort||"day_desc",offset:Math.max(0,Math.trunc(Number(body.offset)||0))}})});
     if (action === "contribution_detail") {

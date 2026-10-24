@@ -10,6 +10,7 @@ import Customers from './pages/Customers';
 import type { LinkedQrPayment } from './pages/CreateOrder';
 import Payments from './pages/Payments';
 import Finance from './pages/Finance';
+import DailyBusinessReport from './pages/DailyBusinessReport';
 import QrPayDailySummary, { type QrPayCreatePayload } from './pages/QrPayDailySummary';
 import DraftWorkspace from './pages/DraftWorkspace';
 import Shipping from './pages/Shipping';
@@ -51,6 +52,7 @@ const pageMap: Record<string, { title: string; subtitle?: string }> = {
   customers: { title: 'Customer CRM', subtitle: 'Customer 360° & relationship management' },
   'create-order': { title: 'Create Order', subtitle: 'Prepaid, cash counter, QRPay & custom pricing' },
   payments: { title: 'Payments Center', subtitle: 'Transactions' },
+  'daily-business-report': { title: 'Daily Business Report', subtitle: 'WhatsApp admin' },
   finance: { title: 'Finance', subtitle: 'Bank, wallet & accounting' },
   'qrpay-summary': { title: 'QRPay Daily', subtitle: 'Daily payment control' },
   'draft-orders': { title: 'Draft Orders', subtitle: 'Review, edit & payment linking' },
@@ -85,7 +87,7 @@ export default function App({ adminData }: Props) {
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
   const initialDraftTab=linkedView==='draft-followups'||initialParams.get('draft_tab')==='followup'?'followup':'all';
-  const [page, setPage] = useState(linkedView === 'shopee-monitor'?'shopee-monitor':linkedView === 'customer-focus' ? 'customer-focus' : linkedView === 'channel-inbox' ? 'channel-inbox' : linkedView === 'render-templates' ? 'render-templates' : linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','products','stock','acrylic-production','task-workspace','settings','clickup-queue','integrations','whatsapp-control'].includes(linkedView)?linkedView:'dashboard');
+  const [page, setPage] = useState(linkedView === 'daily-business-report'?'daily-business-report':linkedView === 'shopee-monitor'?'shopee-monitor':linkedView === 'customer-focus' ? 'customer-focus' : linkedView === 'channel-inbox' ? 'channel-inbox' : linkedView === 'render-templates' ? 'render-templates' : linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','products','stock','acrylic-production','task-workspace','settings','clickup-queue','integrations','whatsapp-control'].includes(linkedView)?linkedView:'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [inboxOpened, setInboxOpened] = useState(linkedView === 'channel-inbox');
   const [marketplaceSearch,setMarketplaceSearch]=useState(initialParams.get('marketplace_q')?.trim() || '');
@@ -119,6 +121,7 @@ export default function App({ adminData }: Props) {
     else if (key === 'customers') url.searchParams.set('view','customers');
     else if (key === 'marketplace-orders') { url.searchParams.set('view','marketplace-orders'); url.searchParams.delete('marketplace_q'); }
     else if (key === 'pickup-counter') url.searchParams.set('view','pickup-counter');
+    else if (key === 'daily-business-report') url.searchParams.set('view',key);
     else if (key === 'qrpay-summary') url.searchParams.set('view','qrpay-summary');
     else if (key === 'draft-orders') url.searchParams.set('view','draft-orders');
     else if (key === 'ai-learning') url.searchParams.set('view','ai-learning');
@@ -213,6 +216,7 @@ export default function App({ adminData }: Props) {
       case 'payments': return <Payments onOpenOrder={openOrder} canManage={permissions.includes('verify_payments')} />;
       case 'finance': return permissions.includes('view_finance') ? <Finance canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} onOpenSettings={()=>{navigate('settings');window.requestAnimationFrame(()=>document.getElementById('material-cost-settings')?.scrollIntoView({block:'start'}));}} /> : <Dashboard canViewFinance={permissions.includes('view_finance')} onOpenTarget={openTarget} onOpenFocus={canViewAi?()=>navigate('customer-focus'):undefined} adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'draft-orders': return permissions.includes('view_finance') ? <DraftWorkspace initialQuery={aiDraftQuery} initialTab={aiDraftQuery?'all':initialDraftTab} canManage={permissions.includes('manage_finance')} onOpenOrder={openOrder} onCreateOrder={()=>navigate('create-order')} /> : <Dashboard canViewFinance={permissions.includes('view_finance')} onOpenTarget={openTarget} onOpenFocus={canViewAi?()=>navigate('customer-focus'):undefined} adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
+      case 'daily-business-report': return permissions.includes('view_finance') ? <DailyBusinessReport /> : <Dashboard adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'qrpay-summary': return permissions.includes('view_finance') ? <QrPayDailySummary canManage={permissions.includes('manage_finance')} onCreateOrder={permissions.includes('create_order')&&permissions.includes('verify_payments')?createOrderFromQrPay:undefined} onOpenOrder={openOrder} /> : <Dashboard canViewFinance={permissions.includes('view_finance')} onOpenTarget={openTarget} onOpenFocus={canViewAi?()=>navigate('customer-focus'):undefined} adminOrders={adminData?.orders} onQuickOrder={() => navigate('create-order')} onOpenOrder={openOrder} />;
       case 'shipping': return <Shipping />;
       case 'clickup-queue': return <ClickUpQueue permissions={permissions} onOpenOrder={openOrder} />;

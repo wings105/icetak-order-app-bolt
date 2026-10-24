@@ -48,3 +48,8 @@ See `docs/ARCHITECTURE.md` and `docs/PRODUCTION_STATE.md` before backend work.
 - `CHANGELOG.md` — meaningful production-facing changes
 
 Subsystem documentation under `docs/` remains authoritative for its own detailed contracts unless contradicted by newer live production state.
+
+### Daily Business Report
+
+Admin V2 → Daily Business Report: `https://shop.decocake.my/?admin=v2&view=daily-business-report`.
+Internal Supabase scheduler checks every five minutes, queues yesterday's report at 08:30 MYT, and sends through WasapFlow to the configured admin. See [operations and metric definitions](docs/DAILY_BUSINESS_REPORT.md).

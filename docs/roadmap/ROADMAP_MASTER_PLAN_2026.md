@@ -65,7 +65,7 @@
 | [IC-040](#ic-040) | WhatsApp/Shopee Draft-to-Order Integration | orders | P2 | testing | Owner only |
 | [IC-041](#ic-041) | Roadmap Documentation Reference Links | infrastructure | P2 | testing | Public |
 
-| [IC-072](#ic-072) | Daily Business Report + WhatsApp Admin | finance | P1 | planned | Owner only |
+| [IC-072](#ic-072) | Daily Business Report + WhatsApp Admin | finance | P1 | in progress | Owner only |
 | [IC-073](#ic-073) | Channel Profitability, Shipping P&L & Pricing Strategy | finance | P1 | planned | Owner only |
 | [IC-074](#ic-074) | Source Attribution & Cost Reconciliation | finance | P1 | planned | Owner only |
 
@@ -783,17 +783,19 @@ The 25 October shipping/finance discussion has been archived in the [full 727-li
 
 <a id="ic-072"></a>
 ### IC-072 — Daily Business Report + WhatsApp Admin
-- **Area:** finance / automation; **Priority:** P1; **Status:** planned; **Visibility:** Owner only.
+- **Area:** finance / automation; **Priority:** P1; **Status:** in progress (backend verified; template approval / owner UI test pending); **Visibility:** Owner only.
 - **Outcome:** Daily 08:30 MYT automated WhatsApp report covering previous-day Shopee, WhatsApp, Decocake website and walk-in/pickup sales; order counts, platform fees, materials, packing, courier, contribution, MTD comparisons and end-of-month forecast.
 - **Backend contract:** Supabase pg_cron → Finance RPC + Edge Function → daily report snapshot → WasapFlow admin number. Reuse QRPay Daily Summary delivery/retry foundations; no ChatGPT or Activepieces at runtime.
 - **Acceptance criteria:**
-  - [ ] Correct Malaysia date boundaries and order/settlement deduplication.
-  - [ ] Separate revenue, payout, contribution and verified net profit; mark estimated costs explicitly.
-  - [ ] Show source attribution and reporting coverage or missing-data warning.
-  - [ ] Persist one run per date/type/recipient, message snapshot, provider message ID and delivery status; retry without double send.
+  - [x] Correct Malaysia date boundaries and order/settlement deduplication.
+  - [x] Separate revenue, payout, contribution and verified net profit; mark estimated costs explicitly.
+  - [x] Show source attribution and reporting coverage or missing-data warning.
+  - [x] Persist one run per date/type/recipient, message snapshot, provider message ID and delivery status; retry without double send.
   - [ ] Admin ON/OFF, recipient, preview, test send and report history.
   - [ ] Comply with WhatsApp session / approved template requirements and verify actual delivery.
   - [ ] Hosted owner test before Completed.
+
+- **Implementation:** [Daily report operations](../DAILY_BUSINESS_REPORT.md). First real provider acceptance verified on 25 Oct MYT; delivery/read and closed-window template approval remain pending.
 
 <a id="ic-073"></a>
 ### IC-073 — Channel Profitability, Shipping P&L & Pricing Strategy
