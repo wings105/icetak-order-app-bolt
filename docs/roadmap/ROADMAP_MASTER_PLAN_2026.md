@@ -65,6 +65,10 @@
 | [IC-040](#ic-040) | WhatsApp/Shopee Draft-to-Order Integration | orders | P2 | testing | Owner only |
 | [IC-041](#ic-041) | Roadmap Documentation Reference Links | infrastructure | P2 | testing | Public |
 
+| [IC-072](#ic-072) | Daily Business Report + WhatsApp Admin | finance | P1 | planned | Owner only |
+| [IC-073](#ic-073) | Channel Profitability, Shipping P&L & Pricing Strategy | finance | P1 | planned | Owner only |
+| [IC-074](#ic-074) | Source Attribution & Cost Reconciliation | finance | P1 | planned | Owner only |
+
 ## Feature contracts
 
 <a id="ic-001"></a>
@@ -771,6 +775,48 @@
   - [ ] Klik item menampilkan link Markdown pada panel detail.
   - [ ] Link selamat open new tab dengan rel noopener.
   - [ ] Rujukan sentiasa selaras dengan feature ID/owner status.
+
+
+## Additions 25 October 2026 — Business reporting & pricing analysis
+
+The 25 October shipping/finance discussion has been archived in the [full 727-line Markdown document](./ICETAK_SHIPPING_FINANCE_DAILY_REPORT_2026-10-25.md). These are **owner-only planned items**; they are not verified production features. Original business figures are dated snapshots.
+
+<a id="ic-072"></a>
+### IC-072 — Daily Business Report + WhatsApp Admin
+- **Area:** finance / automation; **Priority:** P1; **Status:** planned; **Visibility:** Owner only.
+- **Outcome:** Daily 08:30 MYT automated WhatsApp report covering previous-day Shopee, WhatsApp, Decocake website and walk-in/pickup sales; order counts, platform fees, materials, packing, courier, contribution, MTD comparisons and end-of-month forecast.
+- **Backend contract:** Supabase pg_cron → Finance RPC + Edge Function → daily report snapshot → WasapFlow admin number. Reuse QRPay Daily Summary delivery/retry foundations; no ChatGPT or Activepieces at runtime.
+- **Acceptance criteria:**
+  - [ ] Correct Malaysia date boundaries and order/settlement deduplication.
+  - [ ] Separate revenue, payout, contribution and verified net profit; mark estimated costs explicitly.
+  - [ ] Show source attribution and reporting coverage or missing-data warning.
+  - [ ] Persist one run per date/type/recipient, message snapshot, provider message ID and delivery status; retry without double send.
+  - [ ] Admin ON/OFF, recipient, preview, test send and report history.
+  - [ ] Comply with WhatsApp session / approved template requirements and verify actual delivery.
+  - [ ] Hosted owner test before Completed.
+
+<a id="ic-073"></a>
+### IC-073 — Channel Profitability, Shipping P&L & Pricing Strategy
+- **Area:** finance; **Priority:** P1; **Status:** planned; **Visibility:** Owner only.
+- **Outcome:** Measure margin per SKU, order and channel across Shopee, website, WhatsApp and walk-in, including real marketplace fee, subsidies, direct payment charges, material cost, packing, courier, ads and refunds.
+- **Business decisions:** Same product price on all channels; retain Decocake SPX RM4.50 while verified ParcelDaily cost is RM4.50; free shipping is an intentional acquisition cost, evaluated against Shopee fees and repeat sales rather than automatically labelled a loss.
+- **Acceptance criteria:**
+  - [ ] Separate postage customer charge, courier cost and seller subsidy.
+  - [ ] Separate platform fee and seller-borne shipping; no double-counting settlement elements.
+  - [ ] Differentiate contribution from audited profit after wages, overhead and ads.
+  - [ ] Monthly like-for-like date comparisons and evidence-based forecasts.
+  - [ ] No automatic price or shipping changes without owner approval.
+
+<a id="ic-074"></a>
+### IC-074 — Source Attribution & Cost Reconciliation
+- **Area:** finance / orders; **Priority:** P1; **Status:** planned; **Visibility:** Owner only.
+- **Outcome:** Record actual intake channel independently of workflow source and fulfillment method. Current draft_engine orders mix WhatsApp, website checkout and counter, so historical channel splits are provisional.
+- **Acceptance criteria:**
+  - [ ] Persist channel, intake source and courier/pickup fulfillment as independent fields.
+  - [ ] Source identification based on traceable evidence; unknown sources remain Unknown.
+  - [ ] Reconcile Shopee financials, SKU material costs, ParcelDaily charges, customer shipping, cash counter and refund records.
+  - [ ] Expose estimated vs actual cost flags, coverage %, timestamp and reconciliation exceptions.
+  - [ ] Backfill safe historic rows without fabricating channel or profit.
 
 ## Delivery and change control
 1. Each feature requires an owner acceptance check and proof before moving to Completed; controlled tests alone can remain Testing.
