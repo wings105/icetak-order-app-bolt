@@ -35,6 +35,18 @@ Do not move responsibility between these projects casually. Cross-project bridge
 - Keep feature-specific bullet highlights and acceptance criteria readable for the owner. Distinguish a verified backend, a tested browser component, and a signed-in hosted operational test.
 - Read the current **production** branch as the active implementation; main can be behind or divergent.
 
+## Owner rule: review roadmap after every feature upgrade
+
+Owner instruction (25 October 2026): after upgrading any iCetak feature, check the matching live roadmap item and **suggest its latest progress percentage and status**.
+
+- Read the current item in `public.icetak_roadmap_items` and its acceptance criteria; do not rely only on Markdown, changelog or chat memory.
+- Compare the implemented scope and observable verification evidence with the remaining work. State the proposed progress % as an estimate, explain what is ready and what is still pending, and name the matching roadmap feature.
+- Include this roadmap suggestion in the final handoff for every feature upgrade, even when the owner did not separately ask about roadmap.
+- When the owner has authorized the roadmap update, update the existing item rather than creating a duplicate, correct stale summary/highlights, preserve visibility, and append a progress history entry. Verify the saved status and percentage.
+- Otherwise suggest the change; do not silently mark a feature Completed. Do not re-request permission already granted in the session.
+- A passing build, merged PR or deployed asset alone does not justify 100%. Separate controlled UI/backend verification, hosted owner QA, provider acceptance and actual delivery evidence.
+- Keep customer data, private amounts and automation secrets out of public summaries and repository documentation.
+
 ## Required reading order
 
 1. `AGENTS.md`
