@@ -108,3 +108,6 @@ verify_jwt = true
 
 [functions.task-workspace-station]
 verify_jwt = false
+
+[functions.daily-business-report]
+verify_jwt = false
