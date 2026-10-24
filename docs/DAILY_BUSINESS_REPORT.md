@@ -28,3 +28,13 @@ Ambiguous provider timeout/5xx or a stale processing worker becomes `uncertain` 
 - Repeated normal enqueue for 2026-10-24 produced exactly one routine run.
 - Anonymous/authenticated roles have no RPC execution or table access; owner Edge Function mediates access. Private finance tables have RLS and intentionally no client policies.
 - First real run accepted by provider with message ID, one attempt. No customer messages sent.
+
+## Visual dashboard — 25 October 2026
+
+VERIFIED controlled UI. The web report now prioritises KPI cards, daily sales/order trend, channel donut (MTD or report day), comparison/forecast bars, separate known-cost bars and a coverage ring. Teal denotes sales, orange Shopee, blue web/material, purple pickup/courier, and muted gold forecast/estimates. Existing Admin navigation and white panel system are retained, following the owner's dashboard references. The visuals are native SVG/CSS with responsive measurement; no chart-library or raster dependency.
+
+All charts derive from the exact saved snapshot already used by WhatsApp. The trend zero-fills calendar days up to report day; missing order amounts remain flagged. MTD/day channel totals are checked against stored KPI totals. Coverage means known material values, not profit margin. Cost bars are independent components and are not labelled total expenses or a profit waterfall.
+
+Hover/focus exposes per-day figures; keyboard Enter/Space or click opens corresponding orders. Donut segments/legend open channel-filtered orders. Order search, reset, 25-row paging and filtered CSV export are local read-only operations. WhatsApp actions and settings keep their existing authenticated RPC contract in a separate tab/collapsed section. Date requests are sequenced to discard stale responses. No backend schema, sender, scheduler, price, payment, or customer state changes are part of this enhancement.
+
+Controlled validation uses the real report component and existing Sidebar/Topbar, with saved-snapshot fixture transport and zero real service writes. Desktop 1580×1080 and mobile 390×844 screenshots were inspected against the owner's references for KPI hierarchy, chart anatomy, white panel spacing, teal/semantic palette, responsive labels and collapsed settings. The mobile KPI overflow and donut centre sizing found during QA were corrected. Daily/channel sums, missing-value coverage, month-day generation, empty-state aggregation and CSV quoting checks pass. Root build/source guard and Admin typecheck/build pass. A hosted authenticated owner session is not exercised by controlled transport tests.
