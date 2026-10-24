@@ -111,6 +111,17 @@ Deno.serve(async (req) => {
         results.push({ id: job.id, status: 'sent', mode: result.mode, message_id: result.message_id });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
+        if (message === 'pickup_payment_template_pending') {
+          // Approval is external; waiting must not consume provider delivery retries.
+          const nextRetry = new Date(Date.now() + 15 * 60000).toISOString();
+          await updateJob(job.id, {
+            status: 'pending', scheduled_at: nextRetry, processed_at: null, locked_at: null,
+            attempts: Math.max(0, Number(job.attempts || 1) - 1),
+            last_error: message, decision_reason: 'awaiting_pickup_payment_template_approval',
+          });
+          results.push({ id: job.id, status: 'waiting_for_template', next_retry_at: nextRetry });
+          continue;
+        }
         if (isAutomationSafetyStop(message)) {
           await updateJob(job.id, {
             status: 'cancelled', processed_at: new Date().toISOString(), locked_at: null,

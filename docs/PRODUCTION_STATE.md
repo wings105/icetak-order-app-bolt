@@ -1,3 +1,7 @@
+# 2026-10-24 — Pickup payment receipts
+
+VERIFIED controlled sender; backend deployed. Order `whatsapp-send` v30 and `whatsapp-dispatch` v19 match the reviewed source with unchanged in-code authentication. Single and bulk cash/QRPay receipts read current fulfillment status, preserving collected precedence, mixed-bundle counts, per-receipt exclusions, idempotency and Inbox mirroring. The provider utility template `pickup_payment_received_ms` is APPROVED and cached. All 28 actual-handler regressions, read-only production order replay and local Deno type checks pass. A new production customer receipt has not been sent for verification; no payment/order mutation or customer test message was performed. See [contract/evidence](pickup-payment-receipts.md) and PR #128.
+
 # 2026-10-23 — Standalone Task Workspace for trusted PC
 
 Backend ACTIVE; actual standalone desktop/mobile no-login behavior VERIFIED with controlled transport. A revocable URL capability opens the existing full Task Workspace at `/task-workspace/`, without Admin session/sidebar. New scoped station v1 checks its private digest and dedicated active non-login device actor on every request. Existing Task Workspace v19 / ClickUp v4 remain JWT true. Exact original images, status/review/Complete/upload, work/brief and print paths are reused. No browser grant/RLS change; native audit/replay transaction rolls back with zero station QA events. Hosted evidence is recorded in the release PR. See [contract](TASK_WORKSPACE_STATION.md).
