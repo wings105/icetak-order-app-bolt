@@ -41,3 +41,19 @@ node scripts/test-pickup-payment-notification.mjs
 The regression harness executes the actual sender with mocked services. It does
 not send customer messages or alter payment records. The change requires no
 schema or payment accounting changes.
+
+## Verification — 24 October 2026
+
+Status: VERIFIED controlled sender; backend deployed. The regression harness runs
+28 outcome-oriented scenarios through the actual sender and dispatcher, covering
+single and bulk receipts, collected/ready/pending and mixed status, the closed
+chat window template, approval retry state, last-moment handover, exclusions,
+cancellation and duplicate prevention. Local Deno type checks pass.
+
+Read-only production order snapshots were replayed through the message builder.
+Deployed `whatsapp-send` v30 and `whatsapp-dispatch` v19 were retrieved and every
+bundled source file exactly matched the reviewed files. Existing in-code auth
+modes were retained. WasapFlow returned APPROVED for the utility template, which
+was synchronized to the existing template cache. A new production customer
+receipt has not been sent to validate final provider delivery. No customer test
+message or order/payment mutation was performed. Source release: PR #128.

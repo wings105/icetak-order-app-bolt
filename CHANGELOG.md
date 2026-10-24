@@ -1,3 +1,7 @@
+# 2026-10-24 — Pickup payment receipts
+
+- [VERIFIED controlled sender; backend deployed] Single pickup and cash/QRPay bulk receipts use current ready/collected/pending fulfillment status instead of the generic processing promise. Mixed bundles summarize every included order; status is refreshed before dispatch. Approved `pickup_payment_received_ms` covers closed chat windows, and template approval waits preserve delivery retries. Actual-handler regression tests cover 28 scenarios, read-only production order replay and exact deployed source/auth checks pass (`whatsapp-send` v30, `whatsapp-dispatch` v19). Production customer receipt delivery remains unexercised; tests send no customer messages or payment mutations. See [contract and evidence](docs/pickup-payment-receipts.md); PR #128.
+
 # 2026-10-23 — Trusted PC Task Workspace
 
 - [VERIFIED controlled UI; backend ACTIVE] A standalone Task Workspace URL opens the complete list and sidepanel without Admin navigation or person login. A revocable task-scoped capability and dedicated device audit identity preserve task/version/idempotency guards; normal admin JWT and browser RLS stay intact. Actual desktop/mobile no-session, original image/copy, dropdown/Complete/upload/print checks, gateway boundaries and native audit/replay rollback pass. See docs/TASK_WORKSPACE_STATION.md; hosted delivery evidence is recorded in the release PR.
