@@ -5,6 +5,7 @@ on:
     branches: [production]
     paths:
       - 'supabase/functions/whatsapp-send/**'
+      - 'scripts/test-pickup-payment-notification.mjs'
       - 'supabase/functions/whatsapp-dispatch/**'
       - 'supabase/functions/admin-order-control/**'
       - 'supabase/functions/wasapflow-proxy/**'
@@ -15,6 +16,7 @@ on:
     branches: [production]
     paths:
       - 'supabase/functions/whatsapp-send/**'
+      - 'scripts/test-pickup-payment-notification.mjs'
       - 'supabase/functions/whatsapp-dispatch/**'
       - 'supabase/functions/admin-order-control/**'
       - 'supabase/functions/wasapflow-proxy/**'
@@ -41,6 +43,12 @@ jobs:
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      - name: Setup Node for receipt regression tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Test single and bulk pickup payment receipts
+        run: node scripts/test-pickup-payment-notification.mjs
       - name: Type-check WhatsApp edge functions
         shell: bash
         run: |

@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { mirrorWhatsApp } from '../_shared/whatsapp-inbox-sync.ts';
+import { buildPickupPaymentMessage, isPickupOrder } from './pickup-payment-message.ts';
 
 const U = Deno.env.get('SUPABASE_URL') || '';
 const K = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -263,6 +264,55 @@ async function logOutbox(row: Record<string, unknown>) {
   }
 }
 
+async function pickupPaymentMessage(body: Record<string, any>, vars: Record<string, unknown>, order: Record<string, unknown> | null) {
+  if (body.event_type !== 'payment_received') return null;
+  const bundleId = String(body.idempotency_key || '').match(/pickup_bundle:([0-9a-f-]{36})$/i)?.[1];
+  const checkoutNo = String(vars.pickup_checkout_no || '').trim();
+  if (!bundleId && !checkoutNo) return isPickupOrder(order) && order ? buildPickupPaymentMessage([order], vars) : null;
+
+  // Bulk receipts must inspect every included order, not just the queue's first order.
+  const filter = bundleId ? `id=eq.${encodeURIComponent(bundleId)}` : `checkout_no=eq.${encodeURIComponent(checkoutNo)}`;
+  const checkout = (await rest(`pickup_checkouts?${filter}&select=id,status&limit=1`))?.[0];
+  if (!checkout || checkout.status !== 'paid') throw new Error('pickup_payment_checkout_not_paid');
+  const rows = await rest(
+    `pickup_checkout_orders?checkout_id=eq.${encodeURIComponent(checkout.id)}&select=amount,orders!inner(id,order_no,order_id,delivery_method,delivery,status,admin_status,fulfillment_stage,pickup_ready_at,pickup_collected_at,pickup_payment_whatsapp_enabled)`,
+  );
+  if (!rows?.some((row: any) => row.orders?.id === order?.id)) throw new Error('pickup_payment_checkout_order_mismatch');
+  const receiptIds = new Set(String(vars.order_id || '').split(',').map((id) => id.trim()).filter(Boolean));
+  const included = rows.filter((row: any) => row.orders?.pickup_payment_whatsapp_enabled !== false
+    && (!receiptIds.size || receiptIds.has(String(row.orders?.order_no || row.orders?.order_id || ''))));
+  if (!included.length) throw new Error('order_auto_opted_out');
+  const amount = included.reduce((sum: number, row: any) => sum + Number(row.amount || 0), 0);
+  return buildPickupPaymentMessage(included.map((row: any) => row.orders), {
+    ...vars,
+    order_id: included.map((row: any) => row.orders.order_no || row.orders.order_id).join(', '),
+    order_total: `RM${amount.toFixed(2)}`,
+  });
+}
+
+async function approvedPickupPaymentTemplate(name: string) {
+  const cached = (await rest(`whatsapp_templates?name=eq.${encodeURIComponent(name)}&language=eq.ms&status=eq.APPROVED&limit=1`))?.[0];
+  if (cached) return cached;
+  // A newly submitted template can become approved between dispatcher retries.
+  // Refresh only this template; never fall back to the old production wording.
+  const base = await setting('wasapflow_official_base_url') || 'https://officialapi.wasapflow.com/bridge/v1';
+  const wabaId = await setting('waba_id');
+  const response = await fetchTimed(`${base.replace(/\/$/, '')}/templates`, {
+    headers: { 'x-partner-key': await setting('partner_key'), 'x-waba-id': wabaId },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.success === false) throw new Error('pickup_payment_template_sync_unavailable');
+  const template = data.templates?.find((item: any) => item.name === name && item.language === 'ms');
+  if (!template || template.status !== 'APPROVED') throw new Error('pickup_payment_template_pending');
+  await rest('whatsapp_templates?on_conflict=waba_id,name,language', {
+    method: 'POST',
+    headers: { prefer: 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify({ waba_id: wabaId, name, language: 'ms', category: template.category, status: template.status,
+      components: template.components || [], raw_payload: template, synced_at: new Date().toISOString(), updated_at: new Date().toISOString() }),
+  });
+  return template;
+}
+
 Deno.serve(async (req) => {
   let logId = '';
   try {
@@ -314,6 +364,9 @@ Deno.serve(async (req) => {
       : canSendFreeform && rule.freeform_enabled !== false ? 'text' : 'template';
     const decisionReason = mode === 'text' ? '24h_window_open' : '24h_window_closed_or_unavailable';
 
+    // Resolve status at dispatch time so ready/collected orders never restart production in a receipt.
+    let pickupPayment = await pickupPaymentMessage(body, vars, lifecycleOrder);
+
     let payload: Record<string, any>;
     let endpoint = '';
     let templateLanguage: string | null = null;
@@ -325,30 +378,33 @@ Deno.serve(async (req) => {
           ? rule.freeform_text_paid || PICKUP_READY_PAID_TEXT
           : rule.freeform_text_unpaid || PICKUP_READY_UNPAID_TEXT)
         : null;
-      const text = body.text || render(pickupReadyText || rule.freeform_text || '', vars);
+      const text = pickupPayment?.text || body.text || render(pickupReadyText || rule.freeform_text || '', vars);
       if (!text.trim()) return json({ ok: false, error: 'freeform_message_empty' }, 400);
       payload = { ...recipient, text, preview_url: false };
       endpoint = '/messages/send';
     } else {
       if (rule.template_enabled === false) return json({ ok: false, error: 'template_disabled' }, 409);
-      const name = body.template_name || rule.template_name;
-      const language = body.template_language || rule.template_language || 'ms';
+      const name = pickupPayment?.templateName || body.template_name || rule.template_name;
+      const language = pickupPayment ? 'ms' : body.template_language || rule.template_language || 'ms';
       templateLanguage = language;
       if (!name) return json({ ok: false, error: 'template_name_required' }, 400);
 
-      const approved = await rest(`whatsapp_templates?name=eq.${encodeURIComponent(name)}&language=eq.${encodeURIComponent(language)}&status=eq.APPROVED&limit=1`).catch(() => []);
+      const approved = pickupPayment
+        ? [await approvedPickupPaymentTemplate(name)]
+        : await rest(`whatsapp_templates?name=eq.${encodeURIComponent(name)}&language=eq.${encodeURIComponent(language)}&status=eq.APPROVED&limit=1`).catch(() => []);
       if (!approved?.[0]) return json({ ok: false, error: `template_not_approved:${name}:${language}`, decision_reason: decisionReason, window }, 409);
 
-      const keys = Array.isArray(body.template_params)
+      const keys = pickupPayment?.templateKeys || (Array.isArray(body.template_params)
         ? body.template_params
-        : Array.isArray(rule.template_params) ? rule.template_params : [];
+        : Array.isArray(rule.template_params) ? rule.template_params : []);
+      const templateVars: Record<string, unknown> = pickupPayment?.templateVars || vars;
       payload = {
         ...recipient,
         template: {
           name,
           language: { code: language },
           components: keys.length
-            ? [{ type: 'body', parameters: keys.map((key: string) => ({ type: 'text', text: String(vars[key] ?? '') })) }]
+            ? [{ type: 'body', parameters: keys.map((key: string) => ({ type: 'text', text: String(templateVars[key] ?? '') })) }]
             : [],
         },
       };
@@ -390,6 +446,15 @@ Deno.serve(async (req) => {
     if (CUSTOMER_LIFECYCLE_EVENTS.has(eventType)) {
       const finalPreflight = await orderLifecyclePreflight(body, eventType);
       if (!finalPreflight.ok) return json({ ok: false, error: finalPreflight.error }, 409);
+      if (pickupPayment) {
+        pickupPayment = await pickupPaymentMessage(body, vars, finalPreflight.order || null);
+        if (!pickupPayment) throw new Error('pickup_payment_context_changed');
+        if (mode === 'text') payload.text = pickupPayment.text;
+        else {
+          const templateVars: Record<string, unknown> = pickupPayment.templateVars;
+          payload.template.components = [{ type: 'body', parameters: pickupPayment.templateKeys.map((key) => ({ type: 'text', text: String(templateVars[key] ?? '') })) }];
+        }
+      }
     }
 
     const baseLog = {
