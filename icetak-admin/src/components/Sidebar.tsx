@@ -72,12 +72,13 @@ type Props = {
   canManageTemplates?: boolean;
   canViewStock?: boolean;
   canViewTasks?: boolean;
+  isOwner?: boolean;
 };
 
 type ShippingAttention = { attention?: number; critical?: number; oldest_hours?: number };
 type FollowupSummary = { counts?: { due?: number; failed?: number } };
 
-export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false, canViewCustomers = false, canViewPickup = false, canViewAi = false, canManageTemplates = false, canViewStock = false, canViewTasks = false }: Props) {
+export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile, onLogout, canViewFinance = false, canViewCustomers = false, canViewPickup = false, canViewAi = false, canManageTemplates = false, canViewStock = false, canViewTasks = false, isOwner = false }: Props) {
   const visibleNavItems = navItems.filter((item) => {
     if (['finance','qrpay-summary','draft-orders'].includes(item.key) && !canViewFinance) return false;
     if (['products','stock','acrylic-production'].includes(item.key) && !canViewStock) return false;
@@ -150,16 +151,17 @@ export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile,
         })}
       </nav>
       <div className="sidebar-footer">
-        <a
-          href="/roadmap/?manage=1"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Buka iCetak Roadmap"
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 16px', margin: '0 10px 8px', borderRadius: 8, color: 'inherit', opacity: 0.7, fontSize: 12, textDecoration: 'none', border: '1px solid currentColor' }}
-        >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><IconIntegration size={14} /> Roadmap</span>
-          <span aria-hidden="true">↗</span>
-        </a>
+        <div className="sidebar-roadmap-links" aria-label="Pautan iCetak Roadmap">
+          <a href="/roadmap/" target="_blank" rel="noopener noreferrer" title="Lihat Roadmap iCetak">
+            Roadmap <span aria-hidden="true">↗</span>
+          </a>
+          {isOwner && <>
+            <span className="sidebar-roadmap-separator" aria-hidden="true">·</span>
+            <a href="/roadmap/?manage=1" target="_blank" rel="noopener noreferrer" title="Urus Roadmap iCetak">
+              Urus Roadmap <span aria-hidden="true">↗</span>
+            </a>
+          </>}
+        </div>
         <button className="sidebar-item" style={{ opacity: 0.7 }} onClick={onLogout}><span className="sidebar-item-icon"><IconLogout size={16} /></span><span className="sidebar-item-label">Log Out</span></button></div>
     </aside>
   </>;
