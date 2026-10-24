@@ -1,3 +1,7 @@
+# 2026-10-24 — Pickup kiosk landscape display
+
+- [VERIFIED controlled UI] Removed the global portrait-only overlay that covered short landscape windows at 600 CSS pixels or less, including trusted counter laptops under Windows scaling/browser zoom. The existing pickup-kiosk URL and responsive layouts are retained. Actual full-app controlled Chromium reproduces the original overlay at 1366×600 and verifies queue, customer/search, cash dialog/cancel and unpaid handover gating at 1366×600, 1093×500, 1440×900, 390×844 and 844×390 without page errors, horizontal overflow or real service mutations. Full storefront/Inbox build, source guard and 28 existing pickup payment regressions pass. Hosted delivery confirmation pending.
+
 # 2026-10-24 — Pickup payment receipts
 
 - [VERIFIED controlled sender; backend deployed] Single pickup and cash/QRPay bulk receipts use current ready/collected/pending fulfillment status instead of the generic processing promise. Mixed bundles summarize every included order; status is refreshed before dispatch. Approved `pickup_payment_received_ms` covers closed chat windows, and template approval waits preserve delivery retries. Actual-handler regression tests cover 28 scenarios, read-only production order replay and exact deployed source/auth checks pass (`whatsapp-send` v30, `whatsapp-dispatch` v19). Production customer receipt delivery remains unexercised; tests send no customer messages or payment mutations. See [contract and evidence](docs/pickup-payment-receipts.md); PR #128.
