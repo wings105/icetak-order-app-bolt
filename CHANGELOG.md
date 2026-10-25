@@ -1,3 +1,7 @@
+# 2026-10-25 — Unified Inbox Teal branding
+
+- [VERIFIED controlled UI] Applied the owner-selected Teal Inbox artwork to Inbox favicon/ICO, Apple touch icon, installable PWA icons, login and navigation branding, and the Admin V2 Channel / Inbox menu. Versioned asset filenames and a new Inbox-only cache version refresh the artwork; legacy icon.svg embeds the same image. Actual built Inbox desktop/mobile light/dark, local-session navigation/theme and isolated real Sidebar click checks pass without page errors; favicon/manifest images are readable and byte-identical to packaged assets. Root/Inbox builds, Inbox typecheck and source guard pass. Hosted publication and installed-device icon refresh remain separate checks. See docs/UNIFIED_INBOX_HOSTING.md.
+
 # 2026-10-25 — Task Workspace compact list
 
 - [VERIFIED] Hide Detail / readiness and PIC from the Task Workspace list and reclaim their table width. The panel retains both controls. Actual desktop/mobile rendering, remaining column alignment/toggle, copy, sorting, refresh and panel interactions pass without application errors or source mutations. Build/typecheck pass; hosted release evidence is recorded in the release PR. See docs/TASK_WORKSPACE.md.

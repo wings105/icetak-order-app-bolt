@@ -5,6 +5,10 @@ import {
   IconIntegration, IconStaff, IconSettings, IconLogout,
 } from './Icons';
 
+function IconUnifiedInbox({ size = 18 }: { size?: number }) {
+  return <img src="/inbox/icons/unified-inbox-teal-192.png" width={size} height={size} alt="" aria-hidden="true" />;
+}
+
 type NavItem = {
   key: string;
   label: string;
@@ -16,7 +20,7 @@ const navItems: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: IconDashboard },
   { key: 'customer-focus', label: 'Fokus Customer', icon: IconOrders },
   { key: 'ai-dashboard', label: 'AI Dashboard', icon: IconIntegration },
-  { key: 'channel-inbox', label: 'Channel / Inbox', icon: IconWhatsApp },
+  { key: 'channel-inbox', label: 'Channel / Inbox', icon: IconUnifiedInbox },
   { key: 'orders-menu', label: 'Orders', icon: IconOrders, children: [
     { key: 'orders', label: 'iCetak Orders' },
     { key: 'marketplace-orders', label: 'Marketplace Orders' },
