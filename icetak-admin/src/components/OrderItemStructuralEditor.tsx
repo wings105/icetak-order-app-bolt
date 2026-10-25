@@ -206,9 +206,10 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
 
   const removeItem = (draft: DraftItem) => {
     const linked = (draft.components || []).filter((c) => c.clickupTaskId).length;
-    if (linked) { setError(`Item “${draft.title || draft.k}” ada ${linked} task ClickUp. Delete dikunci; guna Change Product supaya task sedia ada direuse.`); return; }
     if (structuralLocked) { setError(structuralLockReason || 'Structural editing dikunci untuk order ini.'); return; }
     if (drafts.length <= 1) { setError('Order mesti mempunyai sekurang-kurangnya satu item.'); return; }
+    if (!window.confirm(`Buang ${draft.title || draft.k} · ${draft.size} · Qty ${draft.qty}?${linked ? ` ${linked} task ClickUp berkaitan akan diarkibkan apabila Save Order Items ditekan.` : ''}`)) return;
+    setError(null); setNotice(null);
     setDrafts((old) => old.filter((x) => x.clientId !== draft.clientId));
     if (draft.id) setDeleteIds((old) => old.includes(draft.id) ? old : [...old, draft.id]);
   };
@@ -251,7 +252,7 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
     setError(null); setNotice(null);
     if (linkedProductChanges.length && !window.confirm(`${linkedProductChanges.length} item mempunyai task ClickUp sedia ada. Sistem akan reuse task/component ID itu dan update product dalam iCetak. Teruskan?`)) return;
     setSaving(true);
-    const { data, error: rpcError } = await supabase.rpc('icetak_admin_order_items_reconcile', { p_payload: {
+    const payload = {
       order_db_id: orderDbId,
       delete_ids: deleteIds,
       items: drafts.map((d) => ({
@@ -269,9 +270,33 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
         design_preview_url: d.previewUrl,
         customization:d.layers?{...(d.customization||{}),layers:d.layers}:d.customization,
       })),
-    } });
-    setSaving(false);
-    if (rpcError) { setError(rpcError.message); return; }
+    };
+    let data: any;
+    try {
+      if (deleteIds.length) {
+        const result = await supabase.functions.invoke('admin-order-items', { body: payload });
+        if (result.error) {
+          let message = result.error.message;
+          const context = (result.error as any).context;
+          if (context instanceof Response) {
+            const detail = await context.clone().json().catch(() => null);
+            message = detail?.error || message;
+          }
+          throw new Error(message);
+        }
+        if (!result.data?.ok) throw new Error(result.data?.error || 'Item belum berjaya dibuang.');
+        data = result.data;
+      } else {
+        const result = await supabase.rpc('icetak_admin_order_items_reconcile', { p_payload: payload });
+        if (result.error) throw new Error(result.error.message);
+        data = result.data;
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Gagal menyimpan item. Cuba semula.');
+      return;
+    } finally {
+      setSaving(false);
+    }
     const result = (data || {}) as { added?: number; deleted?: number; linkedComponentsReused?: number; total?: number; clickupOutboxId?: string | null };
     setNotice(`Saved · total ${money(result.total)}${result.added ? ` · ${result.added} item added` : ''}${result.deleted ? ` · ${result.deleted} deleted` : ''}${result.linkedComponentsReused ? ` · ${result.linkedComponentsReused} ClickUp task reused` : ''}${result.clickupOutboxId ? ' · ClickUp sync queued' : ''}`);
     await onSaved();
@@ -285,6 +310,7 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
     {structuralLocked && <div className="struct-lock"><b>Read-only · structural edit locked</b><span>{structuralLockReason || 'Courier sudah scan / order sudah Ready Pickup atau completed.'}</span></div>}
     {error && <div className="erp-notice error">{error}</div>}
     {notice && <div className="erp-notice success">✓ {notice}</div>}
+    {deleteIds.length > 0 && <div className="erp-notice">{deleteIds.length} item akan dibuang selepas Save Order Items. Task ClickUp berkaitan akan diarkibkan.</div>}
     {loadingProducts && <div className="cell-sub">Loading product catalog…</div>}
 
     {drafts.map((draft, index) => {
@@ -304,7 +330,7 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
             {draft.previewUrl && <a className="struct-preview" href={draft.previewUrl} target="_blank" rel="noreferrer" title="Open design image"><img src={draft.previewUrl} alt="Design preview" onError={(e) => { e.currentTarget.style.display = 'none'; }} /></a>}
             <div><b>{index + 1}. {draft.title || cfg.label}</b><div className="struct-tags">{draft.isNew && <span className="erp-status-pill info">NEW</span>}{linked > 0 && <span className="erp-status-pill success">{linked} CLICKUP LINKED</span>}{legacy && !draft.isNew && <span className="erp-status-pill neutral">LEGACY ITEM</span>}</div></div>
           </div>
-          {canEdit && !structuralLocked && <button className="btn btn-danger btn-sm" disabled={Boolean(linked)} title={linked ? 'Linked ClickUp task prevents delete' : ''} onClick={() => removeItem(draft)}>Delete</button>}
+          {canEdit && !structuralLocked && <button className="btn btn-danger btn-sm" disabled={saving} title={linked ? 'Buang item dan arkibkan task ClickUp selepas Save' : 'Buang item selepas Save'} onClick={() => removeItem(draft)}>Delete</button>}
         </div>
         <div className="struct-grid">
           <label><span>Product</span><select disabled={!canEdit || structuralLocked} value={draft.productId || ''} onChange={(e) => chooseProduct(draft, e.target.value)}>{legacy && <option value="">Current: {draft.title || cfg.label}</option>}{!legacy && <option value="" disabled>Select product…</option>}{products.map((p) => <option key={p.id} value={p.id}>{p.isCatalogDesign ? 'Catalog · ' : ''}{p.label}</option>)}</select></label>
