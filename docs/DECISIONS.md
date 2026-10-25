@@ -328,3 +328,7 @@ The owner authorizes a compact header lifecycle badge and task progress without 
 ## 2026-10-23 — Trusted Task Workspace URL
 
 Reuse the existing Task Workspace UI and operation handlers through a distinct revocable capability gateway. Device access is scoped to task operations, uses its own active non-login staff audit identity and cannot manage connections or reach other admin services. The owner explicitly requested a single URL for trusted PC / ClickUp use without a person-login screen. Keep normal JWT endpoints and browser RLS unchanged. See TASK_WORKSPACE_STATION.md.
+
+## 2026-10-25 — Explicit AI roadmap reviews before progress updates
+
+Owner requests durable per-item AI audit history distinct from release changelog. Record a start before implementation inspection, checkpoint bounded evidence and finish with factual snapshots and next steps. Invoker/RLS owner writes and trigger-generated append-only events preserve access boundaries; a changed roadmap revision blocks stale updates. One active run per item and latest-per-item coverage support interrupted batches without claiming unchecked work was audited. Priority/rank/reason/work type remain planning metadata; source-only triage cannot prove operational completion. No autonomous scan, model credential, scheduler or customer/provider mutation is introduced. See `roadmap/AI_CHECKER_README.md`.

@@ -26,6 +26,7 @@ Do not move responsibility between these projects casually. Cross-project bridge
 
 ## Roadmap and changelog responsibilities
 
+- Before checking or updating any roadmap feature, read [AI Checker rules](docs/roadmap/AI_CHECKER_README.md). Read its current run/history, persist a `start` log before implementation inspection, save checkpoints, and `finish` with evidence and next steps. Use the atomic `icetak_roadmap_ai_check` contract; never infer checked/completed from opening a card or an old changelog. The owner authorizes scoped progress/priority metadata updates when asking the checker to check an item; preserve unrelated work and do not re-request that authorization.
 - Start with [docs/roadmap/README.md](docs/roadmap/README.md) when the task comes from an iCetak roadmap feature; use its Markdown contract and acceptance checklist.
 - A new feature proposal belongs in Supabase Roadmap before claiming it is being developed. Planned, Building, Testing and Completed are owner-visible states, not substitutes for verification evidence.
 - `CHANGELOG.md` is the chronological engineering release ledger; roadmap feature status is **not** automatically changed based on a changelog entry.

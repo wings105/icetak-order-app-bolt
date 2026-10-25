@@ -47,6 +47,9 @@ jobs:
       - name: Check stock gateway authorization and retries
         run: npm run check:stock-admin
 
+      - name: Check roadmap priority and review coverage
+        run: npm run check:roadmap-checker
+
       - name: Check acrylic production colour and access boundaries
         run: npm run check:acrylic-production
 

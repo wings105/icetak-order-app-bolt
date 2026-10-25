@@ -228,3 +228,7 @@ Order task-workspace exposes a detail-only sanitized source dossier and task-ass
 ### AI task designer workspace (2026-10-21)
 
 AI Dashboard defaults to a filtered task list, exact scoped original chat and designer brief/output panel. It reuses task-workspace read/asset/private upload contracts. Order `task-clickup` owns explicit owner-configured provider status/attachment/comment actions and readback, with service-only `task_clickup_actions` receipts and claim RPC. Inbox source ownership and native final/QC remain unchanged. See AI_ACTION_DASHBOARD.md.
+
+## 2026-10-25 — Roadmap review audit
+
+Order System owns `icetak_roadmap_ai_runs` and append-only `icetak_roadmap_ai_events`. Owner-authenticated SECURITY INVOKER RPCs start/checkpoint/finish one feature at a time, serialize active claims and atomically save evidence, private progress notes and optimistic metadata updates. The roadmap frontend exposes a private AI Checker tab, latest coverage per feature and paged review history; public release JSON remains independent. This is an invocation protocol, not an AI worker/scheduler or a provider automation. See `roadmap/AI_CHECKER_README.md`.

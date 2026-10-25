@@ -1,6 +1,11 @@
+# 2026-10-25 — Roadmap AI Checker and priority queue
+
+- [VERIFIED controlled UI; backend ACTIVE] Owner roadmap adds AI Checker beside Changelog with start/checkpoint/end logs, scope, evidence, MYT timestamps, before/after progress, resume/blocked states and exact-item paged history. Invoker owner/RLS lifecycle atomically updates roadmap metadata with audit, rejects stale snapshots, prevents duplicate active reviews and preserves append-only events. Priority labels, within-priority order, work-type filters, action queue and mandatory AI README are available. Native rollback lifecycle/owner/non-owner/anon regressions, seven priority assertions, full build and eleven actual desktop/mobile interaction checks pass without page errors. Initial priority triage preserves feature progress/status and explicitly does not claim runtime verification. Signed-in hosted owner interaction remains pending; this feature does not schedule or launch an AI. See docs/roadmap/AI_CHECKER_README.md.
+
 # 2026-10-25 — Unified Inbox Teal branding
 
 - [VERIFIED controlled UI] Applied the owner-selected Teal Inbox artwork to Inbox favicon/ICO, Apple touch icon, installable PWA icons, login and navigation branding, and the Admin V2 Channel / Inbox menu. Versioned asset filenames and a new Inbox-only cache version refresh the artwork; legacy icon.svg embeds the same image. Actual built Inbox desktop/mobile light/dark, local-session navigation/theme and isolated real Sidebar click checks pass without page errors; favicon/manifest images are readable and byte-identical to packaged assets. Root/Inbox builds, Inbox typecheck and source guard pass. Hosted publication and installed-device icon refresh remain separate checks. See docs/UNIFIED_INBOX_HOSTING.md.
+
 
 # 2026-10-25 — Task Workspace compact list
 
