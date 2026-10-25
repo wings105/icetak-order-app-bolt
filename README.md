@@ -12,6 +12,8 @@ The production branch is `production`. Do not assume `main` represents the curre
 
 - [Live Roadmap](https://shop.decocake.my/roadmap/) — public/approved feature status, owner-reviewed planning and acceptance checklists.
 - [Roadmap Owner](https://shop.decocake.my/roadmap/?manage=1) — add ideas, edit summaries, priority, private/public visibility, progress and Markdown references.
+- [AI Checker log](https://shop.decocake.my/roadmap/?manage=1&tab=ai-checker) — owner-only resumable reviews, start/checkpoint/end evidence, before/after progress and priority queue.
+- [Mandatory AI Checker README](docs/roadmap/AI_CHECKER_README.md) — read before auditing a feature; lifecycle RPC, evidence rules, conflict handling and priority order.
 - [Roadmap documentation index](docs/roadmap/README.md) — where to find the full feature specifications, 71-topic baseline, process and safety rules.
 - [25 Oct 2026 — Shipping/Finance full discussion and Daily WhatsApp Report plan](docs/roadmap/ICETAK_SHIPPING_FINANCE_DAILY_REPORT_2026-10-25.md) — documented decisions, verified Supabase data, margin caveats and implementation checklist (IC-072–IC-074).
 - [Master plan](docs/roadmap/ROADMAP_MASTER_PLAN_2026.md) and [release-coverage contracts](docs/roadmap/RELEASE_COVERAGE_2026.md) — feature-level scopes, current caveats and definition of done.

@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {comparePriority,checkFilter,isStale} from '../src/roadmap-checker.ts';
+const item=(id,priority,priority_rank=100,work_type='build',status='planned')=>({id,title:id,priority,priority_rank,work_type,status,updated_at:'2026-10-25T00:00:00Z'});
+const list=[item('later','p2',1),item('complete','p0',1,'fix','completed'),item('verify','p1',10,'verify'),item('fix','p1',10,'fix'),item('first','p1',5)];
+assert.deepEqual(list.sort(comparePriority).map(i=>i.id),['first','fix','verify','later','complete']);
+const running={item_id:'first',outcome:'running',last_activity_at:'2026-10-25T00:00:00Z'};
+assert.equal(isStale(running,Date.parse('2026-10-25T02:00:01Z')),true);
+assert.equal(isStale({...running,outcome:'partial'},Date.parse('2026-10-25T03:00:00Z')),false);
+assert.equal(checkFilter(item('new','p1'),[running],'never'),true);
+assert.equal(checkFilter(item('first','p1'),[running],'never'),false);
+assert.equal(checkFilter(item('first','p1'),[{...running,outcome:'blocked'}],'needs_action'),true);
+assert.equal(checkFilter(item('first','p1'),[{...running,outcome:'partial'}],'verified'),false);
+console.log('Roadmap priority and check coverage: 7 assertions passed');

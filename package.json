@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "check:roadmap-checker": "node --experimental-strip-types scripts/check-roadmap-checker.mjs",
     "check:inbox-order-work": "node --experimental-strip-types scripts/check-inbox-order-work.mjs && node --experimental-strip-types scripts/check-inbox-order-categories.mjs && node --experimental-strip-types scripts/check-inbox-design-work.mjs && node --experimental-strip-types scripts/check-inbox-order-deadline.mjs",
     "check:acrylic-production": "node --experimental-strip-types scripts/check-acrylic-production.mjs",
     "dev": "vite",

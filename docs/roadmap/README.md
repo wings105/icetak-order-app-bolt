@@ -6,6 +6,8 @@
 
 ## Start here
 
+- **AI feature checks start with [AI_CHECKER_README.md](./AI_CHECKER_README.md)**: log before inspecting, checkpoint when interrupted, finish with evidence and priority/progress; never claim the whole roadmap was checked from a small batch.
+- [Owner AI Checker log](https://shop.decocake.my/roadmap/?manage=1&tab=ai-checker) — next to Changelog, private review history and per-feature before/after state.
 - [Master Roadmap (IC-001–IC-041)](./ROADMAP_MASTER_PLAN_2026.md) — initial business planning, feature scope, acceptance criteria and priority.
 - [Changelog Coverage (IC-042–IC-071)](./RELEASE_COVERAGE_2026.md) — additional modules discovered from repo `CHANGELOG.md` and earlier feature discussions.
 - [Shipping, Pricing, Profitability & Daily Business Report — 25 Oct 2026](./ICETAK_SHIPPING_FINANCE_DAILY_REPORT_2026-10-25.md) — 727-line complete discussion and backend specification for IC-072, IC-073 and IC-074.
@@ -19,6 +21,8 @@
 |---|---|---|
 | `public.icetak_roadmap_items` | Feature planning/status, summary, scope, acceptance checklist, visibility | Owner review or explicitly authorized changes |
 | `public.icetak_roadmap_updates` | Human-entered progress notes by feature | Operator edits |
+| `public.icetak_roadmap_ai_runs` | Latest and historical owner-only AI review sessions with scope, evidence and resume instructions | Start/checkpoint/finish RPC |
+| `public.icetak_roadmap_ai_events` | Append-only start/checkpoint/end snapshots, independent of release changelog | Generated atomically by review transitions |
 | `CHANGELOG.md` | Versioned evidence of production/backend/frontend releases | After verified engineering work |
 | `public/roadmap-changelog.json` | **Generated build output** reflecting `CHANGELOG.md`; no DB write | Every production build |
 | `docs/roadmap/*.md` and subsystem docs | Long-form specifications, caveats and acceptance conditions | During planning, testing and release |
