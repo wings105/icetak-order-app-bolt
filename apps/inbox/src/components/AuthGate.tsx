@@ -1,6 +1,7 @@
 import { confirmDesignNavigation } from '../lib/designDraftGuard';
 import { FormEvent, ReactNode, useEffect, useState } from 'react';
-import { Loader2, LockKeyhole, LogOut } from 'lucide-react';
+import { Loader2, LogOut } from 'lucide-react';
+import { InboxBrandIcon } from './InboxBrandIcon';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
@@ -68,9 +69,7 @@ export function AuthGate({ children }: AuthGateProps) {
       <div className="flex min-h-screen items-center justify-center bg-[var(--surface)] px-4">
         <form onSubmit={handleLogin} className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] p-6 shadow-xl">
           <div className="mb-6 flex items-center gap-3">
-            <div className="rounded-full bg-[var(--bubble-out)] p-3 text-[#00d9a3]">
-              <LockKeyhole size={24} />
-            </div>
+            <InboxBrandIcon size={52} />
             <div>
               <h1 className="font-semibold text-[var(--text)]">Log masuk staf ICETAK</h1>
               <p className="text-xs text-[var(--text-secondary)]">Diperlukan untuk Test Mode dan operasi database.</p>
