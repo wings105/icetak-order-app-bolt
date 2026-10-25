@@ -3,7 +3,7 @@ import {isTaskStation} from '../lib/taskTransport';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {taskRequest,workStatuses,workMatches,dueAt,type WorkTask,type TaskSnapshot} from '../lib/taskWorkspace';
 import './TaskWorkspace.css';
-import TaskBrief,{ReadinessBadge} from '../components/TaskBrief';
+import TaskBrief from '../components/TaskBrief';
 import {TaskDesignSummary,TaskMessages,TaskAssetCard} from '../components/TaskDesignDesk';
 import TaskPanelControls,{CopyValue} from '../components/TaskPanelControls';
 import type {PanelOptions} from '../lib/taskPanel';
@@ -52,14 +52,12 @@ export default function TaskWorkspace({request=taskRequest,onOpenOrder,onOpenMar
   {!data&&loading?<p className="tw-empty" role="status">Memuatkan task…</p>:!visible.length?<p className="tw-empty">{error&&!data?'Data belum tersedia. Cuba semula.':'Tiada task untuk pilihan ini.'}</p>:<div className="tw-groups">{statuses.map(status=>{
    const rows=visible.filter(t=>t.status===status);if(!rows.length)return null;const open=!collapsed.has(status);
    return <section className="tw-group" key={status}><button className="tw-group-heading" aria-expanded={open} onClick={()=>setCollapsed(old=>{const next=new Set(old);if(next.has(status))next.delete(status);else next.add(status);return next;})}><Caret open={open}/><span className="tw-status" style={{background:colour(status)}}>{stateLabel(status)}</span><b>{rows.length}</b></button>
-    {open&&<div className="tw-table-scroll"><table><thead><tr><th>Task / item</th><th className="tw-col-readiness">Detail / readiness</th>{show('phone')&&<th className="tw-col-phone">Telefon</th>}{show('sku')&&<th className="tw-col-sku">SKU</th>}{show('wording')&&<th className="tw-col-wording">Customize / wording</th>}<th className="tw-col-order">Order / customer</th><th className="tw-col-pic">PIC</th>{show('review')&&<th className="tw-col-review">Review</th>}<th className="tw-col-due">Due date</th>{show('courier')&&<th className="tw-col-courier">Courier</th>}<th>Set</th><th>Fail</th></tr></thead><tbody>{rows.map(task=><tr key={task.task_id} data-task-id={task.task_id} aria-selected={selected===task.task_id}>
+    {open&&<div className="tw-table-scroll"><table><thead><tr><th>Task / item</th>{show('phone')&&<th className="tw-col-phone">Telefon</th>}{show('sku')&&<th className="tw-col-sku">SKU</th>}{show('wording')&&<th className="tw-col-wording">Customize / wording</th>}<th className="tw-col-order">Order / customer</th>{show('review')&&<th className="tw-col-review">Review</th>}<th className="tw-col-due">Due date</th>{show('courier')&&<th className="tw-col-courier">Courier</th>}<th>Set</th><th>Fail</th></tr></thead><tbody>{rows.map(task=><tr key={task.task_id} data-task-id={task.task_id} aria-selected={selected===task.task_id}>
      <td><button className="tw-task-name" onClick={()=>selectTask(task.task_id)}><i style={{borderColor:colour(status)}}/><span>{task.title}</span></button><span className={`tw-source ${task.source.toLowerCase()}`}>{task.source}</span>{task.native_status&&<span className="tw-native">iCetak</span>}</td>
-     <td><button className="tw-readiness-open" onClick={()=>selectTask(task.task_id)}><ReadinessBadge readiness={task.readiness}/></button></td>
      {show('phone')&&<td><TableField label="Phone" value={task.phone}>{taskWhatsAppUrl(task.phone)?<a className="tw-whatsapp" href={taskWhatsAppUrl(task.phone)} title="Buka WhatsApp" aria-label={`Buka WhatsApp ${task.phone}`}>{task.phone}</a>:task.phone||'—'}</TableField></td>}
      {show('sku')&&<td title={task.sku}><TableField label="SKU" value={task.sku}/></td>}
      {show('wording')&&<td title={task.wording}><TableField label="wording" value={task.wording}/></td>}
      <td><TableField label="Order ID" value={task.order_reference||task.task_id}><button className="tw-reference" onClick={()=>selectTask(task.task_id)}>{task.order_reference||task.task_id}</button></TableField></td>
-     <td>{data?.staff.find(s=>s.username===task.assignee)?.name||task.assignee||'Belum ambil'}</td>
      {show('review')&&<td><TableField label="Review customer" value={task.review_status}/></td>}
      <td className={dueAt(task)&&new Date(dueAt(task)!).getTime()<Date.now()?'tw-overdue':''}><TableField label="Due date" value={dueAt(task)?date(dueAt(task)):''}/></td>
      {show('courier')&&<td><TableField label="Courier" value={task.courier}>{task.courier?<span className="tw-courier">{task.courier}</span>:'—'}</TableField></td>}

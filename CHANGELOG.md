@@ -1,3 +1,7 @@
+# 2026-10-25 — Task Workspace compact list
+
+- [VERIFIED] Hide Detail / readiness and PIC from the Task Workspace list and reclaim their table width. The panel retains both controls. Actual desktop/mobile rendering, remaining column alignment/toggle, copy, sorting, refresh and panel interactions pass without application errors or source mutations. Build/typecheck pass; hosted release evidence is recorded in the release PR. See docs/TASK_WORKSPACE.md.
+
 # 2026-10-25 — Task Workspace status order and field actions
 
 - [VERIFIED] Task Workspace uses the owner's fixed ClickUp group/picker order and remembers its existing due/latest sort choice. Table custom fields gain exact-value copy controls; phone values in table and panel link through the native WhatsApp URI. Actual desktop/mobile, light/dark, refresh/reload, clipboard and no-mutation checks pass; native WhatsApp launch remains unexercised. Other views and backend contracts are unchanged. See docs/TASK_WORKSPACE.md; hosted release evidence is recorded in the release PR.
