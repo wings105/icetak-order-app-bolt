@@ -12,4 +12,4 @@ async function readDisplaySnapshot():Promise<Snapshot>{
  const data=await r.json();if(!r.ok)throw Error(data?.error||'Data production gagal dimuat.');return data as Snapshot;
 }
 document.title='iCetak — Acrylic Production';
-createRoot(document.getElementById('production-root')!).render(<main className="acp-standalone"><AcrylicProduction readSnapshot={readDisplaySnapshot}/></main>);
+createRoot(document.getElementById('production-root')!).render(<main className="acp-standalone"><AcrylicProduction readSnapshot={readDisplaySnapshot} allowActions={false}/></main>);

@@ -11,7 +11,7 @@ Default: **Acrylic → Sedia cut**. Material buttons separate Acrylic and Artpap
 
 Only CF **job** selections `Acrylic cake topper` and `Artpaper` qualify. Ordinary Cake topper, Edible and Wafer jobs are excluded even at Cake Topper - Printing. Active statuses are `acrylic`, `artpaper`, `review` and `cake topper - printing`; other statuses disappear on the next read. Dual-material jobs appear under Semua material with a review warning.
 
-No task completion, ClickUp write, customer notification or stock consumption is added. Stock remains controlled by canonical fulfillment events.
+The authenticated Admin page now supports direct ClickUp production actions (see below). Stock remains controlled by canonical fulfillment events.
 
 ## Existing raw data path
 
@@ -51,3 +51,16 @@ The distinct `acrylic-production-display` Edge Function is intentionally public 
 This is a public read-only URL; possession of the URL permits viewing, and it is not restricted by PC, office IP or network. It does not grant access to task edits, completion actions, customer messages or inventory operations. ClickUp links may independently require ClickUp login. The normal webhook and 60-second visible-page refresh remain unchanged.
 
 Validation: root/Inbox build, model/auth regression, Admin V2/stock gateway checks and new public GET-only/field-allowlist/failure tests pass. Live display v1 is ACTIVE with verify_jwt=false and exact three-file source readback; anonymous GET returns 14 qualifying tasks, POST returns 405, and the original admin gateway still returns 401 without auth. Hosted feature preview rendered the actual standalone entry without login or admin navigation: default Sedia cut 0, Menunggu design 14, Gold 14; stage/colour filters, an exact order search returning one set2 task and refresh retaining all 14 Gold cards passed. Current live tasks have no captured artwork URL. The only observed console error came from the browser extension, not the application. PR #93 merged as `ee3dc16ea6363431c8123613d092e755e9f6836e`; Worker `a3d8141c-b35b-4baa-b27d-6499531284ab` passed Workers Builds and backend deploy. The main-domain route `https://shop.decocake.my/acrylic-production/` rendered without login/sidebar, read the 14-task cohort and passed stage/Gold filter plus the exact order search (A6, 2 pcs, set2). No app console error was observed; extension metadata errors remain unrelated. This standalone surface is PRODUCTION.
+
+
+## Direct production actions — 27 October 2026
+
+Status: VERIFIED controlled full Admin desktop/mobile; hosted signed-in provider acceptance remains pending.
+
+Each Admin task card has **FINISHED product Printed**, **AWB/address printed** and **Complete**. The first two set the existing Review Customer dropdown to the exact matching live option. There is no Complete dropdown option; Complete sets the actual task status to `complete`, following the existing Task Workspace contract. After verified completion the card disappears and a page confirmation remains; an in-flight older refresh cannot reintroduce it during that page session.
+
+The browser calls the existing JWT-protected `task-clickup` v4 using its existing private API token, permissions, exact task membership, live option/revision checks, action receipts, provider write/readback and full-snapshot projection. No new Edge Function, database trigger, migration or external automation is required. Options are read only when an operator clicks, avoiding one provider read per displayed card or refresh. Only provider-confirmed results show success. Duplicate clicks are locked; uncertain results expose receipt reconciliation without a blind resend; known rejected requests retain their request ID for retry.
+
+The existing public standalone `/acrylic-production/` display explicitly opts out of mutation controls and remains read-only. Admin production actions require the normal signed-in staff permissions. They do not imply canonical order payment, fulfillment or stock completion.
+
+Verification: `check:acrylic-production`, `check:task-clickup`, complete root/Inbox build and Admin TypeScript/build pass. Actual root-bundled Admin in controlled Chromium at 1440×1000 and 390×1000 passes exact task/field/status/revision mapping, zero idle ClickUp calls, Review success/already-set, missing option, permission denial, rejection/retry ID, unknown receipt lock/reconcile and Artpaper Complete removal, with no page errors or horizontal overflow. Browser plugin unavailable; regular Playwright used. No real production task is changed for testing. Hosted signed-in operator/provider acceptance remains to be exercised.

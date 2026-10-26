@@ -215,7 +215,7 @@ Order System owns the private stock schema and canonical-event work queue. Admin
 
 ## Acrylic & Artpaper production (16 October 2026)
 
-Admin V2 reads existing ClickUp work, latest complete task snapshots and image projections through JWT active-admin `acrylic-production` and service-only invoker `icetak_acrylic_production_snapshot`. CF job gates material eligibility; ClickUp status controls stage, and task/item evidence supplies colour/size/quantity. This is a read-only cutting queue, independent of stock consumption and customer review mutations. See `ACRYLIC_PRODUCTION.md`.
+Admin V2 reads existing ClickUp work, latest complete task snapshots and image projections through JWT active-admin `acrylic-production` and service-only invoker `icetak_acrylic_production_snapshot`. CF job gates material eligibility; ClickUp status controls stage, and task/item evidence supplies colour/size/quantity. The public standalone cutting display remains read-only. The authenticated Admin queue also reuses existing JWT `task-clickup` for explicit Review Customer production shortcuts and task Complete, including provider readback and source projection; stock consumption remains independent. See `ACRYLIC_PRODUCTION.md`.
 
 ## 2026-10-20 — Background task detail observations
 
