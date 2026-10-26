@@ -1,6 +1,6 @@
 # Finance Bills & Reminders
 
-Status: backend ACTIVE / controlled full Admin UI VERIFIED; production frontend publication is awaiting owner approval. Source based on `production@75aafb5`.
+Status: backend ACTIVE / controlled full Admin UI VERIFIED; owner approved frontend publication; deployment verification is in progress in release PR #137. Source based on `production@75aafb5`.
 
 ## Operator flow
 
@@ -37,4 +37,4 @@ Billing pause, rule pause, paid/void/checked state and the WhatsApp master/sessi
 - Deployed `finance-admin` v39, `whatsapp-send` v31 and `whatsapp-dispatch` v20 match reviewed source and preserve their existing in-code authentication. Unauthenticated hosted Finance returns 403.
 - Security advisors add only six informational private-table RLS/no-policy findings, matching the service-only private-schema design. No new error/warning findings.
 
-Pending: owner approval to publish the prepared frontend to the existing public repository; signed-in hosted operator acceptance and the first scheduled monthly provider delivery. A successful backend deployment/build is not reported as hosted UI completion.
+Pending: production frontend delivery confirmation, signed-in hosted operator acceptance and the first scheduled monthly provider delivery. A successful backend deployment/build is not reported as hosted UI completion.
