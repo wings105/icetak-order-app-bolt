@@ -1,3 +1,7 @@
+## 2026-10-26 — Finance owns bill schedules and payables
+
+Keep supplier bills, settlements, recurring commitments and reminder runs in Order System's private finance schema. Extend the existing authenticated Finance gateway and transactional WhatsApp queue rather than a second provider sender or external ChatGPT scheduler. Amount-free checks never create accounting liabilities. Bill approval and bank/manual settlement remain distinct, auditable operations; existing feed expenses are reclassified only for their allocated amount. Provider API acceptance is not represented as delivery. See FINANCE_BILLS_AND_REMINDERS.md.
+
 ## 2026-10-23 — Task side panel reuses provider actions and print projections
 
 Keep exact-task work in a non-modal Admin V2 panel with live provider status/review options, small original-backed attachments and direct same-order printing. Extend the existing private designer ledger for only the Review customer field, retaining cross-Inbox locks, stale checks and readback. Direct output bytes pass through to ClickUp using the shared binary inspector; native private draft/final files stay explicit and separate. Verified snapshots and design-link image metadata feed existing projections. Reuse the AWB read/PDF/layout helpers without changing the standalone page or its external action automation. See TASK_WORKSPACE_SIDE_PANEL.md.

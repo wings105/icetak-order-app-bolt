@@ -329,6 +329,11 @@ Deno.serve(async (req) => {
     const recipient = validPhone ? { to: validPhone } : { user_id: bsuid };
 
     const eventType = body.event_type || 'manual';
+    if (eventType === 'finance_bill_reminder') {
+      if (!enabledValue(await setting('enabled'))) return json({ok:false,error:'billing_master_disabled'},409);
+      const allowed = await rest('rpc/finance_billing_dispatch_allowed', {method:'POST',body:JSON.stringify({p_bill_id:body.vars?.bill_id})});
+      if (allowed !== true) return json({ok:false,error:'billing_closed_or_paused'},409);
+    }
     const vars = { ...(body.vars || body) };
     if (vars.otp && !vars.otp_code) vars.otp_code = vars.otp;
     if (!vars.expiry_minutes) vars.expiry_minutes = '10';
@@ -359,6 +364,7 @@ Deno.serve(async (req) => {
       if (!preflight.ok) return json({ ok: false, error: preflight.error }, 409);
     }
     const canSendFreeform = Boolean(window.can_send_freeform);
+    if (eventType === 'finance_bill_reminder' && !canSendFreeform) return json({ok:false,error:'billing_window_closed'},409);
     const mode = body.mode && body.mode !== 'auto'
       ? body.mode
       : canSendFreeform && rule.freeform_enabled !== false ? 'text' : 'template';
