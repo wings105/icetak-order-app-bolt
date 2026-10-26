@@ -1,4 +1,5 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
+import ProductionTaskActions from '../components/ProductionTaskActions';
 import './AcrylicProduction.css';
 
 type Item={task_id:string;title:string;order_reference:string;stage:string;status:string;material:string;colour:string;colour_source:string;size:string;quantity:number|null;sets:string[];sku:string;due_at:string|null;updated_at:string;issues:string[];images:{url:string;name:string}[];task_url:string};
@@ -13,13 +14,14 @@ async function readAdminSnapshot():Promise<Snapshot>{
  if(error)throw Error(error.message);return data as Snapshot;
 }
 
-export default function AcrylicProduction({readSnapshot=readAdminSnapshot}:{readSnapshot?:()=>Promise<Snapshot>}={}){
+export default function AcrylicProduction({readSnapshot=readAdminSnapshot,allowActions=true}:{readSnapshot?:()=>Promise<Snapshot>;allowActions?:boolean}={}){
  const [data,setData]=useState<Snapshot|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(false);
+ const [completeNotice,setCompleteNotice]=useState('');const completed=useRef(new Set<string>());
  const [stage,setStage]=useState('production'),[material,setMaterial]=useState('Acrylic'),[colour,setColour]=useState(''),[query,setQuery]=useState(''),[auto,setAuto]=useState(true);
  const [zoom,setZoom]=useState<{item:Item;index:number}|null>(null);const dialog=useRef<HTMLDialogElement>(null),inflight=useRef(false),mounted=useRef(true);
  const load=useCallback(async()=>{
   if(inflight.current)return;inflight.current=true;setLoading(true);
-  try{const next=await readSnapshot();if(!next?.ok)throw Error(next?.error||'Data production tidak tersedia.');if(mounted.current){setData(next);setError('');}}
+  try{const next=await readSnapshot();if(!next?.ok)throw Error(next?.error||'Data production tidak tersedia.');if(mounted.current){setData({...next,items:next.items.filter(item=>!completed.current.has(item.task_id))});setError('');}}
   catch(e){if(mounted.current)setError(e instanceof Error?e.message:'Data gagal dimuat.');}
   finally{inflight.current=false;if(mounted.current)setLoading(false);}
  },[readSnapshot]);
@@ -34,6 +36,7 @@ export default function AcrylicProduction({readSnapshot=readAdminSnapshot}:{read
  return <div className="acp-page fade-in">
   <header className="acp-header"><div><p className="acp-eyebrow">PRODUCTION / CUTTING</p><h1>Acrylic & Artpaper</h1><p>Pilih material dan warna sebelum mula cut.</p></div><div className="acp-refresh"><label><input type="checkbox" checked={auto} onChange={e=>setAuto(e.target.checked)}/>Auto refresh 1 minit</label><button className="btn btn-outline" disabled={loading} onClick={()=>void load()}>{loading?'Memuatkan…':'↻ Refresh'}</button></div></header>
   {error&&<div className="acp-alert" role="alert">{error} {data?'Paparan masih menggunakan data sebelumnya. Semak semula sebelum cut.':''}<button onClick={()=>void load()}>Cuba semula</button></div>}
+  {completeNotice&&<p className="acp-action-success" role="status">{completeNotice}</p>}
   <nav className="acp-stages" aria-label="Peringkat kerja">{stages.map(([key,label])=><button key={key} aria-pressed={stage===key} onClick={()=>setStage(key)}>{label}<span>{all.filter(i=>(!material||i.material===material)&&(key==='all'||i.stage===key)).length}</span></button>)}</nav>
   <section className="acp-filters" aria-label="Tapis production">
    <div className="acp-filter-line"><b>Material</b><div className="acp-pills">{[['Acrylic','Acrylic'],['Artpaper','Artpaper'],['','Semua material']].map(([key,label])=><button key={key} aria-pressed={material===key} onClick={()=>{setMaterial(key);setColour('');}}>{label}</button>)}</div></div>
@@ -45,6 +48,7 @@ export default function AcrylicProduction({readSnapshot=readAdminSnapshot}:{read
    <div className="acp-card-head"><span className={`acp-material ${item.material==='Artpaper'?'paper':''}`}>{item.material}</span><span>{item.sets.join(' · ')||'Task'}</span></div>
    <div className="acp-images">{item.images.length?item.images.map((img,index)=><button key={img.url} onClick={()=>setZoom({item,index})} aria-label={`Besarkan design ${item.title}${item.images.length>1?` ${index+1}`:''}`}><img src={img.url} alt={img.name||item.title} loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.hidden=true;const label=e.currentTarget.nextElementSibling;if(label)label.textContent='Gambar gagal dimuat. Buka ClickUp.';}}/><span>↗ Besarkan{item.images.length>1?` ${index+1}/${item.images.length}`:''}</span></button>):<div className="acp-no-image">Design belum tersedia<span>Buka task untuk semak attachment.</span></div>}</div>
    <div className="acp-card-body"><div className={`acp-colour ${item.colour==='Belum ditentukan'?'unknown':''}`} title={item.colour_source||'Semak warna dalam task'}><i style={{background:swatches[item.colour]||'#d7d2c3'}}/>{item.colour}</div><h2><a href={item.task_url} target="_blank" rel="noopener noreferrer">{item.title} ↗</a></h2><p className="acp-order">{item.order_reference||'Order ID belum tersedia'}</p><div className="acp-specs"><div><span>SAIZ</span><strong>{item.size}</strong></div><div><span>KUANTITI</span><strong>{item.quantity?`${item.quantity} pcs`:'Semak'}</strong></div></div>{item.issues.length>0&&<p className="acp-card-warning">Semak sebelum cut: {item.issues.join(' · ')}</p>}<footer><span className={`acp-stage ${item.stage}`}>{item.status}</span>{item.due_at&&<time dateTime={item.due_at}>{time(item.due_at)}</time>}</footer></div>
+   {allowActions&&<ProductionTaskActions taskId={item.task_id} onComplete={()=>{completed.current.add(item.task_id);setCompleteNotice('Task disahkan Complete di ClickUp dan dikeluarkan daripada senarai production.');setData(current=>current?{...current,items:current.items.filter(task=>task.task_id!==item.task_id)}:current);}}/>}
   </article>)}</div>}
   <p className="acp-footnote">Task dan design mengikut kemas kini ClickUp.{data?` Dibaca ${time(data.read_at)}.`:''} Perubahan muncul selepas webhook task diterima.</p>
   <dialog ref={dialog} className="acp-dialog" onCancel={()=>setZoom(null)} onClose={()=>setZoom(null)} onClick={e=>{if(e.target===dialog.current)setZoom(null);}}>{zoom&&<><header><div><strong>{zoom.item.colour} · {zoom.item.size} · {zoom.item.quantity||'?'} pcs</strong><p>{zoom.item.title}</p></div><button autoFocus onClick={()=>setZoom(null)} aria-label="Tutup design">✕</button></header><img src={zoom.item.images[zoom.index].url} alt={zoom.item.title}/><footer><span>{zoom.item.order_reference}</span><a href={zoom.item.images[zoom.index].url} target="_blank" rel="noopener noreferrer">Buka gambar asal ↗</a></footer></>}</dialog>
