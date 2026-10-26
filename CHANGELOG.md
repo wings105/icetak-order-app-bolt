@@ -1,3 +1,7 @@
+# 2026-10-27 — Task Workspace readable fields and copy fallback
+
+- [VERIFIED controlled component] Task list values increase from 11px to 14px with larger column/group labels and badges. CF copy retains exact full/multiline values, stops click propagation and falls back to a selected temporary textarea when the Clipboard API is absent or denied, restoring focus and cleaning up afterward. Actual React CopyValue clipboard readback, denied-API fallback, 14px computed table font and zero browser errors pass in controlled Chromium. Admin and complete root/Inbox builds pass. Hosted owner/embed acceptance remains pending.
+
 # 2026-10-27 — Acrylic production ClickUp actions
 
 - [VERIFIED controlled UI] Each Admin Acrylic/Artpaper task card gains FINISHED product Printed and AWB/address printed shortcuts to the existing Review Customer field, plus Complete to the actual ClickUp task status. Existing authenticated task-clickup API owns permissions, live options/revisions, audited idempotent writes, provider readback and projection refresh. Click locks, unknown receipt reconciliation, stable rejected retries and confirmed card removal pass in the actual bundled Admin at desktop/mobile sizes. Public standalone display remains read-only. Existing production/ClickUp regressions and full builds pass; hosted signed-in provider acceptance remains pending. See docs/ACRYLIC_PRODUCTION.md.

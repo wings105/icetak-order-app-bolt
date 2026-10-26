@@ -6,10 +6,19 @@ import {type PanelAttachment,type PanelOptions} from '../lib/taskPanel';
 import TaskPanelAttachment from './TaskPanelAttachment';
 import {printOtherAwb,printPanelAwb,printPanelReference} from '../lib/taskPrint';
 
+export async function copyFieldValue(value:string){
+ try{if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(value);return;}}catch{}
+ const active=document.activeElement as HTMLElement|null;
+ const input=document.createElement('textarea');input.value=value;input.readOnly=true;
+ input.style.cssText='position:fixed;left:0;top:0;opacity:0;pointer-events:none';
+ document.body.appendChild(input);input.focus({preventScroll:true});input.select();
+ try{if(!document.execCommand('copy'))throw Error('Copy gagal');}
+ finally{input.remove();active?.focus({preventScroll:true});}
+}
 export function CopyValue({value,label}:{value:string;label:string}){
  const [notice,setNotice]=useState('');const timer=useRef<ReturnType<typeof setTimeout>|null>(null);
  useEffect(()=>()=>{if(timer.current)clearTimeout(timer.current);},[]);
- return <button className="tp-copy" type="button" aria-label={`Copy ${label}`} title={notice||`Copy ${label}`} disabled={!value} onClick={async()=>{try{await navigator.clipboard.writeText(value);setNotice('Disalin');}catch{setNotice('Copy gagal');}if(timer.current)clearTimeout(timer.current);timer.current=setTimeout(()=>setNotice(''),1800);}}>{notice==='Disalin'?<span aria-hidden="true">✓</span>:<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 4V3H3v13h1"/></svg>}<span className="tp-sr" role="status">{notice}</span></button>;
+ return <button className="tp-copy" type="button" aria-label={`Copy ${label}`} title={notice||`Copy ${label}`} disabled={!value} onClick={async(e)=>{e.stopPropagation();try{await copyFieldValue(value);setNotice('Disalin');}catch{setNotice('Copy gagal');}if(timer.current)clearTimeout(timer.current);timer.current=setTimeout(()=>setNotice(''),1800);}}>{notice==='Disalin'?<span aria-hidden="true">✓</span>:<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 4V3H3v13h1"/></svg>}<span className="tp-sr" role="status">{notice}</span></button>;
 }
 type Option={id:string;name:string;color?:string};
 function SearchDropdown({label,value,options,disabled,onChoose}:{label:string;value:string|null;options:Option[];disabled:boolean;onChoose:(id:string|null)=>void}){

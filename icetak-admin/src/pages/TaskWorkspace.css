@@ -51,3 +51,6 @@
 .tw-workspace .tw-whatsapp{color:inherit;text-decoration:underline;text-decoration-color:#489d77;text-underline-offset:3px}
 .tw-workspace .tw-whatsapp:hover{color:#6ddba8}
 @media(hover:none){.tw-table-scroll .tw-cell-value .tp-copy{opacity:1}}
+
+/* Larger type for the existing Task Workspace list. */
+.tw-workspace td{font-size:14px;line-height:22px}.tw-workspace th{font-size:12px}.tw-workspace .tw-task-name,.tw-workspace .tw-reference{font-size:14px!important}.tw-workspace .tw-source,.tw-workspace .tw-native{font-size:11px}.tw-workspace .tw-courier,.tw-workspace .tw-set{font-size:12px}.tw-workspace .tw-group-heading{font-size:14px}
