@@ -1,3 +1,7 @@
+# 2026-10-27 — Task Workspace list review, links and Complete
+
+- [VERIFIED controlled component; read extension ACTIVE] Task list gains original provider Review Customer options, exact HTTPS AWB link/order_link columns with copy, and per-task Complete through the existing authenticated/capability ClickUp API. Live options/revisions, receipts/readback and list refresh remain authoritative; uncertain outcomes require reconciliation. Private snapshot read exposes only the two additional CF values without widening grants or adding provider polling. Actual component action/link/revision checks and existing workspace/ClickUp regressions pass; Admin and full builds pass. Hosted signed-in operator acceptance remains pending. See docs/TASK_WORKSPACE_LIST_ACTIONS.md.
+
 # 2026-10-27 — Task Workspace readable fields and copy fallback
 
 - [VERIFIED controlled component] Task list values increase from 11px to 14px with larger column/group labels and badges. CF copy retains exact full/multiline values, stops click propagation and falls back to a selected temporary textarea when the Clipboard API is absent or denied, restoring focus and cleaning up afterward. Actual React CopyValue clipboard readback, denied-API fallback, 14px computed table font and zero browser errors pass in controlled Chromium. Admin and complete root/Inbox builds pass. Hosted owner/embed acceptance remains pending.
