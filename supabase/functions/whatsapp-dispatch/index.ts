@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
           results.push({ id: job.id, status: 'waiting_for_template', next_retry_at: nextRetry });
           continue;
         }
-        if (isAutomationSafetyStop(message)) {
+        if (isAutomationSafetyStop(message) || /^billing_(master_disabled|closed_or_paused|window_closed)$/.test(message)) {
           await updateJob(job.id, {
             status: 'cancelled', processed_at: new Date().toISOString(), locked_at: null,
             last_error: message, decision_mode: 'cancelled', decision_reason: 'automation_safety_stop',

@@ -73,6 +73,15 @@ Deno.serve(async (req) => {
     if (!admin) return json({ success: false, error: "Finance access is restricted to Zaim" }, 403);
     const body = await req.json().catch(() => ({})) as JsonObject;
     const action = String(body.action || "snapshot");
+    if (action === "billing_snapshot") return json({success:true,data:await rpc("finance_billing_snapshot",{p_filter:body.filter||{}})});
+    if (action === "billing_payments") {
+      if (!/^[0-9a-f-]{36}$/i.test(String(body.bill_id||''))) return json({success:false,error:'Valid bill required'},400);
+      return json({success:true,data:await rpc('finance_billing_payments',{p_bill_id:body.bill_id})});
+    }
+    if (action === "billing_action") {
+      if (!admin.permissions.includes("manage_finance")) return json({success:false,error:"Manage Finance permission required"},403);
+      return json({success:true,data:await rpc("finance_billing_action",{p_action:String(body.operation||""),p_payload:body.payload||{},p_actor:admin.username})});
+    }
     if (action === 'business_report') {
       const operation=String(body.operation||'read');
       if(operation!=='read'&&!admin.permissions.includes('manage_finance'))return json({success:false,error:'Finance write permission required'},403);
