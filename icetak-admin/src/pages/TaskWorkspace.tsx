@@ -3,6 +3,7 @@ import {isTaskStation} from '../lib/taskTransport';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {taskRequest,workStatuses,workMatches,dueAt,type WorkTask,type TaskSnapshot} from '../lib/taskWorkspace';
 import './TaskWorkspace.css';
+import {taskDueClass} from '../lib/taskDueColour';
 import TaskListActions from '../components/TaskListActions';
 import TaskBrief from '../components/TaskBrief';
 import {TaskDesignSummary,TaskMessages,TaskAssetCard} from '../components/TaskDesignDesk';
@@ -21,6 +22,8 @@ function TableField({value,label,children}:{value:string;label:string;children?:
  return <div className="tw-cell-value"><span className="tw-cell-content" title={value||undefined}>{children??(value||'—')}</span>{value&&value!=='—'&&<CopyValue value={value} label={label}/>}</div>;
 }
 export default function TaskWorkspace({request=taskRequest,onOpenOrder,onOpenMarketplace}:Props){
+ const [clock,setClock]=useState(Date.now);
+ useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),60000);return()=>clearInterval(timer);},[]);
  const [data,setData]=useState<TaskSnapshot|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState('');
  const [view,setView]=useState('all'),[query,setQuery]=useState(''),[sort,setSort]=useState(()=>{try{return localStorage.getItem('icetak.task-sort.v1')==='latest'?'latest':'due';}catch{return 'due';}}),[completed,setCompleted]=useState(false),[readinessFilter,setReadinessFilter]=useState('all');
  const [collapsed,setCollapsed]=useState<Set<string>>(()=>new Set()),[selected,setSelected]=useState<string|null>(()=>{const id=new URLSearchParams(window.location.search).get('task');return id&&/^[a-zA-Z0-9_-]{1,80}$/.test(id)?id:null;}),[light,setLight]=useState(false);
@@ -53,16 +56,17 @@ export default function TaskWorkspace({request=taskRequest,onOpenOrder,onOpenMar
   {!data&&loading?<p className="tw-empty" role="status">Memuatkan task…</p>:!visible.length?<p className="tw-empty">{error&&!data?'Data belum tersedia. Cuba semula.':'Tiada task untuk pilihan ini.'}</p>:<div className="tw-groups">{statuses.map(status=>{
    const rows=visible.filter(t=>t.status===status);if(!rows.length)return null;const open=!collapsed.has(status);
    return <section className="tw-group" key={status}><button className="tw-group-heading" aria-expanded={open} onClick={()=>setCollapsed(old=>{const next=new Set(old);if(next.has(status))next.delete(status);else next.add(status);return next;})}><Caret open={open}/><span className="tw-status" style={{background:colour(status)}}>{stateLabel(status)}</span><b>{rows.length}</b></button>
-    {open&&<div className="tw-table-scroll"><table><thead><tr><th>Task / item</th>{show('phone')&&<th className="tw-col-phone">Telefon</th>}{show('sku')&&<th className="tw-col-sku">SKU</th>}{show('wording')&&<th className="tw-col-wording">Customize / wording</th>}<th className="tw-col-order">Order / customer</th>{show('review')&&<th className="tw-col-review">Review</th>}<th>AWB link</th><th>order_link</th><th>Complete</th><th className="tw-col-due">Due date</th>{show('courier')&&<th className="tw-col-courier">Courier</th>}<th>Set</th><th>Fail</th></tr></thead><tbody>{rows.map(task=><tr key={task.task_id} data-task-id={task.task_id} aria-selected={selected===task.task_id}>
+    {open&&<div className="tw-table-scroll"><table><thead><tr><th>Task / item</th><th className="tw-col-order">Order ID</th>{show('sku')&&<th className="tw-col-sku">SKU</th>}<th className="tw-col-set">Set</th>{show('wording')&&<th className="tw-col-wording">Customize Name</th>}{show('review')&&<th className="tw-col-review">Review</th>}<th>AWB link</th><th>order_link</th><th>Complete</th><th className="tw-col-due">Due date</th>{show('courier')&&<th className="tw-col-courier">Courier</th>}{show('phone')&&<th className="tw-col-phone">Telefon</th>}<th>Fail</th></tr></thead><tbody>{rows.map(task=><tr key={task.task_id} data-task-id={task.task_id} aria-selected={selected===task.task_id}>
      <td><button className="tw-task-name" onClick={()=>selectTask(task.task_id)}><i style={{borderColor:colour(status)}}/><span>{task.title}</span></button><span className={`tw-source ${task.source.toLowerCase()}`}>{task.source}</span>{task.native_status&&<span className="tw-native">iCetak</span>}</td>
-     {show('phone')&&<td><TableField label="Phone" value={task.phone}>{taskWhatsAppUrl(task.phone)?<a className="tw-whatsapp" href={taskWhatsAppUrl(task.phone)} title="Buka WhatsApp" aria-label={`Buka WhatsApp ${task.phone}`}>{task.phone}</a>:task.phone||'—'}</TableField></td>}
-     {show('sku')&&<td title={task.sku}><TableField label="SKU" value={task.sku}/></td>}
-     {show('wording')&&<td title={task.wording}><TableField label="wording" value={task.wording}/></td>}
      <td><TableField label="Order ID" value={task.order_reference||task.task_id}><button className="tw-reference" onClick={()=>selectTask(task.task_id)}>{task.order_reference||task.task_id}</button></TableField></td>
-     <TaskListActions taskId={task.task_id} reviewLabel={task.review_status} awbLink={task.awb_link} orderLink={task.order_link} showReview={show('review')} canEdit={!!data?.can_edit} onChanged={()=>void load()}/>
-     <td className={dueAt(task)&&new Date(dueAt(task)!).getTime()<Date.now()?'tw-overdue':''}><TableField label="Due date" value={dueAt(task)?date(dueAt(task)):''}/></td>
+     {show('sku')&&<td title={task.sku}><TableField label="SKU" value={task.sku}/></td>}
+     <td><TableField label="Set" value={(task.sets||[]).join(' · ')}>{task.sets?.length?task.sets.map(set=><span className="tw-set" key={set}>{set}</span>):'—'}</TableField></td>
+     {show('wording')&&<td title={task.wording}><TableField label="wording" value={task.wording}/></td>}
+     <TaskListActions taskId={task.task_id} reviewLabel={task.review_label??''} reviewColor={task.review_color} awbLink={task.awb_link} orderLink={task.order_link} showReview={show('review')} canEdit={!!data?.can_edit} onChanged={()=>void load()}/>
+     <td className={taskDueClass(dueAt(task),clock)}><TableField label="Due date" value={dueAt(task)?date(dueAt(task)):''}/></td>
      {show('courier')&&<td><TableField label="Courier" value={task.courier}>{task.courier?<span className="tw-courier">{task.courier}</span>:'—'}</TableField></td>}
-     <td><TableField label="Set" value={(task.sets||[]).join(' · ')}>{task.sets?.length?task.sets.map(set=><span className="tw-set" key={set}>{set}</span>):'—'}</TableField></td><td>{task.file_count||task.images.length||'—'}</td>
+     {show('phone')&&<td><TableField label="Phone" value={task.phone}>{taskWhatsAppUrl(task.phone)?<a className="tw-whatsapp" href={taskWhatsAppUrl(task.phone)} title="Buka WhatsApp" aria-label={`Buka WhatsApp ${task.phone}`}>{task.phone}</a>:task.phone||'—'}</TableField></td>}
+<td>{task.file_count||task.images.length||'—'}</td>
     </tr>)}</tbody></table></div>}
    </section>;
   })}</div>}
