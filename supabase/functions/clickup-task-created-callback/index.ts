@@ -55,7 +55,17 @@ Deno.serve(async (req) => {
       p_task_url: text(body.clickup_task_url) || null,
       p_status: text(body.status) || null,
     });
-    if (error) throw error;
+    if (error) {
+      if (String(error.message).includes('component_already_linked_to_task:')) {
+        const { data: existing } = await db.from('production_components')
+          .select('order_id,clickup_task_id,clickup_status').eq('id',componentId).maybeSingle();
+        if (existing?.clickup_task_id) {
+          return json({ok:true,already_linked:true,duplicate_callback_ignored:true,
+            resolved_order_id:existing.order_id,clickup_task_id:existing.clickup_task_id});
+        }
+      }
+      throw error;
+    }
 
     const resolvedOrderId = text((linked as any)?.order_id);
     if (!resolvedOrderId) throw new Error('resolved_order_id_missing');
@@ -108,3 +118,4 @@ Deno.serve(async (req) => {
     return json({ error: error instanceof Error ? error.message : String(error) }, 500);
   }
 });
+
