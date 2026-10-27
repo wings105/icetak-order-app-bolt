@@ -39,6 +39,11 @@ begin
   return b;
  elsif p_action='task_result' then
   tid:=p_body->>'task_id';o:=p_body->>'order_id';
+  if p_body->>'event_type'='taskDeleted' then
+   delete from clickup_gate.task_queue where task_id=tid;
+   update public.clickup_order_creation_registry g set status='needs_check',last_error='REGISTERED_TASK_REMOVED',completed_at=null,next_verify_at=now(),auto_attempts=0,updated_at=now() where exists(select 1 from jsonb_each(g.tasks) e where e.value->>'task_id'=tid);
+   return jsonb_build_object('ok',true);
+  end if;
   if p_body->>'error' is not null then
    update clickup_gate.task_queue set last_error=left(p_body->>'error',100),run_after=now()+interval '2 minutes' where task_id=tid;
    return jsonb_build_object('ok',true);
