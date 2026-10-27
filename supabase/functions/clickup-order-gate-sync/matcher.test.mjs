@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {coverage} from './matcher.ts';
+const SET='2670446d-5e5a-48ac-931d-c2be790d6b3b',SKU='34c62cbb-c174-42e8-9c50-8301f68269a8';
+const task=(sku,set)=>({custom_fields:[{id:SKU,value:sku},...(set?[{id:SET,value:[set],type_config:{options:[{id:set,label:set}]}}]:[])]});
+assert.equal(coverage([task('')],[{sku:'A'}]),true);
+assert.equal(coverage([task('A')],[{sku:'A'},{sku:'B'}]),false);
+assert.equal(coverage([task('A'),task('A')],[{sku:'A'}]),false);
+assert.equal(coverage([task('','set1'),task('','set2')],[{sku:'A'},{sku:'B'}]),true);
+assert.equal(coverage([task('','set1'),task('','set1')],[{sku:'A'},{sku:'B'}]),false);
+assert.equal(coverage([task('A'),task('B')],[{sku:'A'},{sku:'B'}]),true);
+assert.equal(coverage([task('A'),task('A')],[{sku:'A',variation:'Red'},{sku:'A',variation:'Blue'}]),false);
+assert.equal(coverage([task('.'),task('.')],[{variation_sku:'.'},{variation_sku:'.'}]),false);
+assert.equal(coverage([],[]),false);
+console.log('9 item-coverage checks passed');
