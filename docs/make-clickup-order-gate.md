@@ -1,63 +1,46 @@
-# Make.com: ClickUp order creation gate
+# Make.com: ClickUp order gate — single HTTP setup
+Live in Supabase project buivecgahhmrhlmfujgt, updated 2026-10-27.
 
-Deployed 2026-10-27 to project buivecgahhmrhlmfujgt.
+## Make setup (only this module is required)
+Webhook full order -> Sleep 30 seconds (optional) -> HTTP claim -> filter allow_create Is true -> existing Router / Iterator / Create Task flow.
 
-Endpoint: https://buivecgahhmrhlmfujgt.supabase.co/functions/v1/clickup-order-gate
-Method: POST
+POST https://buivecgahhmrhlmfujgt.supabase.co/functions/v1/clickup-order-gate
 Content-Type: application/json
-Header: x-order-gate-key (use the private value supplied in ChatGPT; never commit it)
-Parse response: Yes. Timeout: 40 seconds where supported.
-The Edge Function uses its own authentication; deploy with verify_jwt=false / --no-verify-jwt.
-
-## Scenario placement
-Full-order webhook (orderno + address + product[]) -> HTTP claim -> filter allow_create Boolean equals true -> existing router/iterator -> create ClickUp task -> fill mandatory Order ID custom field -> HTTP register_task per task -> existing required flow steps -> per-order aggregator -> HTTP finish.
-Only gate task creation. Other independent delivery/status update routes should continue normally.
-Existing gate table: public.clickup_order_creation_registry.
-Order ID is the only order/customer business value stored; all other fields are operational metadata and task IDs.
-
-## 1. Claim before every router/iterator that creates tasks
+Header x-order-gate-key: use the existing private key supplied to the owner; never commit it.
+Body:
 {"action":"claim","order_id":"MAP_ORDERNO"}
-Map MAP_ORDERNO to the original webhook orderno. Do not shorten order IDs.
-Optional expected_tasks is the planned number of tasks, not quantity.
-New: {"ok":true,"allow_create":true,"run_id":"...","status":"processing"}
-Existing (including incomplete): {"ok":true,"allow_create":false,"reason":"order_already_claimed",...}
-Add an AND filter: ok = Boolean true AND allow_create = Boolean true.
-Preserve run_id for the whole execution. Do not use a second exists-then-insert flow.
-On timeout retry the same claim module, but do not bypass the filter. An uncertain claim is fail-closed and may need manual inspection.
-If expected task count is known, action set_expected with order_id, run_id, expected_tasks may be called before the iterator.
+Parse response: Yes.
+Map MAP_ORDERNO to the original full orderno. Filter data.allow_create using Boolean operators: Is true.
+The existing URL, key and JSON body are unchanged. No register_task, finish or aggregator HTTP modules are required for this setup.
 
-## 2. Register each successfully created task
-After the Order ID / customer name CF has been populated, POST:
-{"action":"register_task","order_id":"MAP_ORDERNO","run_id":"MAP_CLAIM_RUN_ID","task_key":"MAP_STABLE_ITEM_KEY","clickup_task_id":"MAP_CREATE_TASK_ID"}
-Use the returned task.id, not the ClickUp custom ID or order ID.
-task_key must identify the task-producing item/group consistently: item ID + variation + original iterator position, or a fixed route/group identifier for grouped tasks. It must differ for two intended tasks. A quantity of 3 does not necessarily mean three tasks.
-The endpoint reads ClickUp directly and validates the task's order CF and list before registering it. Allowed lists are ORDER LIST 18375902 and completed archive 901612769752.
-Retried registration of the same key + task ID is safe.
-409 TASK_KEY_CONFLICT means the same logical item is being registered with a different task ID; stop and inspect.
-409 TASK_ORDER_MISMATCH can mean the CF is not populated yet. Retry registration after the CF write, never rerun Create Task to fix it.
+## Backend confirmation
+Two direct ClickUp API webhooks are registered, scoped to ORDER LIST 18375902 and completed archive 901612769752. Events: taskCreated, taskUpdated, taskMoved, taskDeleted.
+Callback: https://buivecgahhmrhlmfujgt.supabase.co/functions/v1/clickup-order-gate-sync
+The raw request body is authenticated against ClickUp X-Signature (HMAC SHA-256). Secrets remain in the private clickup_gate schema. Task events are debounced and reconciled via live ClickUp API reads.
+A Supabase cron runs every minute and dispatches the authenticated worker only when there is queued work.
+Pending claimed orders are checked through exact Order ID custom-field filters in both lists. The implementation additionally matches the returned field value exactly and handles pagination.
+The expected task count comes from existing full-order detail product[] rows (not total quantity), unless explicitly supplied. For multiple items, complete set1..setN coverage or a unique SKU/variation assignment is required.
+An order becomes task_complete_created after two consistent live snapshots at least 60 seconds apart, after the claim is at least 90 seconds old.
+This verifies creation of the expected tasks, not completion of every downstream Make module or production work.
+Missing details, missing tasks, ambiguous multi-item matches and extra tasks stay partial / needs_check; none of these reopen the creation lock.
+Grouped-task scenarios where one task represents several product rows may need manual review of expected count; the system does not assume success.
+Per-run read budget is 24 provider requests. Per-order attempts are bounded (30); webhook task reads retry up to 8 times. No unbounded AI/automatic task creation is used.
 
-## 3. Finish ONCE per order after the entire route is finished
-Use an aggregator (group by order_id) or another once-per-order finalization point AFTER all expected branches/tasks.
-{"action":"finish","order_id":"MAP_ORDERNO","run_id":"MAP_CLAIM_RUN_ID","expected_tasks":2}
-Map 2 to the intended number of tasks from routing. Do not derive this solely from successful bundles if errors were ignored, because that could hide a missing item.
-Do not put finish independently after each iteration.
-Completion: {"ok":true,"status":"task_complete_created","complete":true,...}
-If tasks are missing, complete=false; the order remains locked.
+## Registry and status
+Table: public.clickup_order_creation_registry.
+Status request using the same Make URL and header:
+{"action":"status","order_id":"MAP_ORDERNO"}
+Order IDs and operational task metadata only are stored in the registry.
+The public callback endpoint does not accept the Make key as a substitute for a ClickUp signature.
+No new customer order or ClickUp task is created by the confirmation worker.
+No production task status is changed.
+The legacy register_task / finish endpoints remain available but are not required by the single-call setup.
+A task-creation timeout is still an uncertain remote write: inspect ClickUp before retrying that Create Task module.
 
-## Errors and status
-POST {"action":"status","order_id":"MAP_ORDERNO"} to inspect.
-For failure, use an error-handler route:
-{"action":"fail","order_id":"MAP_ORDERNO","run_id":"MAP_CLAIM_RUN_ID","error":"MAKE_FLOW_FAILED"}
-No automatic unlock / expiry / reset is exposed. needs_check blocks new creation.
-Do not configure automatic retry of an uncertain Create Task request without first checking whether ClickUp created it. Retrying register_task/finish is safe; a new Create Task is a new remote write.
-Updating an existing order and creation of tasks are separate concerns.
-
-## ClickUp webhook
-A database trigger on clickup_webhook_events records observed task IDs for matching Order ID CF a8996f77-fcf9-4804-84bb-89f97905473d. It supports taskUpdated payloads and taskCreated payloads that reach the existing ingest route.
-The currently observed pipeline has taskUpdated events; no new ClickUp webhook subscription was registered by this change. register_task uses live API verification so completion does not depend on webhook delivery.
-task_complete_created is registry status only; no production task status is changed.
-
-## Bootstrap and verification
-41 active-order records plus one two-task order were initialized: 42 pre-existing orders total at rollout.
-Tests: 8 concurrent public HTTP claim calls allowed one execution and blocked seven; invalid API key ->401; 2-task verification remained partial after one and completed after two; repeated register did not inflate counts; conflicting task key and wrong run rejected; existing webhook observer tested in a rolled-back transaction; anon/authenticated table and RPC access denied.
-No test ClickUp tasks were created, and synthetic registry rows were deleted.
+## Verified rollout
+The original claim lock passed 8 concurrent calls (one allowed, seven blocked).
+Coverage tests include single item, complete sets, missing items, duplicate sets, duplicate tasks, unique SKU assignments and ambiguous variants.
+Database tests reject premature completion, reject ambiguous coverage, confirm complete pairs and flag extra tasks; test changes are rolled back.
+Unsigned native callback requests return HTTP 401.
+Native taskUpdated events have been received directly from ClickUp after webhook registration.
+The cron and worker require no additional Make module.
