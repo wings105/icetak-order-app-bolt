@@ -1,1 +1,1 @@
-Retry production frontend rebuild — 2026-10-03 18:36 MYT, requested by owner after Cloudflare Workers Builds incident entered monitoring. Publish existing verified Finance Sales SKU release and subsequent production changes. No application behavior changes in this trigger.
+Retry production frontend build — 2026-10-28. Publish verified Task Workspace reference panel release after the first production Workers Build failed. No application behavior changes.
