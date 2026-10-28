@@ -24,7 +24,7 @@ export default defineConfig({
     target: 'es2020',
     rollupOptions: {
       maxParallelFileOps: 128,
-      input: { main: path.resolve(__dirname, 'index.html'), mockup: path.resolve(__dirname, 'mockup/index.html'), 'acrylic-production': path.resolve(__dirname, 'acrylic-production/index.html'), roadmap: path.resolve(__dirname, 'roadmap/index.html'), 'task-workspace': path.resolve(__dirname, 'task-workspace/index.html'), 'workspace-qa': path.resolve(__dirname, 'workspace-qa/index.html') },
+      input: { main: path.resolve(__dirname, 'index.html'), mockup: path.resolve(__dirname, 'mockup/index.html'), 'acrylic-production': path.resolve(__dirname, 'acrylic-production/index.html'), roadmap: path.resolve(__dirname, 'roadmap/index.html'), 'task-workspace': path.resolve(__dirname, 'task-workspace/index.html') },
     },
   },
 });

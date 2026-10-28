@@ -5,18 +5,6 @@ type Item={task_id:string;title:string;customize_name?:string;sku?:string;awb_ur
 type Preview={order_id:string;items:Item[];updated_at:string;actions?:ActionAvailability};
 const root=document.getElementById('app')!;
 const orderId=(new URLSearchParams(location.search).get('awbpreview')||'').trim();
-// Temporary preview-only fixture: intercept only synthetic QA order traffic.
-if(orderId==='QA-SAMPLE-2'){
- const realFetch=window.fetch.bind(window);
- window.fetch=async(input,init)=>{
-  const url=typeof input==='string'?input:input instanceof URL?input.href:input.url;
-  if(url.includes('/functions/v1/awb-preview')){
-   if(init?.method==='POST'){await new Promise(resolve=>setTimeout(resolve,10000));return Response.json({ok:true});}
-   return Response.json({order_id:orderId,items:[{task_id:'qa-preview-task',title:'QA Reference 2',sku:'QA-SKU',set:1,images:[]}],actions:{enabled:true,token:'qa-only'}});
-  }
-  return realFetch(input,init);
- };
-}
 const env=(import.meta as any).env||{};
 const base=env.VITE_SUPABASE_URL||'https://buivecgahhmrhlmfujgt.supabase.co';
 let generation=0;
