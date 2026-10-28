@@ -5,6 +5,18 @@ type Item={task_id:string;title:string;customize_name?:string;sku?:string;awb_ur
 type Preview={order_id:string;items:Item[];updated_at:string;actions?:ActionAvailability};
 const root=document.getElementById('app')!;
 const orderId=(new URLSearchParams(location.search).get('awbpreview')||'').trim();
+// Temporary preview-only fixture: intercept only synthetic QA order traffic.
+if(orderId==='QA-SAMPLE-2'){
+ const realFetch=window.fetch.bind(window);
+ window.fetch=async(input,init)=>{
+  const url=typeof input==='string'?input:input instanceof URL?input.href:input.url;
+  if(url.includes('/functions/v1/awb-preview')){
+   if(init?.method==='POST'){await new Promise(resolve=>setTimeout(resolve,10000));return Response.json({ok:true});}
+   return Response.json({order_id:orderId,items:[{task_id:'qa-preview-task',title:'QA Reference 2',sku:'QA-SKU',set:1,images:[]}],actions:{enabled:true,token:'qa-only'}});
+  }
+  return realFetch(input,init);
+ };
+}
 const env=(import.meta as any).env||{};
 const base=env.VITE_SUPABASE_URL||'https://buivecgahhmrhlmfujgt.supabase.co';
 let generation=0;
@@ -12,6 +24,7 @@ let printingAwb=false;
 let sendingAction=false;
 let actionControls:ReturnType<typeof bindTaskActions>|undefined;
 let copyFeedbackTimer:ReturnType<typeof setTimeout>;
+function notifyParentBusy(){if(window.parent!==window)window.parent.postMessage({type:'icetak:awb-preview-busy',busy:printingAwb||sendingAction},location.origin);}
 document.body.classList.add('awb-preview-page');
 document.title=`Reference Order ${orderId}`;
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
@@ -45,14 +58,14 @@ function renderAwbLinks(items:Item[]){
  for(const button of root.querySelectorAll<HTMLButtonElement>('[data-awb-index]'))button.addEventListener('click',()=>void printAwb(awbs[Number(button.dataset.awbIndex)],button));
 }
 async function printAwb(item:Item,button:HTMLButtonElement){
- if(printingAwb||sendingAction)return;printingAwb=true;actionControls?.setBusy(true);
+ if(printingAwb||sendingAction)return;printingAwb=true;notifyParentBusy();actionControls?.setBusy(true);
  const current=generation,label=button.textContent;
  const controls=Array.from(root.querySelectorAll<HTMLButtonElement>('[data-awb-index],#awb-refresh'));
  controls.forEach(control=>control.disabled=true);button.textContent='Memuat AWB…';
  const status=root.querySelector<HTMLElement>('#awb-link-status')!;status.textContent='Memuat PDF AWB untuk cetak…';
  try{await printAwbPdf(base,orderId,item.task_id);if(current===generation)status.textContent='Popup print AWB dibuka.';}
  catch(error){if(current===generation){status.textContent=error instanceof Error?error.message:'Print AWB gagal. Cuba semula.';const link=document.createElement('a');link.href=item.awb_url!;link.target='_blank';link.rel='noopener noreferrer';link.textContent=' Buka PDF';status.append(link);}}
- finally{printingAwb=false;actionControls?.setBusy(false);if(current===generation){controls.forEach(control=>control.disabled=false);button.textContent=label;}}
+ finally{printingAwb=false;notifyParentBusy();actionControls?.setBusy(false);if(current===generation){controls.forEach(control=>control.disabled=false);button.textContent=label;}}
 }
 async function load(){
  if(printingAwb||sendingAction)return;actionControls=undefined;
@@ -73,7 +86,7 @@ async function load(){
    }).join('')}</main>`);
   }
   content.innerHTML=pages.join('');
-  actionControls=bindTaskActions(root,base,orderId,data.items.map(item=>item.task_id),data.actions,busy=>{sendingAction=busy;for(const control of root.querySelectorAll<HTMLButtonElement>('#awb-refresh,[data-awb-index]'))control.disabled=busy;});
+  actionControls=bindTaskActions(root,base,orderId,data.items.map(item=>item.task_id),data.actions,busy=>{sendingAction=busy;notifyParentBusy();for(const control of root.querySelectorAll<HTMLButtonElement>('#awb-refresh,[data-awb-index]'))control.disabled=busy;});
   for(const button of content.querySelectorAll<HTMLButtonElement>('[data-copy-index]'))button.addEventListener('click',()=>void copyText(data.items[Number(button.dataset.copyIndex)].title,button));
   for(const button of content.querySelectorAll<HTMLButtonElement>('[data-sku-index]'))button.addEventListener('click',()=>void copyText(data.items[Number(button.dataset.skuIndex)].sku!,button,'SKU'));
   const images=Array.from(content.querySelectorAll<HTMLImageElement>('img'));
