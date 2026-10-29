@@ -340,3 +340,7 @@ Owner requests durable per-item AI audit history distinct from release changelog
 ## 2026-10-29 — Physical stocktake reconciles past prepared/fulfilled work
 
 An owner-confirmed raw-material count already includes earlier production usage. If source detail/material identity and every material cutoff prove that preparation or fulfillment preceded the count, release that enrolled order through the audited accounted/excluded path instead of reserving or consuming it again. An actual pickup collection is physical fulfillment evidence independently of notification delivery. Preserve the sent-ready guard for normal pre-count pickup consumption. Fulfilled mapping gaps remain explicit consumption-review issues, with no future reserve. Never infer a rate, colour or opening quantity, and never return consumed raw material on cancellation.
+
+## 2026-10-29 — Inventory price evidence and missing source items
+
+Apply the owner's explicit edible standard-MYR-value formula inside the existing private resolver; do not derive physical use from discounts, shipping, foreign currency or a shared bundle amount. Preserve acrylic colour/size selection and fulfilled receipts. Canonical completed production can establish a later-stocktake baseline without becoming shipping evidence. Keep source recovery inside the existing stock worker and private Inbox provider reader, with exact existing-order response proof, canonical item provenance and bounded retries. Item completeness and full customer/financial detail completeness remain distinct. See STOCK_MANAGEMENT.md.
