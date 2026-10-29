@@ -2,7 +2,7 @@
 begin;
 do $verify$
 declare oid uuid:=gen_random_uuid(); sn text:='261001QA'||upper(substr(gen_random_uuid()::text,1,6));
- response_id bigint:=-1-floor(random()*100000000)::bigint; payload jsonb; answer jsonb; before_audits bigint; raw_before jsonb;
+ response_id bigint:=-1-floor(random()*100000000)::bigint; payload jsonb; answer jsonb; before_audits bigint; raw_before jsonb; rejected boolean;
 begin
  perform pg_advisory_xact_lock(hashtextextended('stock:writer',0));
  select jsonb_object_agg(code,on_hand) into raw_before from stock.materials;
@@ -13,6 +13,18 @@ begin
  'order_sn',sn,'shop_id','188218638','currency','MYR','status','READY_TO_SHIP','create_time',extract(epoch from now())::bigint,
  'items',jsonb_build_array(jsonb_build_object('item_id','123','model_id','456','sku','edible','model_sku','edible-A4','model','A4','title','Edible Image','quantity',2,'unit_original_price',24,'unit_discounted_price',0)))));
  insert into net._http_response(id,status_code,content,created,timed_out) values(response_id,200,payload::text,now(),false);
+ rejected:=false;
+ begin perform stock.recover_items(response_id,null,'verification-rollback');exception when others then if sqlerrm<>'EXACT_ORDERS_REQUIRED' then raise;end if;rejected:=true;end;
+ if not rejected then raise exception 'Null expected-order set accepted';end if;
+ update net._http_response set content=(payload-'ok')::text where id=response_id;
+ rejected:=false;
+ begin perform stock.recover_items(response_id,jsonb_build_array(sn),'verification-rollback');exception when others then if sqlerrm<>'PROVIDER_RESPONSE_REQUIRED' then raise;end if;rejected:=true;end;
+ if not rejected then raise exception 'Missing explicit success proof accepted';end if;
+ update net._http_response set content=payload::text,created=now()-interval '2 hours' where id=response_id;
+ rejected:=false;
+ begin perform stock.recover_items(response_id,jsonb_build_array(sn),'verification-rollback');exception when others then if sqlerrm<>'PROVIDER_RESPONSE_REQUIRED' then raise;end if;rejected:=true;end;
+ if not rejected then raise exception 'Stale provider proof accepted';end if;
+ update net._http_response set created=now() where id=response_id;
  insert into stock.item_recovery(order_id,shop_id,reference,status,attempts,response_id,available_at)
  values(oid,'188218638',sn,'reading',1,response_id,now()+interval '2 minutes');
  perform stock.recovery_tick();
