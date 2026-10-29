@@ -1,3 +1,7 @@
+# 2026-10-29 — Material stock reconciliation
+
+- [VERIFIED] Material stock uses server-ranked critical balances, ledger/allocation checks and incomplete-usage warnings; canonical status/item/history events release or consume reservations correctly, with a newer-stocktake guard. Owner-confirmed standard glossy usage is one A4 plus equal tape; unconfirmed sizes remain reviewable. Native rolled-back ledger/replay checks and controlled desktop/mobile Stock interactions pass. Hosted release and signed-in operator acceptance are tracked separately; see `docs/STOCK_MANAGEMENT.md`.
+
 # 2026-10-28 — Task Workspace reference side panel
 
 - [VERIFIED controlled UI] Task clicks can open the existing order reference page in the right panel or the normal task panel. The selected mode is remembered per browser, and a missing order reference offers the normal panel. The exact same-origin reference page retains its existing print and action controls; navigation waits for in-flight reference actions or AWB retrieval. A hosted desktop preview exercised both modes, persistence, task switching, missing-order handling, the real reference display and a synthetic in-flight action; Print AWB reached its popup handoff. Admin and root/Inbox builds plus Workspace/station/AWB checks pass. Mobile, hosted signed-in operator acceptance and physical printing remain unverified. See docs/TASK_WORKSPACE_SIDE_PANEL.md.
