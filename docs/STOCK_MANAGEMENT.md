@@ -1,5 +1,17 @@
 # Stock management
 
+## 29 October 2026 — stock movement reconciliation
+
+Backend verified against native private-stock fixtures, rolled back after each run. A read-only replay of twenty actual consumed records produces no new movements or balance changes. Controlled rendering of the actual Stock component passes at 1440×1000 and 390×844; signed-in hosted operator acceptance remains pending.
+
+- The private `stock.material_health` / `stock.snapshot` read model ranks mismatches, deficits, empty/low stock and incomplete usage before healthy or uncounted manual supplies. It compares physical/reserved totals with both the immutable ledger and active allocations. Unresolved usage is visible beside the affected material; an unconfirmed balance is never presented as complete. Missing opening counts for automatic materials and uncounted manual supplies are separate counts.
+- The owner confirmed one standard glossy set (`1pc`, including a standard glossy line without an explicit size) uses one A4-equivalent sheet, with equal double tape. Explicit custom sizes remain review items. Unconfirmed edible/wafer inch rates are not inferred from selling prices. Parenthesized Lilac choices are normalized.
+- Order `admin_status` and `fulfillment_stage`, item ownership/variation identities and first marketplace shipping history now enqueue the same stock worker. Item moves enqueue both source orders. Waiting/cancelled orders release unconsumed reservations. Removed final lines release their old reserve and retain a detail-review issue; mixed unresolved orders reserve their known lines without pretending all usage is complete.
+- Earliest recorded shipping/ready-notice evidence and a newer physical-stocktake boundary prevent late mapping from subtracting usage already covered by a subsequent count. Older usage needs an explicit reconciliation. Existing fulfilled deductions stay frozen; cancellation after consumption never returns raw material automatically.
+- Movement history shows balances after each processing timestamp, source/order references and independent pagination. Review issues have complete paging, code/active-order filters and reusable size/shape forms. The UI refreshes each minute while visible and on returning to the tab.
+
+Verification: `supabase/tests/stock_reconciliation.sql`, `npm run check:stock-admin`, root/customer/Inbox production build, Admin build, critical sorting/search, purchase retry with the same UUID, 110-issue paging/filtering, rule prefill, movement totals and mobile page-width checks. The controlled browser cannot fetch Google Fonts in this environment; the fallback font renders correctly and no application runtime error occurs. Backend reconciliation may reveal negative stock when recorded purchases/counts do not cover previously unprocessed real usage. Resolve this through a real purchase or physical count, never an invented opening balance. The private schema and service-only invoker/JWT gateway boundary are retained.
+
 Status: backend and hosted frontend delivery PRODUCTION; controlled Admin V2 rendering VERIFIED. Owner authorized publication on 14 October 2026. Authenticated hosted owner interaction remains unexercised.
 
 ## Owner contract (14 October 2026)

@@ -1,3 +1,7 @@
+# 2026-10-29 — Material stock reconciliation
+
+Backend ACTIVE and native private-ledger/replay behavior VERIFIED; controlled Stock desktop/mobile interactions VERIFIED. Critical sorting and usage completeness come from a private service-only read model; status/item/history event coverage, reservation release, stocktake cutoff, owner-confirmed glossy/tape usage and paged review/movement history are active. Unknown inch rates and actual physical-count/purchase reconciliation remain explicit operational work. Hosted frontend delivery is pending this release; signed-in owner acceptance remains unexercised. See [stock contract](STOCK_MANAGEMENT.md).
+
 # 2026-10-27 — Acrylic production ClickUp actions
 
 VERIFIED controlled full Admin desktop/mobile. Task cards set Finished/AWB Review Customer options or complete the exact ClickUp task through existing active JWT task-clickup v4, private API credentials, permissions/revision/receipt/readback safeguards and source projections. No new backend deployment or migration. Public standalone display remains read-only. Root/Inbox and Admin builds, production/ClickUp regressions and controlled action/error/recovery checks pass. Hosted delivery and signed-in operator acceptance are tracked in the release PR. See [production contract](ACRYLIC_PRODUCTION.md).
