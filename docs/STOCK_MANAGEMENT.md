@@ -1,5 +1,13 @@
 # Stock management
 
+## 29 October 2026 — active reservation order drilldown
+
+The Stock page links each material's Reserve quantity to a read-only `Reserve aktif` tab. The Order reserve metric opens all active reserved orders. Each order shows its canonical reference/status, source channel, reserved material quantities and last reserve update, with the existing authenticated iCetak order or Shopee search route opening in a new tab. Material/order filters and independent hundred-order pagination retain the complete matching order count and per-material totals.
+
+The private service-only `stock.reservations` read model groups only current reserved allocations, combines repeated material lines within the same order and excludes released/consumed rows. The existing Stock snapshot includes this detail only when requested. Its access remains behind the unchanged JWT active-admin gateway; no inventory or order write is introduced. Filter signatures and the existing request revision guard prevent a slower response from displaying another material's orders.
+
+Verification: native `stock_reservations.sql` exercises distinct orders, exact sums, released/consumed exclusion, search/empty states, multiple pages, snapshot opt-in and private grants. Live allocation/material/order totals agree. Actual Stock component at desktop and mobile passes material/metric drilldowns, all-material reset, order search, both order links and popup, a hundred-plus-order page, empty results, stale-response and error/retry behavior, with no page overflow or application errors. The Browser plugin is unavailable; the existing regular Playwright runtime exercises controlled transport. Hosted signed-in operator acceptance remains pending.
+
 ## 29 October 2026 — owner-approved price formula and source recovery
 
 The owner now explicitly approves edible stock usage from standard MYR merchandise value: saved standard unit price × ordered quantity ÷ RM24, in A4-equivalent sheets. The source carries the original item price separately from discounted totals; delivery, vouchers, settlements and order-level adjustments do not enter the calculation. The known urgent review surcharge is removed using the existing storefront price contract. Explicit item overrides remain authoritative. A foreign-currency price is never treated as MYR, and a Burn Away bundle amount is never charged to both layers. Existing acrylic size/selected-colour rules and glossy/equal-tape rules remain in force. Custom non-edible usage without an approved rule stays reviewable.
