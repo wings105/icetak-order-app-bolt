@@ -1,5 +1,15 @@
 # Stock management
 
+## 29 October 2026 — counted and fulfilled reservations
+
+A confirmed physical count is the new baseline for raw material. Prepared pickup work and shipping/collection completed before that count do not reserve material for future work or subtract it from that count a second time. The private service-only `stock.count_covers_order` requires complete source detail, valid quantities, an identified material for every automatic line, and a count at or after physical evidence for every material, including glossy and tape separately. It never invents an inch/custom rate or an acrylic colour. Owner-managed manual-only lines retain their exemption.
+
+The processor reconciles a count-covered enrolled order through the existing excluded/release path and appends a private cutoff audit. Actual `pickup_collected_at` is physical fulfillment evidence even when an older ready notification is missing. Pickup readiness without a sent current notification keeps the normal future deduction guard; it is accounted by a subsequent confirmed count only when every material cutoff is proven. New stocktakes wake blocked work through the existing bounded queue.
+
+Fulfilled orders with unresolved sibling items release future reservations and keep explicit consumption-review issues. A pending-material list marks all affected known materials incomplete, including material whose own mapping is valid. It does not conceal missing usage or change raw balances. Already-consumed receipts, source identity linking, cancellation behavior, private grants, and customer/payment/shipping records remain intact.
+
+Verification: native `stock_counted_reservations.sql` covers cutoff/material/quantity/privacy failures, actual enrolled reservation replay, unchanged physical quantities, exact ledger/allocation sums, no fulfilled/count-covered-prepared reserves, and no second movement on replay; all effects revert. Existing native `stock_reconciliation.sql` and gateway role/retry checks pass. The authorized live cohort reconciliation preserves confirmed raw quantities and leaves only canonical unprepared To Ship reservations. No customer message is sent. There is no frontend change; protected hosted operator interaction remains outside this backend verification.
+
 ## 29 October 2026 — stock movement reconciliation
 
 Backend verified against native private-stock fixtures, rolled back after each run. A read-only replay of twenty actual consumed records produces no new movements or balance changes. Controlled rendering of the actual Stock component passes at 1440×1000 and 390×844; signed-in hosted operator acceptance remains pending.

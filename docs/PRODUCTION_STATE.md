@@ -1,6 +1,6 @@
 # 2026-10-29 — Material stock reconciliation
 
-Backend ACTIVE and native private-ledger/replay behavior VERIFIED; controlled Stock desktop/mobile interactions VERIFIED. Critical sorting and usage completeness come from a private service-only read model; status/item/history event coverage, reservation release, stocktake cutoff, owner-confirmed glossy/tape usage and paged review/movement history are active. Unknown inch rates and actual physical-count/purchase reconciliation remain explicit operational work. Hosted frontend delivery is pending this release; signed-in owner acceptance remains unexercised. See [stock contract](STOCK_MANAGEMENT.md).
+Backend and hosted frontend delivery PRODUCTION (PR #140); controlled Stock desktop/mobile behavior VERIFIED. A follow-up backend correction accounts count-covered prepared/fulfilled work through audited reserve releases, recognizes actual pickup collection, wakes blocked work after counts, and keeps unresolved consumption out of future reserves. Native private fixtures, actual enrolled reservation replay, unchanged physical balances, ledger sums and replay idempotency are verified. The source release tracks this database-only correction; no frontend/notification/customer/payment mutation is introduced. Unknown inch rates and signed-in operator acceptance remain pending. See [stock contract](STOCK_MANAGEMENT.md).
 
 # 2026-10-27 — Acrylic production ClickUp actions
 
