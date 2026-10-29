@@ -1,5 +1,7 @@
 # 2026-10-29 — Material stock reconciliation
 
+Active reservation drilldown: private read ACTIVE and controlled Stock desktop/mobile VERIFIED. Material Reserve quantities and the order metric open the same paged, filtered current-allocation read model with exact material totals, canonical statuses and authenticated order links. Native/live sum and privacy checks, rendered navigation/search/pagination/stale/error/retry flows pass. No balance/order mutation is added. Hosted delivery is tracked in this release PR; signed-in operator acceptance remains pending.
+
 Backend and hosted frontend delivery PRODUCTION (PR #140); controlled Stock desktop/mobile behavior VERIFIED. Later backend corrections retain count-covered releases, actual collection, blocked-work wakeup and explicit pending consumption. The owner-approved edible standard-MYR-price formula is active. Canonical completed production establishes a later-count cutoff without marking shipping. Existing private Shopee audit reader exact-order mode and the every-minute stock worker recover missing canonical item/original-price facts with bounded retries, item-only completeness and idempotent audit. Native price/source/ledger tests, actual signed reads, source recovery, replay and unchanged confirmed physical quantities are verified. No frontend or customer/payment/shipping/provider-write action is added. Custom usage, mixed historical count boundaries and signed-in operator acceptance remain pending. See [stock contract](STOCK_MANAGEMENT.md).
 
 # 2026-10-27 — Acrylic production ClickUp actions
