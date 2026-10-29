@@ -1,5 +1,7 @@
 # 2026-10-29 — Material stock reconciliation
 
+- [PRODUCTION backend] Count-covered prepared/fulfilled orders release stale reserves without another raw-stock deduction; actual collection timestamps are recognized, stocktakes wake blocked work, and unresolved fulfilled usage stays reviewable instead of reserving future material. Native cutoff/privacy/cohort replay and unchanged physical-balance checks pass. Existing consumed receipts and notification guards are retained. See `docs/STOCK_MANAGEMENT.md`.
+
 - [VERIFIED] Material stock uses server-ranked critical balances, ledger/allocation checks and incomplete-usage warnings; canonical status/item/history events release or consume reservations correctly, with a newer-stocktake guard. Owner-confirmed standard glossy usage is one A4 plus equal tape; unconfirmed sizes remain reviewable. Native rolled-back ledger/replay checks and controlled desktop/mobile Stock interactions pass. Hosted release and signed-in operator acceptance are tracked separately; see `docs/STOCK_MANAGEMENT.md`.
 
 # 2026-10-28 — Task Workspace reference side panel
