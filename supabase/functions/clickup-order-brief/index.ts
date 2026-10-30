@@ -52,24 +52,24 @@ const CF={
  ai:"d84d57b3-41f3-473d-b502-4e7bf45ace0c",
  confirmed:"afa87c64-3e48-4056-b720-cf8ea9b243e8"
 };
-const normalized=(s:unknown)=>string(s,4000).toLocaleLowerCase().replace(/\\s+/g," ").trim();
+const normalized=(s:unknown)=>string(s,4000).toLocaleLowerCase().replace(/\s+/g," ").trim();
 const field=(task:Obj,name:string)=>(task.custom_fields||[]).find((x:Obj)=>String(x.name||"").toLowerCase()===name.toLowerCase());
 const fieldChecked=(x:Obj|undefined)=>x?.value===true||x?.value==="true"||x?.value===1||x?.value==="1";
 function extractInstruction(text:string){
- const match=text.match(/(?:^|\\n|[;,])\\s*(?:wording|nama|name|tulisan|text|ayat|write|tulis)\\s*[:=\\-]\\s*([^\\n;]{2,180})/i);
+ const match=text.match(/(?:^|\n|[;,])\s*(?:wording|nama|name|tulisan|text|ayat|write|tulis)\s*[:=\-]\s*([^\n;]{2,180})/i);
  return match?match[1].trim():"";
 }
 function noteWording(note:string){
  const explicit=extractInstruction(note);
  if(explicit)return explicit;
- if(note.length<=130&&!/\\b(?:alamat|address|postage|poslaju|parcel|tracking|postcode|telefon|phone)\\b/i.test(note))return note.trim();
+ if(note.length<=130&&!/\b(?:alamat|address|postage|poslaju|parcel|tracking|postcode|telefon|phone)\b/i.test(note))return note.trim();
  return "";
 }
 function isUnimportant(text:string){
- return /^(?:ok(?:ay)?|baik|noted|terima kasih(?: banyak)?|thank(?:s| you)(?: so much)?|tq|ty|haha|hehe|👍|🙏|✅|👌|sudah|done|alright|baiklah|sama-sama)[!.\\s🙏👍👌✅]*$/i.test(text.trim());
+ return /^(?:ok(?:ay)?|baik|noted|terima kasih(?: banyak)?|thank(?:s| you)(?: so much)?|tq|ty|haha|hehe|👍|🙏|✅|👌|sudah|done|alright|baiklah|sama-sama)[!.\s🙏👍👌✅]*$/i.test(text.trim());
 }
 function mayNeedChange(text:string){
- return /\\b(?:tukar|ubah|change|edit|replace|instead|silap|salah|wrong|correct|betul\\s+semula|sepatutnya|jangan\\s+guna|use\\s+this|guna\\s+yang|new\\s+wording|new\\s+name|nama\\s+baru|tambah|buang|remove|add)\\b/i.test(text)||!!extractInstruction(text);
+ return /\b(?:tukar|ubah|change|edit|replace|instead|silap|salah|wrong|correct|betul\s+semula|sepatutnya|jangan\s+guna|use\s+this|guna\s+yang|new\s+wording|new\s+name|nama\s+baru|tambah|buang|remove|add)\b/i.test(text)||!!extractInstruction(text);
 }
 function briefText(taskId:string,wording:string,image:string,confirmed:boolean,confidence:number,note:string,proof:Obj[]){
  const lines=[
@@ -88,7 +88,7 @@ function briefText(taskId:string,wording:string,image:string,confirmed:boolean,c
   const label=string(m.channel||"Chat",30),at=string(m.created_at,35);
   lines.push(at+" ["+label+"] "+string(m.text_content||m.caption||"(gambar)",210));
  }
- return lines.join("\\n").slice(0,4700);
+ return lines.join("\n").slice(0,4700);
 }
 async function loadChat(placed:string,buyerId:string,phone:string,key:string,reference:string,bridge:string){
  if(!placed)return {messages:[],bindings:[],unavailable:true};
@@ -281,9 +281,9 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    const changeMarker="[iCetak-Change:"+id+":"+m.id+"]";
    const commentsNow=await clickup(clickupToken,"task/"+id+"/comment");
    if((commentsNow.comments||[]).some((c:Obj)=>contains(c.comment,changeMarker)))continue;
-   const body=changeMarker+"\\n⚠️ Semak perubahan design\\n"+
+   const body=changeMarker+"\n⚠️ Semak perubahan design\n"+
     string(m.created_at,40)+" ["+string(m.channel,24)+"] "+
-    string(m.text_content||m.caption,600)+"\\nReview manual sebelum edit.";
+    string(m.text_content||m.caption,600)+"\nReview manual sebelum edit.";
    const sent=await clickup(clickupToken,"task/"+id+"/comment","POST",{comment_text:body,notify_all:false});
    if(!sent?.id)throw Error("CHANGE_COMMENT_UNCERTAIN");
   }
