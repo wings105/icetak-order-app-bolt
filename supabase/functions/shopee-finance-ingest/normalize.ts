@@ -4,7 +4,7 @@ export function object(value: unknown): value is RecordValue {
 }
 
 const AMOUNTS: Record<string, string[]> = {
-  product_subtotal: ["product_subtotal", "merchandise_subtotal"],
+  product_subtotal: ["product_subtotal", "merchandise_subtotal", "order_discounted_price", "order_selling_price", "merchant_subtotal"],
   buyer_paid: ["buyer_paid", "buyer_total_amount", "total_buyer_payment"],
   shipping_fee: ["shipping_fee", "buyer_paid_shipping_fee"],
   escrow_amount: ["escrow_amount", "order_income_amount", "seller_income", "seller_income_amount"],
@@ -22,7 +22,7 @@ const FINANCIAL_FIELDS = ["escrow_amount", "released_amount", "commission_fee", 
 function containers(row: RecordValue) {
   const result: RecordValue[] = [row];
   for (let i = 0; i < result.length && i < 20; i++) {
-    for (const key of ["data", "response", "order", "order_income", "income_details", "financials", "finance", "payment_info"]) {
+    for (const key of ["data", "response", "order", "order_income", "income_details", "financials", "finance", "payment_info", "buyer_payment_info"]) {
       const value = result[i][key];
       if (object(value) && !result.includes(value)) result.push(value);
     }
@@ -116,6 +116,24 @@ export function normalize(row: RecordValue) {
   }
   const breakdown:RecordValue={};
   for(const [field,aliases] of Object.entries(BREAKDOWN)){const value=pick(source,aliases);if(value===undefined)continue;try{breakdown[field]=amount(value);}catch{/* Retain non-numeric provider extensions in raw, never invent amounts. */}}
+  // Preserve numeric provider income components under their original names. Do not
+  // sum overlapping aliases (e.g. credit_card_transaction_fee / seller_transaction_fee).
+  for (const container of source) if (object(container.order_income)) {
+    for (const [key,value] of Object.entries(container.order_income)) {
+      try { breakdown[key] = amount(value); } catch { /* non-numeric fields stay in raw */ }
+    }
+  }
+  if (normalized.other_fees === undefined) {
+    const extraKeys = ['fbs_fee','sspl_fee','campaign_fee','pay_per_sale','order_ams_commission_fee',
+      'seller_order_processing_fee','shipping_seller_protection_fee_amount',
+      'lff_seller_protection_fee_amount','delivery_seller_protection_fee_premium_amount',
+      'ads_escrow_top_up_fee_or_technical_support_fee'];
+    const extras = extraKeys.map(key=>pick(source,[key])).filter(value=>value!==undefined);
+    if (extras.length) {
+      try { normalized.other_fees = amount(extras.reduce<number>((sum,value)=>sum+Number(amount(value)),0).toFixed(8)); }
+      catch { errors.push('invalid_other_fees'); }
+    }
+  }
   if(Object.keys(breakdown).length)normalized.fee_breakdown=breakdown;
   const currency = pick(source, ["currency", "currency_code"]);
   if (currency !== undefined) {

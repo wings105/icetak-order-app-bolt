@@ -25,9 +25,7 @@ Deno.serve(async req=>{
    }else{const result=await rest('rpc/process_marketplace_webhook_event',{p_event_id:j.event_id});ok=result==='processed';if(!ok)error=`PROCESS_${result}`;}
   }catch(e){error=e instanceof Error?e.message:'RECOVERY_FAILED';}
   await rest('rpc/finish_marketplace_recovery',{p_event_id:j.event_id,p_lease_id:j.lease_id,p_ok:ok,p_error:error});results.push({event_id:j.event_id,ok,error});}
-  if(b.finance!==false&&await rest('rpc/claim_marketplace_finance_run',{})){
-   EdgeRuntime.waitUntil(fetch(`${U}/functions/v1/shopee-financial-enrich`,{method:'POST',headers:{apikey:K,authorization:`Bearer ${K}`,'content-type':'application/json'},body:JSON.stringify({limit:10,claimed:true}),signal:AbortSignal.timeout(55000)}).catch(()=>undefined));
-  }
+  // Finance has its own bounded cron; raw chat recovery cannot delay it.
   return out({ok:true,claimed:results.length,processed:results.filter(x=>x.ok).length,failed:results.filter(x=>!x.ok).length});
  }catch{return out({ok:false,error:'RECOVERY_WORKER_FAILED'},503);}
 });

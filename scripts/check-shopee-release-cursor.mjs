@@ -62,7 +62,8 @@ let handler, providerReads = 0, saved = [], clock = now, stored = base, provider
 class Clock extends Date { static now() { return clock; } }
 const fetcher = async (url, init) => {
   const path = new URL(url).pathname;
-  if (path.endsWith('/claim_marketplace_finance_run')) return Response.json(true);
+  if (path.endsWith('/claim_marketplace_finance_maintenance')) return Response.json(true);
+  if (path.endsWith('/finish_marketplace_finance_maintenance')) return Response.json(null);
   if (path.endsWith('/private_runtime_settings')) return Response.json([{setting_value:'fixture-bridge'}]);
   if (path.endsWith('/marketplace_finance_runtime')) {
     const body = JSON.parse(init.body);
@@ -85,7 +86,7 @@ new Function('Deno','fetch','normalize','stable','prepareReleaseCursor','finishR
   {env:{get:n=>n==='SUPABASE_URL'?'https://fixture.supabase.co':'fixture-service'},serve:fn=>handler=fn},
   fetcher, ()=>{throw Error('Unexpected finance ingest')}, JSON.stringify, prepareReleaseCursor, finishReleaseCursor, Clock
 );
-const req = auth => new Request('https://fixture.example',{method:'POST',headers:auth?{authorization:'Bearer fixture-service'}:{},body:JSON.stringify({shop_id:'1635364464'})});
+const req = auth => new Request('https://fixture.example',{method:'POST',headers:auth?{authorization:'Bearer fixture-service'}:{},body:JSON.stringify({shop_id:'1635364464',mode:'maintenance'})});
 assert.equal((await handler(req(false))).status,401);
 assert.equal(providerReads,0);
 assert.equal((await handler(req(true))).status,200);
@@ -98,5 +99,5 @@ assert.equal(providerReads,1);
 stored=base;providerError=true;clock=now;
 await handler(req(true));
 assert.equal(saved[1].error,'TOKEN_EXPIRED');
-assert.equal(saved[1].next_at,iso(clock+6*hour));
+assert.equal(saved[1].next_at,iso(clock+15*60*1000));
 console.log('Shopee release cursor regressions passed: six-minute catch-up convergence, fixed pagination, seven-day ranges, six-hour polling, real handler delay/backoff and auth guards.');
