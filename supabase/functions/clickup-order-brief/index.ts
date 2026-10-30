@@ -83,7 +83,7 @@ async function selectedMedia(detail:Obj,bridge:string) {
  if(uri.startsWith("wasapflow-media://")){
   const id=uri.slice(18);
   if(!/^\d{1,40}$/.test(id))return {state:"review",reason:"INVALID_MEDIA_ID"};
-  const r=await fetch(INBOX+"/functions/v1/task-brief-media",{method:"POST",headers:{"content-type":"application/json","x-admin-window-token":bridge},body:JSON.stringify({ids:[id]}),signal:AbortSignal.timeout(18000)});
+  const r=await fetch(INBOX+"/functions/v1/task-brief-media",{method:"POST",headers:{"content-type":"application/json","x-admin-window-token":bridge},body:JSON.stringify({action:"prepare",ids:[id]}),signal:AbortSignal.timeout(18000)});
   if(!r.ok) return {state:"review",reason:"MEDIA_CACHE_UNAVAILABLE"};
   const response=await r.json(),entry=response?.media?.[uri];
   if(!entry?.available)return {state:"review",reason:"MEDIA_NOT_CACHED"};
