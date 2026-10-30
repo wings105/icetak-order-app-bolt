@@ -1,6 +1,6 @@
-# 2026-10-30 — WhatsApp keyword automation preparation
+# 2026-10-30 — WhatsApp keyword automation native takeover
 
-Backend ACTIVE / controlled backend and React component DOM VERIFIED. Private native rules/run audit, seller-only capture, leased worker/heartbeat, cross-runner draft replay and manager gateway are deployed. All three rules remain record-only and the existing external flow remains active. Frontend implementation is held on an isolated branch pending authorization to publish to the public repository. Hosted browser/visual QA, takeover and fresh native provider acceptance remain pending. See [contract and continuation](WHATSAPP_KEYWORD_AUTOMATION.md).
+Admin V2/backend PRODUCTION via PR #147 release `e06db334` and successful Workers build. Hosted owner settings/history/detail and seller/buyer/conflict preview pass; desktop/mobile visuals and browser logs are clean. The three confirmed external actions are published as skipped and all three native rules are active; other ingestion/media actions remain intact. Native activation boundaries prevent delayed pre-cutover status replay. Rolled-back native boundary/enqueue/dedupe checks and deployed worker heartbeat pass with no retained QA rows or customer test sends. A fresh real native provider/delivery outcome remains unobserved. See [contract and acceptance](WHATSAPP_KEYWORD_AUTOMATION.md).
 
 # 2026-10-30 — Standard packing visibility
 

@@ -78,4 +78,4 @@ Settings mounts `AwbPreviewWebhookSettings` for `manage_admins`, alongside exist
 
 ## Native keyword automation (30 October 2026)
 
-`icetak-admin/src/pages/Automation.tsx` owns rule controls, match preview and run audit. The Order `admin-automation` gateway authenticates staff and uses the private Inbox automation engine. Backend is active; UI publication/hosted verification and external takeover are pending. See `WHATSAPP_KEYWORD_AUTOMATION.md`.
+`icetak-admin/src/pages/Automation.tsx` owns rule controls, match preview and run audit at `/?admin=v2&view=automation`. The Order `admin-automation` gateway authenticates staff and uses the private Inbox automation engine. UI/backend are production, hosted owner desktop/mobile checks pass and three native rules are active after verified external-action disablement. Fresh real provider acceptance remains unobserved. See `WHATSAPP_KEYWORD_AUTOMATION.md`.
