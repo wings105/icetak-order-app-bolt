@@ -6,6 +6,7 @@ export default function MoneyBreakdown({data,currency='MYR',incomeOnly=false}:{d
  const lines:[string,number|null][]=[['Sales barang',data.sales],['Fee platform (−)',data.fee],['Courier direct (−)',data.courier]];
  if(data.adjustment!==0)lines.push(['Pelarasan / postage (+/−)',data.adjustment]);
  lines.push(['Nett selepas potongan',data.nett]);
- lines.push(['Modal bahan (−)',data.material],['Kos tambahan (−)',data.extras]);
+ lines.push(['Modal bahan (−)',data.material],['Kos packing (−)',data.packing??null],['Kos tambahan lain (−)',data.extras]);
  return <div className="ct-arithmetic"><dl>{lines.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{money(value,currency)}</dd></div>)}</dl><small>{data.orders} order dalam kiraan{data.missing?` · ${data.missing} pecahan belum lengkap`:''}{incomeOnly?' · Modal belum ditolak daripada nilai besar':''}</small></div>;
 }
+

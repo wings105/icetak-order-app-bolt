@@ -79,3 +79,7 @@ Unpaid pending balances remain visible. Original cancelled records remain in Fin
 ## Read performance
 
 Same-scope refresh retains the prior report with an explicit old-reading warning on failure. Initial dashboard snapshot arrival avoids a duplicate contribution request; later snapshots still refresh it. See [Admin read performance](ADMIN_READ_PERFORMANCE.md).
+
+## Standard packing — 30 October 2026
+
+Direct contribution now deducts standard postal packing once, in addition to existing material, courier and manual extras. Pickup is zero. TargetNumbers exposes the monthly packing total and Shopee/direct split; MoneyBreakdown splits packing from remaining extras without subtracting it twice. The order list and direct detail show packing separately. Monthly packing covers all eligible rows including incomplete contribution; known-contribution card arithmetic retains its existing subset. Manual direct extras are additional costs, excluding the separately calculated standard packing.
