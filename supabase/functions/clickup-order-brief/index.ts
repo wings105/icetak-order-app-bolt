@@ -221,6 +221,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   if(["complete","closed","cancelled","canceled","shipped"].includes(normalized(s.clickup_status)))throw Error("TASK_CLOSED");
   const task=await clickup(clickupToken,"task/"+encodeURIComponent(id));
   if(String(task.id)!==id||String(task.list?.id)!=="18375902"||task.archived)throw Error("CLICKUP_TASK_NOT_ACTIVE");
+  if(["complete","closed","cancelled","canceled","shipped"].includes(normalized(task.status?.status)))throw Error("TASK_CLOSED");
   const existingConfirmed=fieldChecked(field(task,"confirmed"));
   const existingWord=string(field(task,"Customize Name")?.value,1200);
   const phone=string(field(task,"phone")?.value,30);
@@ -263,6 +264,47 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const mediaCandidates=proof.filter((m:Obj)=>m.message_type==="image"&&string(m.media_url));
   let img=mediaCandidates.length===1?string(mediaCandidates[0].media_url,900):string(detail.values?.artwork,900);
   if(mediaCandidates.length>1){img="Perlu semakan (beberapa gambar)";}
+  // Only one exact-session inbound photo may be attached automatically.
+  if(mediaCandidates.length===1 && !context.ambiguous && !context.truncated){
+   const selected=mediaCandidates[0],mediaUri=string(selected.media_url,1600);
+   const filename="icetak-proof-"+id+"-"+string(selected.id,50)+".jpg";
+   try{
+    const existing=(task.attachments||[]).find((a:Obj)=>a.title===filename||a.name===filename);
+    let uploaded:Obj|undefined=existing;
+    if(!uploaded){
+     let downloadUrl=mediaUri,allowInbox=false;
+     if(mediaUri.startsWith("wasapflow-media://")){
+      const mediaId=mediaUri.slice("wasapflow-media://".length);
+      if(!/^\d{1,40}$/.test(mediaId))throw Error("INVALID_MEDIA_ID");
+      const r=await fetch(INBOX+"/functions/v1/task-brief-media",{
+       method:"POST",headers:{"content-type":"application/json","x-admin-window-token":bridge},
+       body:JSON.stringify({action:"prepare",ids:[mediaId]}),signal:AbortSignal.timeout(20000)});
+      if(!r.ok)throw Error("MEDIA_PREPARE_FAILED");
+      const v=await r.json();const mediaEntry=v.media?.[mediaUri];
+      if(!mediaEntry?.available||!mediaEntry.url)throw Error("MEDIA_CACHE_MISSING");
+      downloadUrl=mediaEntry.url;allowInbox=true;
+     }
+     const data=await safeDownload(downloadUrl,allowInbox);
+     const actualName=filename.replace(/\.jpg$/,data.mime==="image/png"?".png":data.mime==="image/webp"?".webp":".jpg");
+     const inTask=(task.attachments||[]).find((a:Obj)=>a.title===actualName||a.name===actualName);
+     if(inTask)uploaded=inTask;
+     else{
+      const form=new FormData();
+      form.append("attachment",new File([data.bytes as Uint8Array<ArrayBuffer>],actualName,{type:data.mime}));
+      const saved=await clickup(clickupToken,"task/"+id+"/attachment","POST",form,true);
+      if(!saved?.id)throw Error("ATTACHMENT_UNCERTAIN");
+      const verification=await clickup(clickupToken,"task/"+id);
+      uploaded=(verification.attachments||[]).find((x:Obj)=>String(x.id)===String(saved.id));
+      if(!uploaded)throw Error("ATTACHMENT_UNCERTAIN");
+     }
+    }
+    img=string(uploaded?.url||uploaded?.download_url,1000)||("https://app.clickup.com/t/"+id);
+    media.push({message_id:selected.id,attachment_id:uploaded?.id||null,image:img});
+   }catch{
+    img="Perlu semakan gambar dalam Unified Inbox";
+   }
+  }
+
   if(img.startsWith("wasapflow-media://"))img="Gambar di Unified Inbox: "+string(mediaCandidates[0]?.id,55);
   if(/^https?:/.test(img)){try{const u=new URL(img);if(u.protocol!=="https:"||u.username||u.password)img="Perlu semakan gambar";}catch{img="Perlu semakan gambar";}}
   const previous=job.brief||{};
@@ -270,7 +312,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const confirmationAt=string(previous.confirmed_at)||(existingConfirmed?new Date().toISOString():verified?new Date().toISOString():"");
   const afterConfirmed=chronological.filter((m:Obj)=>confirmationAt&&Date.parse(m.created_at)>Date.parse(confirmationAt)
     &&!oldIds.has(String(m.id)));
-  const changed=afterConfirmed.filter((m:Obj)=>!isUnimportant(string(m.text_content||m.caption)) && mayNeedChange(string(m.text_content||m.caption)));
+  const changed=afterConfirmed.filter((m:Obj)=>m.message_type==="image" || (!isUnimportant(string(m.text_content||m.caption)) && mayNeedChange(string(m.text_content||m.caption))));
   const marker="[iCetak-AutoBrief:"+id+"]";
   const text=briefText(id,decision.wording,img,verified||existingConfirmed,confidence,note,proof).replace("confirm: ✅",verified?"confirm: ✅":"confirm: ✅ (disahkan staf)");
   const hash=await digest(text);
