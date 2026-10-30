@@ -316,7 +316,8 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    const sent=await clickup(clickupToken,"task/"+id+"/comment","POST",{comment_text:body,notify_all:false});
    if(!sent?.id)throw Error("CHANGE_COMMENT_UNCERTAIN");
   }
-  const ids=[...new Set([...oldIds,...chronological.map(m=>String(m.id))])].slice(-140);
+  const deferredChanges=new Set(changed.slice(8).map(m=>String(m.id)));
+  const ids=[...new Set([...oldIds,...chronological.filter(m=>!deferredChanges.has(String(m.id))).map(m=>String(m.id))])].slice(-140);
   brief={wording:decision.wording,confidence,actual_buyer_note:note,proof:proof.map((m:Obj)=>({id:m.id,channel:m.channel,at:m.created_at})),
    image:img,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
