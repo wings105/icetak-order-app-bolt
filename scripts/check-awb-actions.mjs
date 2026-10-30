@@ -1,28 +1,8 @@
+import './check-awb-native.mjs';
 import assert from 'node:assert/strict';
-import {webcrypto} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 import {pathToFileURL} from 'node:url';
-import {safeActionWebhookUrl} from '../supabase/functions/_shared/awb-action-url.ts';
-import {signActionGrant,verifyActionGrant,actionAvailability,handleActionRequest} from '../supabase/functions/awb-preview/actions.ts';
-const secret='controlled-test-key', version='2026-10-07T17:00:00+00:00';
-let url='https://hooks.example.com/action', configVersion=version, claim='claimed', fetches=0, finish;
-const db={from(){return {select(){return this},eq(){return this},async maybeSingle(){return {data:{setting_value:url,updated_at:configVersion},error:null}}}},async rpc(name,args){if(name==='claim_awb_preview_action')return {data:{state:claim},error:null};finish=args;return {error:null}}};
-const token=await signActionGrant(secret,{order_id:'ORDER123',task_ids:['TASK123','TASK456'],version,expires:Date.now()+3600000});
-const request=(changes={})=>new Request('https://example.com',{method:'POST',body:JSON.stringify({buton:1,task_id_clickup:'TASK123',order_id:'ORDER123',request_id:'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',action_token:token,...changes})});
-const fetcher=async(target,options)=>{fetches++;assert.equal(target,url);assert.equal(options.redirect,'error');assert.deepEqual(JSON.parse(options.body),{buton:1,task_id_clickup:'TASK123'});assert.equal(options.headers['idempotency-key'],'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa');return new Response(null,{status:204})};
-assert.equal(safeActionWebhookUrl(''),'');assert.equal(safeActionWebhookUrl(' https://hook.make.com/abc '),'https://hook.make.com/abc');
-for(const bad of ['http://hooks.example.com','https://localhost','https://127.0.0.1','https://[::1]','https://a.internal','https://user:pass@hooks.example.com','https://hooks.example.com:8080','https://hooks.example.com/#secret'])assert.throws(()=>safeActionWebhookUrl(bad));
-assert.ok(await verifyActionGrant(secret,token));assert.equal(await verifyActionGrant('different',token),null);assert.equal(await verifyActionGrant(secret,token+'x'),null);
-const expired=await signActionGrant(secret,{order_id:'ORDER123',task_ids:['TASK123'],version,expires:1});assert.equal(await verifyActionGrant(secret,expired),null);
-const largest=await signActionGrant(secret,{order_id:'ORDER123',task_ids:Array.from({length:200},(_,i)=>String(i).padEnd(80,'a')),version,expires:Date.now()+1000});assert.ok(await verifyActionGrant(secret,largest));
-for(const change of [{task_id_clickup:'UNRELATED'},{order_id:'OTHER123'},{buton:4},{request_id:'invalid'},{action_token:'bad'}]){const r=await handleActionRequest(request(change),db,secret,fetcher);assert.ok(r.status>=400)}assert.equal(fetches,0);
-url='';assert.deepEqual(await actionAvailability(db,secret,'ORDER123',['TASK123']),{enabled:false,token:null});assert.equal((await handleActionRequest(request(),db,secret,fetcher)).status,409);
-url='https://hooks.example.com/action';configVersion='changed';assert.equal((await handleActionRequest(request(),db,secret,fetcher)).status,409);configVersion=version;
-for(const state of ['sent','pending','unknown','rejected']){claim=state;const r=await handleActionRequest(request(),db,secret,fetcher);assert.equal(r.status,state==='sent'?200:409)}assert.equal(fetches,0);
-claim='claimed';assert.equal((await handleActionRequest(request(),db,secret,fetcher)).status,200);assert.equal(fetches,1);assert.equal(finish.p_state,'sent');
-const failed=await handleActionRequest(request(),db,secret,async()=>new Response(null,{status:503}));assert.equal(failed.body.retryable,true);assert.equal(finish.p_state,'failed');
-const unknown=await handleActionRequest(request(),db,secret,async()=>{throw Error('timeout')});assert.equal(unknown.body.uncertain,true);assert.equal(finish.p_state,'unknown');
 // Exercise the actual Settings Edge handler with controlled Auth/REST responses.
 let handler,role='owner',authenticated=true,saved=[],store='';
 globalThis.Deno={env:{get:name=>name==='SUPABASE_URL'?'https://controlled.test':name==='SUPABASE_SERVICE_ROLE_KEY'?'test-service-key':''},serve:fn=>{handler=fn}};
@@ -46,4 +26,4 @@ assert.equal((await handler(adminRequest({action:'save',url:'https://localhost'}
 assert.equal((await handler(adminRequest({action:'save',url:'https://hook.make.com/a'}))).status,200);assert.equal(saved[0].setting_key,'awb_preview_action_webhook_url');assert.equal((await (await handler(adminRequest({action:'get'}))).json()).url,'https://hook.make.com/a');
 assert.equal((await handler(adminRequest({action:'save',url:''}))).status,200);assert.equal(store,'');
 globalThis.fetch=originalFetch;delete globalThis.Deno;
-console.log('AWB action grants, exact webhook body, duplicates, errors and admin Settings authorization: PASS');
+console.log('Native AWB actions and legacy Settings authorization: PASS');

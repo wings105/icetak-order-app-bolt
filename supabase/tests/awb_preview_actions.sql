@@ -1,22 +1,26 @@
 -- Controlled database receipts test: no external HTTP and all changes roll back.
 begin;
 insert into public.private_runtime_settings(setting_key,setting_value,updated_at)
-values('awb_preview_action_webhook_url','https://hooks.example.com/controlled',now())
+values('clickup_designer_api_token','controlled-test-token',now())
 on conflict(setting_key) do update set setting_value=excluded.setting_value,updated_at=excluded.updated_at;
 do $$
 declare v text; r jsonb; id uuid:=gen_random_uuid(); unknown_id uuid:=gen_random_uuid(); fail_id uuid:=gen_random_uuid();
 begin
- select updated_at::text into v from public.private_runtime_settings where setting_key='awb_preview_action_webhook_url';
+ select 'native-clickup-v1:'||updated_at::text into v from public.private_runtime_settings where setting_key='clickup_designer_api_token';
  r:=public.claim_awb_preview_action(id,'261005SQ0C3Y1F','14zbjdpktr8',1,v);
  if r->>'state'<>'claimed' then raise exception 'first claim: %',r; end if;
  if public.claim_awb_preview_action(id,'261005SQ0C3Y1F','14zbjdpktr8',1,v)->>'state'<>'pending' then raise exception 'pending duplicate'; end if;
+ begin
+ perform public.claim_awb_preview_action(gen_random_uuid(),'261005SQ0C3Y1F','14zbjdpktr8',2,v);
+ raise exception 'concurrent action allowed';
+ exception when others then if sqlerrm<>'TASK_ACTION_BUSY' then raise; end if; end;
  perform public.finish_awb_preview_action(id,'sent',204);
  if public.claim_awb_preview_action(id,'261005SQ0C3Y1F','14zbjdpktr8',1,v)->>'state'<>'sent' then raise exception 'sent duplicate'; end if;
  if public.claim_awb_preview_action(id,'261005SQ0C3Y1F','14zbjdpktr8',2,v)->>'state'<>'rejected' then raise exception 'changed button reused ID'; end if;
  if public.claim_awb_preview_action(gen_random_uuid(),'UNRELATED123','14zbjdpktr8',1,v)->>'state'<>'rejected' then raise exception 'unrelated order allowed'; end if;
  if public.claim_awb_preview_action(gen_random_uuid(),'261005SQ0C3Y1F','14zbjdpktr8',1,'2000-01-01')->>'state'<>'rejected' then raise exception 'old config allowed'; end if;
  perform public.claim_awb_preview_action(unknown_id,'261005SQ0C3Y1F','14zbjdpktr8',3,v);
- update public.awb_preview_action_deliveries set updated_at=now()-interval '61 seconds' where request_id=unknown_id;
+ update public.awb_preview_action_deliveries set updated_at=now()-interval '121 seconds' where request_id=unknown_id;
  if public.claim_awb_preview_action(unknown_id,'261005SQ0C3Y1F','14zbjdpktr8',3,v)->>'state'<>'unknown' then raise exception 'stale dispatch resend allowed'; end if;
  perform public.claim_awb_preview_action(fail_id,'261005SQ0C3Y1F','14zbjdpktr8',2,v);
  perform public.finish_awb_preview_action(fail_id,'failed',503);

@@ -1,3 +1,7 @@
+## 2026-10-30
+
+- [VERIFIED] AWB Preview buttons use native ClickUp API actions: exact Review customer AWB/Finished options and Complete status, verified provider readback/projections and shared receipt concurrency guards. Actual handlers, native rollback and builds pass; hosted operational acceptance remains separate. See docs/AWB_PREVIEW.md.
+
 # 2026-10-29 — Material stock reconciliation
 
 - [VERIFIED controlled UI; private read ACTIVE] Reserve quantities and the Order reserve metric open a filtered active-order list with exact material quantities, canonical statuses, order links, full totals and pagination. Native grouping/exclusion/privacy checks and actual desktop/mobile drilldown/search/link/stale-response/retry interactions pass. Ledger writes are unchanged; hosted release evidence is tracked in the release PR. See `docs/STOCK_MANAGEMENT.md`.

@@ -1,204 +1,359 @@
+## 2026-10-30 — Standalone AWB actions use the native ClickUp API
+
+Owner explicitly replaces the three external webhook actions with fixed Review customer AWB/Finished and task Complete operations. Retain the standalone exact-order signed capability and private receipt boundary; share provider field parsing and verified snapshot projections with the designer API. Read current provider membership/options and verify resulting state; block overlapping AWB/Inbox/designer actions. Historical external webhook settings remain dormant for rollback and are never a fallback. See AWB_PREVIEW.md.
+
 ## 2026-10-26 — Finance owns bill schedules and payables
 
 Keep supplier bills, settlements, recurring commitments and reminder runs in Order System's private finance schema. Extend the existing authenticated Finance gateway and transactional WhatsApp queue rather than a second provider sender or external ChatGPT scheduler. Amount-free checks never create accounting liabilities. Bill approval and bank/manual settlement remain distinct, auditable operations; existing feed expenses are reclassified only for their allocated amount. Provider API acceptance is not represented as delivery. See FINANCE_BILLS_AND_REMINDERS.md.
 
 ## 2026-10-23 — Task side panel reuses provider actions and print projections
 
-Keep exact-task work in a non-modal Admin V2 panel with live provider status/review options, small original-backed attachments and direct same-order printing. Extend the existing private designer ledger for only the Review customer field, retaining cross-Inbox locks, stale checks and readback. Direct output bytes pass through to ClickUp using the shared binary inspector; native private draft/final files stay explicit and separate. Verified snapshots and design-link image metadata feed existing projections. Reuse the AWB read/PDF/layout helpers without changing the standalone page or its external action automation. See TASK_WORKSPACE_SIDE_PANEL.md.
+Keep exact-task work in a non-modal Admin V2 panel with live provider status/review options, small original-backed attachments and direct same-order printing. Extend the existing private designer ledger for only the Review customer field, retaining cross-Inbox locks, stale checks and readback. Direct output bytes pass through to ClickUp using the shared binary inspector; native private draft/final files stay explicit and separate. Verified snapshots and design-link image metadata feed existing projections. Reuse the AWB …10838 tokens truncated…erified projections and shared per-task ledger guards. External action webhook is no longer used by this route. Print/Copy/layout retained. Hosted backend smoke confirms Complete on an already-complete task, with live provider readback/projection and a single sent receipt. Field/status transitions are controlled-provider tests; fresh live transitions and physical printer acceptance remain pending. See [AWB contract](AWB_PREVIEW.md).
 
-## 2026-10-23 — Inbox design files pass through to ClickUp
+# 2026-10-29 — Material stock reconciliation
 
-Reuse the owner-configured Order API credential and existing source projection/cache sync. Inbox verifies staff and exact linked summary context; the private Order bridge owns provider authorization and exact task membership. Binary images remain in bounded request/browser memory and finish in ClickUp, while service-only actor/order/task receipts retain hashes and provider references. Preserve independent status/upload intent, provider revision/readback, duplicate and unknown-result guards, and explicit comment-only recovery. Existing Admin private draft files and financial/fulfillment/customer-send contracts remain separate. See docs/INBOX_CLICKUP_DESIGN.md.
+Active reservation drilldown: private read ACTIVE and controlled Stock desktop/mobile VERIFIED. Material Reserve quantities and the order metric open the same paged, filtered current-allocation read model with exact material totals, canonical statuses and authenticated order links. Native/live sum and privacy checks, rendered navigation/search/pagination/stale/error/retry flows pass. No balance/order mutation is added. Hosted delivery is tracked in this release PR; signed-in operator acceptance remains pending.
 
-## 2026-10-20 — Shopee cards reuse catalogue cache and audited sender
+Backend and hosted frontend delivery PRODUCTION (PR #140); controlled Stock desktop/mobile behavior VERIFIED. Later backend corrections retain count-covered releases, actual collection, blocked-work wakeup and explicit pending consumption. The owner-approved edible standard-MYR-price formula is active. Canonical completed production establishes a later-count cutoff without marking shipping. Existing private Shopee audit reader exact-order mode and the every-minute stock worker recover missing canonical item/original-price facts with bounded retries, item-only completeness and idempotent audit. Native price/source/ledger tests, actual signed reads, source recovery, replay and unchanged confirmed physical quantities are verified. No frontend or customer/payment/shipping/provider-write action is added. Custom usage, mixed historical count boundaries and signed-in operator acceptance remain pending. See [stock contract](STOCK_MANAGEMENT.md).
 
-Keep canonical products in Order System and shop+item cache/search in Inbox. Card previews select DB resources rather than browser-supplied recipient/product data; signed provider reads prove order ownership and active product identity. Reuse existing send claims/reply/read guards, persist card snapshots before delivery and never rely on API echoes. Logical product selection maps to Shopee wire type item, verified on the real app. Search and Cancel never send. See docs/INBOX_SHOPEE_CARDS.md.
+# 2026-10-27 — Acrylic production ClickUp actions
 
-## 2026-10-20 — Task briefs are scoped, evidence-based operational observations
+VERIFIED controlled full Admin desktop/mobile. Task cards set Finished/AWB Review Customer options or complete the exact ClickUp task through existing active JWT task-clickup v4, private API credentials, permissions/revision/receipt/readback safeguards and source projections. No new backend deployment or migration. Public standalone display remains read-only. Root/Inbox and Admin builds, production/ClickUp regressions and controlled action/error/recovery checks pass. Hosted delivery and signed-in operator acceptance are tracked in the release PR. See [production contract](ACRYLIC_PRODUCTION.md).
 
-Keep one brief per ClickUp Task ID, independent from work stage/payment/fulfillment. Clear customer customization is sufficient for automatic high-confidence designer readiness: topper name OR age OR wording; edible/wafer/acrylic wording OR image OR both. No extra Confirmed/name+age/specification/same-design gate. Preserve exact item/session identity, conflicts/uncertainty review and separate final-file/QC/customer approval for print/cut. Re-evaluate new evidence rather than requiring manual reconfirmation of every harmless revision. A narrow service-only context wrapper includes bounded pre-order chat while respecting previous closed-order cutoffs across channels; CRM/draft extraction is unchanged. Native saves remain private, versioned, audited and idempotent. See docs/TASK_WORKSPACE.md.
+# 2026-10-26 — Finance Bills & Reminders
 
-## 2026-10-16 — Shared catalogue keeps website and provider edits independent
+Backend ACTIVE and controlled full Admin bundle VERIFIED. Native private billing tables, service-only invoker RPCs and hourly Supabase Cron support supplier invoices, approved payables, partial/full settlement, bank-feed allocation, reversals, recurring commitments and amount-free operational checks. Existing Finance owner authentication and WhatsApp master/window/idempotency gates are retained. The requested monthly billing check is privately configured and the previous ChatGPT automation paused. Native rolled-back tests, actual-handler guards, builds, existing pickup regressions and desktop/mobile interactions pass. The owner has approved public-repository publication and production release; deployment verification is in progress in PR #137. Hosted signed-in operator acceptance and first scheduled provider delivery remain pending. See [billing contract](FINANCE_BILLS_AND_REMINDERS.md).
 
-Reuse Order products/variants/images/profiles; identify Shopee listings by shop+item and models by shop+model, never SKU. Preserve Shopee URLs and import snapshots separately from owner-managed website fields. Inbox gets a bounded shop-scoped cache; it does not own products or receive credentials. Imported products require explicit production-profile mapping and website publication. Outbound owner edits capture source/revision, claim one job, verify actual provider readback and never blindly retry an unknown write. Existing ClickUp sync keeps a snapshot for owner-managed products. See docs/catalog/IMPLEMENTATION.md.
+# 2026-10-25 — Roadmap AI Checker
 
-## 2026-10-16 — ClickUp prices project commercial items without duplication
+Backend ACTIVE; controlled rendered desktop/mobile VERIFIED. Order migration `roadmap_ai_checker` adds owner-only review runs/append-only events and invoker lifecycle/latest-per-item RPCs. Start/checkpoint/end snapshots, exact-item history, interrupted handoff, conflict protection and priority/rank/work labels use the existing roadmap. Native rollback and actual authenticated owner/non-owner/anon tests, seven priority checks, full build and eleven rendered 1440×1000 / 390×844 interactions pass with no application errors. No retained QA rows and no added security advisor findings. The Browser plugin is unavailable; regular Playwright/Chromium validates the actual frontend with isolated transport fixtures. Hosted signed-in owner interactions remain pending. Initial nine priority reviews are explicitly source-only triage and do not advance feature progress/status. See [AI Checker rules and RPC](roadmap/AI_CHECKER_README.md).
 
-Order System remains the source of saved unit prices and quantities. `task_amount` is the item line total for a single production component, excluding delivery fees and order-level pricing adjustments. If one commercial item has multiple components without separately stored prices, record its amount once on the first persisted component and expose zero/included-in-primary on the others; do not invent an equal or catalog-derived split. Include linked siblings when projecting retries. Gate visible set labels on multiple commercial items, but retain internal persisted component indices and AWB-primary behavior. TaskMagic merges the backend typed extra custom_fields into its existing create payload. This is an integration projection, not a change to order/payment/accounting facts; historical tasks are not backfilled.
+# 2026-10-24 — Pickup kiosk landscape display
 
-## 2026-10-15 — Fulfillment closes order context, not chat obligations
+PRODUCTION frontend delivery; VERIFIED controlled responsive UI. The global `src/styles.css` rule that rendered a full-screen "Sila pusing telefon ke mode menegak" overlay for every landscape viewport at or below 600 CSS pixels has been removed. It incorrectly classified short/scaled desktop windows as phones. Existing kiosk URL, server capability checks, payment/handover logic and responsive layouts are retained; a new folder route is unnecessary. Full-app controlled Chromium reproduces the old failure at 1366×600; queue/customer/search, cash modal/cancel and unpaid handover guards pass at 1366×600, 1093×500, 1440×900, portrait 390×844 and landscape 844×390, with no application errors or horizontal overflow. Full build, Admin V2 source guard and all 28 pickup payment regressions pass. Only synthetic transport is used for these interaction checks; no production order/payment/handover/message is changed. Hosted PR #129 release `edcc3b3` passes Workers Builds and guard; Cloudflare version `46020e00-1f4f-4d4b-bea6-d6a2b7f7a673`. The served `/assets/main-DvVmBUYP.css` is byte-identical to the tested build (SHA-256 `63691fad496a57b934a5785b694d247d79fa6932f8b9b84ed1dbf1c9e2d162c6`), and cloud-browser 1363×936 queue/customer/back reads pass with no orientation overlay. Hosted browser logs retain a pre-existing multiple-GoTrueClient warning plus extension metadata errors. Smaller viewport interactions are controlled tests; standalone Chromium direct-hosted validation is blocked by its environment proxy certificate trust, and the physical staff laptop has not been exercised.
 
-Shopee unreplied status tracks customer chat independently of order status, including after shipping/cancellation. Never clear needs_reply/unread as an order-session side effect. Fulfillment does clear production Urgent priority/tag; latest matched order wins so a returning customer's new active order can be urgent. Provider/manual reply evidence and live inbound timing own chat resolution; order extraction still cannot reuse a closed session. See SHOPEE_CHAT_DIRECT_SETUP.md.
+# 2026-10-24 — Pickup payment receipts
 
-## 2026-10-13 — Release catch-up uses a fixed read snapshot
+VERIFIED controlled sender; backend deployed. Order `whatsapp-send` v30 and `whatsapp-dispatch` v19 match the reviewed source with unchanged in-code authentication. Single and bulk cash/QRPay receipts read current fulfillment status, preserving collected precedence, mixed-bundle counts, per-receipt exclusions, idempotency and Inbox mirroring. The provider utility template `pickup_payment_received_ms` is APPROVED and cached. All 28 actual-handler regressions, read-only production order replay and local Deno type checks pass. A new production customer receipt has not been sent for verification; no payment/order mutation or customer test message was performed. See [contract/evidence](pickup-payment-receipts.md) and PR #128.
 
-Prepare a first-page release tail before the provider request and decide catch-up completion against that exact time. Preserve subsequent-page ranges; never keep advancing the completion target after the read. Keep seven-day request bounds, recent overlap and six-hour polling after convergence. Correct excessive one-time scheduling errors through the existing locked cursor RPC, without replaying unrelated ranges or changing provider/auth/accounting contracts.
+# 2026-10-23 — Standalone Task Workspace for trusted PC
 
-## 2026-10-13 — SG credentials and seller-scoped read evidence
+Backend ACTIVE; actual standalone desktop/mobile no-login behavior VERIFIED with controlled transport. A revocable URL capability opens the existing full Task Workspace at `/task-workspace/`, without Admin session/sidebar. New scoped station v1 checks its private digest and dedicated active non-login device actor on every request. Existing Task Workspace v19 / ClickUp v4 remain JWT true. Exact original images, status/review/Complete/upload, work/brief and print paths are reused. No browser grant/RLS change; native audit/replay transaction rolls back with zero station QA events. Hosted evidence is recorded in the release PR. See [contract](TASK_WORKSPACE_STATION.md).
 
-The owner explicitly authorized the existing Partner Key, bridge token and ClickUp SG Access Token destination in Inbox. Keep SG isolated from MY; filter seller shop in the database before applying the conversation limit. Provider-signed exact-order evidence can repair a missing shop identity; currency or a partial customer name alone cannot. Missing order dates use first recorded time only as a conservative release-search boundary, preserving the 90-day start cap and seven-day windows. Existing external refresh remains the sole producer. The owner subsequently wired the HTTP module independently: actual SG rotation/read readiness is receiver-verified at 10:59 MYT, with separate MY/SG access tokens and key hashes. The external enabled schedule/next scheduled refresh remain unobserved; a producer URL is needed only for direct automation inspection/editing. See SHOPEE_SG_TOKEN_PUSH.md.
+# 2026-10-23 — Task panel displayed original images
 
-## 2026-10-12 — Durable Shopee recovery and evidence-based finance
+[VERIFIED controlled UI] Attachment tiles display original bytes and full natural dimensions, with CSS sizing only. The same loaded blob feeds copy, zoom and download; copy makes no new asset/API request. Native browser right-click targets the original image. Actual bundled desktop/mobile checks prove 1200×800 displayed/clipboard pixels, byte-identical source, zero thumbnail requests and all existing panel actions. Hosted release evidence is in the correction PR. See [contract](TASK_WORKSPACE_SIDE_PANEL.md#displayed-original-images--23-october-correction).
 
-Order System owns the durable raw-event recovery queue, auxiliary operational alerts and canonical finance; Inbox retains chat/session and per-shop credential ownership. Use the existing private bridge and fixed read-only Shopee endpoints; retire the duplicate AP finance dispatcher while retaining the existing sole token refresh producer. Historical chat is evidence only and cannot reopen a session or replace current identity. Known seller shops own region/currency; missing finance stays unknown until explicit release evidence and separate currency wallet posting. Shop-level reminders cannot identify a buyer from abbreviated text. Recovery/resolve actions require the corresponding active admin permission and derive audit actor server-side. SG configuration must not inherit MY credentials; its credential transfer remains blocked until explicitly authorized. See SHOPEE_WEBHOOK_OPERATIONS.md.
+# 2026-10-23 — Task Workspace right side panel
 
-# iCetak Architecture Decisions
+Backend and frontend delivery PRODUCTION; actual bundled Admin V2 desktop/mobile/read-only behavior VERIFIED. PR #119 release `f31be77` passed Workers Builds and guard; Cloudflare version `5e52113a-d7b9-4431-bf8b-ae945f1ef0c4`. The public Task Workspace route serves the new `main-DcNf6QDu.js` / `admin-v2-route-XVOMPJCr.js` chain and reaches its login gate. Hosted signed-in interactions remain unexercised. The task list remains interactive beside a resizable panel with live status/Complete and Review customer, original attachment copy/download, direct ClickUp image POST and same-order AWB/reference printing. Service-only ledger migration `task_panel_review_actions` preserves cross-Inbox locks, RLS/invoker grants and unknown-safe receipts. Native rollback leaves zero QA receipts; advisors add no findings. The standalone AWB page/external automation is unchanged. See [contract and evidence](TASK_WORKSPACE_SIDE_PANEL.md).
 
-## 2026-10-11 — Final cancellation wins same-provider-time ties
+# 2026-10-23 — Inbox design post and ClickUp status
 
-Canonical marketplace reconciliation orders by provider time first, with CANCELLED winning only equal-time ties before receipt time/ID. Lock the order to serialize reconciliation with ingestion. Preserve true IN_CANCEL as active pending seller action and genuinely newer transitions; do not infer cancellation from LOGISTICS_INVALID or hide badges independently of canonical state. Repair reported exact orders through the existing reconciliation RPC and private sync queue. See `MARKETPLACE_STATUS_RECONCILIATION.md`.
+Backend, hosted delivery and live operational outcome PRODUCTION; full Inbox desktop/mobile controlled behavior VERIFIED. Order and conversation sidebars offer exact task selection, native image paste/drop/upload, unchanged binary POST to ClickUp attachment + linked comment, live status/revision and verified source/cache sync. Image bytes never enter Supabase Storage/Postgres on this path. Active staff/linked canonical context, viewer denial, durable replay/unknown-safe receipts and explicit comment-only resume preserve ownership. Order migration `20261022192847`, Inbox gateway v1 and private Order bridge v4 are active. Native rollback, 27 gateway/provider flows, actual exact-task/status reads and one owner-sample API file/comment readback pass. Read-only live confirmation finds three succeeded PNG uploads with exactly one matching attachment/comment each, plus two printing status changes synchronized to source and Inbox cache. Hosted release evidence is recorded in the release PR; a fresh signed-in browser session was not exercised here. See [contract and operational evidence](INBOX_CLICKUP_DESIGN.md).
 
-## 2026-10-10 — Shopee reply resolution follows proven delivery and claim time
+# 2026-10-23 — Inbox conversation lifecycle badge
 
-Resolve Perlu Balas only after matching successful local-message and send-audit evidence. A private atomic RPC compares incoming activity against the durable outbound claim timestamp, so a customer message during the API request still requires attention. Both Inbox and AI Dashboard use the shared sender; duplicate request repair never invokes the provider again. Keep manual resolution for replies handled outside iCetak. See `SHOPEE_CHAT_DIRECT_SETUP.md`.
+Backend PRODUCTION; actual full Inbox desktop/mobile controlled behavior VERIFIED. One header badge combines scoped prospect/draft/order/source-task/fulfillment facts, including Printing and Task Siap before shipping, mixed task progress and expandable history. Staff can select/reset only prospect stages; real work and current session boundaries take precedence. Inbox invoker/RLS migrations `20261022175236` / `20261022180228`, JWT gateway v5 and private read-only Order bridge v2 preserve canonical ownership/auth. Seventy-nine policy/gateway checks, native authenticated rollback, actual draft/task/canonical-ID bridge reads, unchanged advisors, 182 existing checks, full build/typecheck and desktop/mobile white/black interactions pass. Hosted delivery evidence is recorded in the lifecycle release PR; real hosted staff actions remain unexercised. See [contract](INBOX_CONVERSATION_LIFECYCLE.md).
 
-## 2026-10-10 — API delivery and Inbox logging have separate retry state
+# 2026-10-22 — Inbox deadline focus
 
-Order whatsapp-send retains delivery authority and a durable outbox. A private, log-only bridge projects successful sends into Unified Inbox; app echo is not assumed for API sends. Delivery remains sent when Inbox logging fails, and existing dispatchers retry only the saved log projection. Provider IDs and unambiguous customer identities deduplicate the Inbox record. Historical mirrors retain original time without reopening sessions or clearing later customer state. Missing pre-send audit blocks delivery. External provider callers must explicitly integrate logging. See `WHATSAPP_API_INBOX_SYNC.md`.
+Backend PRODUCTION; full Inbox desktop/mobile controlled deadline focus VERIFIED. Order sidebar and Active Orders default to Segera + Belum Design: overdue, today and tomorrow in Malaysia. Canonical Shopee ship-by / Decocake date-needed badges explain each row; future preorders, missing dates and all dates remain selectable. One read-time policy drives server filtering/counts/pages and global-search fallback; visible tabs refresh every minute/on return. Inbox invoker migration `20261022053220` preserves old clients, RLS and anonymous denial. Native rollback, authenticated actual reads, 59-row live deadline parity, 80 new checks, full build/typecheck and rendered desktop/mobile interactions including automatic day rollover pass. No canonical/task/bridge changes or retained QA rows. Hosted delivery evidence is recorded in the deadline-focus release PR; real hosted staff actions remain unexercised. See [contract](INBOX_ACTIVE_ORDERS.md#deadline-focus).
 
-## 2026-10-10 — Token rotation needs only identity and token
+# 2026-10-22 — Inbox ClickUp design focus
 
-The owner requested removing automation timestamps. Minimal pushes contain App ID, Shop ID and Access Token. Record receipt time, keep absent expiry unknown, preserve same-token retries and reject bounded known retired-token replays. Unknown expiry requires an immediate read-only Shopee check before an outbound claim. Do not assume a four-hour lifetime for tokens copied from ClickUp. Optional original timestamps remain backward compatible; untimed unseen updates must come from one serialized refresh producer.
+Backend PRODUCTION; full Inbox desktop/mobile controlled design focus VERIFIED. Order sidebar and Active Orders default to Belum Design. Exact linked task stages from the existing ai_order_work_source project into both source-channel caches; any unfinished design component keeps a mixed order visible. Printing/packing/complete, waiting-review and unknown stages are separate, with explicit review edit returning to design. Task-only marketplace/status/review/remap/delete events now enqueue existing durable sync. Worker v7 / marketplace v13 preserve prior auth. Main migration `20261022050036`, Inbox invoker RPC overload `20261022050040`, native rollback, 44 policy checks, full build/typecheck, exact live source/cache stages and rendered desktop/mobile category/channel/search/paging/refresh/stale-request interactions pass. Hosted delivery evidence is recorded in the design-focus release PR; real hosted staff actions remain unexercised. See [contract](INBOX_ACTIVE_ORDERS.md#clickup-design-focus).
 
-## 2026-10-10 — Shopee sends are direct; existing automation owns token refresh
+# 2026-10-22 — Inbox product category filter
 
-Keep the existing ClickUp/AP refresh flow as the single token-rotation producer. It may push the new token to a dedicated, hashed-key Inbox endpoint after updating its ClickUp task. iCetak does not run a competing refresh loop. Owner-only Admin V2 Settings configures one App/Shop/environment through the existing private Order→Inbox bridge; browser responses never return stored Partner Key/Access Token. A changed identity clears old credentials, and rotation/check versions fail closed on stale or conflicting input. Manual Inbox and AI Dashboard sends share the existing audited ledger. See `SHOPEE_CHAT_DIRECT_SETUP.md` for contract and unverified provider/UI boundaries.
+Backend PRODUCTION; full rendered Inbox desktop/mobile controlled category behavior VERIFIED. Order sidebar and Active Orders share Edible Image, Cake Topper, Acrylic, Wafer and Artpaper Gold selection. Server membership/counts apply before paging and combine with existing channel/status/query; mixed orders match each material once. Explicit saved product types win over broad listing text; the global search detail fallback uses the same rules. Inbox migration `20261022040439` adds invoker helpers and a category-aware overload while retaining the old RPC signature. Native 351-row rollback, category checks, full build/typecheck and desktop/mobile interactions pass without page errors or unexpected mutations. Hosted delivery evidence is recorded in the category-filter release PR; real hosted staff actions remain unexercised. See [contract and evidence](INBOX_ACTIVE_ORDERS.md#product-category-filter).
 
-This file records decisions that future agents should understand before attempting to simplify or redesign the system.
+# 2026-10-22 — Inbox active order source
 
-## ADR-001 — `production` is the live code reference
+Backend/hosted delivery PRODUCTION; full Inbox desktop/mobile controlled behavior VERIFIED. Canonical positive To Ship eligibility, current unfinished ClickUp task aggregation including cash counter, task-only durable sync, source observation clocks, current MYT priority and authenticated invoker server counts/pages replace stale active flags and the 300-record cap. Both project migrations are version `20261021221354`. Live canonical/cache order sets match exactly and correction jobs completed. Full build/typecheck, 40 policy checks, 351-row rollback and desktop/mobile filter/search/history interactions pass. PR #110 / `11a2d176`, Cloudflare `1cdb4566` and production guard pass; the hosted entry and JavaScript text fingerprint match the tested build, and staff login renders without application errors. Real hosted staff actions remain unexercised. See [contract and evidence](INBOX_ACTIVE_ORDERS.md).
 
-Status: Active.
+# 2026-10-21 — AI Dashboard task designer workspace
 
-`main` and `production` are not equivalent. Production work must begin from the latest `production` state unless the owner explicitly chooses another branch strategy.
+PRODUCTION backend/hosted delivery; controlled full Admin App desktop/mobile VERIFIED. Two product/priority filter rows, task/set list, scoped Shopee/WhatsApp original chat, specs/wording/SKU/assets and paste/private draft/output flow pass. New Order `task-clickup` v1 uses owner-configured private API access, actual provider status options, optimistic status/readback and durable duplicate/unknown-safe attachment/comment receipts. Live migration guards/RLS/rollback pass with no retained QA rows; The owner configured the internal ClickUp token on 23 October; actual API sample creation/file/comment readbacks pass. Authenticated hosted Admin provider actions remain unexercised. PR #108 / 09c918f and Cloudflare d95a32ee pass builds/guards. The hosted route delivers all new desk controls and byte-identical tested CSS, and Secure Admin Login renders. Signed-in hosted staff actions remain unexercised. See [AI Dashboard contract/evidence](AI_ACTION_DASHBOARD.md).
 
-Why: selecting `main` can omit live features and reintroduce old behavior.
+# 2026-10-21 — Task design desk
 
-## ADR-002 — Two Supabase projects have separate ownership
+Backend/hosted delivery PRODUCTION; controlled full Admin App desktop/mobile VERIFIED. PR #106 / b77aa19, Cloudflare beffb403 and guards succeeded; hosted task JS matches tested code after chunk-hash normalization, CSS is byte-identical and the exact route renders Secure Admin Login. Real staff hosted actions remain unexercised. Task detail brings exact SKU/specs, copyable wording, selected/customer/product images and original scoped Shopee/WhatsApp messages together. On-demand bounded WhatsApp cache recovery, authenticated original download/PNG clipboard, paste/upload and explicit native final/QC handoff pass. 57 live-source detail replays and one actual queued-original recovery/download pass with no customer sends or canonical mutations. Order task-workspace v18; Inbox task-brief-media v4 / wasapflow-media v9 retain auth. ClickUp result sync and Marul account mapping are not connected. See [design desk contract/evidence](TASK_DESIGN_DESK.md).
 
-Status: Active.
+# 2026-10-20 — Inbox product search keyboard focus
 
-Order System (`buivecgahhmrhlmfujgt`) owns canonical transactional/order state. Unified Inbox (`uujcqcsfghqkukaydruc`) owns conversation/inbox state and chat extraction context.
+Hosted delivery PRODUCTION / controlled desktop/mobile behavior VERIFIED. PR #105 / 545b3bfc, Workers Builds 366b5b9c and guards passed; hosted Inbox JS/CSS are byte-identical to the tested build and the staff login gate renders. Reproduced the owner report (`f` in search, `rozen` in composer). Global composer focus now ignores unrelated DOM updates and respects other editors/modals. Twelve real keyboard/focus checks pass with zero sends/page errors; typecheck, full build and actual full-App desktop/mobile typing pass, including the hosted runtime with an isolated synthetic session/backend fixtures. No real staff session or customer send was required. This replaces the previous incomplete product-search interaction proof. See [regression evidence](INBOX_SHOPEE_CARDS.md#product-search-focus-regression-20-october-2026).
 
-Why: conversation ingestion and canonical order/accounting lifecycles have different concerns, volumes and integration surfaces. Cross-project bridges are deliberate.
+# 2026-10-20 — Unified Inbox Shopee cards
 
-Do not copy the whole order ledger into Unified Inbox or make Unified Inbox the payment authority without an explicit migration plan.
+Backend/hosted delivery PRODUCTION / controlled desktop/mobile UI VERIFIED. PR #104 / 9025d443, Cloudflare aa3db808 and production guard passed; actual hosted Inbox JS/CSS are byte-identical to the tested build. Signed-in hosted staff actions remain unexercised. Inbox sender v17 and private bridge v15 preserve JWT/member and custom bridge authentication. Existing iCetak product cache powers bounded shop-derived search. Native order-owner and active-product verification, atomic card snapshots/outbox, actual sent+audit+activity and duplicate non-resend are proven. Shopee product wire type is item; application product selection remains product. No canonical order/product/payment mutation. See [feature and verification](INBOX_SHOPEE_CARDS.md).
 
-## ADR-003 — Admin V2 is the only supported admin UI source
+# 2026-10-20 — Background order-detail automation
 
-Status: Active.
+Backend PRODUCTION; controlled Admin V2 desktop/mobile VERIFIED. Every-minute leased worker and initial order/task triggers persist readiness, remarks and change audit without opening the dashboard. Initial per-item order observations are recorded before ClickUp tasks exist and hand off by exact SKU. Missing detail has a 30-minute reread; later questions and design changes require separate admin attention. Exact per-item notes and phone-bound WhatsApp fallback retain session boundaries. Live 72-task runs, correct Cat/Messi note extraction and unchanged-run idempotency verified. The existing hosted component contract displays backend remarks/attention, without a frontend release. Source publication is owner-authorized. See [automation contract](ORDER_DETAIL_AUTOMATION.md).
 
-Admin features belong under `icetak-admin/`. The customer app should only mount/redirect into Admin V2 where needed.
+# 2026-10-20 — Simple customer-detail readiness
 
-Why: duplicate admin implementations caused source-of-truth confusion and inconsistent business logic.
+PRODUCTION backend/hosted delivery; VERIFIED controlled Admin V2 desktop/mobile. PR #102 / fe2f500 and Cloudflare af1aa5eb pass builds/guards; the exact route loads the new entry and secure login, with current brief labels and exact tested CSS. task-workspace v9 / task-brief-media v2 have exact source/auth readback. Signed-in hosted staff actions remain unexercised. Clear topper name OR age OR wording and edible/wafer/acrylic wording OR image OR both are sufficient for automatic high-confidence designer readiness. Caption-free images and bounded pre-order context are supported. Old Confirmed/paired-age/spec/same-design gates removed; actual uncertainty/conflicts remain review and final file/QC remain separate. Private context invoker preserves previous-order cutoffs across channels; no CRM/draft context change. Product matrix, real scoped reads/boundaries/closed denial, gateway permissions and actual UI passed. See [Task Workspace](TASK_WORKSPACE.md).
 
-Reference: `docs/ADMIN_V2_SOURCE_OF_TRUTH.md`.
+# 2026-10-20 — Task readiness briefs
 
-## ADR-004 — AI/payment/chat order creation is draft-first
+Backend and hosted readiness delivery PRODUCTION / controlled Admin V2 VERIFIED. PR #101 / 90e0208 and Cloudflare 957adbae pass builds and guards; hosted brief labels and exact CSS match the tested UI, and the exact route reaches secure login. task-workspace v4 and read-only Inbox task-brief-media v1 have exact source/auth readback. Per-task product requirements, labelled/scoped chat evidence, confidence/completeness, native confirmation, stale-source reopening and explicit final/QC print readiness are active. Live rollback leaves no QA brief/audit rows. Signed-in hosted staff changes and positive cached-media downloads remain unexercised. See [Task Workspace](TASK_WORKSPACE.md).
 
-Status: Active.
+# 2026-10-20 — Task Workspace
 
-A payment or chat signal is not sufficient to immediately create a canonical order. The system creates/updates a draft within an active order session, then requires the appropriate confirmation path before conversion.
+Backend and hosted delivery PRODUCTION / controlled Admin V2 VERIFIED. PR #100 f9bc1af / Cloudflare build e2088eb1 succeeded; exact Task Workspace route reaches secure Admin Login and hosted task CSS matches the tested build. Native PIC, notes, stage and private design uploads sit beside existing ClickUp/iCetak/Shopee task facts, with version/source checks and audit. Live 57-task read, rolled-back mutation guards, actual-gateway auth/upload tests and controlled desktop/mobile work interactions pass. Signed-in hosted staff and real Storage upload/download remain unexercised; GitHub Actions were queued (equivalent local checks passed). See [Task Workspace](TASK_WORKSPACE.md).
 
-Why: prevents incorrect customer/order inference and makes corrections auditable.
+# 2026-10-19 — Unified Inbox search
 
-Reference: `docs/UNIFIED_ORDER_DRAFT_ENGINE_V1.md`.
+Backend and hosted delivery PRODUCTION / controlled frontend VERIFIED: PR #99 `5ba24cf`, Worker `e74dbe42` passes Workers Builds/guards; actual Inbox JS is byte-identical to the tested build and hosted login renders without page errors. Candidate-first RPC, exact-order indexes and authenticated invoker execution are live in Inbox only. Screenshot order returns paid READY_TO_SHIP in 35 ms versus 969 ms before (database only); exact ID message-only chats, phone normalization, historical messages, empty queries and limits pass. Desktop/mobile controlled interactions prove remote chat/order visibility/opening beyond initial limits, loading/error/retry, channel filtering and cancelled stale requests. Signed-in hosted staff interaction remains unexercised. See [search evidence](INBOX_SEARCH.md).
 
-## ADR-005 — Closed order sessions are hard context boundaries
+# 2026-10-17 — Full storefront catalogue
 
-Status: Active.
+PRODUCTION storefront/backend/data; controlled ERP owner UI VERIFIED. PR #98 `0c87db99981967baf069913a1e6ac1b6427ba7f6` / Worker `70652bce-1f42-4a55-b470-c2da6a3d709b` passed Workers Builds, guard and deploy. Public shop has 1,738 searchable/buyable designs and six basic services; 266 source products remain for readiness review. Exact models/wording/custom size and private originals reach authoritative checkout/production; preview/configure/publish/restore is audited and bounded. Actual public mobile/desktop home/browse/search/sort/page, five categories, upload/cart/Edit passed without page errors or real orders. Hosted catalogue/configurator/dashboard/Products JS matches tested code after import-filename normalization; Products CSS is exact. Seven migrations and product-admin v4, upload/file v1 and outbox v43 verified. Private QA originals cleaned; no QA order/payment/provider job. Signed-in owner browser and changed-value Shopee writes remain unexercised. See [rollout evidence and review counts](catalog/STOREFRONT_ROLLOUT.md).
 
-Old chat/order details must not be reused automatically after a session has closed/converted.
+# 2026-10-16 — Glossy product storefront
 
-Why: the same customer may place multiple orders and historical chat can otherwise contaminate a new order.
+Follow-up PRODUCTION: PR #97 `cbed08b`, Worker `a7222f2e-a272-4e5e-bce2-1ed50926e8ed` clears required-wording feedback immediately on valid input. Actual public-domain mobile/desktop product, gallery, clipboard, options, cart and Edit repeated successfully at 13:50 UTC; served configurator matches tested build. No order/payment submitted.
 
-## ADR-006 — Payment matching fails closed
+PRODUCTION: PR #96 `e9a86de`, tested tree `e503ee1`, Worker `0a1a3918-8f00-488e-a764-1eae415bee09` passed hosting/guard. Printed catalogue product pages have compact upper-corner seller/Shopee/share controls and fixed bottom actions opening the existing selection sheet. Happy Birthday hides its field; Custom Words is required and starts blank; cart wording displays once. Pending product navigation is preserved. Actual public CN0790 product, real cover, clipboard, options, cart and Edit passed mobile/desktop without page errors; hosted configurator matches tested code. Basic services retained; no catalogue publication, price/provider changes or actual order/payment submission. See [catalogue evidence](catalog/IMPLEMENTATION.md).
 
-Status: Active.
+# 2026-10-16 — Products ERP list
 
-When payment identity/amount/session evidence is ambiguous, the transaction should remain unmatched/attention-required rather than being linked to a convenient draft/order.
+Hosted delivery PRODUCTION / controlled UI VERIFIED: PR #95 `b6478e4`, Worker `f3d1c904-0ffd-4561-9598-7dc17fac290e` passed hosting and guard. Products now has compact Shopee-style rows, source price range/stock, separate website price/status, count tabs, inline variations and selected status reads. Live list-contract checks plus rendered ERP desktop/mobile filter/search/expand/Edit/paging/error states pass. Hosted JS matches tested code after normalizing imported filenames; CSS is byte-identical. Exact route reaches Admin Login without app errors; signed-in hosted session is not exercised. No product/provider values were changed. See [catalogue verification](catalog/IMPLEMENTATION.md).
 
-Why: false-positive payment matching is more damaging than requiring manual reconciliation.
+# 2026-10-16 — Shared product catalogue
 
-## ADR-007 — Production work is component-based in ClickUp
+Hosted delivery and backend/data PRODUCTION; controlled UI VERIFIED. PR #94 `370c2d3` / Worker `a69a5033-5389-46b2-9bb2-fd033f24dbbb` passed builds/guard; actual served Products/configurator code matched the tested build after normalizing imported hash filenames, and Inbox was byte-identical. Exact Products URL renders secure Admin Login without app errors. Authenticated hosted owner actions and changed-value provider writes remain unexercised. Order has 2,004 MY listings / 6,488 models; Inbox cache mirrors all with cover images. Live provider reads: 1,967 NORMAL, 37 UNLIST. Canonical products 2,011 because one legacy product linked; original eight published products preserved, new products start as website drafts. Product admin v3, provider bridge v3 and guarded ClickUp catalogue sync v10 deployed. Catalogue checkout validates price/model/stock before payment reservation. No changed-value provider write performed. See [implementation and verification](catalog/IMPLEMENTATION.md).
 
-Status: Active.
+# 2026-10-16 — Standalone acrylic office display
 
-Supabase owns canonical orders/components. ClickUp tasks are external production representations linked by stable webapp order/component identity.
+PRODUCTION: owner-requested `https://shop.decocake.my/acrylic-production/` renders the shared cutting UI without login/admin shell. PR #93 `ee3dc16ea6363431c8123613d092e755e9f6836e` / Worker `a3d8141c-b35b-4baa-b27d-6499531284ab`; Workers Builds and backend deploy passed. Main-domain no-login stage/Gold/exact-order-search smoke read 14 design tasks with correct A6/2 pcs/set2 evidence. Public GET-only `acrylic-production-display` v1 has exact source/auth readback and a narrow field allowlist; original JWT admin gateway is unchanged and rejects anonymous access. Public possession of the URL permits read access; it is not restricted to office PC/IP. No source/task/stock/customer writes were introduced. See ACRYLIC_PRODUCTION.md.
 
-Why: one order may produce multiple production components and retrying integrations must not create duplicates.
+# 2026-10-16 — Acrylic & Artpaper production queue
 
-## ADR-008 — Integration runners are not sources of truth
+Hosted delivery PRODUCTION / controlled Admin V2 VERIFIED: PR #92 release `fea396a4f53e6cc1d53caf8db826965d817444e4` / Cloudflare Worker `80867d5e-1742-4945-bf0d-cd9a685158c6` passed Workers Builds, guard and deploy. Release tree exactly matches the tested source. The hosted root serves the new `main-CsEGlHPM.js` entry and the exact production URL reaches secure Admin Login. JWT acrylic-production v2 and a service-only invoker read expose CF Job Acrylic cake topper / Artpaper only, material/colour/stage filters, design zoom, size/quantity and separate Task IDs. Real 13-task read, model/auth checks and bundled desktop/mobile interactions passed. Live examples have no captured artwork URL; authenticated hosted owner interaction remains unexercised. Existing ClickUp ingestion, source records, stock and notification lifecycles remain. See docs/ACRYLIC_PRODUCTION.md.
 
-Status: Active.
+# 2026-10-16 — ClickUp job CF in queue
 
-Activepieces and similar automation services may move data or invoke callbacks, but canonical state remains in Supabase/connected systems according to domain ownership.
+Backend PRODUCTION: outbox v41 adds typed job labels/option IDs by explicit component identity and appends the real ClickUp job CF to component custom_fields. Existing TM adapter forwards it without new inputs; stale cached samples need refreshing. Eleven tests, exact source/auth readback and a real Edible Image production preview pass while price/set remain intact. Earlier owner test now has 3/3 tasks linked and queue processed. Downstream job write awaits a fresh TM run; no historical task update or customer send. See docs/taskmagic-production-price-set.md.
 
-Why: automations can retry, fail or be replaced; business truth must survive automation-provider changes.
+# 2026-10-16 — ClickUp task price and conditional set payload
 
-## ADR-009 — WhatsApp sends require guardrails
+Backend PRODUCTION / TaskMagic mapping pending owner: Order `clickup-production-outbox` v40 adds saved item unit price × quantity and typed RM/set custom fields, with no set for a single commercial item. Persisted component indices remain stable across one-per-claim retries and split-item amounts are recorded once. Existing shared-secret auth, cached identity, claim and webhook linking contracts remain. Exact two-file bundle/auth readback and eight controlled tests pass; authenticated read-only production previews prove single RM6/no-set and multi RM12/set1 with unchanged queue/task linkage; missing secret is 401. No ClickUp task or customer send was created for QA. Owner must install the prepared Map ClickUp Task V2 adapter and map the active Create Task custom_fields before new tasks receive these values. See docs/taskmagic-production-price-set.md.
 
-Status: Active.
+# 2026-10-16 — Shopee read warning delivery confirmed
 
-Automatic customer messages must use the established safety controls, notification/outbox behavior and per-order opt-out/session rules.
+Production 038d219 passed Cloudflare build/guard. Actual hosted Inbox serves the exact tested read-warning asset; login browser smoke passes. The earlier frontend delivery block is resolved. Backend sender v14 / bridge v12 and controlled desktop/mobile verification remain as recorded; authenticated next-reply receipt is still unexercised. See docs/SHOPEE_CHAT_DIRECT_SETUP.md.
 
-Why: direct send shortcuts can duplicate messages, violate user preference/window rules, or send stale notifications.
+# 2026-10-15 — Shopee read receipt verification
 
-## ADR-010 — Shipping readiness is separate from production readiness
+Inbox sender v14 and AI bridge v12 deployed with exact source/auth readback; corrected audit fields, post-read provider verification and non-resend warnings. Controlled sender and actual desktop/mobile composer verified; live provider GET reports unread=0 for the latest replied chat and service-role rollback audit passes. Hosted authenticated next-send receipt remains unexercised. See docs/SHOPEE_CHAT_DIRECT_SETUP.md.
 
-Status: Active.
+# 2026-10-15 — Chat reply state survives fulfillment
 
-Do not collapse production completion, shipping readiness, courier state and customer tracking into one status field.
+- [PRODUCTION backend] Shopee needs_reply/unread are independent of shipped, completed and cancelled order sessions. Sessions still close at fulfillment; successful-send proof, concurrent-inbound protection, manual reply and history guards remain. The latest matched order removes Urgent priority/tag on fulfillment/cancellation and blocks later AI/manual re-addition; a newer active order remains eligible. Service-role native rollback tests cover shipped/cancelled reply retention, closed sessions, urgent removal/re-addition, newer-order protection and successful/failed/concurrent sends; 40 sender and 59 operations checks pass. Provider GET evidence restored three still-unanswered chats without sending or marking provider chats read; newer provider replies/manual completion were preserved. Terminal urgent remaining: zero. Frontend source is unchanged; hosted staff rendering has not been exercised. See docs/SHOPEE_CHAT_DIRECT_SETUP.md.
 
-Why: these states advance independently and are consumed by different workflows.
+# 2026-10-14 — Stock management
 
-## ADR-011 — Migrations are append-only history
+Backend and hosted delivery PRODUCTION / controlled Admin V2 VERIFIED: PR #89 e72a1cb / Worker 122bdd22 passed Workers Builds/guard/deploy. Exact stock URL renders the secure Admin Login gate; hosted Stock JS/component and CSS match the tested behavior/styles. Private Order stock ledger, 71 materials and owner/manual count/purchase workflow; canonical To Ship reserve, Shipped consumption, pickup consumption only after a current successful ready notification. Bounded every-minute worker is active; actual 45-order reserves match allocations, no failed work or physical deduction with all openings unknown. JWT stock-admin v2 exact source/auth and native rollback/service-role tests pass. Desktop/mobile real App forms and retry behavior, rates, ledger and builds pass. Opening counts, primary wafer and unconfirmed inch/1pc rates await owner input; hosted authenticated owner interaction remains unexercised. See STOCK_MANAGEMENT.md.
 
-Status: Active.
+# 2026-10-13 — Verified SG token push and release polling
 
-Do not rewrite historical migration files to change production behavior. Add a new targeted migration and preserve rollback/audit reasoning where appropriate.
+Backend PRODUCTION: the owner generated SG's dedicated rotation key and its actual HTTP push persisted credential version 2 at 10:59:25 MYT, followed by CHAT_READ_VERIFIED / READY. MY independently rotated to version 20 at 10:53 MYT; private boolean checks prove different tokens/key hashes. The external scenario's enabled schedule and next scheduled token refresh remain unobserved.
 
-Why: live database history and repository migration history must remain traceable.
+Order shopee-financial-enrich v10 fixes a moving release-history boundary: extend a short first-page tail before querying, keep subsequent-page ranges fixed and compare completion against that same request snapshot. Seven-day bounds, read-only provider paths, service/JWT auth, ingest/wallet idempotency and existing enrichment limits remain. A mistaken one-time SG next_at of June 2027 was corrected through the existing cursor RPC without changing the date range. The actual 11:14 MYT cron read both shops successfully, persisted six-hour next_at values for 17:14 MYT and finished without error. Exact deployed bundle/auth matches, time/pagination/handler regressions and 31 direct / 59 operations checks pass. At that snapshot: zero failed raw events/finance jobs, 167 completed recoveries, all 42 refunds detailed and 2,293 historical detail jobs still pending. See SHOPEE_SG_TOKEN_PUSH.md and SHOPEE_WEBHOOK_OPERATIONS.md.
 
-## ADR-012 — Documentation is portable project memory
+# 2026-10-13 — SG connection and provider-proven recovery
 
-Status: Active.
+Backend PRODUCTION: owner-authorized SG credential import is stored in its isolated Inbox slot; signed escrow/refund reads and CHAT_READ_VERIFIED / READY pass, with unchanged primary MY credential version and token timestamp. Shared provider read checks now scope the shop before limiting conversations, so older SG conversations are found. Five active Edge dependency bundles match source and retain their auth modes. All 42 returns have refund detail; SG release catch-up received 95 rows across 12 API windows, matched 22 canonical releases and retained 73 pending_order rows without creating orders/ledger entries; failed credential jobs were explicitly requeued with prior attempt/error metadata preserved. Order 250707GSUE6A2Y was verified through the signed MY escrow endpoint and its missing Shop ID repaired with evidence. Missing placed_at uses first-recorded created_at for a bounded 90-day release cursor; real rollback cases pass and SG history replay starts 18 July. 31 sender checks, 59 operations checks and session regressions pass. Automatic future SG token push remains pending the actual Activepieces refresh flow URL; no such flow is available in the connected v2taskmagic team. Prepared contract: SHOPEE_SG_TOKEN_PUSH.md. No customer send or refund approval.
 
-Important architectural knowledge must live in the repository rather than only in one AI chat/session. `AGENTS.md` is the common entry point for any coding agent.
+# 2026-10-12 — Shopee webhook operations
 
-Why: the project is intentionally able to move between Codex, Claude, Bolt or other tools without losing system context.
+Backend and hosted delivery PRODUCTION / controlled frontend VERIFIED: durable recovery completed 79 events with zero raw failures; auxiliary notifications/listing/price/promotion/penalty now become audited alerts. Provider-time ship-by updates, return solutions/detail, video URLs and historical/terminal reply/session guards are applied. Direct read-only Shopee finance replaces the old AP dispatch, preserves unknowns, separates MYR/SGD and processes history with bounded cursors/retries. Real rollback tests, 59 operations checks, 30 sender checks, exact 11-function bundle readback and desktop/mobile interactions pass. Admin V2 adds Shopee Monitor and per-shop Settings; hosted signed-in owner interaction remains unexercised. PR #86 release 572b65f / Worker 67c9a35a-aad6-4543-8f4c-f81f80f2dc40 passed Workers Builds and domain guard; the exact hosted Monitor URL reaches secure Admin Login with no application errors. SG import was blocked on 12 October and authorized/verified on 13 October; see the newer entry. See [SHOPEE_WEBHOOK_OPERATIONS.md](SHOPEE_WEBHOOK_OPERATIONS.md).
 
-## Adding a new decision
+# 2026-10-11 — Marketplace cancelled status in Unified Inbox
 
-Add a new ADR section when a change alters a system boundary, source of truth, security/payment rule, deployment ownership or long-lived integration contract. Include status, decision and reason. Do not record minor UI implementation choices here.
+Backend PRODUCTION / controlled card rendering VERIFIED: Order migration 20261010155245 makes CANCELLED win same-provider-time ties and serializes canonical reconciliation. Eight service_role rollback cases and live source/grant checks pass. Only 2610109KDDK929 reconciled; existing worker syncs Inbox CANCELLED / active_order=false, preserving history/payment and the active READY_TO_SHIP control. Actual OrderWorkspaceTab desktop/mobile light/dark rendering removes Aktif for the cancelled card. Hosted signed-in staff interaction remains unexercised. See MARKETPLACE_STATUS_RECONCILIATION.md.
 
-## 2026-10-02 — Unified Inbox shares Cloudflare hosting under /inbox/
+# 2026-10-10 — Draft WhatsApp phone shortcuts
 
-Status: Active, production route verified.
+Hosted delivery PRODUCTION / controlled rendered behavior VERIFIED: Draft list/card/details numbers use whatsapp://send?phone=<digits>, with a separate full wa.me URL. PR #84 e071d40 / Worker 59fd3959-1b28-4d16-833a-2504a328e84d passed Workers Builds/guard; hosted App-XRuSgwkf.js and App-CHUY3otE.css contain the shared links/styles. Desktop/mobile click/keyboard, fallback, overflow and builds pass. Native Windows app launch and authenticated hosted owner interaction remain unexercised; no message/data mutation. See DRAFT_LIST_ANALYTICS.md.
 
-Use the existing shop production Worker to serve the independent frontend in `apps/inbox/` at `/inbox/`. Build it after the storefront into `dist/inbox`, with its own dependency lockfile, styles, PWA scope and cache prefix. Exclude `/inbox` and its descendants from the shop service worker; each worker may delete only its own cache prefix. Keep conversation/auth/media/functions in Inbox Supabase `uujcqcsfghqkukaydruc` and canonical shop data in Order System `buivecgahhmrhlmfujgt`.
+# 2026-10-10 — Shopee replies resolve Perlu Balas
 
-Reason: the owner requested the shop subpath while preserving storefront behavior. The `production` branch publishes the custom domain; `main` only produces previews. Future Inbox frontend edits belong in this production app folder. The original Inbox repository remains provenance/backend reference rather than an automatically synchronized frontend source.
+Backend PRODUCTION: Inbox complete_shopee_reply validates sent message/audit proof, atomically clears needs_reply/unread for pre-send inbound and preserves customer messages arriving during the provider wait. Shared sender covers Inbox v8 and AI Dashboard bridge v9; auth unchanged and exact bundle readback verified. Thirty sender integration checks and actual SQL rollback cases pass. Screenshot conversation reconciled to false/0 without new messages or provider sends. Inbox existing post-send reload consumes the persisted state; authenticated hosted rendering not exercised because staff session is absent. See SHOPEE_CHAT_DIRECT_SETUP.md.
 
+# 2026-10-10 — WhatsApp API sends in Unified Inbox
 
+Backend PRODUCTION: Order whatsapp-send v29 durably audits successful API sends and mirrors them through the private Inbox order-whatsapp-outbound v1. Dispatch v18 retries logs only, never delivery. Full idempotency conflict index and service-only Inbox RPC applied; exact bundled source/auth readback, real rollback tests, sender retry/audit-failure fixtures and opt-out checks pass. Three proven sent notifications for IC261010-1391 recovered with original text/time/provider IDs, each once; live log API and existing cron mark all synced while preserving the later customer reply/unread state. No recovery provider sends or broad historical backfill. External AP/Make direct sends need their own callback/routing. See WHATSAPP_API_INBOX_SYNC.md.
 
-## 2026-09-19 — AI action review spans WhatsApp and Shopee
+# 2026-10-10 — Shopee token push without dates
 
-Keep chat evidence in Unified Inbox and canonical identity/order/payment/session state in Order System. Admin v2 combines them through an authenticated server bridge. Dashboard review state is separate from provider needs_reply and order lifecycle. Explicit human confirmation is required for sends and resolution; a new inbound revision reopens the card. Initial response drafting uses conservative SOP templates and existing semantic prototypes; no autonomous messaging or bulk CRM import. See `AI_ACTION_DASHBOARD.md`.
+Backend PRODUCTION: minimal App ID / Shop ID / Access Token and blank dates accepted, server receipt time recorded and expiry stays unknown. Same-token retries preserve state; unknown-expiry sends require provider read before claim. Inbox optional-times migration, rotation/config v2, sender v7 and AI bridge v8 have exact source/auth readback. Twenty-eight integration checks, six provider checks and both service-role live rollback suites pass; configured shop/key remain unchanged. Root build passes. Settings sample updated; rendered owner and real automation retry pending. See SHOPEE_CHAT_DIRECT_SETUP.md.
 
+# 2026-10-10 — Shopee direct settings and token rotation
 
-## 2026-09-20 — Conversation feedback is a separate reviewed dataset
+Backend PRODUCTION: Inbox private icetak_shopee_chat_config invoker RPC, shopee-chat-config v1, shopee-token-rotate v1, shopee-chat-send v6 and ai-dashboard-bridge v7; Order shopee-chat-settings v1 validates active owner. Existing ClickUp/AP flow remains the only refresh producer, pushing timestamped scoped updates. SQL rollback/idempotency/privacy tests, 20 integration and six provider checks, exact source/auth readback and real sanitized Order→Inbox config read pass. Empty configuration and anonymous rejections verified; no customer send or ClickUp write. Admin V2 Settings frontend is implemented; owner rendered/provider validation pending login and credential entry. See SHOPEE_CHAT_DIRECT_SETUP.md.
 
-Conversation response corrections belong to Order System `ai_dashboard_training`, separate from QRPay draft extraction rules. Admin feedback does not automatically retrain a model or grant send authority. Generic SOP reuse requires owner approval and an explicit admin application to the current draft. Customer-specific evidence/corrected replies remain attached to the originating conversation; cross-customer suggestions expose the authored generic SOP. Confidence describes evidence sufficiency until an evaluated accuracy metric exists. Order completion, courier delivery and payment remain distinct facts. See `AI_ACTION_DASHBOARD.md` for tested boundaries.
+# 2026-10-09 — Draft cancellation audit review
 
+Backend and hosted frontend delivery PRODUCTION / controlled UI VERIFIED: migration 20261009100538 and finance-admin v35 (JWT retained, exact source readback) expose sanitized source/actor/reason/time cancellation/Reopen history without changing mutation contracts. Admin V2 adds source filtering, current cancellation attribution and history on all drafts including reopened ones. Production rollback lifecycle/privacy/pagination/filter tests, 26 report regressions and controlled desktop/mobile UI/Edge authorization checks pass. PR #82 release 9e55979 / Worker 0565d39f-e6b7-46e6-bf23-94543fa4ff5d passed Workers Builds/guard; hosted App-CIyhdYdS.js and App-Bd1cH7jW.css serve the new history/source controls. No historical writes or sends; authenticated hosted owner interaction remains unexercised. See docs/DRAFT_LIST_ANALYTICS.md.
 
-## 2026-09-20 — AI case facts require an explicit current-order subject
+# 2026-10-09 — Draft list and conversion graphs
 
-Orders linked to a CRM customer are possible context, not proof that a conversation refers to a specific order. Admin must explicitly confirm the subject order for the current inbound revision and order session before its payment/shipping facts are used in the case brief. A new inbound revision, session change, ambiguous identity or missing canonical membership makes the binding unusable until reviewed again. Shortcuts may open existing order/draft/composer workflows, but the AI dashboard does not create orders, confirm payments, change fulfillment state or send messages implicitly.
+Backend and frontend delivery PRODUCTION / rendered workflows controlled VERIFIED: migration 20261009080630, service-only invoker finance_admin_draft_report and finance-admin v34 (JWT retained) provide complete filtered cohort totals before pagination. Admin V2 adds default list, cards and graphs, MYT Day/Week/Month, created/sent date basis, source/status/flow/delivery/reason filters and paid canonical conversion. 26 read-only production cohort/pagination tests, Edge auth/filter replay, desktop/mobile App/component interactions and full builds pass. PR #81 release `861f222` / Worker `4a1c2589-41b6-40f7-a9e5-2d55e899592d` passed Workers Builds/guard; hosted admin chain serves `App-CO3ojcGF.js` and new controls/CSS. Authenticated hosted owner interaction remains unexercised. No reporting writes/backfill or customer sends. See docs/DRAFT_LIST_ANALYTICS.md.
 
-## 2026-09-27 — Public AWB references use a minimal ClickUp projection
+# 2026-10-09 — Shopee quotation auto-cancellation
 
-Owner approved order-ID links without login for internal printing. Group tasks by exact `ORDER ID / customer name`, preserve every image from the latest image comment, and render four task quadrants per A4. Store an indexed private derived cache from raw ClickUp updates; expose only print fields through `awb-preview`. The endpoint has no order/payment/message mutation capability. See `AWB_PREVIEW.md`.
+Backend PRODUCTION: migration 20261009051918 and order-draft-customer v13 cancel one recent customer-linked unpaid prepaid quotation on a paid Shopee exact-phone match; delayed CRM mapping is supported. Multi-draft/identity conflicts pause follow-up for admin review, payment/receipt-linked drafts remain protected and stale checkout is blocked. Sixteen real-trigger service_role production rollback cases pass, no QA records remain, Edge source/auth readback matches and security advisor counts are unchanged. PR #80 release `a7fe77c` / Worker `4e47ed25-f864-46fc-b71e-f8e37e9772bd` passed Workers Builds/guard. Exact hosted review/payment HTML renders the cancelled notice without checkout/QR or mutation POST in controlled desktop/mobile Chromium tests. Admin V2 controlled interactions pass; authenticated hosted owner interaction remains unexercised. See docs/SHOPEE_DRAFT_AUTOCANCEL.md.
+
+# iCetak Production State
+
+## 2026-10-08 — AWB preview SKU copy
+
+PRODUCTION: PR #79 release `818130dfbef0074d6db76a5b23505e8f5546abf7` / Worker `642b7957-460b-4b0e-806a-d6c8d1bf6d6f` passed Workers Builds/guard. Each task's ClickUp SKU appears below Finished with a copy icon; empty SKU is omitted and controls stay out of print/PDF. `awb-preview` v6 has exact five-file source readback, unchanged public JWT mode/signed POST boundary and safe live preview/PDF smoke. New service-role-only bounded print-fields RPC reads the latest stored snapshot and preserves the old AWB RPC. Local exact clipboard/Refresh/keyboard/error/mobile/print checks pass; hosted production displays melody cupcake and reports SKU disalin ✓. Copy sends no action POST. The owner-configured webhook is now enabled; no real task action was sent during this SKU QA. See `AWB_PREVIEW.md` for evidence and ingestion timing.
+
+## 2026-10-07 — AWB preview task actions (unconfigured)
+
+PRODUCTION: PR #78 release `efa3db327f32ac08ef87cb3fbf880c31e5c15d5d` / Worker `7ace457e-084e-4f65-a160-adce5a14ff62`. Header Address/Complete actions cover all current preview tasks; Finished below each task covers only that task. Admin V2 Settings owns the private AWB Preview Action Webhook URL through `webhook-forward-settings` v3 (JWT true). `awb-preview` v5 retains public exact-order reads and implements signed, task-scoped POST dispatch with private receipt RPCs. URL remains blank, visible action buttons inactive, no live destination POST sent. Hosted public preview, deployed source readback, unsigned/auth rejection and private DB state smoke checks pass; configured action/Settings behavior verified in controlled tests. See `AWB_PREVIEW.md` for payload, retry limits and unexercised real destination/authenticated hosted Settings flow.
+
+## 2026-10-07 — Direct checkout WhatsApp consent
+
+Backend queue generation PRODUCTION: migration `20261007052454_direct_checkout_whatsapp_consent` persists checkout consent during the initial order INSERT for customer/customer_portal sources. Live RPC/trigger rollback tests confirm one order-created and one payment-received queue entry, opt-out and retry behavior, correct recipient and unchanged non-customer flow. No historical replay or provider send; authenticated browser checkout/provider delivery remain unexercised. See [DIRECT_CHECKOUT_WHATSAPP.md](DIRECT_CHECKOUT_WHATSAPP.md).
+
+Snapshot date: 2026-08-29 MYT.
+
+This is a living production snapshot, not a substitute for checking live services before risky changes.
+
+## GitHub
+
+- Repository: `wings105/icetak-order-app-bolt`
+- Production branch: `production`
+- Production head observed during this review: `8b38b5a94d892096f3ecd10910bad4a6e1fdfae7`
+- `main` and `production` are diverged. Agents must not assume `main` is equivalent to production.
+
+Recent production work includes courier display improvements, QRPay fail-closed reconciliation and per-order WhatsApp auto-send opt-out hardening.
+
+## Supabase: Order System
+
+- Name: `icetak-order-system`
+- Project ref: `buivecgahhmrhlmfujgt`
+- Status observed: active/healthy
+
+Major live domains observed:
+
+- canonical customers/orders/order_items
+- payment sessions/transactions/unmatched transactions/voids
+- production components and ClickUp sync/log/outbox data
+- shipments/tracking/events/POD and attention alerts
+- WhatsApp settings/templates/rules/outbox/notification queues
+- marketplace webhook ledger and normalized Shopee/marketplace entities
+- customer master/identifiers/source records
+- product catalog foundation
+- QRPay AI jobs, drafts, corrections and learning rules
+- order sessions and fulfillment groups
+- CRM profile/notes/tasks/tags
+- pickup checkouts, bundle orders, access tokens, handovers and voids
+- admin users/permissions/audit and operational runtime settings
+
+Notable active Edge Function families observed:
+
+- core/customer/admin API helpers
+- payment sessions and payment matching
+- WhatsApp send/dispatch/webhook/proxy/admin/login
+- shipping-agent/shipping-api/AWB/POD/tracking
+- ClickUp ingest/outbox/callback
+- product catalog sync/pull
+- QRPay AI worker/bridge/draft review/data/publisher
+- order draft customer/trigger/manual paid
+- admin order control/review/draft control
+- finance webhook/admin/daily QRPay summary
+- address import/fetch
+- admin WhatsApp window monitor/bridge
+- AI learning admin endpoint
+- GPT order actions
+- pickup receipt
+
+## Supabase: Unified Inbox
+
+- Name: `icetak-unified-inbox`
+- Project ref: `uujcqcsfghqkukaydruc`
+- Status observed: active/healthy
+
+Major live domains observed:
+
+- customers and channel identities
+- conversations and messages
+- WasapFlow webhook event ledger
+- message media/cache jobs/references
+- tags and quick snippets
+- Google contacts cache
+- external order summaries from Order System
+- conversation AI jobs/analyses/semantic prototypes
+- conversation activity and order links
+- Shopee chat ingest receipts/events/send attempts
+- external WhatsApp request audit
+
+Notable active Edge Function families observed:
+
+- WasapFlow webhook/send/template/media/raw/interactive helpers
+- 24h window checks
+- external WhatsApp send/outbound logging
+- Google Contacts bridge
+- active order summary sync/health
+- conversation AI/semantic triage workers
+- Shopee chat ingest/send
+- QRPay AI order worker
+- pickup AI order trigger
+- order draft trigger/from-chat
+- draft payment QR endpoints
+- admin window bridge
+- order session status
+
+## Core production behavior
+
+### Admin
+Admin V2 is the supported admin implementation. See `docs/ADMIN_V2_SOURCE_OF_TRUTH.md`.
+
+### Draft engine
+Unified draft/order-session behavior is live and is the intended path for QRPay/chat/pickup-assisted order creation. See `docs/UNIFIED_ORDER_DRAFT_ENGINE_V1.md`.
+
+### Payment matching
+Production has explicit hardening for unmatched/ambiguous QRPay reconciliation. New matching logic should preserve fail-closed behavior.
+
+### WhatsApp
+Production has global safety controls plus per-order opt-out behavior for automatic sends. Any new automatic send path must integrate with these guards.
+
+### Pickup counter
+Pickup bundle checkout, notifications, void/review state and QRPay linkage exist in the backend and Admin V2 surfaces.
+
+### AI learning
+Draft correction/learning infrastructure and weekly control settings exist. Do not create a second independent learning store without architectural review.
+
+## Known documentation caveats
+
+Some subsystem docs contain point-in-time verification dates or old deployment URLs. Treat them as detailed historical contracts, then verify current production before acting.
+
+`icetak-admin/README.md` is still the generic React/Vite template README and should not be treated as iCetak architecture documentation.
+
+## How to refresh this document
+
+When a meaningful production architecture change ships:
+
+1. Verify the current `production` head.
+2. Check affected live Supabase tables/migrations/functions.
+3. Update only the sections impacted by the change.
+4. Add the production-facing change to `CHANGELOG.md`.
+5. If the system boundary/decision changed, update `docs/ARCHITECTURE.md` and `docs/DECISIONS.md` too.
+
+## 2026-10-02 — Unified Inbox hosting
+
+- [PRODUCTION] `https://shop.decocake.my/inbox/` serves the staff Inbox login; `/inbox` redirects to the trailing-slash entry. Frontend source: `apps/inbox/` on `production`, imported from Inbox repository main `fdbcaa291e51fc69634287b9acd4a0a2d95b7f7f`.
+- Release `9b35249efe2c03a01994a2a9c8b2b5939b56cd82`; Cloudflare version `69ce3c0d-3f25-4fad-98b5-e7af354fface`. Workers Builds and GitHub guard passed. Production browser verified Inbox page identity/login gate, root catalogue and Edible Image product navigation.
+- Local build/typecheck passed. All 79 pre-existing storefront build files were byte-identical except the deliberate shop service-worker cache isolation change. Existing renderer Worker/bindings and mockup build input remain present.
+- Backend remains Inbox Supabase `uujcqcsfghqkukaydruc`; both projects were healthy and Inbox conversations/messages/customers RLS was active. No backend migration, credential, webhook or message/order mutation was performed. Authenticated staff Inbox workflows were not exercised.
+- See `UNIFIED_INBOX_HOSTING.md` for build and ownership details.
 
 
 ## 2026-09-30 — Business Command Center
@@ -212,135 +367,92 @@ Owner approved order-ID links without login for internal printing. Group tasks b
 - Existing production webhooks, automations, messaging and customer app preserved; no historical backfill.
 
 
+## 2026-10-01 — Cake Mockup public sizing tool
 
-## 2026-10-01 — Order work remains independent of chat resolution
-
-Use a private derived ClickUp projection rather than force legacy marketplace tasks into canonical orders. Match explicit Webapp IDs/task links or exact unique Order ID/Order SN; never guess by customer name. Global order priorities read current ledger/shipment/component state before card pagination. Keep production completion, shipping, payment and customer-response resolution separate. Admin case binding still guards case facts. Per-set progress can retire earlier work without closing a complaint/correction. Reconciliation cannot mutate canonical orders/payments/tasks or send messages. Stored replay and real provider pull must be named separately.
-
-
-## 2026-10-01 — Automation exports use the existing Canvas engine
-
-Use the same native Canvas code in server Chromium rather than reproducing curve/text layout or capturing the editor UI. Authenticate automation with render-only hashed keys or a short signed grant bound to exact fields and template version. Validate before accessing the PNG cache. Combining placeholders in one layer preserves a continuous curve; old full-wording links are supported only through an explicit template compatibility flag. ClickUp task attachment plus a linked comment is the adapter contract; inline comment attachments and live AP installation are not implied by renderer deployment.
-
-
-## 2026-10-03 — Freeze order material versions and separate contribution from P&L
-
-Status: Active. Use append-only effective material settings, selecting the version at order first_seen_at and capturing per-order item-cost snapshots. Defaults apply to future orders; existing actual costs cannot be silently recalculated. Changed item facts require cost re-review. Existing orders have a reproducible original-version preview without bulk history backfill.
-
-Use canonical released/escrow income, retain explicit actual versus estimated/allocated costs, and subtract platform deductions only once. Order contribution is before business overhead and does not write journal entries. Reason: dependable order decisions without false settlement/profit confirmation or double-posting costs to the business ledger. Owner-only gateway and cost/version audit preserve accountability. See ORDER_PROFIT.md.
+- Public route `https://shop.decocake.my/mockup/` is deployed through the existing Cloudflare Workers Builds production pipeline. Release `4e0c89d` and GitHub guard both passed; live public sizing preview is PRODUCTION.
+- Browser-only Three.js tool with inch-based geometry: round/rectangular cakes, 1–4 independently sized tiers, edible top/curved-side placement, flat acrylic top/side placement and fit warnings. A labelled Canvas 2D top/front fallback supports browsers without WebGL 2. No backend, order, payment or message writes.
+- Public browser checks verify inch/cm conversion, 0.5-inch clearance for 5-inch edible on 6-inch cake, side-height warnings, three-tier acrylic placement, example artwork and PNG preparation/native download link.
+- Controlled software-rendered Chromium verifies WebGL 3D and no-WebGL fallback, desktop/mobile interactions, image upload/removal, decoded 1600px PNG downloads, stale-download invalidation and both routes. Production cloud browser disables WebGL and its download-event adapter timed out; hosted 3D and completed downloads in that browser remain unverified. The standalone Chromium public request was blocked by its environment proxy certificate trust, not by an observed site error.
+- Owner-supplied edible catalogue update `f2fda399` is PRODUCTION after Cloudflare Workers Builds/guard and public browser smoke. 34 presets cover Round/Square/Rectangular/Love, RM6/RM12/RM24 shape-specific prices, cupcake 1.8-inch RM1.20/pc (24/A4), landscape/portrait and custom quote handling. Live smoke verifies round/love 4-inch RM6 versus square 4-inch RM12, six rectangular dimensions/orientations with retained prices, cupcake capacity/prefill and clipped heart preview. Controlled desktop/mobile WebGL/no-WebGL tests cover every preset, upload footprints and actual decoded PNG downloads. Catalogue/prices are browser-only and do not modify store/backend records.
+- See `docs/CAKE_MOCKUP.md` for dimensions, privacy and validation contracts.
 
 
-## 2026-10-04 — Compare channels on goods sales and expose evidence gaps
+## 2026-10-01 — AI order work lifecycle
 
-The sales channel follows purchase ownership, not the conversation channel. Shopee mirrors must never inflate direct sales. Compare MYR goods after known seller promotions, before refunds, with shipping/cash/settlement/profit separate. Use known percentages when sales are incomplete and label that denominator. A report-estimated nett is not release proof, and missing direct costs cannot create profit. Read-only gateway reporting must not backfill financial facts or post journal entries. See SALES_CHANNEL.md.
+Order System migrations ai_order_work_lifecycle and ai_order_work_safety applied; private task/set mapping and global order-work RPC verified live and with rollback tests. admin-ai-dashboard v7 ACTIVE, JWT enabled, six sources read back equal. Hourly stored replay enabled; separate hourly ChatGPT provider reconciliation scheduled. Initial pull/project of 49 task snapshots succeeded; scheduled execution not yet verified. Admin UI implementation/build passed, but authenticated rendered check is pending (cloud browser shows Admin Login). See AI_ACTION_DASHBOARD.md; full frontend flow is not yet PRODUCTION.
 
 
-## 2026-10-04 — Customer Focus is an operational list with separate audited observations
+AI order work release evidence: f0214c0 and 71e35c0 both passed Cloudflare Workers Builds and guard. Four operational migrations applied; exact-status/conflict rollback tests passed, QA cache rows zero. Secure cloud-browser login returned Failed to fetch; authenticated visual verification remains blocked. This is a concrete login/network failure, not a customer-message/order mutation or proof of a broken dashboard. See AI_ACTION_DASHBOARD.md for continuation.
 
-Use the existing Order System task/order projection and Inbox bridge for a sortable customer/order/draft list. Store panel notes, explicit detail checks, dates and work hiding in private versioned state/events. Source/message changes reopen earlier work observations. These observations cannot confirm payment, shipment, collection, external reply or ClickUp completion. Exact identity and explicit order references protect multi-order context; unbound inquiries remain visible. Reason: reduce owner admin/design prioritization work without rewriting authoritative lifecycles or enabling autonomous messages. See CUSTOMER_FOCUS.md.
 
-Daily focus must distinguish current action from historical records. A fulfilled order cannot regain an old work/shipping deadline from an unresolved chat; a fresh exactly-owned question is after-sales reply work. Generic inquiry priority belongs to its chat row and cannot multiply across every customer order. Daily chat scope is 24 hours (48 hours urgent / 7 days complaint); current review scope is 7 days. Recent open work or explicit admin urgency/scheduling can restore older records. Keep ordinary collection, future work and unpaid customer-ready drafts in their own filters. Archive classification never changes authoritative order completion.
+## 2026-10-03 — Shopee order contribution
 
-Manual external-reply observations belong to the exact shared conversation revision. They must not close unfinished order design. Design/production observations follow actual work changes; new inbound creates reply work rather than automatic redesign. Whole-action completion follows stable actual source/message observations, independent of which pending conversation is displayed. Reuse audited panel state for single/bulk/undo actions; bound completed chats remain reviewable. Bulk saves are bounded, individually versioned/idempotent and explicitly partial. No lifecycle/provider-status changes are implied by a panel mark.
+Backend and controlled frontend VERIFIED. Private material-cost history and per-order snapshots in Order System; finance-admin v28 retains JWT and existing owner permissions. Finance → Untung Order, Marketplace Nett/Untung and separate Settings → Modal Bahan are added to Admin V2. Service-role rollback/trigger tests, Edge auth tests, desktop/mobile rendered workflows, TypeScript and full storefront+Inbox build pass. Release `534d2c9` passed Workers Builds/guard; the live root/admin route serves `App-BhGe7vwM.js` with the new UI and finance actions. Gateway source readback matches and live no-auth requests return 401. No retained QA orders, changed production cost rates, journal entries or historical order backfill. Hosted authenticated owner UI remains unverified. See ORDER_PROFIT.md.
 
-## 2026-10-04 — Collect post-order detail on each order without reopening drafts
 
-Use one shared per-item evaluator/session panel in the existing Marketplace and Customer Focus lists. Keep internal-order, ClickUp-task and chat-session links separate. Exact order/SKU/identity evidence and explicit scoped bindings can supply details; customer names or generic multi-item text cannot silently map them. Save checks through private versioned/audited Focus state. Production locks follow actual task stages, while payment, provider readiness, task fields and closed draft sessions remain authoritative elsewhere. Shopee auto-send/default and ClickUp writeback require connected adapters plus proven idempotent scheduling; show the missing capability rather than a false send/confirmation. See ORDER_DETAIL_COLLECTION.md.
+## 2026-10-03 — Full Shopee finance details
 
-## 2026-10-04 — Trusted webhook phone joins WhatsApp and Shopee CRM identity
+Release 695285e passed Workers Builds and GitHub guard. Private immutable finance snapshots, full received-field/source/history display, refund/return loss contribution, server-backed filters/sort/daily/courier charts/full CSV and owner-only Excel preview/import are added. finance-admin v29 is ACTIVE with JWT, source readback equal and no-auth 401. Six original payloads reconcile; live webhook arrivals grew coverage to 28 orders / 29 snapshots at 11:23 MYT. No retained QA orders, changed modal percentages, or finance journal writes. Controlled desktop/mobile and live rollback accounting/import tests pass. Hosted owner login flow remains unverified. See ORDER_FINANCE_DETAIL.md.
 
-Owner explicitly authorized merging customer masters from authenticated webhook phone evidence. For an existing exact Shopee order/customer, use normalized phone plus verified inbound WhatsApp phone identifiers; retain that WhatsApp owner to preserve Inbox identity references. Use the existing CRM merge contract and remap legacy staging references atomically in a service-only RPC. Names, generic chat text, CSV and reference-free mappings cannot trigger auto-merge. Conflicting verified phones or competing owners remain review cases. This changes CRM identity ownership, not per-order chat boundaries: bind only the specific order's message interval; final artwork still requires selection.
+
+## 2026-10-04 — Sales Channel comparison
+
+- Backend and controlled Admin desktop/mobile VERIFIED. Finance → Sales Channel compares Shopee / Deco sales, known shares, trends, receipts/pending evidence, contribution completeness and customer/operational metrics. Hosted frontend smoke pending.
+- Order System migration 20261003172037_sales_channel_analytics, service-only invoker reports, finance-admin v31 ACTIVE with JWT/owner checks retained. No business record/journal/notification mutation. See SALES_CHANNEL.md.
+
+
+## 2026-10-04 — Fokus Customer
+
+User screenshot confirms load recovery after the 8s query repair, but revealed FAILED daily ranking: 1,813 focus rows including completed July orders. Daily-scope correction VERIFIED on the complete 4,056-order/3,436-chat/12-draft snapshot and real desktop/mobile component: 126 daily rows, zero July focus rows, zero fulfilled-order deadline urgency. Current paid work, chat review, future work and history remain separately accessible; routine pickup and unpaid waiting drafts do not clutter daily focus. Counts change with new source data. admin-ai-dashboard v10 ACTIVE, JWT=true and all seven files match readback. No new migration or business mutation; four Order/one Inbox migrations remain. Hosted authenticated owner confirmation of the corrected daily list is pending. See CUSTOMER_FOCUS.md.
+
+Manual/bulk actions VERIFIED on the real component and gateway/model using full actual data + controlled cases. Dah balas records exact chat revision; whole-action completion, design/production, waiting, Undo/reopen and up-to-50 selection reuse private audited state. Partial failure keeps failed targets; lost-response retries do not duplicate events. Live save/audit tests rollback cleanly; service-only grants unchanged. admin-ai-dashboard v11 retains JWT/admin gates, no new migration or canonical/provider mutation. Authenticated hosted-owner saves remain pending. See CUSTOMER_FOCUS.md.
+
+## 2026-10-04 — Order detail collection and scoped sessions
+
+[VERIFIED] Shared per-item detail checks and scoped chat panel in Marketplace Orders / Customer Focus. Separate internal iCetak, ClickUp and chat links; exact task custom-field read model, explicit same-identity WA/Shopee bindings, history/cutoff guards, quantities, conflicts, production locks, deadline and observed manual follow-up. Actual handler/list/panel desktop/mobile checks, source/version/idempotency/reader guards and live rolled-back persistence/audit checks pass. Order System admin-ai-dashboard v13 retains JWT; Inbox ai-dashboard-bridge v3 retains custom token auth; new read RPCs service-only. No retained QA state, historical backfill or provider/order/payment mutation. Shopee automatic sends/default and ClickUp field writeback are blocked by absent adapters; not enabled. Hosted authenticated owner saves remain unverified. See ORDER_DETAIL_COLLECTION.md.
+
+Frontend release `9ebd080` passed Workers Builds/source guard and its public root/admin asset chain contains the detail/session and Marketplace column markers. Marketplace detail/task reads refresh every 60 seconds (controlled fresh-task polling check passes), alongside existing Focus refresh. Hosted authenticated owner saves and absent external-send/writeback adapters remain the limitations above.
+
+2026-10-04 checkout wording correction VERIFIED: the user's 261004PU9CC6BW screenshot revealed unparsed wording and string-checkbox false negatives. Exact live-data and rendered panel now show Detail lengkap 1/1, Note to seller wording, Confirmed (ClickUp): Ya and preserved printing lock. admin-ai-dashboard v14 retains JWT; regression/type/full-build checks pass. No canonical/task/provider mutation. See ORDER_DETAIL_COLLECTION.md.
+
+2026-10-04 complete-task wording correction VERIFIED: three exact source orders (261004PU64CYAS, 261004PQXWU76N, 261004PPSG0SKY) now show complete details in real rendered Focus list/panel. Nonempty final task wording and inline name/age are recognized; empty fields, explicit requirements, quantity/conflict and production guards remain. admin-ai-dashboard v15 source/auth readback matches. No task/provider writes. See ORDER_DETAIL_COLLECTION.md.
+
+2026-10-04 verified webhook phone reconciliation: service-only icetak_reconcile_webhook_phone and crm-identity-ingest v5 deployed with existing custom token auth. Primary and verified WhatsApp identifier owners reconcile on exact authenticated order mapping; conflicts remain review. Exact Ct Izana/izana3005 example merged with one canonical active owner; repeat unchanged and private session binding has one audit event. No outgoing notification, payment/shipping/task status writes. Repository source incorporates previously live v4 behavior. See crm-identity-ingest/README.md.
 
 ## 2026-10-04 — Contribution targets
 
 Admin V2 now has a VERIFIED contribution-target read model and direct-order cost review. The Order System privately owns goal/workday settings and direct cost overrides; existing Shopee nett/cost and sales-channel identity/date rules remain authoritative. Dashboard and Finance distinguish known actual/estimated totals, missing orders and overhead goals. finance-admin v32 deployed with unchanged owner/JWT gates; no accounting journal, payment/provider or historical cost backfill. Hosted owner UI interaction remains pending. See [CONTRIBUTION_TARGETS.md](CONTRIBUTION_TARGETS.md) for formulas, cohort limits and evidence.
 
-## 2026-10-05 — Exact order mentions are cross-channel evidence bindings
+## 2026-10-05 — WhatsApp Order ID evidence links
 
-Owner authorizes a single explicit known Shopee Order ID in inbound WhatsApp as a per-order evidence link even when canonical CRM identities are not merged. Persist the reference and message time, stop at the next distinct order/cutoff and retain manual scope precedence. Never merge customer masters by an order mention. Explicit artwork captions may fill one image-required item, but screenshots/receipts/examples do not; conflicting artwork and generic multi-item evidence remain review. This changes detail readiness only, not payment, production or send authorization.
+[VERIFIED] Inbox message/order-summary triggers create idempotent per-order links from one explicit known Shopee Order ID; 55 recent active-order references recovered. Shared detail scopes now include WhatsApp beside Shopee and stop at the next order reference. Selected single-item artwork counts as received detail, while screenshots, history, conflicts and print-quality QC remain guarded. Actual live source/handler replay for 261004R0RYQ2R7 resolves complete 1/1 / Ready design. admin-ai-dashboard v18 ACTIVE, all eight files match readback and JWT/private grants retained. Regression, rolled-back boundary/retry checks, component server render, typecheck and full build pass. Hosted authenticated owner interaction remains unverified. Outgoing sends and ClickUp writeback remain disabled. See [ORDER_DETAIL_COLLECTION.md](ORDER_DETAIL_COLLECTION.md).
 
-## 2026-10-07 — Owner-approved AWB preview task actions
-
-Extend the existing public exact-order internal print page with explicit one-click webhook actions. The owner approves header fan-out for Address/Complete and individual Finished actions beneath each task. This qualifies the 2026-09-27 read-only endpoint statement: GET remains a projection read; POST performs only validated external webhook dispatch and private delivery receipt writes, never direct business-record or ClickUp mutations. Admin V2 owns the private destination setting with existing owner/manage_admins authorization. Signed, short-lived page grants, current membership/config rechecks and stable request receipts restrict dispatch. Keep the exact user JSON field spelling `buton` and one task per POST; receiver automation owns downstream status mapping and must honor Idempotency-Key for exactly-once effects. See AWB_PREVIEW.md.
-
-## 2026-10-08 — SKU is a minimal AWB print reference field
-
-Owner approved exposing the task's text SKU in the exact-order reference preview and a copy control beneath Finished. Read SKU and AWB URL together via a new service-only bounded snapshot RPC; retain the previous AWB-link RPC's signature for compatibility. Preserve original SKU text for clipboard, omit empty values and keep controls/values hidden from print/PDF. No raw custom-field exposure, ingestion changes, history backfill or webhook dispatch on copy. See AWB_PREVIEW.md.
+Frontend release `5548f1e` passed Workers Builds and source guard; Cloudflare version `ed9ca73f-b234-457e-b2df-e2d0ad43409c`. Public root/admin asset chain serves the new Order ID binding label in `App-BsbkqW6c.js`. Authenticated owner interaction remains pending.
 
 
-## 2026-10-09 — Paid Shopee purchase supersedes one recent unpaid quotation
+## 2026-10-05 — AWB reference Print AWB
 
-The owner authorizes exact-phone cancellation of a single customer-linked prepaid quotation within the prior 14 days. Use the existing cancellation reason/audit and pause follow-ups for ambiguous multi-draft/CRM matches. Defer matching to transaction end and retry when canonical phone mapping arrives; exclude historical captures, paid/receipt-linked/converted quotes and invalid Shopee orders. Customer links cannot resurrect rejected drafts; explicit admin Reopen owns recovery. No outgoing cancellation message is added. See SHOPEE_DRAFT_AUTOCANCEL.md.
-# 2026-10-09 — Draft reporting uses explicit cohorts and paid canonical conversion
-
-Draft list/graph analytics include converted rows and use either draft-created or stored customer-send dates, with MYT day/ISO week/month boundaries. Outcomes are current, not event-date counts. Sent conversion percentages use recorded sent drafts; missing legacy dispatch evidence is not inferred. Closed requires a noncancelled canonical paid order; unpaid pickup conversion remains separate. Reason percentages use all cancelled drafts. Service-only read aggregation runs before bounded pagination through existing finance-admin owner auth. No historical updates or provider sends. See DRAFT_LIST_ANALYTICS.md.
+[PRODUCTION] PR #74 release `d1b697d` passed Workers Builds and GitHub guard; Cloudflare version `1892364c-bc12-4628-b7d4-5d5a8312f6ce`. Public reference toolbar reads matched task AWB link fields through service-only bounded indexed RPC and awb-preview v3. Actual production browser for `261005SQ0C3Y1F` shows the control and clicking opens the existing `14zbjdpktr8` AWB PDF. Duplicate/multiple/missing/unsafe links and desktop/mobile behavior VERIFIED in controlled tests. No historical backfill or business writes. Physical printing not exercised. See [AWB_PREVIEW.md](AWB_PREVIEW.md).
 
 
-## 2026-10-09 — Review cancellation history without rewriting audit facts
+## 2026-10-05 — AWB direct-print correction
 
-Use existing draft events for cancellation/Reopen history through a sanitized private read RPC. Both system and admin cancellation retain their recorded source, actor, reason and time; Reopen clears current draft cancellation fields but never deletes earlier events. A source filter applies to current cancelled cohort outcomes, while history remains available on active/converted drafts. Missing legacy source remains unknown; no historical audit reconstruction or provider sends. See DRAFT_LIST_ANALYTICS.md.
-## 2026-10-10 — Reuse canonical SOP suggestions inside Inbox composer
-
-The Unified Inbox owns suggestion presentation and its staff authentication; Order System continues to own canonical case/order/work facts. A narrow authenticated read bridge reuses existing analyzer/enrichment modules instead of copying logic into the browser or requiring a separate Order admin session. Six-second quiet debounce and 60-second freshness bounds limit stale drafts; exact order association remains conservative. Click inserts editable text only. GPT generation, new credentials, automatic sends and inferred latest-order binding are outside this change. See INBOX_REPLY_SUGGESTIONS.md.
+[PRODUCTION button/PDF flow; native popup ATTEMPTED] PR #75 release `506dcf7ae72a122e878636906cb453043fa45ae3` passed Workers Builds and guard; Cloudflare version `87e8e039-530a-4cd1-9933-7d97a9b36d1b`. awb-preview v4 proxies only the stored PDF for a task belonging to the requested exact order, with allowed hosts/redirect and byte limits, unchanged PDF bytes and no business writes. Hosted Chrome observes the new Print AWB button, loading and PDF-frame print return without a new tab. Native print UI is not exposed for either print action in this cloud browser; popup contents and physical printing remain unverified. See [AWB_PREVIEW.md](AWB_PREVIEW.md).
 
 
-## 2026-10-10 — Bound inline suggestion cost before canonical reads
+## 2026-10-08 — AWB reference task name copy
 
-Remove periodic/expiry/global-order recalculation in favor of selected-context evidence changes and explicit refresh. Expired drafts are unavailable until rechecked; bounded account-local memory can reuse fresh drafts across selection. Durable service-only Inbox counters serialize claims across tabs/workers before the cross-project read: 120/hour, 1000/MYT day and 30s/chat. Failure consumes the allowance and backoff honors the reset time. Counters contain no customer text, have bounded retention and do not change orders/messages. These limits apply to suggestion calculations, not the whole Supabase bill; an already-open old frontend still requires reload. See INBOX_REPLY_SUGGESTIONS.md.
+[PRODUCTION] PR #77 release `a1cc728dcdfa871473f6d2af72be58c2ea89d27c` passed Workers Builds/guard; Cloudflare version `ae7fde23-804c-4333-816f-2e8edf44bb9c`. Each task title has a one-click copy icon with Disalin ✓ feedback. Native clipboard bytes verified in local Chromium; hosted exact-order icon/click feedback verified. Copy controls/status are hidden in print/PDF. No backend or business writes. See [AWB_PREVIEW.md](AWB_PREVIEW.md).
+# 2026-10-10 — Inline Inbox reply suggestions
 
-## 2026-10-11 — Knowledge as canonical facts; automatic learning as conservative style
-
-Reply Knowledge belongs in Order System and is managed in AI Dashboard's Knowledge tab, shared by Dashboard detail and Unified Inbox suggestion. Use only useful FAQ information from the owner's older file; do not restore its stale automation/architecture plan. Publish versioned owner-authored facts explicitly. Learn whitelisted style automatically from confirmed human sends through a bounded private Inbox batch queue, with generated-draft echo suppression and strict fact-equivalent wording. Do not let chat corrections overwrite prices/policies or infer certifications. Reuse the deterministic suggestion engine and existing cost guards; no new OpenAI credential or per-message embedding pipeline. See REPLY_KNOWLEDGE.md.
-
-## 2026-10-14 — Canonical fulfillment owns material stock
-
-Reserve from real orders becoming To Ship, consume on actual Shipped or pickup readiness with a successful current customer notification. Do not infer inventory use from ClickUp statuses. Use A4-equivalent size × quantity with independent Burn Away layers, acrylic selected colour, separate artpaper gold and equal glossy/double tape. Keep other materials manual. Owner counts and purchases establish stock; seed names only, never invent/backfill opening quantities. Use private service-only invoker ledger/RPCs with a JWT active-admin gateway, immutable receipts/audit and bounded event-driven cron. Retain first fulfillment evidence and freeze fulfilled usage; late Shopee/direct links transfer reserves or require review of independently consumed identities. Confirm unknown inch/1pc rates explicitly. See STOCK_MANAGEMENT.md.
-
-## 2026-10-16 — Acrylic production is a read-only ClickUp work filter
-
-Admin V2 Production Acrylic reuses existing raw task/work/image projections. Only CF Job Acrylic cake topper and Artpaper qualify; ClickUp status owns design/review/production placement. Material and colour filtering preserve per-task identity, including shared Order IDs. Unknown or conflicting evidence stays visible for review, with no default Gold. A JWT active-admin gateway mediates a service-only invoker read; no new ClickUp fields/writes, task lifecycle, stock or notifications. See ACRYLIC_PRODUCTION.md.
+Backend PRODUCTION / controlled rendered behavior VERIFIED: Inbox JWT/staff-only inbox-reply-suggest v1 and private Order inbox-reply-context v1 reuse canonical context and shared SOP rules above the composer. Six-second customer quiet period, 60-second expiry, stale message/customer rejection, editable click-to-draft with append/dedup and explicit Send only. WhatsApp Enter respects expiry. Actual cross-project read and unchanged conversation state, exact auth/bundle readbacks, handler/engine regressions, desktop/mobile light/dark interaction checks and full builds pass. Admin dashboard v20 adds xreply/xbalas shorthand recognition. Hosted authenticated staff interaction remains unexercised; see INBOX_REPLY_SUGGESTIONS.md.
 
 
-## 2026-10-16 — Owner-authorized standalone cutting display
+# 2026-10-10 — Inline suggestion cost guard
 
-Expose only the existing cutting-display DTO through a separate public GET-only Edge Function for an owner-requested office link without login. Reuse the same component, work/status/image projections and colour rules; keep existing admin authentication intact. Store no display session, do not mutate source records, and do not expose raw/contact/payment/finance data. Noindex is an indexing hint and does not make the URL private or bind it to a trusted PC. See ACRYLIC_PRODUCTION.md.
-
-## 2026-10-16 — Shared catalogue prepares website sales without provider mutations
-
-Use existing products/models/profiles and the owner-approved purchase UI. Apply evidence-based model preparation only to clear source listings; keep website prices/publication separate from Shopee. Owner bulk mutations use versioned previews, idempotent receipts and snapshot-checked recovery. Public browse remains invoker/RLS protected. Customer originals are private, capability bound before checkout and order bound afterwards; never store pre-order upload capabilities in public snapshots. Exact checkout retry reuses one order/payment and only this flow uses the existing serialized QR allocator at insertion. Explicit profile and exact catalogue Burn Away model size must survive legacy normalization. See `catalog/STOREFRONT_ROLLOUT.md` for contracts and proof.
-# 2026-10-19 — Native task workspace alongside provider status
-
-Owner requested a ClickUp-like operational task view inside Admin V2, enriched with iCetak and Shopee data. Preserve each ClickUp Task ID/set and exact stored order links. New service-only, versioned/audited native work owns PIC, notes, uploaded files and an explicitly labelled iCetak stage. Source status remains separate and newer source revisions invalidate old stage overrides. No implicit ClickUp writeback, customer approval/send, stock/payment or fulfillment mutation is introduced. See `TASK_WORKSPACE.md` for coverage, permissions and verification.
-
-## 2026-10-20 — Detail observations are independent of approvals
-
-Persist current task detail observations and change history in Order System through a bounded leased worker. Reuse private Inbox session evidence and exact phone fallback without moving chat ownership or creating CRM links. Separate completeness from admin questions; later design changes require current-source human review. A 30-minute reread is independent of future provider message follow-up. Preserve native notes, final/QC, payment and fulfillment contracts. See ORDER_DETAIL_AUTOMATION.md.
-
-## 2026-10-21 — Task evidence is the designer's primary workspace
-
-Preserve ClickUp task/set identity and the current readiness rules, but present exact specs, original wording/messages and usable image assets before edit forms. Reuse the bounded order/session context for a detail-only sanitized dossier; keep order-wide multi-item context visibly separate from per-item assignment. Extend the existing private media bridge with bounded on-demand recovery through the existing downloader, preserving JWT flow and cache ownership. Native final/QC handoff is audited but must not imply external ClickUp delivery or a guessed staff identity. See TASK_DESIGN_DESK.md.
-
-## 2026-10-21 — AI Dashboard becomes the task designer workspace
-
-Reuse the current task/readiness/dossier contracts inside AI Dashboard rather than creating another work projection or chat store. Preserve exact Task ID/set identity and keep the existing conversation review in its own tab. Explicit provider status and finished-design publication belong in a new JWT active-admin gateway with service-only durable receipts. Owner-configured ClickUp access stays private; upload bytes as a task attachment and verify the linked comment through provider readback. Unknown writes cannot be blindly retried. No automatic customer send, canonical fulfillment/payment/stock mutation or new generative model is implied. See AI_ACTION_DASHBOARD.md.
+Delivery PRODUCTION / controlled UI VERIFIED: Inbox inbox-reply-suggest v2 retains JWT/staff auth and adds a service-only atomic 120/hour, 1000/MYT-day, 30s/chat allowance before canonical reads. No polling/expiry/resume refresh or unchanged-context automatic retries; scoped order events, bounded account memory cache, one browser request at a time and error/429 backoff. Live SQL rollback boundary/reset/retention/grant tests and exact gateway v2/auth readback pass; zero persisted QA counters. Ten idle minutes produce zero extra UI requests. Existing composer/send/session rules and Order inbox-reply-context v1 remain unchanged. Hosted authenticated staff interaction remains unexercised. See INBOX_REPLY_SUGGESTIONS.md.
 
 
-## 2026-10-23 — One conversation badge with factual work and scoped prospects
+# 2026-10-11 — Reply Knowledge
 
-The owner authorizes a compact header lifecycle badge and task progress without opening the sidebar. Keep prospect classification/explicit staff choice separate from canonical order/payment/fulfillment and exact ClickUp task facts. Use the existing Inbox cache/links for candidates, the exact canonical conversation session for draft boundaries, and a narrow private read bridge for source tasks/timestamps. Never merge Inbox cache IDs with canonical order IDs or use sync time as order creation time. Multiple unfinished items/orders cannot be hidden by a completed sibling or old primary. Printing is not a physical-print receipt; task completion is not shipping. Prospect overrides are session-scoped, staff-only and cannot rewrite order facts. No provider/customer send, generative credential, new stock movement or historical data rewrite is implied. See INBOX_CONVERSATION_LIFECYCLE.md.
-
-## 2026-10-23 — Trusted Task Workspace URL
-
-Reuse the existing Task Workspace UI and operation handlers through a distinct revocable capability gateway. Device access is scoped to task operations, uses its own active non-login staff audit identity and cannot manage connections or reach other admin services. The owner explicitly requested a single URL for trusted PC / ClickUp use without a person-login screen. Keep normal JWT endpoints and browser RLS unchanged. See TASK_WORKSPACE_STATION.md.
-
-## 2026-10-25 — Explicit AI roadmap reviews before progress updates
-
-Owner requests durable per-item AI audit history distinct from release changelog. Record a start before implementation inspection, checkpoint bounded evidence and finish with factual snapshots and next steps. Invoker/RLS owner writes and trigger-generated append-only events preserve access boundaries; a changed roadmap revision blocks stale updates. One active run per item and latest-per-item coverage support interrupted batches without claiming unchecked work was audited. Priority/rank/reason/work type remain planning metadata; source-only triage cannot prove operational completion. No autonomous scan, model credential, scheduler or customer/provider mutation is introduced. See `roadmap/AI_CHECKER_README.md`.
-
-## 2026-10-29 — Physical stocktake reconciles past prepared/fulfilled work
-
-An owner-confirmed raw-material count already includes earlier production usage. If source detail/material identity and every material cutoff prove that preparation or fulfillment preceded the count, release that enrolled order through the audited accounted/excluded path instead of reserving or consuming it again. An actual pickup collection is physical fulfillment evidence independently of notification delivery. Preserve the sent-ready guard for normal pre-count pickup consumption. Fulfilled mapping gaps remain explicit consumption-review issues, with no future reserve. Never infer a rate, colour or opening quantity, and never return consumed raw material on cancellation.
-
-## 2026-10-29 — Inventory price evidence and missing source items
-
-Apply the owner's explicit edible standard-MYR-value formula inside the existing private resolver; do not derive physical use from discounts, shipping, foreign currency or a shared bundle amount. Preserve acrylic colour/size selection and fulfilled receipts. Canonical completed production can establish a later-stocktake baseline without becoming shipping evidence. Keep source recovery inside the existing stock worker and private Inbox provider reader, with exact existing-order response proof, canonical item provenance and bounded retries. Item completeness and full customer/financial detail completeness remain distinct. See STOCK_MANAGEMENT.md.
+Backend PRODUCTION / rendered UI VERIFIED: Order Knowledge v2, context v4 and Dashboard v22 share published FAQ retrieval and formal/channel style; Inbox owns successful-human-only learning queue. 19 published / 61 review drafts; five-minute bounded learning batches, copy/automation exclusion and TTL cleanup active. No OpenAI generation or provider sends. Actual desktop/mobile Knowledge controls, tab unmount/no idle polling, live SQL and endpoint source/version outcomes verified; release 1417850 / Worker f9b8b660 builds/deploy/domain guard pass. Hosted Knowledge URL reaches its login gate; Inbox entry index-DUwdbjFj is served. Hosted signed-in staff interaction remains unexercised. See [REPLY_KNOWLEDGE.md](REPLY_KNOWLEDGE.md).

@@ -1,3 +1,7 @@
+# 2026-10-30 — Native AWB preview button actions
+
+Backend deployed; controlled actual action handlers and native rollback checks VERIFIED. Three standalone actions use the internal ClickUp API connection for Review customer AWB/Finished and Complete, with live exact-task/order/options checks, readback, verified projections and shared per-task ledger guards. External action webhook is no longer used by this route. Print/Copy/layout retained. Hosted backend smoke confirms Complete on an already-complete task, with live provider readback/projection and a single sent receipt. Field/status transitions are controlled-provider tests; fresh live transitions and physical printer acceptance remain pending. See [AWB contract](AWB_PREVIEW.md).
+
 # 2026-10-29 — Material stock reconciliation
 
 Active reservation drilldown: private read ACTIVE and controlled Stock desktop/mobile VERIFIED. Material Reserve quantities and the order metric open the same paged, filtered current-allocation read model with exact material totals, canonical statuses and authenticated order links. Native/live sum and privacy checks, rendered navigation/search/pagination/stale/error/retry flows pass. No balance/order mutation is added. Hosted delivery is tracked in this release PR; signed-in operator acceptance remains pending.
