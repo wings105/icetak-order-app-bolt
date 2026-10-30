@@ -456,3 +456,15 @@ Delivery PRODUCTION / controlled UI VERIFIED: Inbox inbox-reply-suggest v2 retai
 # 2026-10-11 — Reply Knowledge
 
 Backend PRODUCTION / rendered UI VERIFIED: Order Knowledge v2, context v4 and Dashboard v22 share published FAQ retrieval and formal/channel style; Inbox owns successful-human-only learning queue. 19 published / 61 review drafts; five-minute bounded learning batches, copy/automation exclusion and TTL cleanup active. No OpenAI generation or provider sends. Actual desktop/mobile Knowledge controls, tab unmount/no idle polling, live SQL and endpoint source/version outcomes verified; release 1417850 / Worker f9b8b660 builds/deploy/domain guard pass. Hosted Knowledge URL reaches its login gate; Inbox entry index-DUwdbjFj is served. Hosted signed-in staff interaction remains unexercised. See [REPLY_KNOWLEDGE.md](REPLY_KNOWLEDGE.md).
+
+
+## 2026-10-30 — Finance work follows the canonical Shopee order
+
+Durable Order System jobs, event kicks and independent order/maintenance cron invocations
+own direct finance reads. The existing Inbox credential bridge remains the signer.
+A missing finance row must trigger an API read; a COMPLETED order requires a fresh
+check and independent wallet-release proof. Preserve the earliest evidenced estimate
+and provenance; compare it to the explicitly released amount without inventing a
+historical estimate or marking an escrow estimate paid. Normalization and the existing
+finance event/snapshot/wallet pipeline stay shared and idempotent. Historical recovery
+must not delay recent order detail. See SHOPEE_WEBHOOK_OPERATIONS.md.

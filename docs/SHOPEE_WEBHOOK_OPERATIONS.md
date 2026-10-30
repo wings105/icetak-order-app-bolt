@@ -86,3 +86,59 @@ Primary MY retains private key shopee_chat_direct_config for backward compatibil
 - Anonymous POSTs are rejected on worker, private finance fetch and protected ingestion; admin Monitor keeps its JWT and active-admin checks.
 
 Do not mark SG connected or all historical finance complete until the corresponding live outcome is observed. Do not resolve operational alerts automatically; the staff action is audited and can be reopened.
+
+
+## Canonical order finance lifecycle — 30 October 2026
+
+Order System now connects canonical order rows directly to the existing signed Inbox
+`get_escrow_detail` bridge. A paid/fulfillable order event durably enqueues missing
+financial detail and kicks a private worker after the transaction commits. Separate
+once-per-minute Order cron jobs run order reads and release/refund maintenance.
+No Activepieces flow is required for this finance path; existing token provisioning
+in Inbox remains its own responsibility.
+
+The order worker leases at most three distinct orders, calls escrow concurrently,
+normalizes the provider's order-level discounted subtotal, nested buyer payment and
+numeric fee components, then verifies required persisted fields. A missing financial
+row is incomplete. The previous optional-chain `undefined !== null` skip is removed.
+A recurring table reconciliation repairs missing/completed jobs without discarding
+attempt history. Transient errors use bounded backoff; credentials use an hourly
+retry; exhausted ten-attempt jobs no longer remain permanently excluded. Expired
+three-minute leases recover; lease UUID checks reject late finish requests.
+New-order work is prioritized ahead of historical enrichment.
+
+`marketplace_order_financials` retains:
+
+| Column | Meaning |
+|---|---|
+| `estimated_escrow_amount` | First recorded pre-release estimate, immutable after capture |
+| `estimate_recorded_at`, `estimate_source`, `estimate_snapshot` | Time, provenance and preserved numeric/provider evidence |
+| `escrow_checked_at` | Last successful direct escrow read |
+| `completed_finance_checked_at` | Successful direct recheck while canonical order is COMPLETED |
+| `released_amount`, `released_at` | Existing provider-confirmed wallet release |
+| `payout_difference` | Confirmed release minus preserved estimate; NULL before release proof |
+
+Genuine earlier finance events restore the earliest recorded estimate where available.
+An old order without pre-release evidence keeps an unknown estimate; its final
+payment is never copied into an invented initial estimate. `COMPLETED` triggers a
+fresh escrow read even when a financial row already exists. It is not payment proof.
+The job remains pending until the signed `get_escrow_list` amount/timestamp proves
+wallet release. A successful completion recheck plus release completes the job;
+legacy auto-completed jobs missing that recheck are repaired by table reconciliation.
+
+Escrow and buyer postage remain separate from product sales. Fee aliases are not
+summed twice; numeric original income components and full scrubbed provider evidence
+remain available to the existing finance snapshot/audit pipeline. Extra recognized
+fee components populate `other_fees`; unrecognized components remain visible as raw
+fields rather than being guessed. Currency/shop checks and idempotent wallet release
+writes are retained. No customer message, refund approval or provider payment mutation
+is added. Existing sent daily-report snapshots are historical records and are not
+silently rewritten or resent; current report reads use the repaired canonical values.
+
+Verification: actual-handler lifecycle and release-cursor regressions; 59 existing
+Shopee operations checks; native service-role rollback proving missing-row repair,
+retry after ten attempts, stale-lease rejection, immutable estimates, completion
+rechecks and explicit release comparison; deployed source readback; production
+private worker reads with persisted canonical price/fee/estimate outcomes; public
+unauthenticated requests rejected. Runtime module type checks use the unchanged
+local sources with only the unavailable JSR type-marker import omitted.

@@ -111,3 +111,7 @@ verify_jwt = false
 
 [functions.daily-business-report]
 verify_jwt = false
+
+# Private bridge token / service authorization is enforced by the function body.
+[functions.shopee-financial-enrich]
+verify_jwt = false
