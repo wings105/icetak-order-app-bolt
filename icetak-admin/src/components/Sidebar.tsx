@@ -50,6 +50,7 @@ const navItems: NavItem[] = [
     ],
   },
   { key: 'shopee-monitor',label:'Shopee Monitor',icon:IconIntegration },
+  { key: 'automation', label: 'Automation', icon: IconIntegration },
   { key: 'integrations', label: 'Integrations', icon: IconIntegration },
   { key: 'staff', label: 'Staff / Roles', icon: IconStaff },
   {
@@ -87,6 +88,7 @@ export default function Sidebar({ active, onNavigate, mobileOpen, onCloseMobile,
   const visibleNavItems = navItems.filter((item) => {
     if (['finance','qrpay-summary','daily-business-report','draft-orders'].includes(item.key) && !canViewFinance) return false;
     if (['products','stock','acrylic-production'].includes(item.key) && !canViewStock) return false;
+    if (item.key === 'automation' && !canViewTasks) return false;
     if (item.key === 'task-workspace' && !canViewTasks) return false;
     if (item.key === 'customers' && !canViewCustomers) return false;
     if (item.key === 'customer-focus' && !canViewAi) return false;

@@ -23,6 +23,7 @@ import StaffRoles from './pages/StaffRoles';
 import Settings from './pages/Settings';
 import ChannelInbox from './pages/ChannelInbox';
 
+const Automation=lazy(()=>import('./pages/Automation'));
 const ShopeeOperations=lazy(()=>import('./pages/ShopeeOperations'));
 const RenderTemplates = lazy(() => import('./pages/RenderTemplates'));
 const CustomerFocus = lazy(() => import('./pages/CustomerFocus'));
@@ -36,6 +37,7 @@ const Stock = lazy(() => import('./pages/Stock'));
 const TaskWorkspace = lazy(() => import('./pages/TaskWorkspace'));
 
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
+  automation: {title:'Automation',subtitle:'Arahan WhatsApp & rekod tindakan'},
   'task-workspace': {title:'Task Workspace',subtitle:'Designer & Production'},
   'acrylic-production': {title:'Production Acrylic',subtitle:'Acrylic & Artpaper · Cutting'},
   products: {title:'Produk',subtitle:'Katalog Shopee & website'},
@@ -87,7 +89,7 @@ export default function App({ adminData }: Props) {
     paidAt:initialParams.get('qrpay_paid_at')||'',
   }:null;
   const initialDraftTab=linkedView==='draft-followups'||initialParams.get('draft_tab')==='followup'?'followup':'all';
-  const [page, setPage] = useState(linkedView === 'daily-business-report'?'daily-business-report':linkedView === 'shopee-monitor'?'shopee-monitor':linkedView === 'customer-focus' ? 'customer-focus' : linkedView === 'channel-inbox' ? 'channel-inbox' : linkedView === 'render-templates' ? 'render-templates' : linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','products','stock','acrylic-production','task-workspace','settings','clickup-queue','integrations','whatsapp-control'].includes(linkedView)?linkedView:'dashboard');
+  const [page, setPage] = useState(linkedView === 'daily-business-report'?'daily-business-report':linkedView === 'shopee-monitor'?'shopee-monitor':linkedView === 'customer-focus' ? 'customer-focus' : linkedView === 'channel-inbox' ? 'channel-inbox' : linkedView === 'render-templates' ? 'render-templates' : linkedView === 'ai-dashboard' ? 'ai-dashboard' : linkedView === 'marketplace-orders' ? 'marketplace-orders' : linkedOrder ? 'orders' : linkedView === 'pickup-counter' ? 'pickup-counter' : (linkedView === 'customers' || linkedCustomer) ? 'customers' : linkedView === 'qrpay-summary' ? 'qrpay-summary' : ['draft-orders','draft-followups'].includes(linkedView) ? 'draft-orders' : linkedView === 'ai-learning' ? 'ai-learning' : ['create-order','quick-order','manual-order'].includes(linkedView)?'create-order':['orders','shipping','payments','finance','products','stock','acrylic-production','task-workspace','settings','clickup-queue','integrations','whatsapp-control','automation'].includes(linkedView)?linkedView:'dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [inboxOpened, setInboxOpened] = useState(linkedView === 'channel-inbox');
   const [marketplaceSearch,setMarketplaceSearch]=useState(initialParams.get('marketplace_q')?.trim() || '');
@@ -113,7 +115,8 @@ export default function App({ adminData }: Props) {
     if (key !== 'marketplace-orders') url.searchParams.delete('marketplace_q');
     if (key !== 'orders') url.searchParams.delete('order');
     if (key !== 'customers' && key !== 'pickup-counter') url.searchParams.delete('customer');
-    if(key==='shopee-monitor')url.searchParams.set('view','shopee-monitor');
+    if(key==='automation')url.searchParams.set('view','automation');
+    else if(key==='shopee-monitor')url.searchParams.set('view','shopee-monitor');
     else if (key === 'channel-inbox') url.searchParams.set('view','channel-inbox');
     else if (key === 'render-templates') url.searchParams.set('view','render-templates');
     else if (key === 'customer-focus') url.searchParams.set('view','customer-focus');
@@ -200,6 +203,7 @@ export default function App({ adminData }: Props) {
   const info = pageMap[page] || pageMap.dashboard;
   const renderPage = () => {
     switch (page) {
+      case 'automation': return canViewTasks ? <Suspense fallback={<p>Memuat automation…</p>}><Automation/></Suspense> : <div>Akses automation diperlukan.</div>;
       case 'task-workspace': return canViewTasks ? <Suspense fallback={<p>Memuatkan task…</p>}><TaskWorkspace onOpenOrder={openOrder} onOpenMarketplace={openMarketplace}/></Suspense> : <div>Akses task diperlukan.</div>;
       case 'acrylic-production': return canViewStock ? <Suspense fallback={<p>Memuatkan production…</p>}><AcrylicProduction/></Suspense> : <div>Akses production diperlukan.</div>;
       case 'products': return canViewStock ? <Suspense fallback={<p>Memuatkan produk…</p>}><Products/></Suspense> : <div>Akses produk diperlukan.</div>;

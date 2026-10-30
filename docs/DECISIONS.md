@@ -468,3 +468,7 @@ and provenance; compare it to the explicitly released amount without inventing a
 historical estimate or marking an escrow estimate paid. Normalization and the existing
 finance event/snapshot/wallet pipeline stay shared and idempotent. Historical recovery
 must not delay recent order detail. See SHOPEE_WEBHOOK_OPERATIONS.md.
+
+## 2026-10-30 — Seller keyword automation ownership
+
+Capture trusted persisted human seller output in Unified Inbox and keep a durable per-rule/provider-message run identity. Admin V2 manages rules through an authenticated Order gateway; canonical draft/session state stays in Order System. Record-only and pause modes provide a reversible external-to-native transition. Ambiguous QR send results require review instead of automatic resend; draft retries use the same provider-message identity across runners. Do not disable unrelated external branches or treat code deployment as takeover evidence. See `WHATSAPP_KEYWORD_AUTOMATION.md`.

@@ -1,3 +1,7 @@
+# 2026-10-30 — WhatsApp keyword automation preparation
+
+Backend ACTIVE / controlled backend and React component DOM VERIFIED. Private native rules/run audit, seller-only capture, leased worker/heartbeat, cross-runner draft replay and manager gateway are deployed. All three rules remain record-only and the existing external flow remains active. Frontend implementation is held on an isolated branch pending authorization to publish to the public repository. Hosted browser/visual QA, takeover and fresh native provider acceptance remain pending. See [contract and continuation](WHATSAPP_KEYWORD_AUTOMATION.md).
+
 # 2026-10-30 — Standard packing visibility
 
 [PRODUCTION] Packing is separate in owner Finance/Target card arithmetic and monthly totals, direct order detail and Daily Business Report chart/table/CSV. Highest item tier once per order; direct postal included, pickup zero. Live schema-2 snapshot regeneration and signed-in hosted DOM/interaction checks pass after PR #145 / f56dfa3; screenshots timed out, mobile visual acceptance remains untested. Finance scope versus paid daily-report scope remains explicit. No message sending or canonical order/payment/shipping change. See [packing contract](DAILY_BUSINESS_REPORT.md#standard-packing-visibility--30-october-2026).

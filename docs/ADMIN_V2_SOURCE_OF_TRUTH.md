@@ -75,3 +75,7 @@ When changing admin behavior, start in `icetak-admin/`. Only touch `src/admin-v2
 ## AWB Preview Actions setting (2026-10-07)
 
 Settings mounts `AwbPreviewWebhookSettings` for `manage_admins`, alongside existing webhook settings. **AWB Preview Action Webhook URL** uses `webhook-forward-settings` kind `awb_preview`; the endpoint verifies an active owner/manage_admins account and stores only `private_runtime_settings.awb_preview_action_webhook_url`. Blank disables actions; saving never sends a task. Loading failures keep Save disabled and offer retry. After Save, refresh the standalone preview. The other raw/WhatsApp Order ID webhook contracts remain separate. Controlled actual Settings component and actual Edge handler get/save/clear, permission and failure tests pass. The authenticated hosted Settings session is not exercised. See `AWB_PREVIEW.md`.
+
+## Native keyword automation (30 October 2026)
+
+`icetak-admin/src/pages/Automation.tsx` owns rule controls, match preview and run audit. The Order `admin-automation` gateway authenticates staff and uses the private Inbox automation engine. Backend is active; UI publication/hosted verification and external takeover are pending. See `WHATSAPP_KEYWORD_AUTOMATION.md`.
