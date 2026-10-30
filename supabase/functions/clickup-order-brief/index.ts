@@ -341,6 +341,16 @@ Deno.serve(async(req:Request)=>{
   const cfg=await db("clickup_order_brief_settings?singleton=eq.true&select=enabled&limit=1");
   const requestBody=await req.json().catch(()=>({}));
   if(requestBody?.action==="status")return res({ok:true,enabled:!!(cfg?.[0]?.enabled),vision_configured:!!Deno.env.get("OPENAI_API_KEY"),model:Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-4.1-mini"});
+  if(requestBody?.action==="canary"){
+   const id=String(requestBody.task_id||"");
+   if(!taskId(id))return res({ok:false,error:"INVALID_TASK"},400);
+   const rows=await db("clickup_order_brief_jobs?task_id=eq."+encodeURIComponent(id)+"&select=*&limit=1");
+   const job=rows?.[0];
+   if(!job||job.state!=="processing")return res({ok:false,error:"CANARY_REQUIRES_EXACT_CLAIM"},409);
+   const [clickupToken,bridge]=await Promise.all([setting("clickup_designer_api_token"),setting("admin_window_bridge_token")]);
+   if(!clickupToken||!bridge)return res({ok:false,error:"INTEGRATION_NOT_READY"},503);
+   return res({ok:true,canary:true,result:await process(job,clickupToken,bridge)});
+  }
   if(!cfg?.[0]?.enabled)return res({ok:true,enabled:false});
   const [clickupToken,bridge]=await Promise.all([setting("clickup_designer_api_token"),setting("admin_window_bridge_token")]);
   if(!clickupToken||!bridge)return res({ok:false,error:"INTEGRATION_NOT_READY"},503);
