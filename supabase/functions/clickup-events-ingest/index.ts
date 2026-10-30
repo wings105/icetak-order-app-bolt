@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.51.0';
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 const headers = {
@@ -42,7 +42,10 @@ Deno.serve(async (req) => {
     if (settingError) throw settingError;
     const expected = txt(setting?.value?.secret_sha256);
     const providedSecret = req.headers.get('x-ap-secret') || '';
-    if (!expected || await sha(providedSecret) !== expected) return json({ error: 'invalid_ap_secret' }, 401);
+    const workerKey=req.headers.get('x-gate-worker-key')||'';
+    let trustedWorker=false;
+    if(workerKey){const {data,error}=await db.rpc('clickup_order_gate_auto',{p_action:'worker_auth',p_secret:workerKey});trustedWorker=!error&&data?.ok===true;}
+    if (!trustedWorker && (!expected || await sha(providedSecret) !== expected)) return json({ error: 'invalid_ap_secret' }, 401);
 
     const body = await req.json();
     if (!body || typeof body !== 'object') return json({ error: 'invalid_json' }, 400);
@@ -80,7 +83,7 @@ Deno.serve(async (req) => {
       const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
       const response = await fetch(`${supabaseUrl}/functions/v1/product-catalog-sync`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-ap-secret': providedSecret },
+        headers: { 'content-type': 'application/json', 'x-ap-secret': providedSecret, ...(trustedWorker?{'x-gate-worker-key':workerKey}:{}) },
         body: JSON.stringify({ list_id: listId, task: taskPayload }),
       });
       const sync = await response.json().catch(() => ({}));

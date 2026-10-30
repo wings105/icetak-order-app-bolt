@@ -1,5 +1,4 @@
-import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.51.0';
 
 const cors = {
   'access-control-allow-origin': '*',
@@ -74,7 +73,10 @@ Deno.serve(async (request) => {
     if (settingsError) throw settingsError;
     const config = (settings?.value || {}) as Record<string, unknown>;
     const expectedHash = text(config.secret_sha256);
-    if (!providedSecret || !expectedHash || await sha256(providedSecret) !== expectedHash) return json({ error: 'Unauthorized' }, 401);
+    let trustedWorker=false;
+    const workerKey=request.headers.get('x-gate-worker-key')||'';
+    if(workerKey){const {data,error}=await admin.rpc('clickup_order_gate_auto',{p_action:'worker_auth',p_secret:workerKey});trustedWorker=!error&&data?.ok===true;}
+    if (!trustedWorker && (!providedSecret || !expectedHash || await sha256(providedSecret) !== expectedHash)) return json({ error: 'Unauthorized' }, 401);
 
     const payload = await request.json().catch(() => ({})) as Record<string, unknown>;
     const singleTask = payload.task && typeof payload.task === 'object' ? payload.task as Record<string, unknown> : null;
@@ -156,7 +158,12 @@ Deno.serve(async (request) => {
 
     const { data: batch, error: batchError } = await admin.from('product_import_batches').insert({ source: 'clickup', status: 'processing', row_count: rows.length, summary: { list_id: targetListId, mode: rows.length === 1 ? 'single' : 'batch' } }).select('id').single();
     if (batchError) throw batchError;
-    const { data: products, error: productError } = await admin.from('products').upsert(rows, { onConflict: 'clickup_task_id' }).select('id,clickup_task_id,slug,order_profile_id');
+    const {data:managed,error:managedError}=await admin.from('products').select('id,clickup_task_id,metadata').in('clickup_task_id',rows.map(x=>x.clickup_task_id)).eq('metadata->>catalog_managed','true');
+    if(managedError)throw managedError;
+    const managedIds=new Set((managed||[]).map(x=>x.clickup_task_id));
+    for(const p of managed||[]){const snapshot=rows.find(x=>x.clickup_task_id===p.clickup_task_id);const {error}=await admin.from('products').update({metadata:{...p.metadata,clickup_snapshot:snapshot}}).eq('id',p.id);if(error)throw error;}
+    const writable=rows.filter(x=>!managedIds.has(x.clickup_task_id));
+    const { data: products, error: productError } = writable.length?await admin.from('products').upsert(writable, { onConflict: 'clickup_task_id' }).select('id,clickup_task_id,slug,order_profile_id'):{data:[],error:null};
     if (productError) {
       await admin.from('product_import_batches').update({ status: 'failed', error_count: rows.length, summary: { error: productError.message } }).eq('id', batch.id);
       throw productError;
