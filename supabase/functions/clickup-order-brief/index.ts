@@ -90,6 +90,21 @@ function briefText(taskId:string,wording:string,image:string,confirmed:boolean,c
  }
  return lines.join("\n").slice(0,4700);
 }
+
+async function readShopeeBuyerNote(orderSn:string,shopId:string,bridge:string){
+ if(!/^[0-9A-Z]{10,24}$/.test(orderSn)||!/^[0-9]{1,20}$/.test(shopId))return {available:false};
+ try{
+  const r=await fetch(INBOX+"/functions/v1/task-brief-media",{
+   method:"POST",headers:{"content-type":"application/json","x-admin-window-token":bridge},
+   body:JSON.stringify({action:"buyer_note",order_sn:orderSn,shop_id:shopId}),
+   signal:AbortSignal.timeout(18000)
+  });
+  if(!r.ok)return {available:false};
+  const v=await r.json();
+  if(!v.ok||!v.available||v.order_sn!==orderSn||String(v.shop_id)!==shopId)return {available:false};
+  return {available:true,buyer_note:string(v.buyer_note,2000),buyer_user_id:string(v.buyer_user_id,100)};
+ }catch{return {available:false};}
+}
 async function loadChat(placed:string,buyerId:string,phone:string,key:string,reference:string,bridge:string){
  if(!placed)return {messages:[],bindings:[],unavailable:true};
  try{
@@ -211,9 +226,23 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const identity=string(field(task,"User ID")?.value,100);
   let note="",placed="",buyerId="",multi=false;
   if(uuid(s.marketplace_order_id)){
-   const orders=await db("marketplace_orders?id=eq."+s.marketplace_order_id+"&select=buyer_message,placed_at,buyer_user_id,order_sn,raw_detail&limit=1");
+   const orders=await db("marketplace_orders?id=eq."+s.marketplace_order_id+"&select=buyer_message,placed_at,buyer_user_id,shop_id,order_sn,raw_detail&limit=1");
    const order=orders?.[0]||{};
    note=string(order.buyer_message,1200);placed=string(order.placed_at,40);buyerId=string(order.buyer_user_id,100);
+   if(!note){
+    const provider=await readShopeeBuyerNote(string(order.order_sn),string(order.shop_id),bridge);
+    if(provider.available){
+     note=string(provider.buyer_note,1200);
+     if(!buyerId)buyerId=string(provider.buyer_user_id,100);
+     if(note){
+      const written=await fetch(BASE+"/rest/v1/marketplace_orders?id=eq."+encodeURIComponent(s.marketplace_order_id)+"&buyer_message=is.null",{
+       method:"PATCH",headers:{...HEAD,prefer:"return=minimal"},
+       body:JSON.stringify({buyer_message:note}),signal:AbortSignal.timeout(8000)
+      });
+      if(!written.ok)throw Error("BUYER_NOTE_WRITE_FAILED");
+     }
+    }
+   }
    const items=order.raw_detail?.stock_item_recovery?.items;
    multi=Array.isArray(items)&&items.length>1;
   }else if(uuid(s.order_id)){
