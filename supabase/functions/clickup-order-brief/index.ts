@@ -122,7 +122,8 @@ async function loadChat(placed:string,buyerId:string,phone:string,key:string,ref
 }
 function selectProof(context:Obj,placedMs:number){
  const allowed=new Set((context.bindings||[]).filter((b:Obj)=>b.usable===true).map((b:Obj)=>String(b.id)));
- const valid=(context.messages||[]).filter((m:Obj)=>m.direction==="inbound"&&!m.is_history&&allowed.has(String(m.conversation_id))&&\n  !/^\\[Shopee (?:item|order):/i.test(string(m.text_content||m.caption,120))&&
+ const valid=(context.messages||[]).filter((m:Obj)=>m.direction==="inbound"&&!m.is_history&&allowed.has(String(m.conversation_id))&&
+  !/^\[Shopee (?:item|order):/i.test(string(m.text_content||m.caption,120))&&
   Number.isFinite(Date.parse(m.created_at))&&Date.parse(m.created_at)>=placedMs-60*60*1000&&Date.parse(m.created_at)<=Date.now());
  const unique=new Map<string,Obj>();
  for(const m of valid)unique.set(String(m.id),m);
