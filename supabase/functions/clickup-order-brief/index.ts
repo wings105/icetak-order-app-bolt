@@ -246,8 +246,8 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    const items=order.raw_detail?.stock_item_recovery?.items;
    multi=Array.isArray(items)&&items.length>1;
   }else if(uuid(s.order_id)){
-   const orders=await db("orders?id=eq."+s.order_id+"&select=created_at,notes&limit=1");
-   placed=string(orders?.[0]?.created_at,40);note=string(orders?.[0]?.notes,1200);
+   const orders=await db("orders?id=eq."+s.order_id+"&select=created_at&limit=1");
+   placed=string(orders?.[0]?.created_at,40);note="";
   }
   const placedMs=Date.parse(placed),placedIso=Number.isFinite(placedMs)?new Date(placedMs).toISOString():"";
   if(!placedIso)throw Error("ORDER_TIME_UNAVAILABLE");
