@@ -13,6 +13,7 @@ export function TargetNumbers({data}:{data:ContributionReport}){
    <div><span>{current?'Baki selepas kos hari ini':'Sumbangan sebenar'}</span><strong>{money(current?s.today:s.actual)}</strong><small>{current?'Order hari ini yang layak dan cukup data kos':'Duit dan kos telah disahkan'}</small><MoneyBreakdown data={current?data.breakdowns?.today:data.breakdowns?.actual}/></div>
    <div><span>{current?(s.is_workday?'Perlu kumpul hari ini':'Perlu setiap hari kerja berikut'):'Sasaran asal / hari kerja'}</span><strong>{money(current?s.daily_target:s.daily_base)}</strong><small>{current&&s.is_workday?`Lagi ${money(s.daily_gap)} hari ini`:current?'Hari ini bukan hari kerja':`${s.workdays} hari kerja dalam bulan`}</small><small>{current&&s.remaining_days>0?`Baki mula hari ${money(Math.max(s.goal-s.known+(s.is_workday?s.today:0),0))} ÷ ${s.remaining_days} hari kerja`:!current?`Target ${money(s.goal)} ÷ ${s.workdays} hari kerja`:''}</small></div>
   </div>
+  <div className="ct-packing-summary" aria-label="Kos packing bulanan"><div><span>Kos packing · {data.month.slice(0,7)}</span><strong>{money(s.packing_total)}</strong></div><p>Shopee {money(s.packing_shopee)} · DecoCake pos {money(s.packing_direct)} · Pickup RM0.00</p><small>Sekali setiap order · kadar item paling tinggi · jumlah bulan termasuk order yang modalnya belum lengkap{s.packing_missing?` · ${s.packing_missing} order packing belum lengkap`:''}. Packing sudah ditolak dalam baki yang boleh dikira.</small></div>
   <div className="ct-progress" role="progressbar" aria-label="Progress target bulanan" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)}><i style={{width:`${pct}%`}}/></div>
   <div className="ct-foot"><span>{pct.toFixed(1)}% · Sebenar {money(s.actual)} + Anggaran {money(s.estimated)}</span><span>Selepas overhead: {money(s.after_overhead)}</span></div>
   {s.missing>0&&<p className="ct-warning">{s.missing} order belum lengkap / perlu semakan dan belum menambah angka terkumpul. Baki target berdasarkan kos yang diketahui.</p>}
@@ -29,3 +30,4 @@ export default function ContributionTarget({onOpen,refreshKey}:{onOpen:()=>void;
  {data&&<small className="ct-muted">Bacaan {new Date(data.fetched_at).toLocaleString('en-MY',{timeZone:'Asia/Kuala_Lumpur'})} · Anggaran release belum menjadi tunai di bank.</small>}
  </section>;
 }
+
