@@ -147,6 +147,8 @@ function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean){
  if(ctx.ambiguous||ctx.truncated||ctx.unavailable)confidence=Math.min(confidence,60);
  if(multi)confidence=Math.min(confidence,60);
  if(note&&!noteWord)confidence=Math.min(confidence,65);
+ if(/(?:jika|kalau|if)\\s+[^.!\\n]{0,110}(?:tak|tidak|x|not)\\s+muat|(?:pendekkan|shorten|guna\\s+lain|use\\s+another)\\s+[^.!\\n]{0,80}(?:jika|kalau|if)/i.test(note))
+  confidence=Math.min(confidence,70);
  return {wording,confidence,chat_evidence:chat.length>0,note_evidence:!!noteWord};
 }
 function allowedHost(h:string) {
