@@ -83,3 +83,9 @@ Same-scope refresh retains the prior report with an explicit old-reading warning
 ## Standard packing — 30 October 2026
 
 Direct contribution now deducts standard postal packing once, in addition to existing material, courier and manual extras. Pickup is zero. TargetNumbers exposes the monthly packing total and Shopee/direct split; MoneyBreakdown splits packing from remaining extras without subtracting it twice. The order list and direct detail show packing separately. Monthly packing covers all eligible rows including incomplete contribution; known-contribution card arithmetic retains its existing subset. Manual direct extras are additional costs, excluding the separately calculated standard packing.
+
+## Known component subtotals — 30 October 2026
+
+Card breakdowns show the sum of observed values for each component instead of hiding the full total when any row is missing. Each partial component displays known/total order coverage and missing count. A completely unobserved component remains unknown; empty cohorts show zero. Known zero remains zero.
+
+Component subtotals can have different coverage and must not be presented as a complete arithmetic reconciliation. Headline contribution/profit and eligible order cohorts are unchanged. The footer explains this explicitly. Missing raw finance/item data is not fabricated or silently replaced with zero. Untung sebenar still requires released income and reviewed actual costs; no qualifying orders means no actual-profit headline.

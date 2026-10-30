@@ -13,3 +13,5 @@
 .ct-packing-summary small{flex-basis:100%;color:#637b8a;font-size:11px}
 @media(max-width:600px){.ct-packing-summary>div{flex-wrap:wrap;gap:8px}.ct-packing-summary p{line-height:1.6}}
 
+
+.ct-arithmetic dd{text-align:right}.ct-arithmetic .ct-component-coverage{margin-top:1px;font-size:10px;font-weight:400;white-space:normal;max-width:180px}

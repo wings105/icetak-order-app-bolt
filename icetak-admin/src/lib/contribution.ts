@@ -10,7 +10,7 @@ export type ContributionRow = {
  lines?:{title:string;qty:number;category:string|null;goods:number|null;material:number|null}[];
 };
 export type TargetSettings = {version:number;overhead:number;owner_income:number;workdays:number[];holidays:string[]};
-export type MoneyBreakdown = {orders:number;missing:number;sales:number|null;fee:number|null;courier:number|null;adjustment:number|null;nett:number|null;material:number|null;packing?:number|null;extras:number|null;contribution:number|null};
+export type MoneyBreakdown = {known?:Record<string,number>;partial?:boolean;orders:number;missing:number;sales:number|null;fee:number|null;courier:number|null;adjustment:number|null;nett:number|null;material:number|null;packing?:number|null;extras:number|null;contribution:number|null};
 export type ContributionReport = {
  breakdowns?:{month:MoneyBreakdown;today:MoneyBreakdown;actual:MoneyBreakdown};
  month:string;today:string;fetched_at:string;settings:TargetSettings;rows:ContributionRow[];total:number;
