@@ -259,7 +259,11 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const {chronological,proof}=selectProof(context,placedMs);
   const decision=decide(note,existingWord,proof,context,multi);
   const missing=Array.isArray(detail.missing)?detail.missing:[];
-  const confidence=missing.length?Math.min(decision.confidence,75):decision.confidence;
+  const unresolvedMissing=missing.filter((x:Obj)=>{
+   const key=String(x.key||"").toLowerCase();
+   return !((key==="mode"||key==="wording"||key==="name")&&(decision.note_evidence||decision.chat_evidence));
+  });
+  const confidence=unresolvedMissing.length?Math.min(decision.confidence,75):decision.confidence;
   const verified=confidence>=80 && (decision.note_evidence||decision.chat_evidence) && !context.ambiguous && !context.truncated;
   const mediaCandidates=proof.filter((m:Obj)=>m.message_type==="image"&&string(m.media_url));
   let img=mediaCandidates.length===1?string(mediaCandidates[0].media_url,900):string(detail.values?.artwork,900);
