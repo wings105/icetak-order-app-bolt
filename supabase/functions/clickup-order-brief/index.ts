@@ -79,7 +79,7 @@ function briefText(taskId:string,wording:string,image:string,confirmed:boolean,c
   "confirm: "+(confirmed?"✅":"⏳"),
   "keyakinan: "+confidence+"%",
   "",
-  "actual buyer nota: "+(note||"— (belum tersedia dari Shopee)"),
+  "actual buyer nota: "+(note||"— (belum tersedia)"),
   "",
   "proof message:"
  ];
@@ -122,7 +122,7 @@ async function loadChat(placed:string,buyerId:string,phone:string,key:string,ref
 }
 function selectProof(context:Obj,placedMs:number){
  const allowed=new Set((context.bindings||[]).filter((b:Obj)=>b.usable===true).map((b:Obj)=>String(b.id)));
- const valid=(context.messages||[]).filter((m:Obj)=>m.direction==="inbound"&&!m.is_history&&allowed.has(String(m.conversation_id))&&
+ const valid=(context.messages||[]).filter((m:Obj)=>m.direction==="inbound"&&!m.is_history&&allowed.has(String(m.conversation_id))&&\n  !/^\\[Shopee (?:item|order):/i.test(string(m.text_content||m.caption,120))&&
   Number.isFinite(Date.parse(m.created_at))&&Date.parse(m.created_at)>=placedMs-60*60*1000&&Date.parse(m.created_at)<=Date.now());
  const unique=new Map<string,Obj>();
  for(const m of valid)unique.set(String(m.id),m);
@@ -271,7 +271,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     &&!oldIds.has(String(m.id)));
   const changed=afterConfirmed.filter((m:Obj)=>!isUnimportant(string(m.text_content||m.caption)) && mayNeedChange(string(m.text_content||m.caption)));
   const marker="[iCetak-AutoBrief:"+id+"]";
-  const text=briefText(id,decision.wording,img,verified||existingConfirmed,confidence,note,proof);
+  const text=briefText(id,decision.wording,img,verified||existingConfirmed,confidence,note,proof).replace("confirm: ✅",verified?"confirm: ✅":"confirm: ✅ (disahkan staf)");
   const hash=await digest(text);
   const comments=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment");
   const old=(comments.comments||[]).find((c:Obj)=>contains(c.comment,marker)||contains(c.comment,"[iCetak-AutoBrief:"+id+":"));
@@ -323,7 +323,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status};
-  state=verified||existingConfirmed?"completed":"review";
+  state=verified?"completed":"review";
  }catch(e){
   error=String(e instanceof Error?e.message:e).slice(0,220);
   if(/SOURCE_CHANGED|TASK_CLOSED|WAIT_15_MINUTES/.test(error))state="review";
@@ -342,6 +342,19 @@ Deno.serve(async(req:Request)=>{
   const cfg=await db("clickup_order_brief_settings?singleton=eq.true&select=enabled&limit=1");
   const requestBody=await req.json().catch(()=>({}));
   if(requestBody?.action==="status")return res({ok:true,enabled:!!(cfg?.[0]?.enabled),vision_configured:!!Deno.env.get("OPENAI_API_KEY"),model:Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-4.1-mini"});
+  if(requestBody?.action==="selftest"){
+   const cases=[
+    ["Terima kasih",false],
+    ["ok",false],
+    ["Tukar nama kepada Ali",true],
+    ["wording: Happy Birthday Ali",true],
+    ["sudah terima",false]
+   ];
+   const details=cases.map(([input,expected])=>({input,expected,actual:!isUnimportant(String(input))&&mayNeedChange(String(input))}));
+   return res({ok:details.every(x=>x.expected===x.actual),checks:details,
+     matching_note_score:decide("anaqi rayyan","anaqi rayyan",[],{},false).confidence,
+     cf_only_score:decide("","anaqi rayyan",[],{},false).confidence});
+  }
   if(requestBody?.action==="canary"){
    const id=String(requestBody.task_id||"");
    if(!taskId(id))return res({ok:false,error:"INVALID_TASK"},400);
