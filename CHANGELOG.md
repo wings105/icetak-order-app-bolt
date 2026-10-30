@@ -1,3 +1,8 @@
+## 2026-10-30 — [PRODUCTION] Known finance component subtotals
+
+- Finance and Target card arithmetic displays observed component subtotals with per-component known/total counts and explicit partial-data notes. A missing row no longer hides all observed sales, fees, material or adjustment values. All-unknown fields stay unknown, known zero stays zero, and empty cohorts show zero. Profit/contribution headlines and eligible cohorts remain unchanged; components with different coverage are not represented as a full reconciliation.
+- Native rollback partial/unknown/zero/empty assertions pass. PR #146 release f46da62 passed Workers Builds d5732add and domain guard; signed-in hosted Finance confirms observed totals/coverage and unchanged actual-profit gating, Dashboard confirms numeric month/today components, and browser warning/error logs are empty. Desktop screenshot inspected for coverage wrapping; mobile visual QA remains untested. No provider, order, payment, cost-approval or messaging mutations.
+
 ## 2026-10-30 — [PRODUCTION] Standard packing in Finance and reports
 
 - Highest item packing tier is applied once per order regardless of quantity; direct postal orders share the estimate and pickup is zero. Finance separates packing from other extras in card arithmetic, order details/rows and monthly totals. Target & Baki shows the eligible whole-month packing/channel split; known-contribution and daily-report scopes remain explicit.
