@@ -226,11 +226,11 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const existingWord=string(field(task,"Customize Name")?.value,1200);
   const phone=string(field(task,"phone")?.value,30);
   const identity=string(field(task,"User ID")?.value,100);
-  let note="",placed="",buyerId="",multi=false;
+  let note="",placed="",buyerId="",multi=false,orderUnpaid=false;
   if(uuid(s.marketplace_order_id)){
-   const orders=await db("marketplace_orders?id=eq."+s.marketplace_order_id+"&select=buyer_message,placed_at,buyer_user_id,shop_id,order_sn,raw_detail&limit=1");
+   const orders=await db("marketplace_orders?id=eq."+s.marketplace_order_id+"&select=buyer_message,placed_at,first_seen_at,current_status,buyer_user_id,shop_id,order_sn,raw_detail&limit=1");
    const order=orders?.[0]||{};
-   note=string(order.buyer_message,1200);placed=string(order.placed_at,40);buyerId=string(order.buyer_user_id,100);
+   note=string(order.buyer_message,1200);placed=string(order.placed_at||order.first_seen_at,40);buyerId=string(order.buyer_user_id,100);orderUnpaid=String(order.current_status||"").toUpperCase()==="UNPAID";
    if(!note){
     const provider=await readShopeeBuyerNote(string(order.order_sn),string(order.shop_id),bridge);
     if(provider.available){
@@ -264,7 +264,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    return !((key==="mode"||key==="wording"||key==="name")&&(decision.note_evidence||decision.chat_evidence));
   });
   const confidence=unresolvedMissing.length?Math.min(decision.confidence,75):decision.confidence;
-  const verified=confidence>=80 && (decision.note_evidence||decision.chat_evidence) && !context.ambiguous && !context.truncated;
+  const verified=!orderUnpaid && confidence>=80 && (decision.note_evidence||decision.chat_evidence) && !context.ambiguous && !context.truncated;
   const mediaCandidates=proof.filter((m:Obj)=>m.message_type==="image"&&string(m.media_url));
   let img=mediaCandidates.length===1?string(mediaCandidates[0].media_url,900):string(detail.values?.artwork,900);
   if(mediaCandidates.length>1){img="Perlu semakan (beberapa gambar)";}
@@ -318,7 +318,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     &&!oldIds.has(String(m.id)));
   const changed=afterConfirmed.filter((m:Obj)=>m.message_type==="image" || (!isUnimportant(string(m.text_content||m.caption)) && mayNeedChange(string(m.text_content||m.caption))));
   const marker="[iCetak-AutoBrief:"+id+"]";
-  const text=briefText(id,decision.wording,img,verified||existingConfirmed,confidence,note,proof).replace("confirm: ✅",verified?"confirm: ✅":"confirm: ✅ (disahkan staf)");
+  const text=briefText(id,decision.wording,img,verified||existingConfirmed,confidence,note,proof).replace("confirm: ✅",verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")+(orderUnpaid?"\n⚠️ Order masih UNPAID — semak bayaran sebelum proses.":"");
   const hash=await digest(text);
   const comments=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment");
   const old=(comments.comments||[]).find((c:Obj)=>contains(c.comment,marker)||contains(c.comment,"[iCetak-AutoBrief:"+id+":"));
