@@ -1,3 +1,9 @@
+## 2026-10-30 — [VERIFIED] Native WhatsApp keyword automation backend
+
+- Private Inbox rules/runs/events, seller-only message capture, leased work, retry/unknown-send guards and manager-only Admin gateway are deployed. Three rules remain record-only while the external flow continues. Canonical draft replay reconciles provider-message identity across runners. Exact draft review links are generated for managers on demand and never stored in run history.
+- Rolled-back native scenarios, actual worker/gateway/React component DOM checks, existing session/learning regressions, typecheck and full storefront/Inbox build pass. Deployed process/preview calls and scheduled heartbeat succeed; four function source readbacks match. No retained QA messages, native customer test send or external-branch change.
+- Frontend publication, signed-in hosted and visual/mobile browser verification, external takeover and fresh native provider outcome remain pending. Automatic approval review blocked publication to the public repository; changes are retained in an isolated branch. See [automation contract](docs/WHATSAPP_KEYWORD_AUTOMATION.md).
+
 ## 2026-10-30 — [PRODUCTION] Known finance component subtotals
 
 - Finance and Target card arithmetic displays observed component subtotals with per-component known/total counts and explicit partial-data notes. A missing row no longer hides all observed sales, fees, material or adjustment values. All-unknown fields stay unknown, known zero stays zero, and empty cohorts show zero. Profit/contribution headlines and eligible cohorts remain unchanged; components with different coverage are not represented as a full reconciliation.

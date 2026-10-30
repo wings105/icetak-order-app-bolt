@@ -232,3 +232,7 @@ AI Dashboard defaults to a filtered task list, exact scoped original chat and de
 ## 2026-10-25 — Roadmap review audit
 
 Order System owns `icetak_roadmap_ai_runs` and append-only `icetak_roadmap_ai_events`. Owner-authenticated SECURITY INVOKER RPCs start/checkpoint/finish one feature at a time, serialize active claims and atomically save evidence, private progress notes and optimistic metadata updates. The roadmap frontend exposes a private AI Checker tab, latest coverage per feature and paged review history; public release JSON remains independent. This is an invocation protocol, not an AI worker/scheduler or a provider automation. See `roadmap/AI_CHECKER_README.md`.
+
+## Native WhatsApp keyword automation preparation (30 October 2026)
+
+Unified Inbox owns the private wa_automation rules/run/event ledger and message-driven leased work. Order System owns staff authorization, canonical draft replay and order notification policy. Existing draft extraction and external sender guards are reused. Native rules remain record-only until the corresponding external branches are disabled and hosted Admin verification completes. See `WHATSAPP_KEYWORD_AUTOMATION.md`.
