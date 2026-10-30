@@ -186,6 +186,8 @@ Deno.serve(async(req:Request)=>{
   const expected=await setting("order_brief_worker_token");
   if(!await equalToken(req.headers.get("x-order-brief-token")||"",expected))return res({ok:false,error:"UNAUTHORIZED"},401);
   const cfg=await db("clickup_order_brief_settings?singleton=eq.true&select=enabled&limit=1");
+  const requestBody=await req.json().catch(()=>({}));
+  if(requestBody?.action==="status")return res({ok:true,enabled:!!(cfg?.[0]?.enabled),vision_configured:!!Deno.env.get("OPENAI_API_KEY"),model:Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-4.1-mini"});
   if(!cfg?.[0]?.enabled)return res({ok:true,enabled:false});
   const [clickupToken,bridge]=await Promise.all([setting("clickup_designer_api_token"),setting("admin_window_bridge_token")]);
   if(!clickupToken||!bridge)return res({ok:false,error:"INTEGRATION_NOT_READY"},503);
