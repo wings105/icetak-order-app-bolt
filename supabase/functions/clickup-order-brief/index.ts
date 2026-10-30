@@ -45,18 +45,93 @@ async function clickup(token:string,path:string,method="GET",body?:unknown,multi
 }
 const contains=(value:unknown,marker:string)=>JSON.stringify(value||"").includes(marker);
 const label=(s:string)=>s.replace(/[_-]+/g," ").trim();
-function draft(s:Obj,detail:Obj,note:string,ai?:Obj) {
- const v=detail.values||{}, sources=detail.sources||{}, missing=Array.isArray(detail.missing)?detail.missing:[],warnings=Array.isArray(detail.warnings)?detail.warnings:[];
- const fields=["product","quantity","mode","size","shape","material","colour","name","age","wording","template","instructions"];
- const lines=["RINGKASAN ORDER ICETAK","Order: "+string(s.order_reference,100),"Task: "+string(s.task_name,180),"Status sumber: "+string(detail.info_status,30)];
- for(const k of fields)if(string(v[k]))lines.push(label(k)+": "+string(v[k],550)+" ["+string(sources[k]?.source||"Order/collector",100)+"]");
- if(note)lines.push("Nota checkout: "+string(note,1200));
- if(ai?.summary)lines.push("AI summary: "+string(ai.summary,1000));
- if(ai?.image_description)lines.push("Gambar (AI): "+string(ai.image_description,600));
- if(missing.length)lines.push("Belum lengkap: "+missing.map((x:unknown)=>string(typeof x==="object"&&x!==null?(x as Obj).label||(x as Obj).key:x,100)).filter(Boolean).join(", "));
- if(warnings.length)lines.push("Perlu semakan: "+warnings.slice(0,5).map((x:unknown)=>string(x,100)).join("; "));
- lines.push("Sumber: iCetak Order Detail Collector. Semak ejaan, foto dan perubahan pelanggan sebelum printing.");
- return lines.filter(Boolean).join("\n").slice(0,4500);
+
+const CF={
+ name:"7c88d5cf-56e9-4108-86c5-b8e7baaf5bdc",
+ review:"01cec4ef-a30b-443d-a43a-9ab09835b78c",
+ ai:"d84d57b3-41f3-473d-b502-4e7bf45ace0c",
+ confirmed:"afa87c64-3e48-4056-b720-cf8ea9b243e8"
+};
+const normalized=(s:unknown)=>string(s,4000).toLocaleLowerCase().replace(/\\s+/g," ").trim();
+const field=(task:Obj,name:string)=>(task.custom_fields||[]).find((x:Obj)=>String(x.name||"").toLowerCase()===name.toLowerCase());
+const fieldChecked=(x:Obj|undefined)=>x?.value===true||x?.value==="true"||x?.value===1||x?.value==="1";
+function extractInstruction(text:string){
+ const match=text.match(/(?:^|\\n|[;,])\\s*(?:wording|nama|name|tulisan|text|ayat|write|tulis)\\s*[:=\\-]\\s*([^\\n;]{2,180})/i);
+ return match?match[1].trim():"";
+}
+function noteWording(note:string){
+ const explicit=extractInstruction(note);
+ if(explicit)return explicit;
+ if(note.length<=130&&!/\\b(?:alamat|address|postage|poslaju|parcel|tracking|postcode|telefon|phone)\\b/i.test(note))return note.trim();
+ return "";
+}
+function isUnimportant(text:string){
+ return /^(?:ok(?:ay)?|baik|noted|terima kasih(?: banyak)?|thank(?:s| you)(?: so much)?|tq|ty|haha|hehe|👍|🙏|✅|👌|sudah|done|alright|baiklah|sama-sama)[!.\\s🙏👍👌✅]*$/i.test(text.trim());
+}
+function mayNeedChange(text:string){
+ return /\\b(?:tukar|ubah|change|edit|replace|instead|silap|salah|wrong|correct|betul\\s+semula|sepatutnya|jangan\\s+guna|use\\s+this|guna\\s+yang|new\\s+wording|new\\s+name|nama\\s+baru|tambah|buang|remove|add)\\b/i.test(text)||!!extractInstruction(text);
+}
+function briefText(taskId:string,wording:string,image:string,confirmed:boolean,confidence:number,note:string,proof:Obj[]){
+ const lines=[
+  "[iCetak-AutoBrief:"+taskId+"]",
+  "wording: "+(wording||"Perlu detail"),
+  "gambar link: "+(image||"—"),
+  "confirm: "+(confirmed?"✅":"⏳"),
+  "keyakinan: "+confidence+"%",
+  "",
+  "actual buyer nota: "+(note||"— (belum tersedia dari Shopee)"),
+  "",
+  "proof message:"
+ ];
+ if(!proof.length)lines.push("— Tiada mesej order yang dipadankan");
+ for(const m of proof){
+  const label=string(m.channel||"Chat",30),at=string(m.created_at,35);
+  lines.push(at+" ["+label+"] "+string(m.text_content||m.caption||"(gambar)",210));
+ }
+ return lines.join("\\n").slice(0,4700);
+}
+async function loadChat(placed:string,buyerId:string,phone:string,key:string,reference:string,bridge:string){
+ if(!placed)return {messages:[],bindings:[],unavailable:true};
+ try{
+  const r=await fetch(INBOX+"/functions/v1/task-brief-media",{
+   method:"POST",headers:{"content-type":"application/json","x-admin-window-token":bridge},
+   body:JSON.stringify({action:"context",orders:[{key,reference,placed_at:placed,buyer_user_id:buyerId,
+     phone,closed:false,single_item_scope:true,bindings:[]}]}),
+   signal:AbortSignal.timeout(16000)
+  });
+  if(!r.ok)throw Error("CONTEXT_UNAVAILABLE");
+  const data=await r.json();
+  if(!data.ok)throw Error("CONTEXT_UNAVAILABLE");
+  return data.contexts?.[key]||{messages:[],bindings:[]};
+ }catch{return {messages:[],bindings:[],unavailable:true};}
+}
+function selectProof(context:Obj,placedMs:number){
+ const allowed=new Set((context.bindings||[]).filter((b:Obj)=>b.usable===true).map((b:Obj)=>String(b.id)));
+ const valid=(context.messages||[]).filter((m:Obj)=>m.direction==="inbound"&&!m.is_history&&allowed.has(String(m.conversation_id))&&
+  Number.isFinite(Date.parse(m.created_at))&&Date.parse(m.created_at)>=placedMs-60*60*1000&&Date.parse(m.created_at)<=Date.now());
+ const unique=new Map<string,Obj>();
+ for(const m of valid)unique.set(String(m.id),m);
+ const chronological=[...unique.values()].sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at));
+ const prior=chronological.filter(m=>Date.parse(m.created_at)<=placedMs).slice(-2);
+ const next=chronological.filter(m=>Date.parse(m.created_at)>placedMs).slice(0,3);
+ return {chronological,proof:[...prior,...next]};
+}
+function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean){
+ const chat=proof.map((m:Obj)=>({...m,instruction:extractInstruction(String(m.text_content||m.caption||""))})).filter(x=>x.instruction);
+ const last=chat.at(-1)?.instruction||"";
+ const noteWord=noteWording(note);
+ let wording=noteWord||last||cfWord;
+ let confidence=0;
+ if(noteWord&&cfWord)confidence=normalized(noteWord)===normalized(cfWord)?95:45;
+ else if(noteWord)confidence=88;
+ else if(last&&cfWord)confidence=normalized(last)===normalized(cfWord)?91:49;
+ else if(last)confidence=82;
+ else if(cfWord)confidence=55;
+ if(noteWord&&last&&normalized(noteWord)!==normalized(last))confidence=Math.min(confidence,49);
+ if(ctx.ambiguous||ctx.truncated||ctx.unavailable)confidence=Math.min(confidence,60);
+ if(multi)confidence=Math.min(confidence,60);
+ if(note&&!noteWord)confidence=Math.min(confidence,65);
+ return {wording,confidence,chat_evidence:chat.length>0,note_evidence:!!noteWord};
 }
 function allowedHost(h:string) {
  const x=h.toLowerCase();return x==="susercontent.com"||x.endsWith(".susercontent.com")||x==="shopee.com"||x.endsWith(".shopee.com")||x==="shopee.com.my"||x.endsWith(".shopee.com.my")||x==="shopee.sg"||x.endsWith(".shopee.sg");
@@ -115,80 +190,118 @@ async function summarize(detail:Obj,note:string,asset:Obj|undefined){
  const parsed=JSON.parse(txt);
  return {mode:asset?.state==="ready"?"vision":"text_ai",summary:string(parsed.summary,1000),image_description:string(parsed.image_description,600)};
 }
-async function process(job:Obj,clickupToken:string,bridge:string) {
- const id=job.task_id,fp=job.source_fingerprint;
- let media:Obj[]=[];let brief:Obj={},commentId:string|null=null,state="failed",error="";
- try {
+
+async function process(job:Obj,clickupToken:string,bridge:string){
+ const id=string(job.task_id,80),fp=string(job.source_fingerprint,128);
+ let media:Obj[]=[],commentId:string|null=job.comment_id||null,state="failed",error="",brief:Obj={};
+ try{
   if(!taskId(id)||!fp)throw Error("INVALID_JOB");
   const [snap,autom]=await Promise.all([
    db("ai_clickup_work_snapshots?task_id=eq."+encodeURIComponent(id)+"&select=task_id,task_name,order_reference,list_id,order_id,marketplace_order_id,clickup_status&limit=1"),
    db("task_detail_automation?task_id=eq."+encodeURIComponent(id)+"&select=data&limit=1")
   ]);
   const s=snap?.[0],detail=autom?.[0]?.data;
-  if(!s||s.list_id!=="18375902"||!detail||detail.fingerprint!==fp)throw Error("SOURCE_CHANGED");
-  if(["complete","closed","cancelled","canceled"].includes(string(s.clickup_status).toLowerCase()))throw Error("TASK_CLOSED");
+  if(!s||s.list_id!=="18375902"||!detail)throw Error("SOURCE_CHANGED");
+  if(["complete","closed","cancelled","canceled","shipped"].includes(normalized(s.clickup_status)))throw Error("TASK_CLOSED");
   const task=await clickup(clickupToken,"task/"+encodeURIComponent(id));
   if(String(task.id)!==id||String(task.list?.id)!=="18375902"||task.archived)throw Error("CLICKUP_TASK_NOT_ACTIVE");
-  let note="";
+  const existingConfirmed=fieldChecked(field(task,"confirmed"));
+  const existingWord=string(field(task,"Customize Name")?.value,1200);
+  const phone=string(field(task,"phone")?.value,30);
+  const identity=string(field(task,"User ID")?.value,100);
+  let note="",placed="",buyerId="",multi=false;
   if(uuid(s.marketplace_order_id)){
-   const order=await db("marketplace_orders?id=eq."+s.marketplace_order_id+"&select=buyer_message&limit=1");
-   note=string(order?.[0]?.buyer_message,1200);
+   const orders=await db("marketplace_orders?id=eq."+s.marketplace_order_id+"&select=buyer_message,placed_at,buyer_user_id,order_sn,raw_detail&limit=1");
+   const order=orders?.[0]||{};
+   note=string(order.buyer_message,1200);placed=string(order.placed_at,40);buyerId=string(order.buyer_user_id,100);
+   const items=order.raw_detail?.stock_item_recovery?.items;
+   multi=Array.isArray(items)&&items.length>1;
+  }else if(uuid(s.order_id)){
+   const orders=await db("orders?id=eq."+s.order_id+"&select=created_at,notes&limit=1");
+   placed=string(orders?.[0]?.created_at,40);note=string(orders?.[0]?.notes,1200);
   }
-  const raw=await selectedMedia(detail,bridge);
-  let ai:Obj={mode:"rules"};
-  try {ai=await summarize(detail,note,raw.state==="ready"?raw:undefined);}
-  catch(e){ai={mode:"rules",error:String(e instanceof Error?e.message:e).slice(0,80)};}
-  const short=fp.slice(0,16),marker="[iCetak-AutoBrief:"+id+"]",legacyPrefix="[iCetak-AutoBrief:"+id+":";
-  let uploaded=false;
-  if(raw.state==="ready"){
-   const name="icetak-customer-"+id+"-"+String(job.content_hash||short).slice(0,16)+"."+(raw.mime==="image/png"?"png":raw.mime==="image/webp"?"webp":"jpg");
-   const present=(task.attachments||[]).find((a:Obj)=>a.title===name||a.name===name);
-   if(present){media.push({name,attachment_id:String(present.id),reused:true});uploaded=true;}
-   else {
-    const form=new FormData();form.append("attachment",new File([raw.bytes as Uint8Array<ArrayBuffer>],name,{type:raw.mime}));
-    const created=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/attachment","POST",form,true);
-    if(!created?.id)throw Error("ATTACHMENT_UNCERTAIN");
-    const check=await clickup(clickupToken,"task/"+encodeURIComponent(id));
-    if(!(check.attachments||[]).some((a:Obj)=>String(a.id)===String(created.id)))throw Error("ATTACHMENT_UNCERTAIN");
-    media.push({name,attachment_id:String(created.id),reused:false});uploaded=true;
-   }
-  } else if(raw.state==="review"){media.push({state:"review",reason:raw.reason});}
-  const summary=draft(s,detail,note,ai);
-  const line=uploaded?"\nGambar rujukan asal: attachment ClickUp telah diverifikasi.":raw.state==="review"?"\nGambar rujukan: perlu semakan ("+raw.reason+").":"";
-  const text=marker+"\n"+summary+line;
-  // One durable AutoBrief per task, even when the collector's fingerprint changes.
-  // The DB claim is keyed by semantic content hash rather than volatile observations.
+  const placedMs=Date.parse(placed),placedIso=Number.isFinite(placedMs)?new Date(placedMs).toISOString():"";
+  if(!placedIso)throw Error("ORDER_TIME_UNAVAILABLE");
+  if(Date.now()-placedMs<900000)throw Error("WAIT_15_MINUTES");
+  const key=(s.marketplace_order_id?"shopee:":"icetak:")+(s.marketplace_order_id||s.order_id);
+  const context=await loadChat(placedIso,buyerId,phone,key,String(s.order_reference||""),bridge);
+  const {chronological,proof}=selectProof(context,placedMs);
+  const decision=decide(note,existingWord,proof,context,multi);
+  const missing=Array.isArray(detail.missing)?detail.missing:[];
+  const confidence=missing.length?Math.min(decision.confidence,75):decision.confidence;
+  const verified=confidence>=80 && (decision.note_evidence||decision.chat_evidence) && !context.ambiguous && !context.truncated;
+  const mediaCandidates=proof.filter((m:Obj)=>m.message_type==="image"&&string(m.media_url));
+  let img=mediaCandidates.length===1?string(mediaCandidates[0].media_url,900):string(detail.values?.artwork,900);
+  if(mediaCandidates.length>1){img="Perlu semakan (beberapa gambar)";}
+  if(img.startsWith("wasapflow-media://"))img="Gambar di Unified Inbox: "+string(mediaCandidates[0]?.id,55);
+  if(/^https?:/.test(img)){try{const u=new URL(img);if(u.protocol!=="https:"||u.username||u.password)img="Perlu semakan gambar";}catch{img="Perlu semakan gambar";}}
+  const previous=job.brief||{};
+  const oldIds=new Set<string>((job.checked_message_ids||[]).map((v:unknown)=>String(v)));
+  const confirmationAt=string(previous.confirmed_at)||(existingConfirmed?new Date().toISOString():verified?new Date().toISOString():"");
+  const afterConfirmed=chronological.filter((m:Obj)=>confirmationAt&&Date.parse(m.created_at)>Date.parse(confirmationAt)
+    &&!oldIds.has(String(m.id)));
+  const changed=afterConfirmed.filter((m:Obj)=>!isUnimportant(string(m.text_content||m.caption)) && mayNeedChange(string(m.text_content||m.caption)));
+  const marker="[iCetak-AutoBrief:"+id+"]";
+  const text=briefText(id,decision.wording,img,verified||existingConfirmed,confidence,note,proof);
+  const hash=await digest(text);
   const comments=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment");
-  const known=(comments.comments||[]).find((x:Obj)=>contains(x.comment,marker)||contains(x.comment,legacyPrefix));
-  const previous=string(job.comment_id,100);
-  const candidate=known?.id?String(known.id):previous;
-  const fresh=await db("task_detail_automation?task_id=eq."+encodeURIComponent(id)+"&select=data&limit=1");
-  if(fresh?.[0]?.data?.fingerprint!==fp)throw Error("SOURCE_CHANGED");
-  if(candidate){
-   // This ID was previously saved after a verified iCetak AutoBrief. Do not create a second comment.
-   commentId=candidate;
-   if(!known||!contains(known.comment,text)){
-    await clickup(clickupToken,"comment/"+encodeURIComponent(candidate),"PUT",{comment_text:text});
+  const old=(comments.comments||[]).find((c:Obj)=>contains(c.comment,marker)||contains(c.comment,"[iCetak-AutoBrief:"+id+":"));
+  commentId=old?.id?String(old.id):commentId;
+  // Preserve single comment even if source fingerprint changes or ClickUp comment pagination changes.
+  if(commentId){
+   if(previous.text_hash!==hash){
+    await clickup(clickupToken,"comment/"+encodeURIComponent(commentId),"PUT",{comment_text:text});
    }
   }else{
-   const created=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment","POST",{comment_text:text,notify_all:false});
-   if(!created?.id)throw Error("COMMENT_UNCERTAIN");
-   commentId=String(created.id);
+   const posted=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment","POST",{comment_text:text,notify_all:false});
+   if(!posted?.id)throw Error("COMMENT_UNCERTAIN");
+   commentId=String(posted.id);
   }
-  // Verify latest comment visibility where possible. When older comments are outside the provider's
-  // first page, retain the known ID instead of creating a replacement.
-  const verified=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment");
-  const entry=(verified.comments||[]).find((x:Obj)=>String(x.id)===commentId);
-  if(entry&&!contains(entry.comment,marker))throw Error("COMMENT_UNCERTAIN");
-  brief={summary,ai_mode:ai.mode||"rules",source_status:detail.info_status,missing:detail.missing||[],warnings:detail.warnings||[],image_state:raw.state,revision:short};
-  state=detail.info_status==="ready"&&raw.state!=="review"?"completed":"review";
- } catch(e) {
-  error=String(e instanceof Error?e.message:e).slice(0,250);
-  if(/UNCERTAIN/.test(error))state="uncertain";else if(/SOURCE_CHANGED|TASK_CLOSED/.test(error))state="review";
+  // Avoid overwriting staff decisions: only apply AI Check to an empty / already-AI Check Review field.
+  const review=field(task,"Review customer");
+  const reviewValue=String(review?.value?.id||review?.value||"");
+  const reviewAllowed=!reviewValue||reviewValue===CF.ai;
+  const applied:Obj={...(job.field_receipts||{})};
+  if(verified){
+   if(reviewAllowed&&reviewValue!==CF.ai){
+    await clickup(clickupToken,"task/"+id+"/field/"+CF.review,"POST",{value:CF.ai});
+    applied.review="Ai Check";
+   }
+   if(!existingConfirmed&&decision.wording && normalized(existingWord)!==normalized(decision.wording)){
+    await clickup(clickupToken,"task/"+id+"/field/"+CF.name,"POST",{value:decision.wording.slice(0,255)});
+    applied.wording=decision.wording;
+   }
+   if(!existingConfirmed){
+    await clickup(clickupToken,"task/"+id+"/field/"+CF.confirmed,"POST",{value:true});
+    applied.confirmed=true;
+   }
+  }
+  // Later customer changes get separate per-message comments, not silent design overwrites.
+  for(const m of changed.slice(0,8)){
+   const changeMarker="[iCetak-Change:"+id+":"+m.id+"]";
+   const commentsNow=await clickup(clickupToken,"task/"+id+"/comment");
+   if((commentsNow.comments||[]).some((c:Obj)=>contains(c.comment,changeMarker)))continue;
+   const body=changeMarker+"\\n⚠️ Semak perubahan design\\n"+
+    string(m.created_at,40)+" ["+string(m.channel,24)+"] "+
+    string(m.text_content||m.caption,600)+"\\nReview manual sebelum edit.";
+   const sent=await clickup(clickupToken,"task/"+id+"/comment","POST",{comment_text:body,notify_all:false});
+   if(!sent?.id)throw Error("CHANGE_COMMENT_UNCERTAIN");
+  }
+  const ids=[...new Set([...oldIds,...chronological.map(m=>String(m.id))])].slice(-140);
+  brief={wording:decision.wording,confidence,actual_buyer_note:note,proof:proof.map((m:Obj)=>({id:m.id,channel:m.channel,at:m.created_at})),
+   image:img,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,
+   checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
+   context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
+   source_status:detail.info_status};
+  state=verified||existingConfirmed?"completed":"review";
+ }catch(e){
+  error=String(e instanceof Error?e.message:e).slice(0,220);
+  if(/SOURCE_CHANGED|TASK_CLOSED|WAIT_15_MINUTES/.test(error))state="review";
+  else if(/UNCERTAIN/.test(error))state="uncertain";
  }
- try {await db("rpc/icetak_record_order_brief",{p_task_id:id,p_fingerprint:fp,p_state:state,p_brief:brief,p_media:media,p_comment_id:commentId,p_error:error});}
- catch {return {task_id:id,state:"writeback_failed"};}
- return {task_id:id,state,error};
+ const saved=await db("rpc/icetak_record_order_brief",{p_task_id:id,p_fingerprint:fp,p_state:state,
+  p_brief:brief,p_media:media,p_comment_id:commentId,p_error:error}).catch(()=>false);
+ return {task_id:id,state,error:!saved?"WRITEBACK_FAILED":error};
 }
 Deno.serve(async(req:Request)=>{
  if(req.method==="GET")return res({ok:true,service:"clickup-order-brief",version:1});
