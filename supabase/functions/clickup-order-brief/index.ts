@@ -400,14 +400,20 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   // Avoid overwriting staff decisions: only apply AI Check to an empty / already-AI Check Review field.
   const review=field(task,"Review customer");
   const reviewValue=String(review?.value?.id||review?.value||"");
-  const reviewAllowed=!reviewValue||reviewValue===CF.ai;
+  const selectedReviewOption=(review?.type_config?.options||[]).find((option:Obj)=>
+   String(option.id)===reviewValue||String(option.orderindex)===reviewValue);
+  const aiReviewSelected=reviewValue===CF.ai||
+   String(selectedReviewOption?.id||"")===CF.ai||
+   String(selectedReviewOption?.name||"").toLowerCase()==="ai check"||
+   String(review?.value?.name||"").toLowerCase()==="ai check";
+  const reviewAllowed=!reviewValue||aiReviewSelected;
   const applied:Obj={...(job.field_receipts||{})};
   if(verified){
    if(reviewAllowed&&reviewValue!==CF.ai){
     await clickup(clickupToken,"task/"+id+"/field/"+CF.review,"POST",{value:CF.ai});
     applied.review="Ai Check";
    }
-   if(decision.wording && normalized(existingWord)!==normalized(decision.wording) && (!existingConfirmed || reviewValue===CF.ai || Boolean(job.field_receipts?.wording))){
+   if(decision.wording && normalized(existingWord)!==normalized(decision.wording) && (!existingConfirmed || aiReviewSelected || Boolean(job.field_receipts?.wording))){
     await clickup(clickupToken,"task/"+id+"/field/"+CF.name,"POST",{value:decision.wording.slice(0,255)});
     applied.wording=decision.wording;
    }
