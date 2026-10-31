@@ -91,6 +91,22 @@ function extractAge(text:string):number|null{
 function wordingHasAge(s:string):boolean{
  return extractAge(s)!==null||/\b\d{1,3}(?:st|nd|rd|th)\b/i.test(s)||/\b\d{1,3}\s*y\b/i.test(s)||/\b\d{1,3}\s*$/.test(s);
 }
+function isNonDesignWording(value:string){
+ const text=normalized(value);
+ if(!text)return true;
+ // Buyer notes/chat conversations about sending details, delivery or previews are
+ // instructions, not text to print on the topper.
+ return /^(?:hi|hai|hello|assalamualaikum|salam)?[\s,.!]*(?:detail|details|maklumat|info)\s+(?:saya|sy|i)\s+(?:send|hantar|bagi)/i.test(text)
+   || /^(?:nanti|nti|nnti|later)\s+(?:saya|sy|i)\s+(?:send|hantar|bagi)/i.test(text)
+   || /^(?:saya|sy|i)\s+(?:dah\s+bayar|buat\s+order|nak\s+(?:tengok|tgk|lihat)|send)/i.test(text)
+   || /^(?:terima\s+kasih|thank\s+you|thanks|tq)\b/i.test(text)
+   || /^(?:nak\s+tgk|nak\s+tengok|boleh\s+send|send\s+kat\s+saya)/i.test(text);
+}
+function previewInstruction(all:Obj[]){
+ const messages=all.map((m:Obj)=>String(m.text_content||m.caption||""));
+ const request=messages.find(m=>/(?:nak|mahu|mau)\s+(?:tgk|tengok|lihat|check)\s+(?:dulu|design|hasil)|(?:dah|sudah|dh)\s+siap[\s\S]{0,100}(?:send|hantar)[\s\S]{0,100}(?:saya|sy)|(?:send|hantar)[\s\S]{0,60}(?:preview|design\s+siap)/i.test(m));
+ return request?"Hantar gambar design siap kepada pelanggan untuk semakan sebelum printing.":"";
+}
 function noteWording(note:string){return splitProductionWording(note).wording;}
 function isUnimportant(text:string){
  return /^(?:ok(?:ay)?|baik|noted|terima kasih(?: banyak)?|thank(?:s| you)(?: so much)?|tq|ty|haha|hehe|👍|🙏|✅|👌|sudah|done|alright|baiklah|sama-sama)[!.\s🙏👍👌✅]*$/i.test(text.trim());
@@ -201,6 +217,9 @@ function namedWordingFromMessage(text:string):string{
 }
 function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean,allMessages:Obj[]=proof){
  const actual=splitProductionWording(note),cf=splitProductionWording(cfWord);
+ const noteIsReference=isNonDesignWording(actual.wording);
+ const cfIsReference=isNonDesignWording(cf.wording);
+ const extraInstruction=previewInstruction(allMessages);
  const chatNames=allMessages.map((m:Obj)=>({name:namedWordingFromMessage(String(m.text_content||m.caption||"")),at:Date.parse(String(m.created_at||""))}))
   .filter(x=>x.name&&Number.isFinite(x.at)).sort((a,b)=>a.at-b.at);
  const lastChatName=chatNames.at(-1)?.name||"";
@@ -210,8 +229,8 @@ function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean,allM
  const ageFromChat=ages.at(-1)?.age??null;
  const noteAge=extractAge(note),cfAge=extractAge(cfWord),age=noteAge??ageFromChat??cfAge;
  const ageConflict=ages.some(x=>noteAge!==null&&x.age!==noteAge)||new Set(ages.map(x=>x.age)).size>1;
- const noteName=actual.wording&&/\p{L}/u.test(actual.wording)?actual.wording:"";
- const cfName=cf.wording&&/\p{L}/u.test(cf.wording)?cf.wording:"";
+ const noteName=!noteIsReference&&actual.wording&&/\p{L}/u.test(actual.wording)?actual.wording:"";
+ const cfName=!cfIsReference&&cf.wording&&/\p{L}/u.test(cf.wording)?cf.wording:"";
  const withAge=(v:string)=>normalized(age!==null&&v&&!wordingHasAge(v)?v+" "+age:v);
  const base=noteName||lastChatName||cfName;
  let wording=base;
@@ -226,9 +245,9 @@ function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean,allM
  if(nameConflict||ageConflict)confidence=Math.min(confidence,55);
  if(ctx.ambiguous||ctx.truncated||ctx.unavailable)confidence=Math.min(confidence,60);
  if(multi)confidence=Math.min(confidence,60);
- if(note&&!noteName)confidence=Math.min(confidence,65);
+ if(note&&!noteName&&!noteIsReference)confidence=Math.min(confidence,65);
  if(!base)confidence=0;
- return {wording:wording.slice(0,255),instruction:actual.instruction,confidence,
+ return {wording:wording.slice(0,255),instruction:[actual.instruction,extraInstruction].filter(Boolean).join(" ").slice(0,400),confidence,
   chat_evidence:!!lastChatName,note_evidence:!!noteName,age:age??null,age_conflict:ageConflict,name_conflict:nameConflict};
 }
 function allowedHost(h:string) {
