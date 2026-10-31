@@ -56,14 +56,15 @@ const normalized=(s:unknown)=>string(s,4000).toLocaleLowerCase().replace(/\s+/g,
 const field=(task:Obj,name:string)=>(task.custom_fields||[]).find((x:Obj)=>String(x.name||"").toLowerCase()===name.toLowerCase());
 const fieldChecked=(x:Obj|undefined)=>x?.value===true||x?.value==="true"||x?.value===1||x?.value==="1";
 function extractInstruction(text:string){
- const match=text.match(/(?:^|\n|[;,])\s*(?:wording|nama|name|tulisan|text|ayat|write|tulis)\s*[:=\-]\s*([^\n;]{2,180})/i);
+ const match=string(text,600).match(/^\s*(?:nama\s*custom|custom\s*name|wording|nama|name|tulisan|text|ayat|write|tulis)\s*[:=,\-]\s*([\s\S]{2,180})$/i);
  return match?match[1].trim():"";
 }
 function splitProductionWording(input:string){
  const raw=string(input,1300).trim().replace(/^[\s"'“‘]+|[\s"'”’]+$/g,"");
  const conditional=/\b(?:jika|kalau|if)\s+(?:tak|tidak|x|not)\s+muat\b/i.exec(raw);
- const main=conditional?raw.slice(0,conditional.index):raw;
- const wording=main.replace(/\s+/g," ").replace(/^\s*(?:nama|custom\s*name|wording|tulisan)\s*[:=\-]\s*/i,"")
+ const main=(conditional?raw.slice(0,conditional.index):raw)
+  .replace(/^\s*(?:hi|hai|hello)\s*[,!.]?\s*(?=(?:custom\s*name|nama\s*custom|nama|wording)\s*[:=,\-])/i,"");
+ const wording=main.replace(/\s+/g," ").replace(/^\s*(?:nama\s*custom|custom\s*name|nama|wording|tulisan)\s*[:=,\-]\s*/i,"")
    .replace(/\s*\(\s*$/g,"").replace(/(?:\.\s*){2,}$/g,"")
    .replace(/[\s.,;:!]+$/g,"").trim().slice(0,255);
  let instruction="";
@@ -78,12 +79,24 @@ function splitProductionWording(input:string){
  }
  return {wording,instruction:instruction.trim().slice(0,400),conditional:!!conditional};
 }
+function extractAge(text:string):number|null{
+ const s=string(text,600);
+ const m=s.match(/\b(?:umur|usia|age)\s*[:=\-]?\s*(\d{1,3})\b/i)
+   ||s.match(/\b(?:turns?|turning)\s*(\d{1,3})\b/i)
+   ||s.match(/\b(\d{1,3})\s*(?:years?\s*old|yrs?\s*old|tahun|thn|yo|y\/o)\b/i)
+   ||s.match(/\b(\d{1,3})(?:st|nd|rd|th)\s+birthday\b/i);
+ const age=m?Number(m[1]):NaN;
+ return Number.isInteger(age)&&age>=1&&age<=120?age:null;
+}
+function wordingHasAge(s:string):boolean{
+ return extractAge(s)!==null||/\b\d{1,3}(?:st|nd|rd|th)\b/i.test(s)||/\b\d{1,3}\s*y\b/i.test(s)||/\b\d{1,3}\s*$/.test(s);
+}
 function noteWording(note:string){return splitProductionWording(note).wording;}
 function isUnimportant(text:string){
  return /^(?:ok(?:ay)?|baik|noted|terima kasih(?: banyak)?|thank(?:s| you)(?: so much)?|tq|ty|haha|hehe|👍|🙏|✅|👌|sudah|done|alright|baiklah|sama-sama)[!.\s🙏👍👌✅]*$/i.test(text.trim());
 }
 function mayNeedChange(text:string){
- return /\b(?:tukar|ubah|change|edit|replace|instead|silap|salah|wrong|correct|betul\s+semula|sepatutnya|jangan\s+guna|use\s+this|guna\s+yang|new\s+wording|new\s+name|nama\s+baru|tambah|buang|remove|add)\b/i.test(text)||!!extractInstruction(text);
+ return /\b(?:tukar|ubah|change|edit|replace|instead|silap|salah|wrong|correct|betul\s+semula|sepatutnya|jangan\s+guna|use\s+this|guna\s+yang|new\s+wording|new\s+name|nama\s+baru|tambah|buang|remove|add|umur|usia|age|turns?|turning)\b/i.test(text)||!!extractInstruction(text);
 }
 function briefText(taskId:string,sku:string,wording:string,instruction:string,image:string,confirmed:boolean,confidence:number,note:string,proof:Obj[]){
  const lines=[
@@ -148,23 +161,34 @@ function selectProof(context:Obj,placedMs:number){
  const next=chronological.filter(m=>Date.parse(m.created_at)>placedMs).slice(0,3);
  return {chronological,proof:[...prior,...next]};
 }
-function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean){
+function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean,allMessages:Obj[]=proof){
  const chat=proof.map((m:Obj)=>({...m,instruction:extractInstruction(String(m.text_content||m.caption||""))})).filter(x=>x.instruction);
  const last=splitProductionWording(chat.at(-1)?.instruction||"").wording;
- const actual=splitProductionWording(note);
- const cf=splitProductionWording(cfWord);
- const wording=actual.wording||last||cf.wording;
+ const actual=splitProductionWording(note),cf=splitProductionWording(cfWord);
+ const base=actual.wording||last||cf.wording;
+ const ages=allMessages.map((m:Obj)=>({age:extractAge(String(m.text_content||m.caption||"")),at:Date.parse(String(m.created_at||""))}))
+  .filter(x=>x.age!==null&&Number.isFinite(x.at)).sort((a,b)=>a.at-b.at);
+ const ageFromChat=ages.length?ages[ages.length-1].age:null;
+ const noteAge=extractAge(note),cfAge=extractAge(cfWord);
+ const age=noteAge??ageFromChat??cfAge;
+ const ageConflict=ages.some(x=>noteAge!==null&&x.age!==noteAge)
+   ||new Set(ages.map(x=>x.age)).size>1;
+ let wording=base;
+ if(age!==null&&!wordingHasAge(base))wording=(base+" "+age).trim();
  let confidence=0;
  if(actual.wording&&cf.wording)confidence=normalized(actual.wording)===normalized(cf.wording)?95:45;
  else if(actual.wording)confidence=88;
  else if(last&&cf.wording)confidence=normalized(last)===normalized(cf.wording)?91:49;
  else if(last)confidence=82;
  else if(cf.wording)confidence=55;
+ // The name in a note may be more complete than a truncated one-line chat evidence.
  if(actual.wording&&last&&normalized(actual.wording)!==normalized(last))confidence=Math.min(confidence,49);
+ if(ageConflict)confidence=Math.min(confidence,55);
  if(ctx.ambiguous||ctx.truncated||ctx.unavailable)confidence=Math.min(confidence,60);
  if(multi)confidence=Math.min(confidence,60);
  if(note&&!actual.wording)confidence=Math.min(confidence,65);
- return {wording,instruction:actual.instruction,confidence,chat_evidence:chat.length>0,note_evidence:!!actual.wording};
+ return {wording:wording.slice(0,255),instruction:actual.instruction,confidence,
+  chat_evidence:chat.length>0||ages.length>0,note_evidence:!!actual.wording,age:age??null,age_conflict:ageConflict};
 }
 function allowedHost(h:string) {
  const x=h.toLowerCase();return x==="susercontent.com"||x.endsWith(".susercontent.com")||x==="shopee.com"||x.endsWith(".shopee.com")||x==="shopee.com.my"||x.endsWith(".shopee.com.my")||x==="shopee.sg"||x.endsWith(".shopee.sg");
@@ -275,7 +299,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const key=(s.marketplace_order_id?"shopee:":"icetak:")+(s.marketplace_order_id||s.order_id);
   const context=await loadChat(placedIso,buyerId,phone,key,String(s.order_reference||""),bridge);
   const {chronological,proof}=selectProof(context,placedMs);
-  const decision=decide(note,existingWord,proof,context,multi);
+  const decision=decide(note,existingWord,proof,context,multi,chronological);
   const missing=Array.isArray(detail.missing)?detail.missing:[];
   const unresolvedMissing=missing.filter((x:Obj)=>{
    const key=String(x.key||"").toLowerCase();
