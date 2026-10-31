@@ -136,6 +136,25 @@ async function readShopeeBuyerNote(orderSn:string,shopId:string,bridge:string){
 }
 async function loadChat(placed:string,buyerId:string,phone:string,key:string,reference:string,bridge:string){
  if(!placed)return {messages:[],bindings:[],unavailable:true};
+ // Exact order-link proof remains retrievable after the short-lived session context expires.
+ if(key.startsWith("shopee:")&&/^[A-Z0-9]{10,24}$/.test(reference)){
+  try{
+   const response=await fetch(INBOX+"/functions/v1/task-brief-media",{
+    method:"POST",headers:{"content-type":"application/json","x-admin-window-token":bridge},
+    body:JSON.stringify({action:"order_proof",order_sn:reference,placed_at:placed}),
+    signal:AbortSignal.timeout(16000)
+   });
+   if(response.ok){
+    const exact=await response.json();
+    if(exact.ok&&exact.matched&&exact.conversation_id&&Array.isArray(exact.messages)){
+     return {messages:exact.messages,bindings:[{id:exact.conversation_id,usable:true}],
+       ambiguous:false,truncated:exact.messages.length>=100,unavailable:false,
+       evidence_source:"exact_order_id"};
+    }
+    if(exact.reason==="MULTIPLE_LINKED_ORDERS")return {messages:[],bindings:[],ambiguous:true};
+   }
+  }catch{/* Fall back to the ordinary exact-session context. */}
+ }
  try{
   const r=await fetch(INBOX+"/functions/v1/task-brief-media",{
    method:"POST",headers:{"content-type":"application/json","x-admin-window-token":bridge},
@@ -299,6 +318,9 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const key=(s.marketplace_order_id?"shopee:":"icetak:")+(s.marketplace_order_id||s.order_id);
   const context=await loadChat(placedIso,buyerId,phone,key,String(s.order_reference||""),bridge);
   const {chronological,proof}=selectProof(context,placedMs);
+  // A transient empty context must never erase previously confirmed proof.
+  if(proof.length===0&&Array.isArray(job.brief?.proof)&&job.brief.proof.length>0)
+   throw Error("PREVIOUS_PROOF_TEMPORARILY_UNAVAILABLE");
   const decision=decide(note,existingWord,proof,context,multi,chronological);
   const missing=Array.isArray(detail.missing)?detail.missing:[];
   const unresolvedMissing=missing.filter((x:Obj)=>{
