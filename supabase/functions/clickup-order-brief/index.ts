@@ -440,7 +440,19 @@ Deno.serve(async(req:Request)=>{
     ["sudah terima",false]
    ];
    const details=cases.map(([input,expected])=>({input,expected,actual:!isUnimportant(String(input))&&mayNeedChange(String(input))}));
-   return res({ok:details.every(x=>x.expected===x.actual),checks:details,
+   const proof=[
+    {id:"a",created_at:"2026-10-30T08:01:37+00:00",text_content:"Nama custom:SYAFAA\nADRA",channel:"shopee"},
+    {id:"b",created_at:"2026-10-30T08:01:51+00:00",text_content:"Umur:4",channel:"shopee"}
+   ];
+   const tests=[
+    {case:"age in separate message",out:decide("Hi,custom name,\nSYAFAA\nADRA","Hi,custom name,\nSYAFAA\nADRA",proof,{},false,proof),expect:"SYAFAA ADRA 4",min:80},
+    {case:"compact age message",out:decide("SYAFAA ADRA","SYAFAA ADRA",[{...proof[1],text_content:"Umur4"}],{},false,[{...proof[1],text_content:"Umur4"}]),expect:"SYAFAA ADRA 4",min:80},
+    {case:"conditional shortening",out:decide("Nama : Fayyadh Aryan ..\nkalau tak muat tmpt letak nama Fayyadh je","Nama : Fayyadh Aryan ..\nkalau tak muat tmpt letak nama Fayyadh je",[],{},false),expect:"Fayyadh Aryan",min:80},
+    {case:"already has age",out:decide("Muhammad Bilal Mikail 3y","Muhammad Bilal Mikail 3y",[],{},false),expect:"Muhammad Bilal Mikail 3y",min:80},
+    {case:"age conflict",out:decide("Ali umur:4","Ali umur:4",[{...proof[1],text_content:"Umur:5"}],{},false,[{...proof[1],text_content:"Umur:5"}]),expect:"Ali umur:4",max:79}
+   ];
+   const passed=tests.every(x=>x.out.wording===x.expect&&x.out.confidence>=(x.min||0)&&x.out.confidence<=(x.max||100));
+   return res({ok:details.every(x=>x.expected===x.actual)&&passed,tests,checks:details,
      matching_note_score:decide("anaqi rayyan","anaqi rayyan",[],{},false).confidence,
      cf_only_score:decide("","anaqi rayyan",[],{},false).confidence});
   }
