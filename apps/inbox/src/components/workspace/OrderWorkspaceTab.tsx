@@ -1,8 +1,8 @@
 import { confirmDesignNavigation } from '../../lib/designDraftGuard';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  CheckCircle2, Copy, CreditCard, ExternalLink, Link2, Loader2, MessageSquareText,
-  CalendarClock, MapPin, Package, Plus, Search, Send, ShoppingBag, Star, StickyNote, Tag, Trash2, Truck,
+  ExternalLink, Link2, Loader2, MessageSquareText,
+  Package, Plus, Search, Send, ShoppingBag, Star, Trash2, Truck,
 } from 'lucide-react';
 import type { Conversation, Message } from '../../types';
 import {
@@ -13,12 +13,12 @@ import {
   setPrimaryWorkspaceOrder,
   unlinkWorkspaceOrder,
   type WorkspaceOrderLink,
-  type WorkspaceOrderSummary,
   type WorkspaceProduct,
   type WorkspaceSnippet,
   type WorkspaceSuggestedOrder,
 } from '../../lib/conversationWorkspace';
 import { ShopeeCardDialog } from './ShopeeCardDialog';
+import { SidebarOrderCard, sidebarOrderStatus } from './SidebarOrderCard';
 import type { CardSelection } from '../../lib/shopeeCardSend';
 import { linkManualOrder } from '../../lib/workspaceOrderActions';
 
@@ -34,48 +34,11 @@ interface Props {
   onCardSent?: (message: Message, warning?: string) => void;
 }
 
-function amount(value: number | null): string {
-  return value == null ? '—' : `RM${Number(value).toFixed(2)}`;
-}
-
 function dateLabel(value: string | null): string {
   if (!value) return '—';
   const parsed = new Date(`${value}T12:00:00+08:00`);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function statusClass(status: string | null): string {
-  const key = (status ?? '').toLowerCase();
-  if (/paid|completed|delivered|approved/.test(key)) return 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300';
-  if (/cancel|fail|refund|exception/.test(key)) return 'bg-red-500/20 text-red-700 dark:text-red-300';
-  if (/ship|transit|delivery/.test(key)) return 'bg-sky-500/20 text-sky-700 dark:text-sky-300';
-  if (/waiting|ready|pending|unpaid/.test(key)) return 'bg-orange-500/20 text-orange-700 dark:text-orange-300';
-  return 'bg-[var(--surface-hover)] text-[var(--text)]';
-}
-
-function orderItems(summary: WorkspaceOrderSummary | null): Array<{ name: string; detail: string; image: string; price: number | null }> {
-  if (!summary || !Array.isArray(summary.items)) return [];
-  return summary.items.flatMap((item) => {
-    if (!item || typeof item !== 'object') return [];
-    const row = item as Record<string, unknown>;
-    const name = String(row.product_name ?? row.name ?? row.title ?? 'Item').trim();
-    const variation = String(row.variation_name ?? row.variation ?? row.variant ?? '').trim();
-    const wording = String(row.wording ?? row.custom_text ?? '').trim();
-    const quantity = Number(row.quantity ?? row.qty ?? 1);
-    const rawPrice = row.line_subtotal ?? row.unit_discounted_price ?? null;
-    const price = rawPrice == null ? null : Number(rawPrice);
-    return [{
-      name,
-      detail: [variation, wording, `Qty ${quantity}`].filter(Boolean).join(' · '),
-      image: String(row.image_url ?? ''),
-      price: Number.isFinite(price) ? price : null,
-    }];
-  });
-}
-
-function copy(value: string): void {
-  void navigator.clipboard.writeText(value);
 }
 
 export function OrderWorkspaceTab({
@@ -94,7 +57,9 @@ export function OrderWorkspaceTab({
   const [error, setError] = useState<string | null>(null);
   const [manualOrderNo, setManualOrderNo] = useState('');
   const [snippetQuery, setSnippetQuery] = useState('');
-  const [copiedNoteOrder, setCopiedNoteOrder] = useState<string | null>(null);
+  const [orderFilter, setOrderFilter] = useState('all');
+  useEffect(() => { setOrderFilter('all'); }, [conversation.id]);
+  const visibleOrders = linkedOrders.filter((link) => orderFilter === 'all' || sidebarOrderStatus(link.summary || {}).key === orderFilter);
 
   const primaryLink = linkedOrders.find((order) => order.is_primary) ?? linkedOrders[0] ?? null;
   const primarySummary = primaryLink?.summary ?? null;
@@ -123,7 +88,7 @@ export function OrderWorkspaceTab({
   async function prepareOrderCard(link: WorkspaceOrderLink) {
     if (conversation.channel === 'shopee') {
       if (!link.summary || link.summary.source_channel !== 'shopee') throw new Error('Detail order Shopee belum tersedia.');
-      setSelectedCard({type: 'order', id: link.summary.id, orderNo: link.order_no, title: `Order #${link.order_no}`, image: orderItems(link.summary)[0]?.image});
+      setSelectedCard({type: 'order', id: link.summary.id, orderNo: link.order_no, title: `Order #${link.order_no}`, image: String((link.summary.items[0] as Record<string, unknown> | undefined)?.image_url || '')});
       return;
     }
     const text = link.summary
@@ -158,99 +123,41 @@ export function OrderWorkspaceTab({
     <div className="h-full overflow-y-auto bg-[var(--surface)] pb-8">
       {error && <div className="m-3 rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-300">{error}</div>}
 
-      <section className="border-b border-[var(--border)] p-4">
+      <section className="border-b border-[var(--border)] p-3">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Order Dipautkan</h3>
           <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-[10px] text-[var(--text-secondary)]">{linkedOrders.length}</span>
         </div>
 
+        <div className="mb-3 flex gap-0.5 overflow-x-auto border-b border-[var(--border)] pb-2 scrollbar-none" role="group" aria-label="Tapis status order">
+          {[['all', 'All'], ['unpaid', 'Unpaid'], ['to_ship', 'To Ship'], ['shipping', 'Shipping'], ['completed', 'Completed'], ['cancelled', 'Cancelled']].map(([key, label]) => <button
+            key={key} type="button" aria-pressed={orderFilter === key} onClick={() => setOrderFilter(key)}
+            className={`shrink-0 rounded px-2 py-1 text-[10px] transition-colors ${orderFilter === key ? 'bg-orange-500/10 font-semibold text-[#ee4d2d] dark:text-orange-300' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'}`}
+          >{label}</button>)}
+        </div>
+
         {loading && linkedOrders.length === 0 && <div className="flex items-center justify-center gap-2 py-6 text-xs text-[var(--text-secondary)]"><Loader2 size={14} className="animate-spin" />Memuatkan order…</div>}
 
         <div className="space-y-3">
-          {linkedOrders.map((link) => {
-            const summary = link.summary;
-            const items = orderItems(summary);
-            return (
-              <div key={link.id} className={`rounded-xl border p-3 ${link.is_primary ? 'border-[#00a884]/60 bg-emerald-50 dark:bg-[#0f2622]' : 'border-[var(--border)] bg-[var(--surface-muted)]'}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="truncate text-sm font-semibold text-[var(--text)]">#{link.order_no}</p>
-                      {link.is_primary && <span className="inline-flex items-center gap-1 rounded-full bg-[#00a884]/20 px-1.5 py-0.5 text-[9px] font-semibold text-[var(--accent)]"><Star size={9} fill="currentColor" />Utama</span>}
-                      {summary?.active_order && <span className="rounded-full bg-blue-500/20 px-1.5 py-0.5 text-[9px] text-blue-700 dark:text-blue-300">Aktif</span>}
-                    </div>
-                    <p className="mt-1 text-[10px] text-[var(--text-secondary)]">{link.source_project} · {link.match_method} {Math.round(Number(link.match_confidence) * 100)}%</p>
-                  </div>
-                  <button onClick={() => copy(link.order_no)} className="rounded p-1.5 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]" title="Salin order ID"><Copy size={13} /></button>
-                </div>
-
-                {summary ? (
-                  <>
-                    <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[11px] text-[var(--text-secondary)]">
-                      <p>{summary.metadata?.provisional === true ? 'Data penuh order belum sync. Status pelanggan perlu disemak.' : `Data order: ${summary.source_channel === 'shopee' ? 'Shopee → iCetak' : 'iCetak'}`}</p>
-                      <p className="mt-1">Sync terakhir: {summary.last_synced_at ? new Date(summary.last_synced_at).toLocaleString('ms-MY', {timeZone:'Asia/Kuala_Lumpur'}) : 'Belum disahkan'}</p>
-                      <p className="mt-1">Detail pelanggan: {summary.metadata?.customer_detail_status === 'confirmed' ? 'Confirmation pelanggan direkod' : 'Perlu semakan chat / artwork'}</p>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {summary.payment_status && <span className={`rounded-full px-2 py-0.5 text-[10px] ${statusClass(summary.payment_status)}`}>{summary.payment_status}</span>}
-                      {summary.order_status && <span className={`rounded-full px-2 py-0.5 text-[10px] ${statusClass(summary.order_status)}`}>{summary.order_status}</span>}
-                      {summary.shipment_status && <span className={`rounded-full px-2 py-0.5 text-[10px] ${statusClass(summary.shipment_status)}`}>{summary.shipment_status}</span>}
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
-                      <Stat icon={<CreditCard size={12} />} label="Jumlah" value={amount(summary.payment_total)} />
-                      <Stat icon={<CheckCircle2 size={12} />} label="Paid" value={amount(summary.paid_amount)} />
-                      <Stat icon={<Tag size={12} />} label="Baki" value={amount(summary.balance_amount)} />
-                      <Stat icon={<Package size={12} />} label="Tarikh perlu" value={dateLabel(summary.date_need)} />
-                    </div>
-
-                    {items.length > 0 && (
-                      <div className="mt-3 space-y-1.5 border-t border-[var(--border)] pt-3">
-                        {items.slice(0, 8).map((item, index) => (
-                          <div key={`${item.name}-${index}`} className="flex items-start gap-2 rounded-lg bg-[var(--surface)] p-2 text-xs">
-                            {item.image ? <img src={item.image} alt="" className="h-10 w-10 flex-shrink-0 rounded object-cover" /> : <ShoppingBag size={14} className="mt-1 flex-shrink-0 text-[#00a884]" />}
-                            <div className="min-w-0 flex-1"><p className="line-clamp-2 text-[var(--text)]">{item.name}</p>{item.detail && <p className="mt-0.5 truncate text-[10px] text-[var(--text-secondary)]">{item.detail}</p>}{item.price != null && <p className="mt-1 text-[10px] font-semibold text-[var(--accent)]">{amount(item.price)}</p>}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {summary.buyer_message && <div className="mt-3 rounded-lg bg-amber-500/10 p-2.5 text-[11px] text-amber-700 dark:text-amber-100">
-                      <div className="mb-1 flex items-center justify-between gap-2">
-                        <p className="flex items-center gap-1 font-semibold"><StickyNote size={12} />Nota checkout</p>
-                        <button
-                          onClick={() => {
-                            copy(summary.buyer_message ?? '');
-                            setCopiedNoteOrder(link.order_no);
-                            window.setTimeout(() => setCopiedNoteOrder(null), 1800);
-                          }}
-                          className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-1 text-[9px] font-semibold hover:bg-amber-500/25"
-                          title="Salin nota checkout"
-                        >
-                          {copiedNoteOrder === link.order_no ? <CheckCircle2 size={11} /> : <Copy size={11} />}
-                          {copiedNoteOrder === link.order_no ? 'Disalin' : 'Salin'}
-                        </button>
-                      </div>
-                      <p className="whitespace-pre-wrap">{summary.buyer_message}</p>
-                    </div>}
-                    {summary.delivery_address && <div className="mt-3 rounded-lg bg-[var(--surface)] p-2.5 text-[11px] text-[var(--text)]"><p className="mb-1 flex items-center gap-1 font-semibold text-[var(--text-secondary)]"><MapPin size={12} />Alamat</p><p className="whitespace-pre-wrap leading-relaxed">{summary.delivery_address}</p></div>}
-                    {(summary.ship_by_at || summary.courier_name) && <div className="mt-3 grid grid-cols-2 gap-2"><Stat icon={<CalendarClock size={12} />} label="Ship by" value={summary.ship_by_at ? new Date(summary.ship_by_at).toLocaleString('ms-MY') : '—'} /><Stat icon={<Truck size={12} />} label="Courier" value={summary.courier_name || summary.delivery_method || '—'} /></div>}
-                                        {summary.tracking_no && <div className="mt-3 flex items-center gap-2 rounded-lg bg-[var(--surface)] px-2.5 py-2 text-[11px] text-[var(--text)]"><Truck size={13} className="text-sky-700 dark:text-sky-300" /><span className="min-w-0 flex-1 truncate">{summary.tracking_no}</span><button onClick={() => copy(summary.tracking_no ?? '')}><Copy size={12} /></button></div>}
-                  </>
-                ) : (
-                  <p className="mt-3 rounded-lg bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text-secondary)]">Order telah dipautkan. Detail penuh akan muncul automatik apabila Order System sync order ini.</p>
-                )}
-
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <ActionButton icon={<Send size={12} />} label={conversation.channel === 'shopee' ? 'Hantar order' : 'Order Card'} disabled={conversation.channel === 'shopee' && link.summary?.source_channel !== 'shopee'} onClick={() => runAction(`card-${link.id}`, () => prepareOrderCard(link))} busy={busyKey === `card-${link.id}`} />
-                  <ActionButton icon={<Truck size={12} />} label="Tracking" onClick={() => runAction(`tracking-${link.id}`, () => prepareTracking(link))} busy={busyKey === `tracking-${link.id}`} disabled={!summary?.tracking_no} />
-                  {!link.is_primary && <ActionButton icon={<Star size={12} />} label="Jadi Utama" onClick={() => runAction(`primary-${link.id}`, () => setPrimaryWorkspaceOrder(link.id))} busy={busyKey === `primary-${link.id}`} />}
-                  {(summary?.public_order_url || summary?.clickup_url) && <ActionButton icon={<ExternalLink size={12} />} label="Buka Order" onClick={() => window.open(summary.public_order_url || summary.clickup_url || '', '_blank', 'noopener,noreferrer')} />}
-                  <ActionButton icon={<Trash2 size={12} />} label="Unlink" onClick={() => runAction(`unlink-${link.id}`, () => unlinkWorkspaceOrder(link.id))} busy={busyKey === `unlink-${link.id}`} danger />
-                </div>
-              </div>
-            );
-          })}
+          {visibleOrders.map((link) => <SidebarOrderCard
+            key={link.id}
+            order={link.summary || { order_no: link.order_no, items: [], source_channel: conversation.channel }}
+            primary={link.is_primary}
+            extraRows={[
+              { label: 'Status bayaran', value: link.summary?.payment_status },
+              { label: 'Data order', value: !link.summary || link.summary.metadata?.provisional === true ? 'Menunggu sync penuh' : link.summary?.source_channel === 'shopee' ? 'Shopee → iCetak' : 'iCetak' },
+              { label: 'Detail pelanggan', value: link.summary?.metadata?.customer_detail_status === 'confirmed' ? 'Confirmation direkod' : 'Perlu semakan chat / artwork' },
+              { label: 'Padanan', value: `${link.match_method.replace(/_/g, ' ')} · ${Math.round(Number(link.match_confidence) * 100)}%` },
+            ]}
+            actions={<>
+              <ActionButton icon={<Send size={12} />} label={conversation.channel === 'shopee' ? 'Hantar order' : 'Order Card'} primary disabled={conversation.channel === 'shopee' && link.summary?.source_channel !== 'shopee'} onClick={() => runAction(`card-${link.id}`, () => prepareOrderCard(link))} busy={busyKey === `card-${link.id}`} />
+              <ActionButton icon={<Truck size={12} />} label="Tracking" onClick={() => runAction(`tracking-${link.id}`, () => prepareTracking(link))} busy={busyKey === `tracking-${link.id}`} disabled={!link.summary?.tracking_no} />
+              {!link.is_primary && <ActionButton icon={<Star size={12} />} label="Jadi Utama" onClick={() => runAction(`primary-${link.id}`, () => setPrimaryWorkspaceOrder(link.id))} busy={busyKey === `primary-${link.id}`} />}
+              {(link.summary?.public_order_url || link.summary?.clickup_url) && <ActionButton icon={<ExternalLink size={12} />} label="Buka Order" onClick={() => window.open(link.summary?.public_order_url || link.summary?.clickup_url || '', '_blank', 'noopener,noreferrer')} />}
+              <ActionButton icon={<Trash2 size={12} />} label="Unlink" onClick={() => runAction(`unlink-${link.id}`, () => unlinkWorkspaceOrder(link.id))} busy={busyKey === `unlink-${link.id}`} danger />
+            </>}
+          />)}
+          {linkedOrders.length > 0 && visibleOrders.length === 0 && <p className="py-6 text-center text-xs text-[var(--text-secondary)]">Tiada order untuk status ini.</p>}
         </div>
 
         {linkedOrders.length === 0 && !loading && (
@@ -363,16 +270,12 @@ export function OrderWorkspaceTab({
   );
 }
 
-function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return <div className="rounded-lg bg-[var(--surface)] p-2"><div className="flex items-center gap-1 text-[var(--text-secondary)]">{icon}<span className="text-[9px] uppercase tracking-wide">{label}</span></div><p className="mt-1 truncate text-xs font-medium text-[var(--text)]">{value}</p></div>;
-}
-
-function ActionButton({ icon, label, onClick, busy = false, disabled = false, danger = false }: { icon: React.ReactNode; label: string; onClick: () => void; busy?: boolean; disabled?: boolean; danger?: boolean }) {
+function ActionButton({ icon, label, onClick, busy = false, disabled = false, danger = false, primary = false }: { icon: React.ReactNode; label: string; onClick: () => void; busy?: boolean; disabled?: boolean; danger?: boolean; primary?: boolean }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled || busy}
-      className={`inline-flex items-center justify-center gap-1 rounded-lg px-2 py-2 text-[10px] font-medium disabled:opacity-35 ${danger ? 'bg-red-500/15 text-red-700 dark:text-red-300 hover:bg-red-500/25' : 'bg-[var(--surface-hover)] text-[var(--text)] hover:text-[var(--text)]'}`}
+      className={`inline-flex items-center justify-center gap-1 rounded-lg px-2 py-2 text-[10px] font-medium disabled:opacity-35 ${primary ? 'bg-[#ee4d2d] text-white hover:bg-[#d94326]' : danger ? 'bg-red-500/15 text-red-700 dark:text-red-300 hover:bg-red-500/25' : 'bg-[var(--surface-hover)] text-[var(--text)] hover:text-[var(--text)]'}`}
     >
       {busy ? <Loader2 size={12} className="animate-spin" /> : icon}{label}
     </button>
