@@ -397,7 +397,7 @@ async function aiAnalyzeOrder(params:{
   const r=await fetch("https://api.openai.com/v1/responses",{
    method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+key},
    body:JSON.stringify({model,store:false,max_output_tokens:600,
-    instructions,input:[{role:"user",content}],text:{format:{type:"json_object"}}}),
+    instructions:instructions+" Return only a single valid JSON object. No markdown or explanation.",input:[{role:"user",content}]}),
    signal:AbortSignal.timeout(28000)
   });
   const data=await r.json().catch(()=>({}));
