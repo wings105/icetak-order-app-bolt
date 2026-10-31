@@ -197,7 +197,9 @@ function selectProof(context:Obj,placedMs:number){
  const later=chronological.filter(m=>Date.parse(m.created_at)>placedMs);
  // Retain nearest messages AND latest follow-up, not just the first three replies.
  // The bounded collection is exactly linked to this order and already excludes history.
- const next=later.length<=8?later:[...later.slice(0,3),...later.slice(-5)];
+ const important=later.filter(m=>m.message_type==="image"||
+  /(?:^|\n)\s*(?:nama|custom\s*name|umur|usia|age)\b/i.test(string(m.text_content||m.caption,500)));
+ const next=later.length<=8?later:[...later.slice(0,3),...important.slice(-4),...later.slice(-5)];
  const chosen=new Map<string,Obj>();
  for(const m of [...prior,...next])chosen.set(String(m.id),m);
  return {chronological,proof:[...chosen.values()].sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at))};
@@ -420,8 +422,8 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     backupImage=string(uploaded?.url||uploaded?.download_url,1100);
     media.push({message_id:selected.id,attachment_id:uploaded?.id||null,source_image:img,backup_image:backupImage});
    }catch{
-    // Do not erase the original Shopee URL when backup upload is temporarily unavailable.
-    backupImage="";
+    // Keep the prior verified backup URL on transient upload failure; do not overwrite Shopee URL.
+    backupImage=string(job.brief?.image_backup,1100);
    }
   }
 
