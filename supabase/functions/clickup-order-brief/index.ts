@@ -134,7 +134,7 @@ function briefText(taskId:string,sku:string,wording:string,instruction:string,im
   const label=string(m.channel||"Chat",30),at=string(m.created_at,35);
   lines.push(at+" ["+label+"] "+string(m.text_content||m.caption||"(gambar)",210));
  }
- return lines.join("\n").slice(0,4700);
+ return lines.join("\n").slice(0,14000);
 }
 
 async function readShopeeBuyerNote(orderSn:string,shopId:string,bridge:string){
@@ -201,10 +201,20 @@ function selectProof(context:Obj,placedMs:number){
   /(?:^|\n)\s*(?:nama|custom\s*name|umur|usia|age)\b/i.test(string(m.text_content||m.caption,500)));
  const next=later.length<=8?later:[...later.slice(0,3),...important.slice(-4),...later.slice(-5)];
  const chosen=new Map<string,Obj>();
- for(const m of [...prior,...next])chosen.set(String(m.id),m);
+ for(const m of [...prior,...next,...chronological.filter(m=>m.message_type==="image"&&string(m.media_url))])chosen.set(String(m.id),m);
  return {chronological,proof:[...chosen.values()].sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at))};
 }
 function namedWordingFromMessage(text:string):string{
+ // A customer may supply printable name and age directly, with no "Nama:" label.
+ // Accept only explicit birthday-age phrases, never arbitrary chat or image requests.
+ const natural=string(text,1400).trim().replace(/\s+/g," ").match(
+  /^([\p{L}][\p{L}\p{M}\s.'’&-]{1,85}?)\s+(turns?|turning)\s+(\d{1,2})(?:\s*(?:years?|yrs?)\s*old)?[.!]?$/iu
+ );
+ if(natural){
+  const years=Number(natural[3]),person=natural[1].trim();
+  if(years>=1&&years<=120&&!isNonDesignWording(person)&&!/\b(?:order|postage|harga|rm|shipping|boleh|gambar|tambah|nak)\b/i.test(person))
+   return [person,natural[2].toLowerCase(),String(years)].join(" ");
+ }
  const lines=string(text,1400).split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
  for(let i=0;i<lines.length;i++){
   const match=lines[i].match(/^(?:nama\s*custom|custom\s*name|nama|name)\s*(?:[:=\-]\s*)?(.*)$/i);
@@ -228,6 +238,8 @@ function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean,allM
  const noteIsReference=isNonDesignWording(actual.wording);
  const cfIsReference=isNonDesignWording(cf.wording);
  const extraInstruction=previewInstruction(allMessages);
+ const extraPhotos=allMessages.some((m:Obj)=>/\b(?:tambah|tmbh|add)\s+(?:gambar|gmbr|gambar2|photo|picture)/i.test(String(m.text_content||m.caption||"")))?
+  "Pelanggan mahu tambah/rujuk gambar; semak susunan design sebelum printing.":"";
  const chatNames=allMessages.map((m:Obj)=>({name:namedWordingFromMessage(String(m.text_content||m.caption||"")),at:Date.parse(String(m.created_at||""))}))
   .filter(x=>x.name&&Number.isFinite(x.at)).sort((a,b)=>a.at-b.at);
  const lastChatName=chatNames.at(-1)?.name||"";
@@ -255,7 +267,7 @@ function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean,allM
  if(multi)confidence=Math.min(confidence,60);
  if(note&&!noteName&&!noteIsReference)confidence=Math.min(confidence,65);
  if(!base)confidence=0;
- return {wording:wording.slice(0,255),instruction:[actual.instruction,extraInstruction].filter(Boolean).join(" ").slice(0,400),confidence,
+ return {wording:wording.slice(0,255),instruction:[actual.instruction,extraInstruction,extraPhotos].filter(Boolean).join(" ").slice(0,400),confidence,
   chat_evidence:!!lastChatName,note_evidence:!!noteName,age:age??null,age_conflict:ageConflict,name_conflict:nameConflict};
 }
 function allowedHost(h:string) {
@@ -380,55 +392,65 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   });
   const confidence=unresolvedMissing.length?Math.min(decision.confidence,75):decision.confidence;
   const verified=!orderUnpaid && confidence>=80 && (decision.note_evidence||decision.chat_evidence) && !context.ambiguous && !context.truncated;
-  const mediaCandidates=proof.filter((m:Obj)=>m.message_type==="image"&&string(m.media_url));
-  let img=mediaCandidates.length===1?string(mediaCandidates[0].media_url,900):string(detail.values?.artwork,900);
-  let backupImage=string(job.brief?.image_backup,1100);
-  if(mediaCandidates.length>1){img="Perlu semakan (beberapa gambar)";}
-  // Only one exact-session inbound photo may be attached automatically.
-  if(mediaCandidates.length===1 && !context.ambiguous && !context.truncated){
-   const selected=mediaCandidates[0],mediaUri=string(selected.media_url,1600);
-   const filename="icetak-proof-"+id+"-"+string(selected.id,50)+".jpg";
-   try{
-    const existing=(task.attachments||[]).find((a:Obj)=>a.title===filename||a.name===filename);
-    let uploaded:Obj|undefined=existing;
-    if(!uploaded){
-     let downloadUrl=mediaUri,allowInbox=false;
-     if(mediaUri.startsWith("wasapflow-media://")){
-      const mediaId=mediaUri.slice("wasapflow-media://".length);
-      if(!/^\d{1,40}$/.test(mediaId))throw Error("INVALID_MEDIA_ID");
-      const r=await fetch(INBOX+"/functions/v1/task-brief-media",{
-       method:"POST",headers:{"content-type":"application/json","x-admin-window-token":bridge},
-       body:JSON.stringify({action:"prepare",ids:[mediaId]}),signal:AbortSignal.timeout(20000)});
-      if(!r.ok)throw Error("MEDIA_PREPARE_FAILED");
-      const v=await r.json();const mediaEntry=v.media?.[mediaUri];
-      if(!mediaEntry?.available||!mediaEntry.url)throw Error("MEDIA_CACHE_MISSING");
-      downloadUrl=mediaEntry.url;allowInbox=true;
-     }
-     const data=await safeDownload(downloadUrl,allowInbox);
-     const actualName=filename.replace(/\.jpg$/,data.mime==="image/png"?".png":data.mime==="image/webp"?".webp":".jpg");
-     const inTask=(task.attachments||[]).find((a:Obj)=>a.title===actualName||a.name===actualName);
-     if(inTask)uploaded=inTask;
-     else{
+  // Every verified inbound image in the order context is retained, not arbitrarily selected.
+  const mediaCandidates=[...new Map(chronological.filter((m:Obj)=>m.message_type==="image"&&string(m.media_url))
+   .map((m:Obj)=>[String(m.id),m])).values()];
+  const previousReceipts=Array.isArray(job.media_receipts)?job.media_receipts:[];
+  const sourceLinks:string[]=[];const backupLinks:string[]=[];
+  const uploadWarnings:string[]=[];
+  const safeSource=(url:string)=>{try{
+   const u=new URL(url);
+   return u.protocol==="https:"&&!u.username&&!u.password&&!u.port&&allowedHost(u.hostname);
+  }catch{return false;}};
+  if(mediaCandidates.length&&!context.ambiguous&&!context.truncated){
+   for(const selected of mediaCandidates){
+    const mediaUri=string(selected.media_url,1600),messageId=string(selected.id,60);
+    if(!/^[a-f0-9-]{36}$/i.test(messageId))continue;
+    const isWaba=mediaUri.startsWith("wasapflow-media://");
+    const isWeb=safeSource(mediaUri);
+    if(!isWeb&&!isWaba){uploadWarnings.push("ID "+messageId+": pautan gambar tidak dipercayai");continue;}
+    sourceLinks.push(isWeb?mediaUri:"Gambar WhatsApp dalam Unified Inbox, ID "+messageId);
+    const prior=(previousReceipts as Obj[]).find((x:Obj)=>String(x.message_id)===messageId&&string(x.backup_image));
+    let backup=string(prior?.backup_image,1300),attachmentId=string(prior?.attachment_id,90);
+    const baseName="icetak-proof-"+id+"-"+messageId;
+    const known=(task.attachments||[]).find((x:Obj)=>String(x.title||x.name||"").startsWith(baseName+"."));
+    if(known){backup=string(known.url||known.download_url,1300);attachmentId=string(known.id,90);}
+    if(!backup){
+     try{
+      let url=mediaUri,allowInbox=false;
+      if(isWaba){
+       const remoteId=mediaUri.slice("wasapflow-media://".length);
+       if(!/^\d{1,40}$/.test(remoteId))throw Error("INVALID_MEDIA_ID");
+       const response=await fetch(INBOX+"/functions/v1/task-brief-media",{
+        method:"POST",headers:{"content-type":"application/json","x-admin-window-token":bridge},
+        body:JSON.stringify({action:"prepare",ids:[remoteId]}),signal:AbortSignal.timeout(20000)});
+       if(!response.ok)throw Error("MEDIA_PREPARE_FAILED");
+       const data=await response.json(),item=data.media?.[mediaUri];
+       if(!item?.available||!item.url)throw Error("MEDIA_CACHE_MISSING");
+       url=item.url;allowInbox=true;
+      }
+      const downloaded=await safeDownload(url,allowInbox);
+      const ext=downloaded.mime==="image/png"?".png":downloaded.mime==="image/webp"?".webp":".jpg";
       const form=new FormData();
-      form.append("attachment",new File([data.bytes as Uint8Array<ArrayBuffer>],actualName,{type:data.mime}));
+      form.append("attachment",new File([downloaded.bytes as Uint8Array<ArrayBuffer>],baseName+ext,{type:downloaded.mime}));
       const saved=await clickup(clickupToken,"task/"+id+"/attachment","POST",form,true);
       if(!saved?.id)throw Error("ATTACHMENT_UNCERTAIN");
-      const verification=await clickup(clickupToken,"task/"+id);
-      uploaded=(verification.attachments||[]).find((x:Obj)=>String(x.id)===String(saved.id));
-      if(!uploaded)throw Error("ATTACHMENT_UNCERTAIN");
-     }
+      const updated=await clickup(clickupToken,"task/"+id);
+      const actual=(updated.attachments||[]).find((x:Obj)=>String(x.id)===String(saved.id));
+      if(!actual)throw Error("ATTACHMENT_UNCERTAIN");
+      backup=string(actual.url||actual.download_url,1300);attachmentId=string(actual.id,90);
+     }catch(e){uploadWarnings.push("ID "+messageId+": "+string(e instanceof Error?e.message:e,80));}
     }
-    // Keep the customer-original Shopee URL in the brief; ClickUp is a durable backup only.
-    backupImage=string(uploaded?.url||uploaded?.download_url,1100);
-    media.push({message_id:selected.id,attachment_id:uploaded?.id||null,source_image:img,backup_image:backupImage});
-   }catch{
-    // Keep the prior verified backup URL on transient upload failure; do not overwrite Shopee URL.
-    backupImage=string(job.brief?.image_backup,1100);
+    if(backup)backupLinks.push(backup);
+    media.push({message_id:messageId,source_image:mediaUri,backup_image:backup||null,
+     attachment_id:attachmentId||null,status:backup?"attached":"link_only"});
    }
+  }else if(mediaCandidates.length){
+   uploadWarnings.push("Gambar memerlukan semakan padanan order");
   }
-
-  if(img.startsWith("wasapflow-media://"))img="Gambar di Unified Inbox: "+string(mediaCandidates[0]?.id,55);
-  if(/^https?:/.test(img)){try{const u=new URL(img);if(u.protocol!=="https:"||u.username||u.password)img="Perlu semakan gambar";}catch{img="Perlu semakan gambar";}}
+  const img=sourceLinks.length?sourceLinks.map((x,i)=>(i+1)+". "+x).join("\n"):
+   string(detail.values?.artwork,900)||"—";
+  const backupImage=backupLinks.map((x,i)=>(i+1)+". "+x).join("\n");
   const previous=job.brief||{};
   const oldIds=new Set<string>((job.checked_message_ids||[]).map((v:unknown)=>String(v)));
   const confirmationAt=string(previous.confirmed_at)||(existingConfirmed?new Date().toISOString():verified?new Date().toISOString():"");
@@ -450,7 +472,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const primaryInstruction=holdForReview?string(previous.instruction,400):decision.instruction;
   const primaryConfidence=holdForReview?Number(previous.confidence||0):confidence;
   const primaryImage=holdForReview?string(previous.image,1000):img;
-  const primaryBackup=holdForReview?string(previous.image_backup,1100):backupImage;
+  const primaryBackup=holdForReview?string(previous.image_backup,1100):(backupImage||string(previous.image_backup,3500));
   const text=briefText(id,productSku,primaryWording,primaryInstruction,primaryImage,primaryBackup,
    holdForReview?true:(verified||existingConfirmed),primaryConfidence,note,proof)
    .replace("confirm: ✅",holdForReview?"confirm: ✅ (perubahan baharu perlu review)":verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")
@@ -520,7 +542,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const deferredChanges=new Set(changed.slice(8).map(m=>String(m.id)));
   const ids=[...new Set([...oldIds,...chronological.filter(m=>!deferredChanges.has(String(m.id))).map(m=>String(m.id))])].slice(-140);
   brief={sku:productSku,wording:primaryWording,instruction:primaryInstruction,confidence:primaryConfidence,actual_buyer_note:note,proof:proof.map((m:Obj)=>({id:m.id,channel:m.channel,at:m.created_at})),
-   image:primaryImage,image_backup:primaryBackup,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,pending_change_ids:pendingChangeIds,
+   image:primaryImage,image_backup:primaryBackup,media_count:mediaCandidates.length,media_warnings:uploadWarnings,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,pending_change_ids:pendingChangeIds,
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status};
