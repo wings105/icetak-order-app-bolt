@@ -115,7 +115,7 @@ function requestsDesignPreview(text:string):boolean{
  const finished=/(?:dah|sudah|dh)\s+siap[\s\S]{0,130}(?:send|hantar|bagi|tunjuk)[\s\S]{0,130}(?:saya|sy|aku|nak|tgk|tengok|review|semak)/i;
  const showFirst=/(?:nak|mahu|mau)\s+(?:tgk|tengok|lihat|check)\s+(?:dulu|design|hasil|sebelum\s+(?:print|cetak))/i;
  const approve=/(?:approve|approval|confirm|review|semak)\s+(?:design|preview|artwork|sebelum\s+(?:print|cetak))/i;
- const beforePrint=/(?:hantar|send|bagi|tunjuk)\s+(?:design|preview|gambar\s+(?:design|siap))[\s\S]{0,90}sebelum\s+(?:print|cetak)/i;
+ const beforePrint=/(?:hantar|send|bagi|tunjuk)\s+(?:design|preview|gambar\s+(?:design|siap))[\s\S]{0,90}(?:sebelum\s+(?:print|cetak)|for\s+(?:review|approval|checking))/i;
  return direct.test(v)||finished.test(v)||showFirst.test(v)||approve.test(v)||beforePrint.test(v);
 }
 function reviewRequested(all:Obj[]):boolean{
