@@ -13,7 +13,7 @@ Owner-requested scope: Shopee/marketplace managerial costing in Admin V2. Bank a
 
 Contribution = nett Shopee − raw material − additional order costs. This is before business overhead and is not the business P&L.
 
-Nett uses released_amount only with explicit release evidence (released settlement status or timestamp), otherwise escrow_amount is an estimate. COMPLETED alone cannot establish release. A valid released amount of zero remains zero. Currency mismatch blocks the calculation. Cancel/return/refund orders require lifecycle review and are excluded from the default active/completed selection.
+Nett uses released_amount only with explicit release evidence (released settlement status or timestamp), otherwise escrow_amount is an estimate. COMPLETED alone cannot establish release. A valid released amount of zero remains zero. Currency mismatch blocks the calculation. CANCELLED/IN_CANCEL have zero effective values and preserve original evidence/audited cost backups. Shipped return/refund contributions retain consumed material and packing; pending claims are provisional cost losses and confirmed refund nett is authoritative. Missing material, unknown shipping evidence and changed item facts still require review. Default active selection remains separate from explicit return/refund filters.
 
 Shopee fees in the dialog are reference fields already accounted for by nett. They are not subtracted again. Ads/affiliate entry is only for costs outside those deductions; campaign allocations retain the `allocated` estimate label. No advertising attribution is invented or automatically imported.
 

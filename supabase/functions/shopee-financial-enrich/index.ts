@@ -73,7 +73,19 @@ Deno.serve(async req=>{
     await db('rpc/marketplace_finance_runtime',{p_action:'cursor_save',p_body:{shop_id:saved.shop_id,...next}});
    })());
    const returns=await db('rpc/marketplace_returns_pending',{p_limit:1});
-   for(const row of returns||[])tasks.push((async()=>{try{const response=await read({action:'return',shop_id:row.shop_id,return_sn:row.return_sn});await db('rpc/marketplace_finance_runtime',{p_action:'return_detail',p_body:{shop_id:row.shop_id,return_sn:row.return_sn,return_solution:response.return_solution,reason:response.reason,refund_amount:response.refund_amount,detail:response}});}catch(e){lastError=e instanceof Error?e.message:'RETURN_READ_FAILED';await db('rpc/marketplace_return_read_failed',{p_return_sn:row.return_sn,p_error:lastError});}})());
+   for(const row of returns||[])tasks.push((async()=>{try{
+    // Return decisions and money move independently. Re-read both, even after a
+    // previous detail was saved; concurrent bounded reads fit the existing lease.
+    const [response,escrow]=await Promise.all([
+     read({action:'return',shop_id:row.shop_id,return_sn:row.return_sn}),
+     read({action:'escrow',shop_id:row.shop_id,order_sn:row.order_sn})
+    ]);
+    if(response.return_sn!==row.return_sn||response.order_sn!==row.order_sn||escrow.order_sn!==row.order_sn||response.currency!==row.currency)throw new Error('RETURN_IDENTITY_MISMATCH');
+    const event=normalize({...escrow,order_sn:row.order_sn,shop_id:row.shop_id,currency:row.currency,source:'direct_shopee_return_escrow'});
+    const result=await db('rpc/marketplace_finance_runtime',{p_action:'return_detail',p_body:{shop_id:row.shop_id,return_sn:row.return_sn,return_solution:response.return_solution,reason:response.reason,refund_amount:response.refund_amount,detail:response,finance_events:[{...event,payload_hash:await hash(stable(event))}]}});
+    if(!result.saved||!result.finance_refreshed)throw new Error('RETURN_FINANCE_NOT_APPLIED');
+    applied++;
+   }catch(e){lastError=e instanceof Error?e.message:'RETURN_READ_FAILED';await db('rpc/marketplace_return_read_failed',{p_return_sn:row.return_sn,p_error:lastError});}})());
    await Promise.all(tasks);
   }finally{await db('rpc/finish_marketplace_finance_maintenance',{p_error:lastError});}
   return out({ok:true,mode:'maintenance',provider_reads:readCount,applied,last_error:lastError});
