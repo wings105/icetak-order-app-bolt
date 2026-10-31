@@ -197,7 +197,7 @@ function attachQuickButton() {
     renderPopup(textarea, '');
     textarea.focus({ preventScroll: true });
   });
-  textarea.parentElement?.insertBefore(button, textarea);
+  textarea.insertAdjacentElement('afterend', button);
 }
 
 export function installSlashSnippetEnhancer() {
