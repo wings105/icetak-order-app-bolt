@@ -39,6 +39,28 @@ Deno.serve(async req=>{
       buyer_user_id:matches[0].buyer_user_id==null?null:String(matches[0].buyer_user_id)});
   }
 
+  if(input.action==='order_proof'){
+   const order=String(input.order_sn||'').trim(),placed=String(input.placed_at||'');
+   const placedMs=Date.parse(placed);
+   if(!/^[A-Z0-9]{10,24}$/.test(order)||!Number.isFinite(placedMs))
+    return out({ok:false,error:'INVALID_ORDER_PROOF_INPUT'},400);
+   const linked=await call('/rest/v1/conversation_order_links?order_no=eq.'+encodeURIComponent(order)+
+     '&unlinked_at=is.null&select=conversation_id,match_method,match_confidence&limit=3');
+   if(linked.length!==1||linked[0].match_method!=='exact_order_id'||Number(linked[0].match_confidence)<0.99)
+    return out({ok:true,matched:false,reason:'NO_UNAMBIGUOUS_EXACT_ORDER_LINK'});
+   const conversation=String(linked[0].conversation_id);
+   if(!/^[0-9a-f-]{36}$/i.test(conversation))return out({ok:true,matched:false});
+   const others=await call('/rest/v1/conversation_order_links?conversation_id=eq.'+conversation+
+     '&unlinked_at=is.null&select=order_no&limit=10');
+   if(others.some((x:{order_no:string})=>x.order_no!==order))
+    return out({ok:true,matched:false,reason:'MULTIPLE_LINKED_ORDERS'});
+   const from=new Date(placedMs-60*60*1000).toISOString();
+   const items=await call('/rest/v1/messages?conversation_id=eq.'+conversation+
+     '&direction=eq.inbound&is_history=eq.false&created_at=gte.'+encodeURIComponent(from)+
+     '&select=id,conversation_id,channel,direction,text_content,caption,created_at,message_type,media_url,is_history'+
+     '&order=created_at.asc&limit=100');
+   return out({ok:true,matched:true,conversation_id:conversation,messages:items});
+  }
   if(input.action==='context'){
    if(!Array.isArray(input.orders)||!input.orders.length||input.orders.length>50)return out({ok:false},400);
    return out({ok:true,contexts:await call('/rest/v1/rpc/icetak_task_automation_context',{p_orders:input.orders})});
