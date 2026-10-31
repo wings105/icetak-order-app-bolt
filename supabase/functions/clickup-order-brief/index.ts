@@ -148,22 +148,21 @@ function selectProof(context:Obj,placedMs:number){
 }
 function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean){
  const chat=proof.map((m:Obj)=>({...m,instruction:extractInstruction(String(m.text_content||m.caption||""))})).filter(x=>x.instruction);
- const last=chat.at(-1)?.instruction||"";
- const noteWord=noteWording(note);
- let wording=noteWord||last||cfWord;
+ const last=splitProductionWording(chat.at(-1)?.instruction||"").wording;
+ const actual=splitProductionWording(note);
+ const cf=splitProductionWording(cfWord);
+ const wording=actual.wording||last||cf.wording;
  let confidence=0;
- if(noteWord&&cfWord)confidence=normalized(noteWord)===normalized(cfWord)?95:45;
- else if(noteWord)confidence=88;
- else if(last&&cfWord)confidence=normalized(last)===normalized(cfWord)?91:49;
+ if(actual.wording&&cf.wording)confidence=normalized(actual.wording)===normalized(cf.wording)?95:45;
+ else if(actual.wording)confidence=88;
+ else if(last&&cf.wording)confidence=normalized(last)===normalized(cf.wording)?91:49;
  else if(last)confidence=82;
- else if(cfWord)confidence=55;
- if(noteWord&&last&&normalized(noteWord)!==normalized(last))confidence=Math.min(confidence,49);
+ else if(cf.wording)confidence=55;
+ if(actual.wording&&last&&normalized(actual.wording)!==normalized(last))confidence=Math.min(confidence,49);
  if(ctx.ambiguous||ctx.truncated||ctx.unavailable)confidence=Math.min(confidence,60);
  if(multi)confidence=Math.min(confidence,60);
- if(note&&!noteWord)confidence=Math.min(confidence,65);
- if(/(?:jika|kalau|if)\\s+[^.!\\n]{0,110}(?:tak|tidak|x|not)\\s+muat|(?:pendekkan|shorten|guna\\s+lain|use\\s+another)\\s+[^.!\\n]{0,80}(?:jika|kalau|if)/i.test(note))
-  confidence=Math.min(confidence,70);
- return {wording,confidence,chat_evidence:chat.length>0,note_evidence:!!noteWord};
+ if(note&&!actual.wording)confidence=Math.min(confidence,65);
+ return {wording,instruction:actual.instruction,confidence,chat_evidence:chat.length>0,note_evidence:!!actual.wording};
 }
 function allowedHost(h:string) {
  const x=h.toLowerCase();return x==="susercontent.com"||x.endsWith(".susercontent.com")||x==="shopee.com"||x.endsWith(".shopee.com")||x==="shopee.com.my"||x.endsWith(".shopee.com.my")||x==="shopee.sg"||x.endsWith(".shopee.sg");
