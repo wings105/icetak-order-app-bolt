@@ -135,6 +135,17 @@ export function ChatArea({
 
   const conversationId = conversation?.id ?? null;
 
+  useEffect(() => {
+    if (!conversationId) return;
+    const frame = window.requestAnimationFrame(() => {
+      const field = textareaRef.current;
+      if (!field || field.disabled || document.querySelector('[role="dialog"][aria-modal="true"], dialog[open]')) return;
+      field.focus({ preventScroll: true });
+      field.setSelectionRange(field.value.length, field.value.length);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [conversationId]);
+
   const saveCurrentScroll = useCallback(() => {
     const element = scrollAreaRef.current;
     if (!element || !conversationId || messagesLoading) return;
