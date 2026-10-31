@@ -478,6 +478,11 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   // A transient empty context must never erase previously confirmed proof.
   if(proof.length===0&&Array.isArray(job.brief?.proof)&&job.brief.proof.length>0)
    throw Error("PREVIOUS_PROOF_TEMPORARILY_UNAVAILABLE");
+  const orderItems=uuid(s.marketplace_order_id)?
+   await db("marketplace_order_items?order_id=eq."+s.marketplace_order_id+
+    "&select=item_sku,variation_sku,variation_name,quantity,provider_item_id&limit=30"):[];
+  // Multi-item means >1 line item OR a single line with more than 1 quantity.
+  multi=multi||orderItems.length>1||orderItems.some((x:Obj)=>Number(x.quantity)>1);
   const decision=decide(note,existingWord,proof,context,multi,chronological);
   const missing=Array.isArray(detail.missing)?detail.missing:[];
   const unresolvedMissing=missing.filter((x:Obj)=>{
@@ -486,6 +491,28 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   });
   const confidence=unresolvedMissing.length?Math.min(decision.confidence,75):decision.confidence;
   const verified=!orderUnpaid && confidence>=80 && (decision.note_evidence||decision.chat_evidence) && !context.ambiguous && !context.truncated;
+  // AI-assisted analysis is advisory only. Rules remain sole authority for CF/confirmed.
+  // Cache by verified input signature to avoid re-billing each 1-minute scheduler run.
+  let aiAnalysis:Obj=job.brief?.ai_analysis||{};
+  const aiCandidate=!orderUnpaid&&(confidence<80||multi)&&!context.ambiguous&&!context.truncated
+   &&!context.unavailable&&(chronological.length>0||note.trim().length>0)&&!!productSku;
+  if(aiCandidate){
+   const signature=await digest(JSON.stringify({
+    model:Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-6-luna",sku:productSku,note,
+    items:orderItems.map((x:Obj)=>[x.item_sku,x.variation_sku,x.quantity,x.provider_item_id]),
+    messages:chronological.map((m:Obj)=>[m.id,m.text_content,m.caption,m.media_url])
+   }));
+   const cached=aiAnalysis.input_hash===signature;
+   const retry=(Date.now()-Date.parse(String(aiAnalysis.checked_at||"")))>6*60*60*1000;
+   if(!cached||(!aiAnalysis.ok&&retry)){
+    aiAnalysis=await aiAnalyzeOrder({note,sku:productSku,items:orderItems,
+     messages:chronological,vision:true});
+    aiAnalysis.input_hash=signature;
+    aiAnalysis.checked_at=new Date().toISOString();
+    aiAnalysis.review_only=true;
+   }
+  }
+
   // Every verified inbound image in the order context is retained, not arbitrarily selected.
   const mediaCandidates=[...new Map(chronological.filter((m:Obj)=>m.message_type==="image"&&string(m.media_url))
    .map((m:Obj)=>[String(m.id),m])).values()];
@@ -568,10 +595,18 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const primaryImage=holdForReview?string(previous.image,1000):img;
   const primaryBackup=holdForReview?string(previous.image_backup,1100):(backupImage||string(previous.image_backup,3500));
   const requiresReview=reviewRequested(chronological)||Boolean(previous.review_requested);
-  const text=briefText(id,productSku,primaryWording,primaryInstruction,primaryImage,requiresReview,
+  let text=briefText(id,productSku,primaryWording,primaryInstruction,primaryImage,requiresReview,
    holdForReview?true:(verified||existingConfirmed),primaryConfidence,note,proof)
    .replace("confirm: ✅",holdForReview?"confirm: ✅ (perubahan baharu perlu review)":verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")
    +(orderUnpaid?"\n⚠️ Order masih UNPAID — semak bayaran sebelum proses.":"");
+  if(aiCandidate&&aiAnalysis?.ok&&aiAnalysis?.needs_review!==false||aiCandidate&&aiAnalysis?.ok&&confidence<80){
+   // One concise advisory block inside the existing AutoBrief, never a second comment.
+   text+="\n\nAI cadangan (perlu semak, tidak auto-confirm): "+
+    (string(aiAnalysis.wording,180)||"Tiada wording pasti")+
+    " | "+string(aiAnalysis.model,40)+" | keyakinan AI "+String(aiAnalysis.confidence||0)+"%"+
+    (string(aiAnalysis.instruction,250)?"\nAI instruction: "+string(aiAnalysis.instruction,250):"")+
+    (string(aiAnalysis.image_description,250)?"\nAI image: "+string(aiAnalysis.image_description,250):"");
+  }
   const hash=await digest(text);
   const comments=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment");
   const old=(comments.comments||[]).find((c:Obj)=>contains(c.comment,marker)||contains(c.comment,"[iCetak-AutoBrief:"+id+":"));
@@ -640,7 +675,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    image:primaryImage,image_backup:primaryBackup,media_count:mediaCandidates.length,media_warnings:uploadWarnings,review_requested:requiresReview,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,pending_change_ids:pendingChangeIds,
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
-   source_status:detail.info_status};
+   source_status:detail.info_status,ai_analysis:aiAnalysis?.input_hash?aiAnalysis:null,ai_mode:"advisory"};
   state=holdForReview?"review":verified?"completed":"review";
  }catch(e){
   error=String(e instanceof Error?e.message:e).slice(0,220);
