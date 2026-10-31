@@ -608,6 +608,23 @@ Deno.serve(async(req:Request)=>{
    const selectedDecision=decide("detail saya send kat mesej ye... terima kasih...","detail saya send kat mesej ye... terima kasih...",tested.proof,{},false,tested.chronological);
    const orderRegression={wording:selectedDecision.wording,confidence:selectedDecision.confidence,instruction:selectedDecision.instruction,latest_included:tested.proof.some(m=>m.id==="4"),image_included:tested.proof.some(m=>m.id==="2"),
      ok:selectedDecision.wording==="Nazmeen shazia izzana 10"&&selectedDecision.confidence>=80&&selectedDecision.instruction.includes("semakan sebelum printing")&&tested.proof.some(m=>m.id==="4")};
+   const naturalProof=[
+    {id:"photo1",conversation_id:"c1",direction:"inbound",is_history:false,created_at:"2026-10-31T05:43:29Z",message_type:"image",media_url:"https://img.sp.mms.shopee.sg/image1",text_content:"[Image]",channel:"shopee"},
+    {id:"msg1",conversation_id:"c1",direction:"inbound",is_history:false,created_at:"2026-10-31T05:43:35Z",message_type:"text",text_content:"nk tmbh gmbr mcm ni boleh ke",channel:"shopee"},
+    {id:"msg2",conversation_id:"c1",direction:"inbound",is_history:false,created_at:"2026-10-31T06:43:13Z",message_type:"text",text_content:"Maya Helena turns 1",channel:"shopee"},
+    {id:"photo2",conversation_id:"c1",direction:"inbound",is_history:false,created_at:"2026-10-31T06:44:59Z",message_type:"image",media_url:"https://img.sp.mms.shopee.sg/image2",text_content:"[Image]",channel:"shopee"}
+   ];
+   const naturalSelection=selectProof({bindings:[{id:"c1",usable:true}],messages:naturalProof},Date.parse("2026-10-31T06:41:19Z"));
+   const naturalDecision=decide("","",naturalSelection.proof,{},false,naturalSelection.chronological);
+   const naturalRegression={
+    wording:naturalDecision.wording,
+    confidence:naturalDecision.confidence,
+    images:naturalSelection.chronological.filter(x=>x.message_type==="image").length,
+    instruction:naturalDecision.instruction,
+    ok:naturalDecision.wording==="Maya Helena turns 1"&&naturalDecision.confidence>=80&&
+       naturalSelection.chronological.filter(x=>x.message_type==="image").length===2&&
+       naturalDecision.instruction.includes("tambah/rujuk gambar")
+   };
    const postConfirmCases=[
     {text:"6 tahun awk",old:"Fayyadh Aryan",expected:true},
     {text:"6 tahun awk",old:"Fayyadh Aryan 6",expected:false},
@@ -622,7 +639,7 @@ Deno.serve(async(req:Request)=>{
     {case:"age conflict",out:decide("Ali umur:4","Ali umur:4",[{...proof[1],text_content:"Umur:5"}],{},false,[{...proof[1],text_content:"Umur:5"}]),expect:"Ali umur:4",max:79}
    ];
    const passed=tests.every(x=>x.out.wording===x.expect&&x.out.confidence>=(x.min||0)&&x.out.confidence<=(x.max||100));
-   return res({ok:orderRegression.ok&&details.every(x=>x.expected===x.actual)&&passed&&multilineCases.every(x=>x.expected===x.actual&&(x.expected?x.score>=80:x.score===0))&&updatedCfCases.every(x=>x.actual===x.expected&&x.score>=x.min)&&postConfirmCases.every(x=>x.actual===x.expected),orderRegression,multilineCases,updatedCfCases,postConfirmCases,tests,checks:details,
+   return res({ok:naturalRegression.ok&&orderRegression.ok&&details.every(x=>x.expected===x.actual)&&passed&&multilineCases.every(x=>x.expected===x.actual&&(x.expected?x.score>=80:x.score===0))&&updatedCfCases.every(x=>x.actual===x.expected&&x.score>=x.min)&&postConfirmCases.every(x=>x.actual===x.expected),naturalRegression,orderRegression,multilineCases,updatedCfCases,postConfirmCases,tests,checks:details,
      matching_note_score:decide("anaqi rayyan","anaqi rayyan",[],{},false).confidence,
      cf_only_score:decide("","anaqi rayyan",[],{},false).confidence});
   }
