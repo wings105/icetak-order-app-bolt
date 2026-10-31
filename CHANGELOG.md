@@ -1,7 +1,7 @@
-## 2026-10-31 — [VERIFIED] Customer-status chat filter
+## 2026-10-31 — [PRODUCTION] Customer-status chat filter
 
 - A separate status filter shares the header lifecycle resolver and combines with tag/channel/reply/search; remote results respect active filters. A staff-readable, service-written revisioned index, bounded canonical batches, check coverage/time and retry keep stale status explicit. Conversation/tag paging removes API row-cap truncation.
-- Native rollback permission/invalidation/race/fairness checks, actual batch handler tests, 79 lifecycle regressions, desktop/mobile interactions, TypeScript and full build pass. Backend gateway/index and selected hosted header persistence are active; hosted filter release confirmation is separate. Existing triage batches increase from two to four with aging fairness; backlog is not claimed cleared. No customer sends. See [lifecycle contract](docs/INBOX_CONVERSATION_LIFECYCLE.md#31-october--customer-status-list-filter-and-derived-index).
+- Native rollback permission/invalidation/race/fairness checks, actual batch handler tests, 79 lifecycle regressions, desktop/mobile interactions, TypeScript and full build pass. Backend gateway/index and hosted staff status-filter/search/header parity are verified, including all 4,427 loaded chats; release 53ce00e3 with fbf456fc/aa3246a7 refinements passed Workers Builds. Existing triage batches increase from two to four with aging fairness; backlog is not claimed cleared. No customer sends. See [lifecycle contract](docs/INBOX_CONVERSATION_LIFECYCLE.md#31-october--customer-status-list-filter-and-derived-index).
 
 ## 2026-10-31
 
