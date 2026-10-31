@@ -107,6 +107,20 @@ function previewInstruction(all:Obj[]){
  const request=messages.find(m=>/(?:nak|mahu|mau)\s+(?:tgk|tengok|lihat|check)\s+(?:dulu|design|hasil)|(?:dah|sudah|dh)\s+siap[\s\S]{0,100}(?:send|hantar)[\s\S]{0,100}(?:saya|sy)|(?:send|hantar)[\s\S]{0,60}(?:preview|design\s+siap)/i.test(m));
  return request?"Hantar gambar design siap kepada pelanggan untuk semakan sebelum printing.":"";
 }
+function requestsDesignPreview(text:string):boolean{
+ const v=normalized(text).replace(/\s+/g," ");
+ // Preview or approval of finished artwork before production. A request to
+ // ADD a photo does not by itself request a review.
+ const direct=/(?:nak|mahu|mau|boleh|blh|minta|request)\s+(?:tgk|tengok|lihat|view|check|review|semak)\s+(?:dulu\s+)?(?:design|desain|preview|hasil|rupa|contoh|sample|yang\s+siap|yg\s+siap|sebelum\s+(?:print|cetak))\b/i;
+ const finished=/(?:dah|sudah|dh)\s+siap[\s\S]{0,130}(?:send|hantar|bagi|tunjuk)[\s\S]{0,130}(?:saya|sy|aku|nak|tgk|tengok|review|semak)/i;
+ const showFirst=/(?:nak|mahu|mau)\s+(?:tgk|tengok|lihat|check)\s+(?:dulu|design|hasil|sebelum\s+(?:print|cetak))/i;
+ const approve=/(?:approve|approval|confirm|review|semak)\s+(?:design|preview|artwork|sebelum\s+(?:print|cetak))/i;
+ const beforePrint=/(?:hantar|send|bagi|tunjuk)\s+(?:design|preview|gambar\s+(?:design|siap))[\s\S]{0,90}sebelum\s+(?:print|cetak)/i;
+ return direct.test(v)||finished.test(v)||showFirst.test(v)||approve.test(v)||beforePrint.test(v);
+}
+function reviewRequested(all:Obj[]):boolean{
+ return all.some((m:Obj)=>requestsDesignPreview(String(m.text_content||m.caption||"")));
+}
 function noteWording(note:string){return splitProductionWording(note).wording;}
 function isUnimportant(text:string){
  return /^(?:ok(?:ay)?|baik|noted|terima kasih(?: banyak)?|thank(?:s| you)(?: so much)?|tq|ty|haha|hehe|👍|🙏|✅|👌|sudah|done|alright|baiklah|sama-sama)[!.\s🙏👍👌✅]*$/i.test(text.trim());
@@ -114,15 +128,15 @@ function isUnimportant(text:string){
 function mayNeedChange(text:string){
  return /\b(?:tukar|ubah|change|edit|replace|instead|silap|salah|wrong|correct|betul\s+semula|sepatutnya|jangan\s+guna|use\s+this|guna\s+yang|new\s+wording|new\s+name|nama\s+baru|tambah|buang|remove|add|umur|usia|age|turns?|turning)\b/i.test(text)||!!extractInstruction(text);
 }
-function briefText(taskId:string,sku:string,wording:string,instruction:string,image:string,backupImage:string,confirmed:boolean,confidence:number,note:string,proof:Obj[]){
+function briefText(taskId:string,sku:string,wording:string,instruction:string,image:string,review:boolean,confirmed:boolean,confidence:number,note:string,proof:Obj[]){
  const lines=[
   "[iCetak-AutoBrief:"+taskId+"]",
   "SKU product: "+(sku||"— (SKU belum tersedia)"),
   "wording: "+(wording||"Perlu detail"),
   "gambar link (Shopee): "+(image||"—"),
-  ...(backupImage?["gambar salinan (ClickUp): "+backupImage]:[]),
   "confirm: "+(confirmed?"✅":"⏳"),
   "keyakinan: "+confidence+"%",
+  "review: "+(review?"Yes ✅":"No ❌"),
   "instruction: "+(instruction||"—"),
   "",
   "actual buyer nota: "+(note||"— (belum tersedia)"),
@@ -473,7 +487,8 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const primaryConfidence=holdForReview?Number(previous.confidence||0):confidence;
   const primaryImage=holdForReview?string(previous.image,1000):img;
   const primaryBackup=holdForReview?string(previous.image_backup,1100):(backupImage||string(previous.image_backup,3500));
-  const text=briefText(id,productSku,primaryWording,primaryInstruction,primaryImage,primaryBackup,
+  const requiresReview=reviewRequested(chronological)||(Boolean(previous.review_requested)&&Boolean(context.unavailable));
+  const text=briefText(id,productSku,primaryWording,primaryInstruction,primaryImage,requiresReview,
    holdForReview?true:(verified||existingConfirmed),primaryConfidence,note,proof)
    .replace("confirm: ✅",holdForReview?"confirm: ✅ (perubahan baharu perlu review)":verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")
    +(orderUnpaid?"\n⚠️ Order masih UNPAID — semak bayaran sebelum proses.":"");
@@ -542,7 +557,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const deferredChanges=new Set(changed.slice(8).map(m=>String(m.id)));
   const ids=[...new Set([...oldIds,...chronological.filter(m=>!deferredChanges.has(String(m.id))).map(m=>String(m.id))])].slice(-140);
   brief={sku:productSku,wording:primaryWording,instruction:primaryInstruction,confidence:primaryConfidence,actual_buyer_note:note,proof:proof.map((m:Obj)=>({id:m.id,channel:m.channel,at:m.created_at})),
-   image:primaryImage,image_backup:primaryBackup,media_count:mediaCandidates.length,media_warnings:uploadWarnings,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,pending_change_ids:pendingChangeIds,
+   image:primaryImage,image_backup:primaryBackup,media_count:mediaCandidates.length,media_warnings:uploadWarnings,review_requested:requiresReview,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,pending_change_ids:pendingChangeIds,
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status};
@@ -625,6 +640,15 @@ Deno.serve(async(req:Request)=>{
        naturalSelection.chronological.filter(x=>x.message_type==="image").length===2&&
        naturalDecision.instruction.includes("tambah/rujuk gambar")
    };
+   const reviewCases=[
+    {message:"Nanti dah siap send kat saya ye yg dah siap tu... Nak tgk dulu... Terima kasih",expected:true},
+    {message:"Nak tengok design dulu sebelum print",expected:true},
+    {message:"Boleh hantar preview sebelum cetak",expected:true},
+    {message:"Please send design for review",expected:true},
+    {message:"nk tmbh gmbr mcm ni boleh ke",expected:false},
+    {message:"Maya Helena turns 1",expected:false},
+    {message:"Saya dah bayar dah",expected:false}
+   ].map(x=>({...x,actual:requestsDesignPreview(x.message)}));
    const postConfirmCases=[
     {text:"6 tahun awk",old:"Fayyadh Aryan",expected:true},
     {text:"6 tahun awk",old:"Fayyadh Aryan 6",expected:false},
@@ -639,7 +663,7 @@ Deno.serve(async(req:Request)=>{
     {case:"age conflict",out:decide("Ali umur:4","Ali umur:4",[{...proof[1],text_content:"Umur:5"}],{},false,[{...proof[1],text_content:"Umur:5"}]),expect:"Ali umur:4",max:79}
    ];
    const passed=tests.every(x=>x.out.wording===x.expect&&x.out.confidence>=(x.min||0)&&x.out.confidence<=(x.max||100));
-   return res({ok:naturalRegression.ok&&orderRegression.ok&&details.every(x=>x.expected===x.actual)&&passed&&multilineCases.every(x=>x.expected===x.actual&&(x.expected?x.score>=80:x.score===0))&&updatedCfCases.every(x=>x.actual===x.expected&&x.score>=x.min)&&postConfirmCases.every(x=>x.actual===x.expected),naturalRegression,orderRegression,multilineCases,updatedCfCases,postConfirmCases,tests,checks:details,
+   return res({ok:reviewCases.every(x=>x.expected===x.actual)&&naturalRegression.ok&&orderRegression.ok&&details.every(x=>x.expected===x.actual)&&passed&&multilineCases.every(x=>x.expected===x.actual&&(x.expected?x.score>=80:x.score===0))&&updatedCfCases.every(x=>x.actual===x.expected&&x.score>=x.min)&&postConfirmCases.every(x=>x.actual===x.expected),reviewCases,naturalRegression,orderRegression,multilineCases,updatedCfCases,postConfirmCases,tests,checks:details,
      matching_note_score:decide("anaqi rayyan","anaqi rayyan",[],{},false).confidence,
      cf_only_score:decide("","anaqi rayyan",[],{},false).confidence});
   }
