@@ -109,9 +109,13 @@ export function useConversations(): UseConversationsResult {
 
       async function related(table:string,columns:string,key:string,ids:string[]){
         const data:any[]=[];
-        for(let start=0;start<ids.length;start+=200){
-          const subset=ids.slice(start,start+200);
-          for(let from=0;;from+=500){const result=await supabase.from(table).select(columns).in(key,subset).range(from,from+499);if(result.error)return {data:[]};data.push(...result.data);if(result.data.length<500)break;}
+        for(let offset=0;offset<ids.length;offset+=600){
+          const pages=await Promise.all([offset,offset+200,offset+400].filter(start=>start<ids.length).map(async start=>{
+            const subset=ids.slice(start,start+200),rows:any[]=[];
+            for(let from=0;;from+=500){const result=await supabase.from(table).select(columns).in(key,subset).range(from,from+499);if(result.error)return [];rows.push(...result.data);if(result.data.length<500)break;}
+            return rows;
+          }));
+          data.push(...pages.flat());
         }
         return {data};
       }
