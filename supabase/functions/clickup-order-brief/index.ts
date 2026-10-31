@@ -574,6 +574,16 @@ Deno.serve(async(req:Request)=>{
     const result=decide("","",chat,{},false,chat);
     return {actual:result.wording,score:result.confidence};
    })()}));
+   const visualOrderMessages=[
+    {id:"1",created_at:"2026-10-31T10:24:37+00:00",direction:"inbound",conversation_id:"c1",text_content:"Saya dh bayar dah",channel:"shopee"},
+    {id:"2",created_at:"2026-10-31T10:25:05+00:00",direction:"inbound",conversation_id:"c1",message_type:"image",text_content:"Nama : Nazmeen shazia izzana\numur : 10 tahun",media_url:"https://img.sp.mms.shopee.sg/example",channel:"shopee"},
+    {id:"3",created_at:"2026-10-31T10:25:08+00:00",direction:"inbound",conversation_id:"c1",text_content:"Ni ye detail",channel:"shopee"},
+    {id:"4",created_at:"2026-10-31T10:26:02+00:00",direction:"inbound",conversation_id:"c1",text_content:"Nanti dah siap send kat saya ye yg dah siap tu... Nak tgk dulu... Terima kasih...",channel:"shopee"}
+   ];
+   const tested=selectProof({bindings:[{id:"c1",usable:true}],messages:visualOrderMessages},Date.parse("2026-10-31T10:23:36Z"));
+   const selectedDecision=decide("detail saya send kat mesej ye... terima kasih...","detail saya send kat mesej ye... terima kasih...",tested.proof,{},false,tested.chronological);
+   const orderRegression={wording:selectedDecision.wording,confidence:selectedDecision.confidence,instruction:selectedDecision.instruction,latest_included:tested.proof.some(m=>m.id==="4"),image_included:tested.proof.some(m=>m.id==="2"),
+     ok:selectedDecision.wording==="Nazmeen shazia izzana 10"&&selectedDecision.confidence>=80&&selectedDecision.instruction.includes("semakan sebelum printing")&&tested.proof.some(m=>m.id==="4")};
    const postConfirmCases=[
     {text:"6 tahun awk",old:"Fayyadh Aryan",expected:true},
     {text:"6 tahun awk",old:"Fayyadh Aryan 6",expected:false},
@@ -588,7 +598,7 @@ Deno.serve(async(req:Request)=>{
     {case:"age conflict",out:decide("Ali umur:4","Ali umur:4",[{...proof[1],text_content:"Umur:5"}],{},false,[{...proof[1],text_content:"Umur:5"}]),expect:"Ali umur:4",max:79}
    ];
    const passed=tests.every(x=>x.out.wording===x.expect&&x.out.confidence>=(x.min||0)&&x.out.confidence<=(x.max||100));
-   return res({ok:details.every(x=>x.expected===x.actual)&&passed&&multilineCases.every(x=>x.expected===x.actual&&(x.expected?x.score>=80:x.score===0))&&updatedCfCases.every(x=>x.actual===x.expected&&x.score>=x.min)&&postConfirmCases.every(x=>x.actual===x.expected),multilineCases,updatedCfCases,postConfirmCases,tests,checks:details,
+   return res({ok:orderRegression.ok&&details.every(x=>x.expected===x.actual)&&passed&&multilineCases.every(x=>x.expected===x.actual&&(x.expected?x.score>=80:x.score===0))&&updatedCfCases.every(x=>x.actual===x.expected&&x.score>=x.min)&&postConfirmCases.every(x=>x.actual===x.expected),orderRegression,multilineCases,updatedCfCases,postConfirmCases,tests,checks:details,
      matching_note_score:decide("anaqi rayyan","anaqi rayyan",[],{},false).confidence,
      cf_only_score:decide("","anaqi rayyan",[],{},false).confidence});
   }
