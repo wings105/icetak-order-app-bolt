@@ -180,34 +180,55 @@ function selectProof(context:Obj,placedMs:number){
  const next=chronological.filter(m=>Date.parse(m.created_at)>placedMs).slice(0,3);
  return {chronological,proof:[...prior,...next]};
 }
+function namedWordingFromMessage(text:string):string{
+ const lines=string(text,1400).split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+ for(let i=0;i<lines.length;i++){
+  const match=lines[i].match(/^(?:nama\s*custom|custom\s*name|nama|name)\s*(?:[:=\-]\s*)?(.*)$/i);
+  if(!match)continue;
+  const parts:string[]=[];
+  if(match[1]?.trim())parts.push(match[1].trim());
+  for(let j=i+1;j<Math.min(lines.length,i+4)&&parts.length<3;j++){
+   if(/^(?:umur|usia|age|tahun|year|gambar|image|photo|nota|instruction|warna)\b/i.test(lines[j]))break;
+   if(/^(?:kalau|jika|klau|boleh|blh|urgent|hi|hello)\b/i.test(lines[j]))break;
+   parts.push(lines[j]);
+  }
+  const value=parts.join(" ").replace(/\s+/g," ").trim();
+  if(!value||!/\p{L}/u.test(value)||/^\+?\d[\d\s-]{6,}$/.test(value))continue;
+  if(/^(?:\d+\s*(?:tahun|years?|thn)?|hi|hello|ok|thanks)\b/i.test(value))continue;
+  return splitProductionWording(value).wording;
+ }
+ return "";
+}
 function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean,allMessages:Obj[]=proof){
- const chat=proof.map((m:Obj)=>({...m,instruction:extractInstruction(String(m.text_content||m.caption||""))})).filter(x=>x.instruction);
- const last=splitProductionWording(chat.at(-1)?.instruction||"").wording;
  const actual=splitProductionWording(note),cf=splitProductionWording(cfWord);
- const base=actual.wording||last||cf.wording;
+ const chatNames=allMessages.map((m:Obj)=>({name:namedWordingFromMessage(String(m.text_content||m.caption||"")),at:Date.parse(String(m.created_at||""))}))
+  .filter(x=>x.name&&Number.isFinite(x.at)).sort((a,b)=>a.at-b.at);
+ const lastChatName=chatNames.at(-1)?.name||"";
+ const nameConflict=chatNames.some(x=>normalized(x.name)!==normalized(lastChatName));
  const ages=allMessages.map((m:Obj)=>({age:extractAge(String(m.text_content||m.caption||"")),at:Date.parse(String(m.created_at||""))}))
   .filter(x=>x.age!==null&&Number.isFinite(x.at)).sort((a,b)=>a.at-b.at);
- const ageFromChat=ages.length?ages[ages.length-1].age:null;
- const noteAge=extractAge(note),cfAge=extractAge(cfWord);
- const age=noteAge??ageFromChat??cfAge;
- const ageConflict=ages.some(x=>noteAge!==null&&x.age!==noteAge)
-   ||new Set(ages.map(x=>x.age)).size>1;
+ const ageFromChat=ages.at(-1)?.age??null;
+ const noteAge=extractAge(note),cfAge=extractAge(cfWord),age=noteAge??ageFromChat??cfAge;
+ const ageConflict=ages.some(x=>noteAge!==null&&x.age!==noteAge)||new Set(ages.map(x=>x.age)).size>1;
+ const noteName=actual.wording&&/\p{L}/u.test(actual.wording)?actual.wording:"";
+ const cfName=cf.wording&&/\p{L}/u.test(cf.wording)?cf.wording:"";
+ const base=noteName||lastChatName||cfName;
  let wording=base;
- if(age!==null&&!wordingHasAge(base))wording=(base+" "+age).trim();
+ if(age!==null&&base&&!wordingHasAge(base))wording=(base+" "+age).trim();
  let confidence=0;
- if(actual.wording&&cf.wording)confidence=normalized(actual.wording)===normalized(cf.wording)?95:45;
- else if(actual.wording)confidence=88;
- else if(last&&cf.wording)confidence=normalized(last)===normalized(cf.wording)?91:49;
- else if(last)confidence=82;
- else if(cf.wording)confidence=55;
- // The name in a note may be more complete than a truncated one-line chat evidence.
- if(actual.wording&&last&&normalized(actual.wording)!==normalized(last))confidence=Math.min(confidence,49);
- if(ageConflict)confidence=Math.min(confidence,55);
+ if(noteName&&cfName)confidence=normalized(noteName)===normalized(cfName)?95:45;
+ else if(noteName)confidence=88;
+ else if(lastChatName&&cfName)confidence=normalized(lastChatName)===normalized(cfName)?92:49;
+ else if(lastChatName)confidence=90;
+ else if(cfName)confidence=55;
+ if(noteName&&lastChatName&&normalized(noteName)!==normalized(lastChatName))confidence=Math.min(confidence,49);
+ if(nameConflict||ageConflict)confidence=Math.min(confidence,55);
  if(ctx.ambiguous||ctx.truncated||ctx.unavailable)confidence=Math.min(confidence,60);
  if(multi)confidence=Math.min(confidence,60);
- if(note&&!actual.wording)confidence=Math.min(confidence,65);
+ if(note&&!noteName)confidence=Math.min(confidence,65);
+ if(!base)confidence=0;
  return {wording:wording.slice(0,255),instruction:actual.instruction,confidence,
-  chat_evidence:chat.length>0||ages.length>0,note_evidence:!!actual.wording,age:age??null,age_conflict:ageConflict};
+  chat_evidence:!!lastChatName,note_evidence:!!noteName,age:age??null,age_conflict:ageConflict,name_conflict:nameConflict};
 }
 function allowedHost(h:string) {
  const x=h.toLowerCase();return x==="susercontent.com"||x.endsWith(".susercontent.com")||x==="shopee.com"||x.endsWith(".shopee.com")||x==="shopee.com.my"||x.endsWith(".shopee.com.my")||x==="shopee.sg"||x.endsWith(".shopee.sg");
@@ -472,6 +493,18 @@ Deno.serve(async(req:Request)=>{
     {id:"a",created_at:"2026-10-30T08:01:37+00:00",text_content:"Nama custom:SYAFAA\nADRA",channel:"shopee"},
     {id:"b",created_at:"2026-10-30T08:01:51+00:00",text_content:"Umur:4",channel:"shopee"}
    ];
+   const multilineChat=[
+    {id:"m",created_at:"2026-10-31T02:52:17+00:00",text_content:"Nama\nMuhammad Aazim\n\nUmur\n4 Tahun",channel:"shopee"}
+   ];
+   const multilineCases=[
+    {input:"Nama\nMuhammad Aazim\n\nUmur\n4 Tahun",expected:"Muhammad Aazim 4",score:90},
+    {input:"Nama custom:SYAFAA\nADRA\nUmur:4",expected:"SYAFAA ADRA 4",score:90},
+    {input:"Umur:4",expected:"",score:0}
+   ].map(x=>({input:x.input,expected:x.expected,...(()=>{
+    const chat=[{...multilineChat[0],text_content:x.input}];
+    const result=decide("","",chat,{},false,chat);
+    return {actual:result.wording,score:result.confidence};
+   })()}));
    const tests=[
     {case:"age in separate message",out:decide("Hi,custom name,\nSYAFAA\nADRA","Hi,custom name,\nSYAFAA\nADRA",proof,{},false,proof),expect:"SYAFAA ADRA 4",min:80},
     {case:"compact age message",out:decide("SYAFAA ADRA","SYAFAA ADRA",[{...proof[1],text_content:"Umur4"}],{},false,[{...proof[1],text_content:"Umur4"}]),expect:"SYAFAA ADRA 4",min:80},
@@ -480,7 +513,7 @@ Deno.serve(async(req:Request)=>{
     {case:"age conflict",out:decide("Ali umur:4","Ali umur:4",[{...proof[1],text_content:"Umur:5"}],{},false,[{...proof[1],text_content:"Umur:5"}]),expect:"Ali umur:4",max:79}
    ];
    const passed=tests.every(x=>x.out.wording===x.expect&&x.out.confidence>=(x.min||0)&&x.out.confidence<=(x.max||100));
-   return res({ok:details.every(x=>x.expected===x.actual)&&passed,tests,checks:details,
+   return res({ok:details.every(x=>x.expected===x.actual)&&passed&&multilineCases.every(x=>x.expected===x.actual&&(x.expected?x.score>=80:x.score===0)),multilineCases,tests,checks:details,
      matching_note_score:decide("anaqi rayyan","anaqi rayyan",[],{},false).confidence,
      cf_only_score:decide("","anaqi rayyan",[],{},false).confidence});
   }
