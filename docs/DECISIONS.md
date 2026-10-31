@@ -476,3 +476,7 @@ Capture trusted persisted human seller output in Unified Inbox and keep a durabl
 ## 2026-10-31 — One lifecycle resolver for header and list
 
 Filter the Chat list by the existing exact-session lifecycle policy, backed by a revisioned derived index. Keep tags as independently managed labels. Bulk canonical reads and compare-and-set writes avoid a per-row browser request and prevent stale work overwriting new facts. The visible list refreshes missing/stale projections; event invalidation plus bounded cache age preserve current status without a second generative classifier. Order/payment/task and provider state remain canonical. See INBOX_CONVERSATION_LIFECYCLE.md.
+
+## 2026-10-31 — Return costs survive revenue refunds
+
+The managerial read model must recognize consumed materials and packing after dispatch. Confirmed provider nett already contains seller shipping/fees; subtract only separate incurred order costs. Pending return income is not reliable retained revenue, so reserve incurred costs and known shipping as an estimate until paired provider rechecks establish the outcome. Partial-refund retained income and genuine unknown costs remain explicit. CANCELLED/IN_CANCEL keep their separately authorized zero policy. Existing read-only provider bridge, event/snapshot ingestion and maintenance scheduler own refresh; no new bank ledger or customer/provider write path is introduced.

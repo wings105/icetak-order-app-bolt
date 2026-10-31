@@ -3,6 +3,10 @@
 - A separate status filter shares the header lifecycle resolver and combines with tag/channel/reply/search; remote results respect active filters. A staff-readable, service-written revisioned index, bounded canonical batches, check coverage/time and retry keep stale status explicit. Conversation/tag paging removes API row-cap truncation.
 - Native rollback permission/invalidation/race/fairness checks, actual batch handler tests, 79 lifecycle regressions, desktop/mobile interactions, TypeScript and full build pass. Backend gateway/index and selected hosted header persistence are active; hosted filter release confirmation is separate. Existing triage batches increase from two to four with aging fairness; backlog is not claimed cleared. No customer sends. See [lifecycle contract](docs/INBOX_CONVERSATION_LIFECYCLE.md#31-october--customer-status-list-filter-and-derived-index).
 
+## 2026-10-31
+
+- [PRODUCTION backend] Shipped Shopee returns retain consumed material/packing and seller deductions as negative contribution. Pending claims remain provisional; paired return/escrow rechecks are atomic and scheduled with retry backoff. Native, handler and live provider/report checks pass. See `docs/ORDER_FINANCE_DETAIL.md`.
+
 ## 2026-10-31 — [VERIFIED] One-tap Shopee stickers
 
 - Selecting a sticker immediately uses the existing sender; remove the preview and second Hantar sticker action. Pending clicks are locked, success closes the picker and failures stay visible for manual retry.

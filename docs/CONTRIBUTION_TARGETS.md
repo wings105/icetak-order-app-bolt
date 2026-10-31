@@ -13,7 +13,7 @@ All finance values require existing `view_finance` access; edits require `manage
 
 ## Calculation contracts
 
-Shopee contribution = existing `finance.order_profit_row.nett` − material − extra costs. Provider nett/escrow is a labelled estimate until released evidence and actual reviewed costs exist. Platform fee/shipping amounts are reference fields and must not be deducted twice. Cancellation/refund requires reviewed costs; cancelled positive escrow cannot inflate the target until released evidence exists.
+Shopee contribution = existing `finance.order_profit_row.nett` − material − extra costs. Provider nett/escrow is a labelled estimate until released evidence and actual reviewed costs exist. Platform fee/shipping amounts are reference fields and must not be deducted twice. CANCELLED/IN_CANCEL have zero effective values. Shipped returns retain consumed material/packing as estimated losses without requiring fake actual-cost review. Pending claims reserve consumed costs and known seller shipping; confirmed refunds use provider nett, including any retained partial-refund income. Shipping/fees already inside provider nett are never deducted twice.
 
 Direct contribution = fully paid customer amount (including postage, capped at order total) − courier − material − extra costs. Unvoided real transaction/allocated checkout evidence takes precedence; a recorded Paid status without a transaction may contribute only as an estimate. Partial payment, cancellation or refund is excluded. Direct cancellation/refund losses are not yet posted in this managerial target model; use Finance accounting for those movements.
 
