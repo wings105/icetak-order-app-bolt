@@ -141,7 +141,7 @@ async function loadChat(placed:string,buyerId:string,phone:string,key:string,ref
   try{
    const response=await fetch(INBOX+"/functions/v1/task-brief-media",{
     method:"POST",headers:{"content-type":"application/json","x-admin-window-token":bridge},
-    body:JSON.stringify({action:"order_proof",order_sn:reference,placed_at:placed}),
+    body:JSON.stringify({action:"order_proof",order_sn:reference,placed_at:placed,buyer_user_id:buyerId}),
     signal:AbortSignal.timeout(16000)
    });
    if(response.ok){
@@ -402,9 +402,26 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const confirmationAt=string(previous.confirmed_at)||(existingConfirmed?new Date().toISOString():verified?new Date().toISOString():"");
   const afterConfirmed=chronological.filter((m:Obj)=>confirmationAt&&Date.parse(m.created_at)>Date.parse(confirmationAt)
     &&!oldIds.has(String(m.id)));
-  const changed=afterConfirmed.filter((m:Obj)=>m.message_type==="image" || (!isUnimportant(string(m.text_content||m.caption)) && mayNeedChange(string(m.text_content||m.caption))));
+  const existingAge=extractAge(existingWord)??(Number(existingWord.match(/\b(\d{1,3})\s*$/)?.[1]||0)||null);
+  const changed=afterConfirmed.filter((m:Obj)=>{
+   const body=string(m.text_content||m.caption);
+   if(isUnimportant(body))return false;
+   const age=extractAge(body);
+   return m.message_type==="image"||
+    (age!==null&&(existingAge===null||existingAge!==age))||
+    mayNeedChange(body);
+  });
+  const previouslyFlagged=Array.isArray(previous.pending_change_ids)?previous.pending_change_ids:[];
+  const holdForReview=(changed.length>0||previouslyFlagged.length>0)&&!!previous.confirmed_at;
   const marker="[iCetak-AutoBrief:"+id+"]";
-  const text=briefText(id,productSku,decision.wording,decision.instruction,img,verified||existingConfirmed,confidence,note,proof).replace("confirm: ✅",verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")+(orderUnpaid?"\n⚠️ Order masih UNPAID — semak bayaran sebelum proses.":"");
+  const primaryWording=holdForReview?string(previous.wording||existingWord,255):decision.wording;
+  const primaryInstruction=holdForReview?string(previous.instruction,400):decision.instruction;
+  const primaryConfidence=holdForReview?Number(previous.confidence||0):confidence;
+  const primaryImage=holdForReview?string(previous.image,1000):img;
+  const text=briefText(id,productSku,primaryWording,primaryInstruction,primaryImage,
+   holdForReview?true:(verified||existingConfirmed),primaryConfidence,note,proof)
+   .replace("confirm: ✅",holdForReview?"confirm: ✅ (perubahan baharu perlu review)":verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")
+   +(orderUnpaid?"\n⚠️ Order masih UNPAID — semak bayaran sebelum proses.":"");
   const hash=await digest(text);
   const comments=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment");
   const old=(comments.comments||[]).find((c:Obj)=>contains(c.comment,marker)||contains(c.comment,"[iCetak-AutoBrief:"+id+":"));
@@ -430,7 +447,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    String(review?.value?.name||"").toLowerCase()==="ai check";
   const reviewAllowed=!reviewValue||aiReviewSelected;
   const applied:Obj={...(job.field_receipts||{})};
-  if(verified){
+  if(verified&&!holdForReview){
    if(reviewAllowed&&reviewValue!==CF.ai){
     await clickup(clickupToken,"task/"+id+"/field/"+CF.review,"POST",{value:CF.ai});
     applied.review="Ai Check";
@@ -449,20 +466,32 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    const changeMarker="[iCetak-Change:"+id+":"+m.id+"]";
    const commentsNow=await clickup(clickupToken,"task/"+id+"/comment");
    if((commentsNow.comments||[]).some((c:Obj)=>contains(c.comment,changeMarker)))continue;
-   const body=changeMarker+"\n⚠️ Semak perubahan design\n"+
+   const ageDetected=extractAge(string(m.text_content||m.caption));
+   const changeKind=m.message_type==="image"?"image":ageDetected!==null?"age":"design";
+   const body=changeMarker+"\n⚠️ Mesej pelanggan selepas confirmed — semak sebelum printing\n"+
     string(m.created_at,40)+" ["+string(m.channel,24)+"] "+
-    string(m.text_content||m.caption,600)+"\nReview manual sebelum edit.";
+    string(m.text_content||m.caption,600)+
+    (ageDetected!==null?"\nUmur baharu: "+ageDetected+" tahun. Wording/CF asal tidak diubah.":"")+
+    "\nReview manual sebelum edit.";
    const sent=await clickup(clickupToken,"task/"+id+"/comment","POST",{comment_text:body,notify_all:false});
    if(!sent?.id)throw Error("CHANGE_COMMENT_UNCERTAIN");
+   await db("rpc/icetak_order_brief_audit_message",{
+    p_task_id:id,p_message_id:String(m.id),p_order_reference:String(s.order_reference),
+    p_message_at:m.created_at,p_channel:String(m.channel||"shopee"),
+    p_message_text:string(m.text_content||m.caption,2000),
+    p_change_kind:changeKind,p_task_status:String(task.status?.status||s.clickup_status),
+    p_clickup_comment_id:String(sent.id),p_delivery_status:"commented"
+   });
   }
+  const pendingChangeIds=[...new Set([...previouslyFlagged,...changed.map(m=>String(m.id))])].slice(-120);
   const deferredChanges=new Set(changed.slice(8).map(m=>String(m.id)));
   const ids=[...new Set([...oldIds,...chronological.filter(m=>!deferredChanges.has(String(m.id))).map(m=>String(m.id))])].slice(-140);
-  brief={sku:productSku,wording:decision.wording,instruction:decision.instruction,confidence,actual_buyer_note:note,proof:proof.map((m:Obj)=>({id:m.id,channel:m.channel,at:m.created_at})),
-   image:img,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,
+  brief={sku:productSku,wording:primaryWording,instruction:primaryInstruction,confidence:primaryConfidence,actual_buyer_note:note,proof:proof.map((m:Obj)=>({id:m.id,channel:m.channel,at:m.created_at})),
+   image:primaryImage,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,pending_change_ids:pendingChangeIds,
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status};
-  state=verified?"completed":"review";
+  state=holdForReview?"review":verified?"completed":"review";
  }catch(e){
   error=String(e instanceof Error?e.message:e).slice(0,220);
   if(/SOURCE_CHANGED|TASK_CLOSED|WAIT_15_MINUTES/.test(error))state="review";
@@ -514,6 +543,12 @@ Deno.serve(async(req:Request)=>{
     const result=decide("","",chat,{},false,chat);
     return {actual:result.wording,score:result.confidence};
    })()}));
+   const postConfirmCases=[
+    {text:"6 tahun awk",old:"Fayyadh Aryan",expected:true},
+    {text:"6 tahun awk",old:"Fayyadh Aryan 6",expected:false},
+    {text:"tq awkkk",old:"Fayyadh Aryan",expected:false}
+   ].map(x=>{const age=extractAge(x.text);const oldAge=extractAge(x.old)??(Number(x.old.match(/\\b(\\d{1,3})\\s*$/)?.[1]||0)||null);
+    return {...x,actual:!isUnimportant(x.text)&&((age!==null&&(oldAge===null||age!==oldAge))||mayNeedChange(x.text))};});
    const tests=[
     {case:"age in separate message",out:decide("Hi,custom name,\nSYAFAA\nADRA","Hi,custom name,\nSYAFAA\nADRA",proof,{},false,proof),expect:"SYAFAA ADRA 4",min:80},
     {case:"compact age message",out:decide("SYAFAA ADRA","SYAFAA ADRA",[{...proof[1],text_content:"Umur4"}],{},false,[{...proof[1],text_content:"Umur4"}]),expect:"SYAFAA ADRA 4",min:80},
@@ -522,7 +557,7 @@ Deno.serve(async(req:Request)=>{
     {case:"age conflict",out:decide("Ali umur:4","Ali umur:4",[{...proof[1],text_content:"Umur:5"}],{},false,[{...proof[1],text_content:"Umur:5"}]),expect:"Ali umur:4",max:79}
    ];
    const passed=tests.every(x=>x.out.wording===x.expect&&x.out.confidence>=(x.min||0)&&x.out.confidence<=(x.max||100));
-   return res({ok:details.every(x=>x.expected===x.actual)&&passed&&multilineCases.every(x=>x.expected===x.actual&&(x.expected?x.score>=80:x.score===0))&&updatedCfCases.every(x=>x.actual===x.expected&&x.score>=x.min),multilineCases,updatedCfCases,tests,checks:details,
+   return res({ok:details.every(x=>x.expected===x.actual)&&passed&&multilineCases.every(x=>x.expected===x.actual&&(x.expected?x.score>=80:x.score===0))&&updatedCfCases.every(x=>x.actual===x.expected&&x.score>=x.min)&&postConfirmCases.every(x=>x.actual===x.expected),multilineCases,updatedCfCases,postConfirmCases,tests,checks:details,
      matching_note_score:decide("anaqi rayyan","anaqi rayyan",[],{},false).confidence,
      cf_only_score:decide("","anaqi rayyan",[],{},false).confidence});
   }
