@@ -580,6 +580,30 @@ Deno.serve(async(req:Request)=>{
   const cfg=await db("clickup_order_brief_settings?singleton=eq.true&select=enabled&limit=1");
   const requestBody=await req.json().catch(()=>({}));
   if(requestBody?.action==="status")return res({ok:true,enabled:!!(cfg?.[0]?.enabled),vision_configured:!!Deno.env.get("OPENAI_API_KEY"),model:Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-4.1-mini"});
+  // Authenticated one-shot diagnostic using synthetic data. Never returns the secret.
+  if(requestBody?.action==="ai_probe"){
+   const model=Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-4.1-mini";
+   const apiKey=Deno.env.get("OPENAI_API_KEY")||"";
+   if(!apiKey)return res({ok:false,model,error:"OPENAI_API_KEY_MISSING"},503);
+   try{
+    const response=await fetch("https://api.openai.com/v1/responses",{
+     method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+apiKey},
+     body:JSON.stringify({model,store:false,max_output_tokens:90,
+      instructions:"Reply with exactly the text ICETAK_API_OK. Nothing else.",
+      input:"Confirm the text-only API connection."}),
+     signal:AbortSignal.timeout(24000)
+    });
+    const value=await response.json().catch(()=>({}));
+    if(!response.ok)return res({ok:false,model,provider_status:response.status,
+     provider_error:string(value.error?.code||value.error?.type||"UNSPECIFIED",90)},200);
+    const output=(value.output||[]).flatMap((x:Obj)=>x.content||[])
+     .filter((x:Obj)=>x.type==="output_text").map((x:Obj)=>String(x.text||"")).join("").trim();
+    return res({ok:output==="ICETAK_API_OK",model:value.model||model,
+     response:output.slice(0,100),request_id:string(value.id,100),
+     input_tokens:value.usage?.input_tokens??null,output_tokens:value.usage?.output_tokens??null,
+     provider_status:response.status});
+   }catch(e){return res({ok:false,model,error:String(e instanceof Error?e.message:e).slice(0,90)},200);}
+  }
   if(requestBody?.action==="selftest"){
    const cases=[
     ["Terima kasih",false],
