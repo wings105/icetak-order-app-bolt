@@ -300,10 +300,12 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   ]);
   const s=snap?.[0],detail=autom?.[0]?.data;
   if(!s||s.list_id!=="18375902"||!detail)throw Error("SOURCE_CHANGED");
-  if(["complete","closed","cancelled","canceled","shipped"].includes(normalized(s.clickup_status)))throw Error("TASK_CLOSED");
+  // This specific AutoBrief workflow is exclusively for glossy cake toppers
+  // currently in ClickUp DESIGN EDITING - TOPPER. No other product/stage may be changed.
+  if(normalized(s.clickup_status)!=="design editing -topper")throw Error("OUT_OF_SCOPE_TOPPER_ONLY");
   const task=await clickup(clickupToken,"task/"+encodeURIComponent(id));
   if(String(task.id)!==id||String(task.list?.id)!=="18375902"||task.archived)throw Error("CLICKUP_TASK_NOT_ACTIVE");
-  if(["complete","closed","cancelled","canceled","shipped"].includes(normalized(task.status?.status)))throw Error("TASK_CLOSED");
+  if(normalized(task.status?.status)!=="design editing -topper")throw Error("OUT_OF_SCOPE_TOPPER_ONLY");
   const existingConfirmed=fieldChecked(field(task,"confirmed"));
   const existingWord=string(field(task,"Customize Name")?.value,1200);
   const productSku=string(field(task,"SKU")?.value,120);
