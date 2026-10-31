@@ -114,12 +114,13 @@ function isUnimportant(text:string){
 function mayNeedChange(text:string){
  return /\b(?:tukar|ubah|change|edit|replace|instead|silap|salah|wrong|correct|betul\s+semula|sepatutnya|jangan\s+guna|use\s+this|guna\s+yang|new\s+wording|new\s+name|nama\s+baru|tambah|buang|remove|add|umur|usia|age|turns?|turning)\b/i.test(text)||!!extractInstruction(text);
 }
-function briefText(taskId:string,sku:string,wording:string,instruction:string,image:string,confirmed:boolean,confidence:number,note:string,proof:Obj[]){
+function briefText(taskId:string,sku:string,wording:string,instruction:string,image:string,backupImage:string,confirmed:boolean,confidence:number,note:string,proof:Obj[]){
  const lines=[
   "[iCetak-AutoBrief:"+taskId+"]",
   "SKU product: "+(sku||"— (SKU belum tersedia)"),
   "wording: "+(wording||"Perlu detail"),
-  "gambar link: "+(image||"—"),
+  "gambar link (Shopee): "+(image||"—"),
+  ...(backupImage?["gambar salinan (ClickUp): "+backupImage]:[]),
   "confirm: "+(confirmed?"✅":"⏳"),
   "keyakinan: "+confidence+"%",
   "instruction: "+(instruction||"—"),
@@ -193,8 +194,13 @@ function selectProof(context:Obj,placedMs:number){
  for(const m of valid)unique.set(String(m.id),m);
  const chronological=[...unique.values()].sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at));
  const prior=chronological.filter(m=>Date.parse(m.created_at)<=placedMs).slice(-2);
- const next=chronological.filter(m=>Date.parse(m.created_at)>placedMs).slice(0,3);
- return {chronological,proof:[...prior,...next]};
+ const later=chronological.filter(m=>Date.parse(m.created_at)>placedMs);
+ // Retain nearest messages AND latest follow-up, not just the first three replies.
+ // The bounded collection is exactly linked to this order and already excludes history.
+ const next=later.length<=8?later:[...later.slice(0,3),...later.slice(-5)];
+ const chosen=new Map<string,Obj>();
+ for(const m of [...prior,...next])chosen.set(String(m.id),m);
+ return {chronological,proof:[...chosen.values()].sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at))};
 }
 function namedWordingFromMessage(text:string):string{
  const lines=string(text,1400).split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
@@ -374,6 +380,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const verified=!orderUnpaid && confidence>=80 && (decision.note_evidence||decision.chat_evidence) && !context.ambiguous && !context.truncated;
   const mediaCandidates=proof.filter((m:Obj)=>m.message_type==="image"&&string(m.media_url));
   let img=mediaCandidates.length===1?string(mediaCandidates[0].media_url,900):string(detail.values?.artwork,900);
+  let backupImage=string(job.brief?.image_backup,1100);
   if(mediaCandidates.length>1){img="Perlu semakan (beberapa gambar)";}
   // Only one exact-session inbound photo may be attached automatically.
   if(mediaCandidates.length===1 && !context.ambiguous && !context.truncated){
@@ -409,10 +416,12 @@ async function process(job:Obj,clickupToken:string,bridge:string){
       if(!uploaded)throw Error("ATTACHMENT_UNCERTAIN");
      }
     }
-    img=string(uploaded?.url||uploaded?.download_url,1000)||("https://app.clickup.com/t/"+id);
-    media.push({message_id:selected.id,attachment_id:uploaded?.id||null,image:img});
+    // Keep the customer-original Shopee URL in the brief; ClickUp is a durable backup only.
+    backupImage=string(uploaded?.url||uploaded?.download_url,1100);
+    media.push({message_id:selected.id,attachment_id:uploaded?.id||null,source_image:img,backup_image:backupImage});
    }catch{
-    img="Perlu semakan gambar dalam Unified Inbox";
+    // Do not erase the original Shopee URL when backup upload is temporarily unavailable.
+    backupImage="";
    }
   }
 
@@ -439,7 +448,8 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const primaryInstruction=holdForReview?string(previous.instruction,400):decision.instruction;
   const primaryConfidence=holdForReview?Number(previous.confidence||0):confidence;
   const primaryImage=holdForReview?string(previous.image,1000):img;
-  const text=briefText(id,productSku,primaryWording,primaryInstruction,primaryImage,
+  const primaryBackup=holdForReview?string(previous.image_backup,1100):backupImage;
+  const text=briefText(id,productSku,primaryWording,primaryInstruction,primaryImage,primaryBackup,
    holdForReview?true:(verified||existingConfirmed),primaryConfidence,note,proof)
    .replace("confirm: ✅",holdForReview?"confirm: ✅ (perubahan baharu perlu review)":verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")
    +(orderUnpaid?"\n⚠️ Order masih UNPAID — semak bayaran sebelum proses.":"");
@@ -508,7 +518,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const deferredChanges=new Set(changed.slice(8).map(m=>String(m.id)));
   const ids=[...new Set([...oldIds,...chronological.filter(m=>!deferredChanges.has(String(m.id))).map(m=>String(m.id))])].slice(-140);
   brief={sku:productSku,wording:primaryWording,instruction:primaryInstruction,confidence:primaryConfidence,actual_buyer_note:note,proof:proof.map((m:Obj)=>({id:m.id,channel:m.channel,at:m.created_at})),
-   image:primaryImage,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,pending_change_ids:pendingChangeIds,
+   image:primaryImage,image_backup:primaryBackup,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,pending_change_ids:pendingChangeIds,
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status};
