@@ -1,3 +1,8 @@
+## 2026-10-31 — [VERIFIED] One-tap Shopee stickers
+
+- Selecting a sticker immediately uses the existing sender; remove the preview and second Hantar sticker action. Pending clicks are locked, success closes the picker and failures stay visible for manual retry.
+- Actual React picker desktop/mobile interaction checks, TypeScript and Inbox build pass. Controlled callbacks only; no customer test message. See [sticker contract](docs/SHOPEE_CHAT_DIRECT_SETUP.md#2026-10-31--one-tap-sticker-picker).
+
 ## 2026-10-31 — [PRODUCTION] Shopee-style Inbox order sidebar
 
 - Chat-linked and direct/search orders share a compact card: status/Order ID, item thumbnail/title/SKU with price and quantity at the right, payment/logistics/dates/note, existing actions and additional text at the bottom of the same card. Customer-linked status filters and exact item/model catalog-image fallback preserve unknown versus real-zero prices and Malaysia time.
