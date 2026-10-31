@@ -1,3 +1,7 @@
+# 2026-10-31 — Shopee-style Inbox order sidebar
+
+[PRODUCTION] One shared compact card in chat-linked and direct/search order views follows marketplace reading order, with extra text at the bottom of the same card. Client-side linked-order status filters, exact cached product/model thumbnails, Malaysia dates, unknown amounts and existing action callbacks are preserved. Release `4502b760` / Workers build `f26f88fd` and hosted staff search-to-chat, both thumbnails, field placement and Unpaid/To Ship interactions pass. Forty-eight desktop/mobile/light/dark controlled assertions, Inbox TypeScript, full build and existing card/catalog checks pass. No customer send or order/payment action; hosted mobile and provider acceptance remain separate. See [sidebar contract](INBOX_ORDER_SIDEBAR.md).
+
 # 2026-10-30 — WhatsApp keyword automation native takeover
 
 Admin V2/backend PRODUCTION via PR #147 release `e06db334` and successful Workers build. Hosted owner settings/history/detail and seller/buyer/conflict preview pass; desktop/mobile visuals and browser logs are clean. The three confirmed external actions are published as skipped and all three native rules are active; other ingestion/media actions remain intact. Native activation boundaries prevent delayed pre-cutover status replay. Rolled-back native boundary/enqueue/dedupe checks and deployed worker heartbeat pass with no retained QA rows or customer test sends. A fresh real native provider/delivery outcome remains unobserved. See [contract and acceptance](WHATSAPP_KEYWORD_AUTOMATION.md).

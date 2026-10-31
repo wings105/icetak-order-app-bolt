@@ -1,7 +1,7 @@
-## 2026-10-31 — [VERIFIED] Shopee-style Inbox order sidebar
+## 2026-10-31 — [PRODUCTION] Shopee-style Inbox order sidebar
 
 - Chat-linked and direct/search orders share a compact card: status/Order ID, item thumbnail/title/SKU with price and quantity at the right, payment/logistics/dates/note, existing actions and additional text at the bottom of the same card. Customer-linked status filters and exact item/model catalog-image fallback preserve unknown versus real-zero prices and Malaysia time.
-- Actual React desktop/mobile/light/dark verification passes 48 outcome assertions, with no page errors or customer sends; TypeScript, full shop+Inbox build and existing Shopee card/catalog checks pass. Hosted staff-session acceptance remains separate. See [sidebar contract](docs/INBOX_ORDER_SIDEBAR.md).
+- Actual React desktop/mobile/light/dark verification passes 48 outcome assertions, with no page errors or customer sends; TypeScript, full shop+Inbox build and existing Shopee card/catalog checks pass. Release 4502b760 passed Workers build f26f88fd; hosted staff search-to-chat, both thumbnails, lower extra fields and Unpaid/To Ship filtering are observed. Hosted mobile and customer/provider sends remain separate. See [sidebar contract](docs/INBOX_ORDER_SIDEBAR.md).
 
 ## 2026-10-30 — [PRODUCTION] Native WhatsApp keyword automation controls and takeover
 

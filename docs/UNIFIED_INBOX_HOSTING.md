@@ -56,4 +56,4 @@ Verification: root build/source guard and Inbox typecheck/build pass. Playwright
 
 ## Order sidebar reading order — 31 October 2026
 
-VERIFIED controlled UI. Chat-linked and direct/search order views share the compact marketplace-style card; additional facts remain inside its lower section. Exact cached item/model images, MYT dates, unknown amounts and existing send-preview/tracking controls are preserved. Desktop/mobile light/dark visual and interaction checks pass; signed-in hosted staff acceptance remains separate. See [sidebar contract](INBOX_ORDER_SIDEBAR.md).
+PRODUCTION for sidebar presentation. Chat-linked and direct/search order views share the compact marketplace-style card; additional facts remain inside its lower section. Exact cached item/model images, MYT dates, unknown amounts and existing send-preview/tracking controls are preserved. Desktop/mobile light/dark controlled checks and signed-in hosted search-to-chat, image load, field placement and status filtering pass. Hosted mobile and live customer sends remain separate. See [sidebar contract](INBOX_ORDER_SIDEBAR.md).
