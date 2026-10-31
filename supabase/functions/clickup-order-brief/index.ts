@@ -59,12 +59,26 @@ function extractInstruction(text:string){
  const match=text.match(/(?:^|\n|[;,])\s*(?:wording|nama|name|tulisan|text|ayat|write|tulis)\s*[:=\-]\s*([^\n;]{2,180})/i);
  return match?match[1].trim():"";
 }
-function noteWording(note:string){
- const explicit=extractInstruction(note);
- if(explicit)return explicit;
- if(note.length<=130&&!/\b(?:alamat|address|postage|poslaju|parcel|tracking|postcode|telefon|phone)\b/i.test(note))return note.trim();
- return "";
+function splitProductionWording(input:string){
+ const raw=string(input,1300).trim().replace(/^[\s"'“‘]+|[\s"'”’]+$/g,"");
+ const conditional=/\b(?:jika|kalau|if)\s+(?:tak|tidak|x|not)\s+muat\b/i.exec(raw);
+ const main=conditional?raw.slice(0,conditional.index):raw;
+ const wording=main.replace(/^\s*(?:nama|custom\s*name|wording|tulisan)\s*[:=\-]\s*/i,"")
+   .replace(/\s*\(\s*$/g,"").replace(/(?:\.\s*){2,}$/g,"")
+   .replace(/[\s.,;:!]+$/g,"").trim().slice(0,255);
+ let instruction="";
+ if(conditional){
+  const remainder=raw.slice(conditional.index).replace(/[()]/g," ").replace(/\.{2,}/g," ").replace(/\s+/g," ").trim();
+  const alt=remainder.match(/\b(?:letak|guna|pakai)\s+nama\s+([A-Za-z]+)\s+(?:je|sahaja)\b/i);
+  const shorten=remainder.match(/\b([A-Za-z]+)\s+tu\s+pendekkan\s+j(?:a)?di\s+([A-Za-z]+)\b/i);
+  instruction=alt?'Jika tak muat, guna "'+alt[1]+'" sahaja.':
+   shorten?'Jika tak muat, pendekkan "'+shorten[1]+'" kepada "'+shorten[2]+'".':remainder;
+  if(/\btulisan apa pun ok\b/i.test(remainder))instruction+=" Font bebas.";
+  if(/\burgent\b/i.test(remainder))instruction+=" Urgent.";
+ }
+ return {wording,instruction:instruction.trim().slice(0,400),conditional:!!conditional};
 }
+function noteWording(note:string){return splitProductionWording(note).wording;}
 function isUnimportant(text:string){
  return /^(?:ok(?:ay)?|baik|noted|terima kasih(?: banyak)?|thank(?:s| you)(?: so much)?|tq|ty|haha|hehe|👍|🙏|✅|👌|sudah|done|alright|baiklah|sama-sama)[!.\s🙏👍👌✅]*$/i.test(text.trim());
 }
