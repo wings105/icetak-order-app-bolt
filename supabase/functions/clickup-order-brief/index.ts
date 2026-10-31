@@ -487,7 +487,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const primaryConfidence=holdForReview?Number(previous.confidence||0):confidence;
   const primaryImage=holdForReview?string(previous.image,1000):img;
   const primaryBackup=holdForReview?string(previous.image_backup,1100):(backupImage||string(previous.image_backup,3500));
-  const requiresReview=reviewRequested(chronological)||(Boolean(previous.review_requested)&&Boolean(context.unavailable));
+  const requiresReview=reviewRequested(chronological)||Boolean(previous.review_requested);
   const text=briefText(id,productSku,primaryWording,primaryInstruction,primaryImage,requiresReview,
    holdForReview?true:(verified||existingConfirmed),primaryConfidence,note,proof)
    .replace("confirm: ✅",holdForReview?"confirm: ✅ (perubahan baharu perlu review)":verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")
