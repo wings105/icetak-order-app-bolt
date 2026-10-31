@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {lifecycleHandler} from '../supabase/inbox-functions/conversation-lifecycle/handler.ts';
+const id='00000000-0000-4000-8000-000000000001',other='00000000-0000-4000-8000-000000000002';
+const source={conversation:{id,channel:'whatsapp'},orders:[],messages:[{id:'m',direction:'inbound',text_content:'nak edible A4 2 pcs',created_at:new Date().toISOString()}]};
+let calls=0,stored=[];
+const deps={source:async()=>source,canonical:async()=>({canonical:{},works:[]}),save:async()=>{},prepare:async()=>[{id,revision:2,source},{id:other,cached:{stage:'printing',checked_at:new Date().toISOString()}}],canonicalBatch:async sources=>{calls++;assert.equal(sources.length,1);return [{conversation_id:id,canonical:{},works:[]}];},record:async(...args)=>{stored.push(args);return true;}};
+const req=b=>new Request('https://qa.invalid',{method:'POST',headers:{authorization:'Bearer synthetic','content-type':'application/json'},body:JSON.stringify(b)});
+const h=lifecycleHandler(deps);let response=await h(req({action:'list',conversation_ids:[id,other],stage:'completed'})),data=await response.json();assert.equal(response.status,200);assert.equal(data.statuses[0].stage,'interested');assert.equal(data.statuses[1].stage,'printing');assert.equal(calls,1);assert.equal(stored[0][1],2);
+for(const ids of [[],Array(41).fill(id),['bad']])assert.equal((await h(req({action:'list',conversation_ids:ids}))).status,400);
+response=await lifecycleHandler({...deps,record:async()=>false})(req({action:'list',conversation_ids:[id]}));data=await response.json();assert.equal(data.statuses[0].stage,'unknown');assert.equal(data.statuses[0].pending,true);
+response=await lifecycleHandler({...deps,prepare:async()=>{throw {code:'42501'};}})(req({action:'list',conversation_ids:[id]}));assert.equal(response.status,403);
+response=await lifecycleHandler({...deps,canonicalBatch:async()=>{throw Error('offline');}})(req({action:'list',conversation_ids:[id]}));assert.equal(response.status,503);
+response=await lifecycleHandler({...deps,prepare:async()=>[{id,cached:{stage:'design',checked_at:new Date().toISOString()}}],canonicalBatch:async()=>{throw Error('Must not call');}})(req({action:'list',conversation_ids:[id]}));assert.equal(response.status,200);
+console.log('Lifecycle index checks passed: bounded list, exact shared resolver, cache reuse, revision race, staff denial and dependency failure.');

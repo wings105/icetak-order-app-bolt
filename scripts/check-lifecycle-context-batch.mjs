@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+let handler,seen=[];globalThis.Deno={env:{get:name=>name==='SUPABASE_URL'?'https://qa.invalid':'synthetic'},serve:h=>handler=h};
+const uuid=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
+globalThis.fetch=async(url,options={})=>{seen.push({url,body:options.body?JSON.parse(options.body):null});let data=[];if(url.includes('private_runtime_settings'))data=[{setting_value:'private-test-token'}];else if(url.includes('icetak_ai_dashboard_context')){const ids=JSON.parse(options.body).p_identities;assert(ids.every(i=>i.phone===null&&i.master_id===null&&i.shopee_user_id===null));data=Object.fromEntries(ids.map(i=>[i.id,{session:{session_id:i.id},drafts:[]}]))}else if(url.includes('ai_order_work_source'))data=[{id:uuid(3),kind:'shopee',production_tasks:[{id:'exact-task',status:'complete'}]}];else if(url.includes('marketplace_orders'))data=[{id:uuid(3),placed_at:'2026-10-31T00:00:00Z'}];return Response.json(data)};
+await import('../supabase/functions/conversation-lifecycle-context/index.ts');
+const req=(body,token='private-test-token')=>new Request('https://qa.invalid',{method:'POST',headers:{'x-admin-window-token':token,'content-type':'application/json'},body:JSON.stringify(body)});
+const one={conversation_id:uuid(1),orders:[{id:uuid(3),cache_id:uuid(4),source_channel:'shopee'}]},two={conversation_id:uuid(2),orders:[]};
+let res=await handler(req({requests:[one,two]})),r=await res.json();assert.equal(res.status,200);assert.equal(r.results[0].works[0].id,uuid(4));assert.equal(r.results[0].works[0].tasks[0].id,'exact-task');assert.equal(r.results[1].works.length,0);assert.equal(r.results[1].canonical.session.session_id,uuid(2));
+res=await handler(req(one));r=await res.json();assert.equal(r.works[0].id,uuid(4));assert.equal((await handler(req(one,'bad'))).status,401);assert.equal((await handler(req({requests:Array(41).fill(one)}))).status,400);assert.equal((await handler(req({requests:[{...one,orders:[{...one.orders[0],id:'bad'}]}]}))).status,400);
+console.log('Actual canonical bridge passed: bulk identity isolation, exact cache/canonical mapping, single-read compatibility, token and bounds.');

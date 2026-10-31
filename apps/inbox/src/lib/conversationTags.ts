@@ -27,10 +27,15 @@ export function useConversationTags() {
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
+    async function links(){
+      const data:ConversationTagLinkRow[]=[];
+      for(let from=0;;from+=500){const page=await supabase.from('conversation_tags').select('conversation_id,tag_id,source,created_at').order('conversation_id').order('tag_id').range(from,from+499);if(page.error)return {data:[],error:page.error};data.push(...page.data);if(page.data.length<500)break;}
+      return {data,error:null};
+    }
     setLoading(true);
     const [{ data: tagRows, error: tagError }, { data: linkRows, error: linkError }] = await Promise.all([
       supabase.from('tags').select('id,name,slug,color').eq('archived', false).order('name'),
-      supabase.from('conversation_tags').select('conversation_id,tag_id,source,created_at'),
+      links(),
     ]);
     if (tagError) throw tagError;
     if (linkError) throw linkError;

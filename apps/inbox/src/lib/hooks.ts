@@ -86,13 +86,14 @@ export function useConversations(): UseConversationsResult {
     setError(null);
 
     try {
-      const { data: convRows, error: convErr } = await supabase
-        .from('conversations')
-        .select(CONVERSATION_LIST_SELECT)
-        .order('last_message_at', { ascending: false, nullsFirst: false });
-
-      if (convErr) throw convErr;
-      if (!convRows || convRows.length === 0) { setConversations([]); return; }
+      const convRows: unknown[]=[];
+      for(let from=0;;from+=500){
+        const page=await supabase.from('conversations').select(CONVERSATION_LIST_SELECT).order('last_message_at',{ascending:false,nullsFirst:false}).order('id').range(from,from+499);
+        if(page.error)throw page.error;
+        convRows.push(...page.data);
+        if(page.data.length<500)break;
+      }
+      if (!convRows.length) { setConversations([]); return; }
 
       // The projected columns were verified against the mapper's runtime needs.
       const dbConversations = convRows as unknown as DbConversation[];
@@ -106,22 +107,27 @@ export function useConversations(): UseConversationsResult {
 
       const convIds = dbConversations.map((c) => c.id);
 
+      async function related(table:string,columns:string,key:string,ids:string[]){
+        const data:any[]=[];
+        for(let start=0;start<ids.length;start+=200){
+          const subset=ids.slice(start,start+200);
+          for(let from=0;;from+=500){const result=await supabase.from(table).select(columns).in(key,subset).range(from,from+499);if(result.error)return {data:[]};data.push(...result.data);if(result.data.length<500)break;}
+        }
+        return {data};
+      }
       const [identitiesRes, addressesRes, itemsRes, latestMsgsRes] = await Promise.all([
         customerIds.length > 0
-          ? supabase.from('customer_identities').select('customer_id, channel, username, normalized_phone').in('customer_id', customerIds)
+          ? related('customer_identities','customer_id, channel, username, normalized_phone','customer_id',customerIds)
           : Promise.resolve({ data: [], error: null }),
         customerIds.length > 0
-          ? supabase.from('customer_addresses').select('customer_id, address_line_1, postcode, city, state, is_default').in('customer_id', customerIds)
+          ? related('customer_addresses','customer_id, address_line_1, postcode, city, state, is_default','customer_id',customerIds)
           : Promise.resolve({ data: [], error: null }),
         orderIds.length > 0
-          ? supabase.from('order_items').select('order_id, product_name, variation').in('order_id', orderIds)
+          ? related('order_items','order_id, product_name, variation','order_id',orderIds)
           : Promise.resolve({ data: [], error: null }),
         // One indexed row per conversation. Avoid downloading the full message table
         // every time Realtime refreshes the inbox list.
-        supabase
-          .from('latest_conversation_message_previews')
-          .select('id, conversation_id, direction, message_type, text_content, created_at, status, media_url, provider_message_id, reply_to_provider_message_id, reactions')
-          .in('conversation_id', convIds),
+        related('latest_conversation_message_previews','id, conversation_id, direction, message_type, text_content, created_at, status, media_url, provider_message_id, reply_to_provider_message_id, reactions','conversation_id',convIds),
       ]);
 
       // These enrichments are optional. The inbox can still load conversations

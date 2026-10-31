@@ -472,3 +472,7 @@ must not delay recent order detail. See SHOPEE_WEBHOOK_OPERATIONS.md.
 ## 2026-10-30 — Seller keyword automation ownership
 
 Capture trusted persisted human seller output in Unified Inbox and keep a durable per-rule/provider-message run identity. Admin V2 manages rules through an authenticated Order gateway; canonical draft/session state stays in Order System. Record-only and pause modes provide a reversible external-to-native transition. Each native activation advances the message-time boundary so a late pre-cutover status cannot become a second runner action. Ambiguous QR send results require review instead of automatic resend; draft retries use the same provider-message identity across runners. Do not disable unrelated external branches or treat code deployment as takeover evidence. See `WHATSAPP_KEYWORD_AUTOMATION.md`.
+
+## 2026-10-31 — One lifecycle resolver for header and list
+
+Filter the Chat list by the existing exact-session lifecycle policy, backed by a revisioned derived index. Keep tags as independently managed labels. Bulk canonical reads and compare-and-set writes avoid a per-row browser request and prevent stale work overwriting new facts. The visible list refreshes missing/stale projections; event invalidation plus bounded cache age preserve current status without a second generative classifier. Order/payment/task and provider state remain canonical. See INBOX_CONVERSATION_LIFECYCLE.md.

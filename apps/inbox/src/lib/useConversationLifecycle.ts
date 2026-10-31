@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Conversation } from '../types';
+import { LIFECYCLE_EVENT } from './useLifecycleIndex';
 import { supabase } from './supabase';
 import { getExternalOrderSummary } from './externalOrderSummaries';
 import { conversationLifecycle, type LifecycleResult, type ProspectStage } from '../../../../supabase/functions/_shared/conversation-lifecycle.ts';
@@ -21,7 +22,7 @@ export function useConversationLifecycle(conversation:Conversation) {
     let data:LifecycleResult;
     if(orderOnlyId){const order=await getExternalOrderSummary(orderOnlyId);data=conversationLifecycle({conversation:{id,channel:conversation.channel},orders:[{...order,metadata:order.metadata??{},items:order.items.map(i=>({title:i.title??undefined,quantity:i.quantity??undefined})),linked:true,is_primary:true}],messages:[]});}
     else {const response=await supabase.functions.invoke('conversation-lifecycle',{body:{conversation_id:id,action:'read'}});if(response.error||!response.data?.ok||!response.data.lifecycle)throw Error('Status belum tersedia. Cuba semak semula.');data=response.data.lifecycle;}
-    if(!disposed&&generation.current===current)setState({id,data,loading:false});
+    if(!disposed&&generation.current===current){setState({id,data,loading:false});window.dispatchEvent(new CustomEvent(LIFECYCLE_EVENT,{detail:{conversation_id:id,stage:data.stage,checked_at:data.checked_at}}));}
    }catch(e){if(!disposed&&generation.current===current)setState({id,loading:false,error:e instanceof Error?e.message:'Status belum tersedia.'});}
   })();},250);
   return()=>{disposed=true;window.clearTimeout(timer);};
@@ -47,6 +48,7 @@ export function useConversationLifecycle(conversation:Conversation) {
   if(request.error||!request.data?.ok)throw Error(request.data?.error||'Gagal menyimpan tahap prospek.');
   // A late save from another conversation must not replace the active header.
   if(generation.current!==currentGeneration){refresh();return;}
+  window.dispatchEvent(new CustomEvent(LIFECYCLE_EVENT,{detail:{conversation_id:id,stage:request.data.lifecycle.stage,checked_at:request.data.lifecycle.checked_at}}));
   setState(previous=>previous.id===id?{id,data:request.data.lifecycle,loading:false}:previous);
  }
  return {data:state.id===id?state.data:undefined,loading:state.id!==id||state.loading,error:state.id===id?state.error:undefined,refresh,setProspect};

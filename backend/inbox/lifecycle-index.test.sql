@@ -1,0 +1,38 @@
+begin;
+do $$declare
+ u uuid:=gen_random_uuid();cu uuid:=gen_random_uuid();co uuid:=gen_random_uuid();r jsonb;rev bigint;
+begin
+ insert into public.workspace_members(auth_user_id,display_name,role,active) values(u,'QA status filter','support',true);
+ insert into public.customers(id,display_name) values(cu,'QA status filter');
+ insert into public.conversations(id,customer_id,channel,external_customer_id,external_conversation_id) values(co,cu,'whatsapp',co::text,co::text);
+ insert into public.messages(conversation_id,channel,direction,sender_type,message_type,text_content) values(co,'whatsapp','inbound','customer','text','berapa harga?');
+ select revision into rev from public.conversation_lifecycle_index where conversation_id=co;
+ if rev is null then raise exception 'Initial index missing';end if;
+ perform set_config('request.jwt.claim.sub',u::text,true);
+ execute 'set local role authenticated';
+ r:=public.icetak_lifecycle_index_sources(array[co]);
+ if r#>>'{0,source,conversation,id}'<>co::text or r#>'{0,cached}'<>'null'::jsonb then raise exception 'Cold source unavailable';end if;
+ begin perform public.icetak_lifecycle_index_store(co,rev,'completed',now());raise exception 'Staff cache forgery permitted';exception when insufficient_privilege then null;end;
+ execute 'reset role';
+ if not public.icetak_lifecycle_index_store(co,rev,'survey',now()) then raise exception 'Store failed';end if;
+ execute 'set local role authenticated';
+ r:=public.icetak_lifecycle_index_sources(array[co]);
+ if r#>>'{0,cached,stage}'<>'survey' or r#>'{0,source}'<>'null'::jsonb then raise exception 'Fresh cache missing';end if;
+ perform public.icetak_set_conversation_prospect(co,'qa','interested');
+ execute 'reset role';
+ if public.icetak_lifecycle_index_store(co,rev,'survey',now()) then raise exception 'Stale revision accepted';end if;
+ select revision into rev from public.conversation_lifecycle_index where conversation_id=co;
+ if not public.icetak_lifecycle_index_store(co,rev,'interested',now()) then raise exception 'Fresh revision failed';end if;
+ if public.icetak_lifecycle_index_store(co,rev,'survey',now()-interval '10 minutes') then raise exception 'Old result accepted';end if;
+ if public.icetak_lifecycle_index_store_batch(jsonb_build_array(jsonb_build_object('id',co,'revision',rev,'stage','interested','checked_at',now())))<>jsonb_build_array(co) then raise exception 'Batch store failed';end if;
+ if public.icetak_lifecycle_index_store_batch(jsonb_build_array(jsonb_build_object('id',co,'revision',rev-1,'stage','survey','checked_at',now())))<>'[]'::jsonb then raise exception 'Batch accepted obsolete revision';end if;
+ execute 'set local role authenticated';
+ r:=public.icetak_lifecycle_index_sources(array[co],true);
+ if r#>>'{0,source,prospect,stage}'<>'interested' then raise exception 'Forced source did not refresh';end if;
+ perform set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);
+ begin perform public.icetak_lifecycle_index_sources(array[co]);raise exception 'Nonmember allowed';exception when insufficient_privilege then null;end;
+ if (select count(*) from public.conversation_lifecycle_index where conversation_id=co)<>0 then raise exception 'Nonmember cache leaked';end if;
+ execute 'reset role';
+ if has_function_privilege('anon','public.icetak_lifecycle_index_sources(uuid[],boolean)','execute') or has_table_privilege('anon','public.conversation_lifecycle_index','select') then raise exception 'Anonymous index access';end if;
+end $$;
+rollback;

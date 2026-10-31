@@ -7,6 +7,7 @@ import { ChannelBadge } from './ChannelBadge';
 
 interface ConversationListProps {
   conversations: Conversation[];
+  restrictSearch?: boolean;
   selectedId: string | null;
   selectedOrderId: string | null;
   onSelect: (id: string, firstMatchMessageId?: string) => void;
@@ -112,7 +113,7 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
   );
 }
 
-export function ConversationList({ conversations, selectedId, selectedOrderId, onSelect, onOrderSelect, searchQuery, onSearchChange }: ConversationListProps) {
+export function ConversationList({ conversations, selectedId, selectedOrderId, onSelect, onOrderSelect, searchQuery, onSearchChange, restrictSearch=false }: ConversationListProps) {
   const [filter, setFilter] = useState<FilterType>('perlu_balas');
   const [channelFilter, setChannelFilter] = useState<Channel | 'all'>('all');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -130,7 +131,7 @@ export function ConversationList({ conversations, selectedId, selectedOrderId, o
   const serverQueryMatchesCurrent = debouncedSearch.trim() === currentSearch;
 
   const { results: remoteSearchResults, loading: remoteSearchLoading, error: remoteSearchError, retry } = useSearch(debouncedSearch);
-  const searchResults = useMemo(() => serverQueryMatchesCurrent ? remoteSearchResults : [], [serverQueryMatchesCurrent, remoteSearchResults]);
+  const searchResults = useMemo(() => serverQueryMatchesCurrent ? remoteSearchResults.filter(r=>!restrictSearch||conversations.some(c=>c.id===r.conversationId)) : [], [serverQueryMatchesCurrent, remoteSearchResults, restrictSearch, conversations]);
   const searchLoading = isSearchMode && (!serverQueryMatchesCurrent || remoteSearchLoading);
   const searchError = serverQueryMatchesCurrent ? remoteSearchError : null;
   const conversationSearchResults = useMemo(

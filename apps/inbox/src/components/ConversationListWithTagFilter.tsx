@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
-import { ArrowDownUp, Tag, X } from 'lucide-react';
+import { ArrowDownUp, Tag, X, RefreshCw, CircleDot } from 'lucide-react';
+import { useLifecycleIndex } from '../lib/useLifecycleIndex';
+import { LIFECYCLE_LABELS, type LifecycleStage } from '../../../../supabase/functions/_shared/conversation-lifecycle';
 import type { Conversation } from '../types';
 import { ConversationList } from './ConversationList';
 
@@ -50,6 +52,8 @@ function initialSortMode(): SortMode {
 }
 
 export function ConversationListWithTagFilter({ conversations, selectedId, selectedOrderId, onSelect, onOrderSelect, searchQuery, onSearchChange }: Props) {
+  const lifecycle=useLifecycleIndex(conversations);
+  const [selectedStatus,setSelectedStatus]=useState<LifecycleStage|''>('');
   const [selectedTag, setSelectedTag] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>(initialSortMode);
 
@@ -63,8 +67,8 @@ export function ConversationListWithTagFilter({ conversations, selectedId, selec
     const matching = selectedTag
       ? conversations.filter((conversation) => (conversation.customer.tags ?? []).includes(selectedTag))
       : conversations;
-    return [...matching].sort(sortMode === 'latest' ? sortByLatestMessage : sortByWorkPriority);
-  }, [conversations, selectedTag, sortMode]);
+    return [...matching.filter(c=>!selectedStatus||lifecycle.rows[c.id]?.stage===selectedStatus)].sort(sortMode === 'latest' ? sortByLatestMessage : sortByWorkPriority);
+  }, [conversations, selectedTag, sortMode, selectedStatus, lifecycle.rows]);
 
   function changeSortMode(value: SortMode) {
     setSortMode(value);
@@ -91,6 +95,17 @@ export function ConversationListWithTagFilter({ conversations, selectedId, selec
           </select>
         </div>
 
+        <div className="flex items-center gap-2">
+          <CircleDot size={14} className="shrink-0 text-[#00a884]"/>
+          <select aria-label="Filter status customer" value={selectedStatus} onChange={e=>setSelectedStatus(e.target.value as LifecycleStage|'')} className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-2.5 py-1.5 text-xs text-[var(--text)]">
+            <option value="">Semua status customer</option>
+            {Object.entries(LIFECYCLE_LABELS).map(([stage,label])=><option key={stage} value={stage}>{label}</option>)}
+          </select>
+          {selectedStatus&&<button aria-label="Buang filter status" onClick={()=>setSelectedStatus('')} className="p-1 text-[var(--text-secondary)]"><X size={14}/></button>}
+          <button aria-label="Semak semula senarai status" onClick={lifecycle.refresh} disabled={lifecycle.loading} className="p-1 text-[var(--text-secondary)] disabled:opacity-50"><RefreshCw size={13} className={lifecycle.loading?'animate-spin':''}/></button>
+        </div>
+        <p role="status" className="pl-6 text-[10px] text-[var(--text-secondary)]">{lifecycle.loading?`Menyemak status ${lifecycle.checked}/${lifecycle.total}…`:(!lifecycle.checked||lifecycle.checked<lifecycle.total)?`Status tersedia ${lifecycle.checked}/${lifecycle.total}`:`Disemak ${new Intl.DateTimeFormat('ms-MY',{timeZone:'Asia/Kuala_Lumpur',hour:'2-digit',minute:'2-digit'}).format(new Date(Math.min(...Object.values(lifecycle.rows).map(r=>Date.parse(r.checked_at!)))))} · auto`}{selectedStatus?` · ${filtered.length} chat sepadan`:''}</p>
+        {lifecycle.error&&<p role="alert" className="pl-6 text-[10px] text-red-600">{lifecycle.error} <button onClick={lifecycle.refresh} className="underline">Cuba semula</button></p>}
         {availableTags.length > 0 && (
           <div className="flex items-center gap-2">
             <Tag size={14} className="flex-shrink-0 text-[#00a884]" />
@@ -112,7 +127,7 @@ export function ConversationListWithTagFilter({ conversations, selectedId, selec
       </div>
 
       <div className="min-h-0 flex-1">
-        <ConversationList conversations={filtered} selectedId={selectedId} selectedOrderId={selectedOrderId} onSelect={onSelect} onOrderSelect={onOrderSelect} searchQuery={searchQuery} onSearchChange={onSearchChange} />
+        <ConversationList restrictSearch={Boolean(selectedStatus||selectedTag)} conversations={filtered} selectedId={selectedId} selectedOrderId={selectedOrderId} onSelect={onSelect} onOrderSelect={onOrderSelect} searchQuery={searchQuery} onSearchChange={onSearchChange} />
       </div>
     </div>
   );
