@@ -85,9 +85,10 @@ function isUnimportant(text:string){
 function mayNeedChange(text:string){
  return /\b(?:tukar|ubah|change|edit|replace|instead|silap|salah|wrong|correct|betul\s+semula|sepatutnya|jangan\s+guna|use\s+this|guna\s+yang|new\s+wording|new\s+name|nama\s+baru|tambah|buang|remove|add)\b/i.test(text)||!!extractInstruction(text);
 }
-function briefText(taskId:string,wording:string,instruction:string,image:string,confirmed:boolean,confidence:number,note:string,proof:Obj[]){
+function briefText(taskId:string,sku:string,wording:string,instruction:string,image:string,confirmed:boolean,confidence:number,note:string,proof:Obj[]){
  const lines=[
   "[iCetak-AutoBrief:"+taskId+"]",
+  "SKU product: "+(sku||"— (SKU belum tersedia)"),
   "wording: "+(wording||"Perlu detail"),
   "gambar link: "+(image||"—"),
   "confirm: "+(confirmed?"✅":"⏳"),
@@ -240,6 +241,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   if(["complete","closed","cancelled","canceled","shipped"].includes(normalized(task.status?.status)))throw Error("TASK_CLOSED");
   const existingConfirmed=fieldChecked(field(task,"confirmed"));
   const existingWord=string(field(task,"Customize Name")?.value,1200);
+  const productSku=string(field(task,"SKU")?.value,120);
   const phone=string(field(task,"phone")?.value,30);
   const identity=string(field(task,"User ID")?.value,100);
   let note="",placed="",buyerId="",multi=false,orderUnpaid=false;
@@ -334,7 +336,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     &&!oldIds.has(String(m.id)));
   const changed=afterConfirmed.filter((m:Obj)=>m.message_type==="image" || (!isUnimportant(string(m.text_content||m.caption)) && mayNeedChange(string(m.text_content||m.caption))));
   const marker="[iCetak-AutoBrief:"+id+"]";
-  const text=briefText(id,decision.wording,decision.instruction,img,verified||existingConfirmed,confidence,note,proof).replace("confirm: ✅",verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")+(orderUnpaid?"\n⚠️ Order masih UNPAID — semak bayaran sebelum proses.":"");
+  const text=briefText(id,productSku,decision.wording,decision.instruction,img,verified||existingConfirmed,confidence,note,proof).replace("confirm: ✅",verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")+(orderUnpaid?"\n⚠️ Order masih UNPAID — semak bayaran sebelum proses.":"");
   const hash=await digest(text);
   const comments=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment");
   const old=(comments.comments||[]).find((c:Obj)=>contains(c.comment,marker)||contains(c.comment,"[iCetak-AutoBrief:"+id+":"));
@@ -381,7 +383,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   }
   const deferredChanges=new Set(changed.slice(8).map(m=>String(m.id)));
   const ids=[...new Set([...oldIds,...chronological.filter(m=>!deferredChanges.has(String(m.id))).map(m=>String(m.id))])].slice(-140);
-  brief={wording:decision.wording,instruction:decision.instruction,confidence,actual_buyer_note:note,proof:proof.map((m:Obj)=>({id:m.id,channel:m.channel,at:m.created_at})),
+  brief={sku:productSku,wording:decision.wording,instruction:decision.instruction,confidence,actual_buyer_note:note,proof:proof.map((m:Obj)=>({id:m.id,channel:m.channel,at:m.created_at})),
    image:img,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
