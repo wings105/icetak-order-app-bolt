@@ -1,3 +1,8 @@
+## 2026-10-31 — [PRODUCTION] Preserve Shopee fee detail at wallet release
+
+- Release-only snapshots retain known webhook detail with original field provenance and wake the existing signed detail worker. Full/partial income responses, explicit zero, immutable history, source-key idempotency and processing leases are preserved.
+- Owner-scoped signed API refresh and ingestion restore complete monthly component coverage. Native capture/report/replay/missing/zero/Excel/lease/privacy assertions pass in rollback; no added security advisor findings. Hosted owner browser acceptance remains separate. See [finance contract](docs/ORDER_FINANCE_DETAIL.md#preserve-detail-across-wallet-release--31-october-2026).
+
 ## 2026-10-31 — [VERIFIED] Lightning shortcut starts slash snippets
 
 - Lightning inserts `/`, focuses the composer and reuses an existing trailing shortcut. Type the shortcut and Enter to expand its text; normal next Enter/Send is preserved. Existing drafts survive and an unmatched shortcut cannot be accidentally sent by Enter.
