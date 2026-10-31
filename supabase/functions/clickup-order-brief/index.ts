@@ -212,16 +212,17 @@ function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean,allM
  const ageConflict=ages.some(x=>noteAge!==null&&x.age!==noteAge)||new Set(ages.map(x=>x.age)).size>1;
  const noteName=actual.wording&&/\p{L}/u.test(actual.wording)?actual.wording:"";
  const cfName=cf.wording&&/\p{L}/u.test(cf.wording)?cf.wording:"";
+ const withAge=(v:string)=>normalized(age!==null&&v&&!wordingHasAge(v)?v+" "+age:v);
  const base=noteName||lastChatName||cfName;
  let wording=base;
  if(age!==null&&base&&!wordingHasAge(base))wording=(base+" "+age).trim();
  let confidence=0;
- if(noteName&&cfName)confidence=normalized(noteName)===normalized(cfName)?95:45;
+ if(noteName&&cfName)confidence=withAge(noteName)===withAge(cfName)?95:45;
  else if(noteName)confidence=88;
- else if(lastChatName&&cfName)confidence=normalized(lastChatName)===normalized(cfName)?92:49;
+ else if(lastChatName&&cfName)confidence=withAge(lastChatName)===withAge(cfName)?92:49;
  else if(lastChatName)confidence=90;
  else if(cfName)confidence=55;
- if(noteName&&lastChatName&&normalized(noteName)!==normalized(lastChatName))confidence=Math.min(confidence,49);
+ if(noteName&&lastChatName&&withAge(noteName)!==withAge(lastChatName))confidence=Math.min(confidence,49);
  if(nameConflict||ageConflict)confidence=Math.min(confidence,55);
  if(ctx.ambiguous||ctx.truncated||ctx.unavailable)confidence=Math.min(confidence,60);
  if(multi)confidence=Math.min(confidence,60);
@@ -496,6 +497,14 @@ Deno.serve(async(req:Request)=>{
    const multilineChat=[
     {id:"m",created_at:"2026-10-31T02:52:17+00:00",text_content:"Nama\nMuhammad Aazim\n\nUmur\n4 Tahun",channel:"shopee"}
    ];
+   const updatedCfCases=[
+    {note:"",cf:"Muhammad Aazim 4",message:"Nama\nMuhammad Aazim\n\nUmur\n4 Tahun",expected:"Muhammad Aazim 4",min:80},
+    {note:"SYAFAA ADRA",cf:"SYAFAA ADRA 4",message:"Umur:4",expected:"SYAFAA ADRA 4",min:80}
+   ].map(x=>{
+    const chat=[{id:"age_cf",created_at:"2026-10-31T02:52:17+00:00",text_content:x.message,channel:"shopee"}];
+    const d=decide(x.note,x.cf,chat,{},false,chat);
+    return {...x,actual:d.wording,score:d.confidence};
+   });
    const multilineCases=[
     {input:"Nama\nMuhammad Aazim\n\nUmur\n4 Tahun",expected:"Muhammad Aazim 4",score:90},
     {input:"Nama custom:SYAFAA\nADRA\nUmur:4",expected:"SYAFAA ADRA 4",score:90},
@@ -513,7 +522,7 @@ Deno.serve(async(req:Request)=>{
     {case:"age conflict",out:decide("Ali umur:4","Ali umur:4",[{...proof[1],text_content:"Umur:5"}],{},false,[{...proof[1],text_content:"Umur:5"}]),expect:"Ali umur:4",max:79}
    ];
    const passed=tests.every(x=>x.out.wording===x.expect&&x.out.confidence>=(x.min||0)&&x.out.confidence<=(x.max||100));
-   return res({ok:details.every(x=>x.expected===x.actual)&&passed&&multilineCases.every(x=>x.expected===x.actual&&(x.expected?x.score>=80:x.score===0)),multilineCases,tests,checks:details,
+   return res({ok:details.every(x=>x.expected===x.actual)&&passed&&multilineCases.every(x=>x.expected===x.actual&&(x.expected?x.score>=80:x.score===0))&&updatedCfCases.every(x=>x.actual===x.expected&&x.score>=x.min),multilineCases,updatedCfCases,tests,checks:details,
      matching_note_score:decide("anaqi rayyan","anaqi rayyan",[],{},false).confidence,
      cf_only_score:decide("","anaqi rayyan",[],{},false).confidence});
   }
