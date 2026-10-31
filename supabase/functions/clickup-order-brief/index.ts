@@ -63,7 +63,7 @@ function splitProductionWording(input:string){
  const raw=string(input,1300).trim().replace(/^[\s"'“‘]+|[\s"'”’]+$/g,"");
  const conditional=/\b(?:jika|kalau|if)\s+(?:tak|tidak|x|not)\s+muat\b/i.exec(raw);
  const main=conditional?raw.slice(0,conditional.index):raw;
- const wording=main.replace(/^\s*(?:nama|custom\s*name|wording|tulisan)\s*[:=\-]\s*/i,"")
+ const wording=main.replace(/\s+/g," ").replace(/^\s*(?:nama|custom\s*name|wording|tulisan)\s*[:=\-]\s*/i,"")
    .replace(/\s*\(\s*$/g,"").replace(/(?:\.\s*){2,}$/g,"")
    .replace(/[\s.,;:!]+$/g,"").trim().slice(0,255);
  let instruction="";
