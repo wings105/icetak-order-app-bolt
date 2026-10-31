@@ -396,8 +396,8 @@ async function aiAnalyzeOrder(params:{
  try{
   const r=await fetch("https://api.openai.com/v1/responses",{
    method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+key},
-   body:JSON.stringify({model,store:false,max_output_tokens:600,
-    instructions:instructions+" Return only a single valid JSON object. No markdown or explanation.",input:[{role:"user",content}]}),
+   body:JSON.stringify({model,store:false,max_output_tokens:1600,
+    instructions:instructions+" Return ONLY one short minified JSON object, max 650 characters, all fields. No markdown. Short reason and summary.",input:[{role:"user",content}]}),
    signal:AbortSignal.timeout(28000)
   });
   const data=await r.json().catch(()=>({}));
