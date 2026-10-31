@@ -155,7 +155,7 @@ function handleInput(event: Event) {
 }
 
 function handleKeydown(event: KeyboardEvent) {
-  if (!isComposer(event.target) || !popup) return;
+  if (!isComposer(event.target) || !popup || event.isComposing) return;
   if (event.key === 'ArrowDown') {
     event.preventDefault();
     activeIndex = (activeIndex + 1) % Math.max(1, currentMatches.length);
@@ -164,10 +164,10 @@ function handleKeydown(event: KeyboardEvent) {
     event.preventDefault();
     activeIndex = (activeIndex - 1 + Math.max(1, currentMatches.length)) % Math.max(1, currentMatches.length);
     renderPopup(event.target, event.target.value.match(/(^|\s)\/([^\s]*)$/)?.[2] ?? '');
-  } else if ((event.key === 'Tab' || event.key === 'Enter') && currentMatches[activeIndex]) {
+  } else if ((event.key === 'Enter' && !event.shiftKey) || (event.key === 'Tab' && currentMatches[activeIndex])) {
     event.preventDefault();
     event.stopImmediatePropagation();
-    void selectSnippet(currentMatches[activeIndex]);
+    if (currentMatches[activeIndex]) void selectSnippet(currentMatches[activeIndex]);
   } else if (event.key === 'Escape') {
     event.preventDefault();
     closePopup();
@@ -194,8 +194,17 @@ function attachQuickButton() {
   button.addEventListener('mousedown', (event) => event.preventDefault());
   button.addEventListener('click', () => {
     currentTextarea = textarea;
-    renderPopup(textarea, '');
-    textarea.focus({ preventScroll: true });
+    activeIndex = 0;
+    const value = textarea.value;
+    const existing = value.match(/(^|\s)\/([^\s]*)$/);
+    if (!existing) {
+      const separator = value && !/\s$/.test(value) ? ' ' : '';
+      setTextareaValue(textarea, `${value}${separator}/`);
+    } else {
+      textarea.focus({ preventScroll: true });
+      textarea.setSelectionRange(value.length, value.length);
+    }
+    renderPopup(textarea, existing?.[2] ?? '');
   });
   textarea.insertAdjacentElement('afterend', button);
 }

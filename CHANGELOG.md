@@ -1,3 +1,8 @@
+## 2026-10-31 — [VERIFIED] Lightning shortcut starts slash snippets
+
+- Lightning inserts `/`, focuses the composer and reuses an existing trailing shortcut. Type the shortcut and Enter to expand its text; normal next Enter/Send is preserved. Existing drafts survive and an unmatched shortcut cannot be accidentally sent by Enter.
+- Actual enhancer with React state at desktop/mobile, TypeScript and Inbox build pass. No customer sends. See [snippet behavior](docs/INBOX_QUICK_SNIPPETS.md).
+
 ## 2026-10-31 — [PRODUCTION] Customer-status chat filter
 
 - A separate status filter shares the header lifecycle resolver and combines with tag/channel/reply/search; remote results respect active filters. A staff-readable, service-written revisioned index, bounded canonical batches, check coverage/time and retry keep stale status explicit. Conversation/tag paging removes API row-cap truncation.
