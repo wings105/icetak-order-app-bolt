@@ -547,7 +547,7 @@ Deno.serve(async(req:Request)=>{
     {text:"6 tahun awk",old:"Fayyadh Aryan",expected:true},
     {text:"6 tahun awk",old:"Fayyadh Aryan 6",expected:false},
     {text:"tq awkkk",old:"Fayyadh Aryan",expected:false}
-   ].map(x=>{const age=extractAge(x.text);const oldAge=extractAge(x.old)??(Number(x.old.match(/\\b(\\d{1,3})\\s*$/)?.[1]||0)||null);
+   ].map(x=>{const age=extractAge(x.text);const oldAge=extractAge(x.old)??(Number(x.old.match(/\b(\d{1,3})\s*$/)?.[1]||0)||null);
     return {...x,actual:!isUnimportant(x.text)&&((age!==null&&(oldAge===null||age!==oldAge))||mayNeedChange(x.text))};});
    const tests=[
     {case:"age in separate message",out:decide("Hi,custom name,\nSYAFAA\nADRA","Hi,custom name,\nSYAFAA\nADRA",proof,{},false,proof),expect:"SYAFAA ADRA 4",min:80},
