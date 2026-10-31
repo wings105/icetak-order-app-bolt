@@ -284,6 +284,59 @@ function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean,allM
  return {wording:wording.slice(0,255),instruction:[actual.instruction,extraInstruction,extraPhotos].filter(Boolean).join(" ").slice(0,400),confidence,
   chat_evidence:!!lastChatName,note_evidence:!!noteName,age:age??null,age_conflict:ageConflict,name_conflict:nameConflict};
 }
+// Single explicit buyer note may apply to all glossy toppers of one order.
+// Conservative: no heterogeneous item types, conflicting words, item-specific
+// instructions, missing SKU/task mapping or unverified chat context.
+function sharedTopperWordingRule(input:{
+ note:string;existingWord:string;sku:string;items:Obj[];siblingTasks:Obj[];
+ decision:Obj;messages:Obj[];context:Obj;
+}):{eligible:boolean;confidence:number;reason:string}{
+ const nope=(reason:string)=>({eligible:false,confidence:0,reason});
+ const {note,existingWord,sku,items,siblingTasks,decision,messages,context}=input;
+ if(context.ambiguous||context.truncated||context.unavailable)return nope("CHAT_CONTEXT_UNVERIFIED");
+ if(!Array.isArray(items)||items.length<1||items.length>8)return nope("ITEM_LINES_NOT_VERIFIED");
+ if(items.length<2&&!items.some((i:Obj)=>Number(i.quantity)>1))return nope("SINGLE_ITEM");
+ const skuOf=(item:Obj)=>string(item.item_sku||item.variation_sku,100).trim().toUpperCase();
+ const target=sku.toUpperCase().trim();
+ if(!/^(?:CN|YS)\d{3,6}$/.test(target))return nope("TARGET_NOT_STANDARD_GLOSSY_TOPPER");
+ if(items.some((i:Obj)=>!(/^(?:CN|YS)\d{3,6}$/.test(skuOf(i)))||
+  !Number.isInteger(Number(i.quantity))||Number(i.quantity)<1||
+  !string(i.provider_item_id,100)))return nope("NON_GLOSSY_OR_UNVERIFIED_LINE_ITEM");
+ if(!items.some((i:Obj)=>skuOf(i)===target))return nope("TARGET_SKU_NOT_IN_ORDER");
+ const allSkus=[...new Set(items.map(skuOf))];
+ // A separate ClickUp task must exist for each SKU, preventing mapping errors.
+ if(allSkus.some(code=>!siblingTasks.some((t:Obj)=>
+  new RegExp("(?:^|[^A-Z0-9])"+code+"(?:$|[^A-Z0-9])","i").test(string(t.task_name,300)))))
+  return nope("RELATED_TOPPER_TASK_NOT_FOUND");
+ const original=string(note,1200).trim();
+ const parsed=splitProductionWording(original);
+ const printed=parsed.wording.trim();
+ if(!original||!printed||printed.length>110||!/\p{L}/u.test(printed)||
+  parsed.instruction||isNonDesignWording(printed))
+  return nope("NOTE_NOT_SINGLE_PRINT_WORDING");
+ const safeCharacters=/^[\p{L}\p{M}\d\s.'’&\-]+$/u;
+ if(!safeCharacters.test(printed)||printed.split(/\s+/).length>9)return nope("NOTE_HAS_MULTIPLE_CLAUSES");
+ // Do not turn logistics, requests, per-item names or design instructions into wording.
+ if(/\b(?:saya|sy|aku|boleh|blh|tolong|mohon|nak|mahu|mau|gambar|gmbr|photo|image|tukar|ubah|warna|shipping|postage|order|hantar|send|jangan|guna|pakai|letak|untuk|yang|yg|berbeza|berlainan|asing|different|first|second|pertama|kedua|set\s*[1-9]|item\s*[1-9]|produk\s*[1-9])\b/i.test(printed))
+  return nope("NOTE_IS_INSTRUCTION_OR_ITEM_SPECIFIC");
+ if(decision.name_conflict||decision.age_conflict||!decision.note_evidence||
+  !decision.wording)return nope("CONFLICT_OR_NO_EXPLICIT_NOTE");
+ const cfText=splitProductionWording(existingWord).wording;
+ if(cfText&&!isNonDesignWording(cfText)){
+  const a=normalized(decision.wording),b=normalized(cfText);
+  // A prior staff/customized value with different content must never be overwritten.
+  if(a!==b)return nope("EXISTING_CUSTOMIZE_NAME_DIFFERS");
+ }
+ // Only named customer evidence is relevant here, not unrelated seller messages.
+ const names=messages.map((m:Obj)=>namedWordingFromMessage(String(m.text_content||m.caption||"")))
+  .filter(Boolean);
+ if(names.some((name:string)=>normalized(name)!==normalized(printed)&&
+    normalized(name)!==normalized(decision.wording)))return nope("CHAT_HAS_DISTINCT_WORDING");
+ // Reject instructions assigning text to specific sets, SKUs, or product themes.
+ if(messages.some((m:Obj)=>/\b(?:set\s*[1-9]|item\s*[1-9]|produk\s*[1-9]|first\s+one|second\s+one|yang\s+(?:pertama|kedua)|lain\s+nama|nama\s+lain|different\s+name|spiderman|transformer|mickey|minnie)\b/i.test(
+   String(m.text_content||m.caption||""))))return nope("CHAT_HAS_ITEM_SPECIFIC_INSTRUCTION");
+ return {eligible:true,confidence:92,reason:"SINGLE_SHARED_NOTE_ALL_GLOSSY_TOPPERS"};
+}
 function allowedHost(h:string) {
  const x=h.toLowerCase();return x==="susercontent.com"||x.endsWith(".susercontent.com")||x==="shopee.com"||x.endsWith(".shopee.com")||x==="shopee.com.my"||x.endsWith(".shopee.com.my")||x==="shopee.sg"||x.endsWith(".shopee.sg");
 }
@@ -484,17 +537,26 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   // Multi-item means >1 line item OR a single line with more than 1 quantity.
   multi=multi||orderItems.length>1||orderItems.some((x:Obj)=>Number(x.quantity)>1);
   const decision=decide(note,existingWord,proof,context,multi,chronological);
+  const siblingTasks=multi&&uuid(s.marketplace_order_id)?
+   await db("ai_clickup_work_snapshots?marketplace_order_id=eq."+s.marketplace_order_id+
+    "&select=task_id,task_name,clickup_status&limit=30"):[];
+  const sharedRule=sharedTopperWordingRule({note,existingWord,sku:productSku,
+   items:orderItems,siblingTasks,decision,messages:chronological,context});
   const missing=Array.isArray(detail.missing)?detail.missing:[];
   const unresolvedMissing=missing.filter((x:Obj)=>{
    const key=String(x.key||"").toLowerCase();
    return !((key==="mode"||key==="wording"||key==="name")&&(decision.note_evidence||decision.chat_evidence));
   });
-  const confidence=unresolvedMissing.length?Math.min(decision.confidence,75):decision.confidence;
+  const ordinaryConfidence=unresolvedMissing.length?Math.min(decision.confidence,75):decision.confidence;
+  // A verified shared buyer note is explicitly allowed to bypass only the
+  // multi-item confidence cap; all SKU/status/time/conflict gates still apply.
+  const confidence=sharedRule.eligible&&unresolvedMissing.length===0?
+   Math.max(ordinaryConfidence,sharedRule.confidence):ordinaryConfidence;
   const verified=!orderUnpaid && confidence>=80 && (decision.note_evidence||decision.chat_evidence) && !context.ambiguous && !context.truncated;
   // AI-assisted analysis is advisory only. Rules remain sole authority for CF/confirmed.
   // Cache by verified input signature to avoid re-billing each 1-minute scheduler run.
   let aiAnalysis:Obj=job.brief?.ai_analysis||{};
-  const aiCandidate=!orderUnpaid&&(confidence<80||multi)&&!context.ambiguous&&!context.truncated
+  const aiCandidate=!sharedRule.eligible&&!orderUnpaid&&(confidence<80||multi)&&!context.ambiguous&&!context.truncated
    &&!context.unavailable&&(chronological.length>0||note.trim().length>0)&&!!productSku;
   if(aiCandidate){
    const signature=await digest(JSON.stringify({
@@ -675,7 +737,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    image:primaryImage,image_backup:primaryBackup,media_count:mediaCandidates.length,media_warnings:uploadWarnings,review_requested:requiresReview,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,pending_change_ids:pendingChangeIds,
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
-   source_status:detail.info_status,ai_analysis:aiAnalysis?.input_hash?aiAnalysis:null,ai_mode:"advisory"};
+   source_status:detail.info_status,shared_wording_rule:sharedRule,ai_analysis:aiAnalysis?.input_hash?aiAnalysis:null,ai_mode:"advisory"};
   state=holdForReview?"review":verified?"completed":"review";
  }catch(e){
   error=String(e instanceof Error?e.message:e).slice(0,220);
@@ -788,6 +850,40 @@ Deno.serve(async(req:Request)=>{
     {message:"Maya Helena turns 1",expected:false},
     {message:"Saya dah bayar dah",expected:false}
    ].map(x=>({...x,actual:requestsDesignPreview(x.message)}));
+   const sharedFixture=[
+    {item_sku:"CN0081",quantity:1,provider_item_id:"5443059986"},
+    {item_sku:"CN0298",quantity:1,provider_item_id:"9347462830"}
+   ];
+   const sharedSiblings=[{task_name:"1x CN0081"},{task_name:"1x CN0298"}];
+   const sharedNote="M. Qays Rizqi Turns 4";
+   const sharedCases=[
+    {case:"two toppers, one exact buyer note",note:sharedNote,cf:sharedNote,
+     items:sharedFixture,siblings:sharedSiblings,messages:[],context:{},expected:true},
+    {case:"one SKU with quantity 2",note:"Ali turns 5",cf:"Ali turns 5",
+     items:[{item_sku:"CN0081",quantity:2,provider_item_id:"5443059986"}],
+     siblings:[{task_name:"2x CN0081"}],messages:[],context:{},expected:true},
+    {case:"topper plus edible",note:sharedNote,cf:sharedNote,
+     items:[sharedFixture[0],{item_sku:"Ei-no-review",quantity:1,provider_item_id:"5803316307"}],
+     siblings:sharedSiblings,messages:[],context:{},expected:false},
+    {case:"buyer note for particular item",note:"Ali untuk CN0081",cf:"Ali untuk CN0081",
+     items:sharedFixture,siblings:sharedSiblings,messages:[],context:{},expected:false},
+    {case:"different second name in chat",note:sharedNote,cf:sharedNote,
+     items:sharedFixture,siblings:sharedSiblings,
+     messages:[{text_content:"Nama: Adik Iman",created_at:"2026-10-29T12:00:00Z"}],
+     context:{},expected:false},
+    {case:"staff-set different name",note:sharedNote,cf:"SARA TURNS 6",
+     items:sharedFixture,siblings:sharedSiblings,messages:[],context:{},expected:false},
+    {case:"unverified chat",note:sharedNote,cf:sharedNote,
+     items:sharedFixture,siblings:sharedSiblings,messages:[],context:{unavailable:true},expected:false},
+    {case:"missing related task",note:sharedNote,cf:sharedNote,
+     items:sharedFixture,siblings:[{task_name:"1x CN0081"}],messages:[],context:{},expected:false}
+   ].map(x=>{
+    const decision=decide(x.note,x.cf,[],x.context,true,x.messages);
+    const result=sharedTopperWordingRule({note:x.note,existingWord:x.cf,sku:"CN0081",
+     items:x.items,siblingTasks:x.siblings,decision,messages:x.messages,context:x.context});
+    return {case:x.case,expected:x.expected,actual:result.eligible,
+     confidence:result.confidence,reason:result.reason};
+   });
    const postConfirmCases=[
     {text:"6 tahun awk",old:"Fayyadh Aryan",expected:true},
     {text:"6 tahun awk",old:"Fayyadh Aryan 6",expected:false},
@@ -802,7 +898,7 @@ Deno.serve(async(req:Request)=>{
     {case:"age conflict",out:decide("Ali umur:4","Ali umur:4",[{...proof[1],text_content:"Umur:5"}],{},false,[{...proof[1],text_content:"Umur:5"}]),expect:"Ali umur:4",max:79}
    ];
    const passed=tests.every(x=>x.out.wording===x.expect&&x.out.confidence>=(x.min||0)&&x.out.confidence<=(x.max||100));
-   return res({ok:reviewCases.every(x=>x.expected===x.actual)&&naturalRegression.ok&&orderRegression.ok&&details.every(x=>x.expected===x.actual)&&passed&&multilineCases.every(x=>x.expected===x.actual&&(x.expected?x.score>=80:x.score===0))&&updatedCfCases.every(x=>x.actual===x.expected&&x.score>=x.min)&&postConfirmCases.every(x=>x.actual===x.expected),reviewCases,naturalRegression,orderRegression,multilineCases,updatedCfCases,postConfirmCases,tests,checks:details,
+   return res({ok:sharedCases.every(x=>x.expected===x.actual)&&reviewCases.every(x=>x.expected===x.actual)&&naturalRegression.ok&&orderRegression.ok&&details.every(x=>x.expected===x.actual)&&passed&&multilineCases.every(x=>x.expected===x.actual&&(x.expected?x.score>=80:x.score===0))&&updatedCfCases.every(x=>x.actual===x.expected&&x.score>=x.min)&&postConfirmCases.every(x=>x.actual===x.expected),sharedCases,reviewCases,naturalRegression,orderRegression,multilineCases,updatedCfCases,postConfirmCases,tests,checks:details,
      matching_note_score:decide("anaqi rayyan","anaqi rayyan",[],{},false).confidence,
      cf_only_score:decide("","anaqi rayyan",[],{},false).confidence});
   }
