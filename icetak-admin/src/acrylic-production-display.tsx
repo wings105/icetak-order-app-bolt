@@ -7,7 +7,7 @@ import './acrylic-production-display.css';
 // Public snapshot reads remain anonymous. Actions reuse either the existing
 // trusted-PC capability or the signed-in admin session through taskTransport.
 const access=new URLSearchParams(window.location.hash.slice(1)).get('access')||'';
-if(/^tw_[a-f0-9]{64}$/.test(access))configureTaskStation(access);
+if(/^(?:tw|ap)_[a-f0-9]{64}$/.test(access))configureTaskStation(access);
 async function readDisplaySnapshot():Promise<Snapshot>{
  const env=import.meta.env;
  const base=env.VITE_SUPABASE_URL||env.SUPABASE_URL||'';

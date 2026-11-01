@@ -1,3 +1,8 @@
+## 2026-11-01 — [VERIFIED] Acrylic trusted-PC production action access
+
+- Corrects the earlier visibility-only release: dedicated Acrylic/Artpaper links can authenticate production actions without an admin login, with a revocable scoped capability and device audit actor. Public bare URLs still do not authorize writes.
+- Both printed Review values and Complete pass real shared-handler controlled tests, including provider readback/audit, receipt recovery after removal, stale/retry guards and denied unrelated actions. Live option access and rejection guards verified; customer-task mutation remains unexercised. See [acrylic production](docs/ACRYLIC_PRODUCTION.md#trusted-pc-action-access-correction--1-november-2026).
+
 ## 2026-11-01 — [PRODUCTION] Standalone acrylic production action buttons
 
 - The single-link acrylic page now renders the same FINISHED product Printed, AWB/address printed and Complete controls as Admin V2. Existing staff sessions or a supplied trusted-PC fragment authorize actions through the unchanged audited transport.

@@ -25,7 +25,8 @@
     "check:task-clickup": "node --experimental-strip-types scripts/check-task-clickup.mjs",
     "check:inbox-clickup": "node --experimental-strip-types scripts/check-inbox-clickup.mjs",
     "check:conversation-lifecycle": "node --experimental-strip-types scripts/check-conversation-lifecycle.mjs",
-    "check:task-station": "node --experimental-strip-types scripts/check-task-station.mjs"
+    "check:task-station": "node --experimental-strip-types scripts/check-task-station.mjs",
+    "check:acrylic-actions": "node --experimental-strip-types scripts/check-acrylic-actions.mjs"
   },
   "dependencies": {
     "@cloudflare/puppeteer": "1.4.0",
