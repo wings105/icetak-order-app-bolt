@@ -1,9 +1,13 @@
 import {createRoot} from 'react-dom/client';
 import AcrylicProduction,{type Snapshot} from './pages/AcrylicProduction';
+import {configureTaskStation} from './lib/taskTransport';
 import './index.css';
 import './acrylic-production-display.css';
 
-// This standalone read has no session, admin client, cookies or dashboard bootstrap.
+// Public snapshot reads remain anonymous. Actions reuse either the existing
+// trusted-PC capability or the signed-in admin session through taskTransport.
+const access=new URLSearchParams(window.location.hash.slice(1)).get('access')||'';
+if(/^tw_[a-f0-9]{64}$/.test(access))configureTaskStation(access);
 async function readDisplaySnapshot():Promise<Snapshot>{
  const env=import.meta.env;
  const base=env.VITE_SUPABASE_URL||env.SUPABASE_URL||'';
@@ -12,4 +16,4 @@ async function readDisplaySnapshot():Promise<Snapshot>{
  const data=await r.json();if(!r.ok)throw Error(data?.error||'Data production gagal dimuat.');return data as Snapshot;
 }
 document.title='iCetak — Acrylic Production';
-createRoot(document.getElementById('production-root')!).render(<main className="acp-standalone"><AcrylicProduction readSnapshot={readDisplaySnapshot} allowActions={false}/></main>);
+createRoot(document.getElementById('production-root')!).render(<main className="acp-standalone"><AcrylicProduction readSnapshot={readDisplaySnapshot}/></main>);
