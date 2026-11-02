@@ -134,7 +134,9 @@ Admin builds pass. The actual React component is rendered in cloud Chrome with
 synthetic read-only transport at desktop and a 375px iframe: search, phase/state,
 paging, receipt/history modal, Escape, empty/error and recovery checked. The
 local Browser extension did not respond; cloud browser cannot reach workspace
-localhost, so a temporary credential-free synthetic preview is used and removed
+localhost, so a temporary credential-free synthetic preview is used and its public endpoint disabled
 after QA. Real ClickUp readback confirms one unchanged AutoBrief comment ID with
 the new remark, while the adopted receipt still has zero send attempts. Hosted
 signed-in admin acceptance and future real deadline delivery remain separate.
+
+Production delivery: commit `60950cbd7a5def9daa4b747d5c735db0bafea3b4` passed Workers build `71d2e99b-3ca6-4576-a491-866202ba93cd`. The exact hosted log URL renders its Admin V2 login gate; signed-in acceptance remains pending. Native log counts stay unchanged across subsequent routine polls.
