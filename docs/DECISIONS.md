@@ -480,3 +480,11 @@ Filter the Chat list by the existing exact-session lifecycle policy, backed by a
 ## 2026-10-31 — Return costs survive revenue refunds
 
 The managerial read model must recognize consumed materials and packing after dispatch. Confirmed provider nett already contains seller shipping/fees; subtract only separate incurred order costs. Pending return income is not reliable retained revenue, so reserve incurred costs and known shipping as an estimate until paired provider rechecks establish the outcome. Partial-refund retained income and genuine unknown costs remain explicit. CANCELLED/IN_CANCEL keep their separately authorized zero policy. Existing read-only provider bridge, event/snapshot ingestion and maintenance scheduler own refresh; no new bank ledger or customer/provider write path is introduced.
+
+## ParcelDaily wallet reconciliation
+
+Keep shipping-wallet movements separate from sales and journal accounting. Provider
+snapshots establish the balance; confirmed shipment charge deltas record usage without
+replaying historical costs. Unexplained positive changes require receipt classification
+and never automatically become topups. A private serialized account/episode prevents
+concurrent balance races and repeated low-credit alerts. See PARCELDAILY_CREDIT.md.

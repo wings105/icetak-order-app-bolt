@@ -1,3 +1,4 @@
+import ShippingCredit from '../components/ShippingCredit';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
@@ -389,6 +390,8 @@ export default function Shipping() {
           <IconRefresh size={16} /> Refresh
         </button>
       </div>
+
+      <ShippingCredit />
 
       {attentionCount > 0 && (
         <div style={{
