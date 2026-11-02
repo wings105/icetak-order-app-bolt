@@ -146,3 +146,22 @@ the new remark, while the adopted receipt still has zero send attempts. Hosted
 signed-in admin acceptance and future real deadline delivery remain separate.
 
 Production delivery: commit `60950cbd7a5def9daa4b747d5c735db0bafea3b4` passed Workers build `71d2e99b-3ca6-4576-a491-866202ba93cd`. The exact hosted log URL renders its Admin V2 login gate; signed-in acceptance remains pending. Native log counts stay unchanged across subsequent routine polls.
+
+## Complete multiline Buyer Note — 3 November 2026
+
+Worker v49 can confirm an explicit name plus age in a multiline Buyer Note at
+88% without assigning ambiguous linked-chat evidence to that wording. Real line
+breaks and escaped newline sequences are accepted. This requires a fresh exact
+provider order read, paid/fulfillable state, one quantity-one product with a
+verified product ID and one exact task, no substantive inbound reply, no
+name/age conflict and no different staff wording. Missing age/name, multiple
+products/quantities, unavailable/truncated context and customer images/questions
+retain review. The original context state remains in the audit alongside
+`complete_note_rule`; this is independent note evidence, not verified chat.
+Existing placement/status/staff and send-idempotency gates are preserved.
+
+Actual combined Order/Inbox handler tests prove 88%, Confirmed/Ai Check and zero
+sends for ordinary/escaped/labelled multiline notes, stable replay and denied
+staff/reply conflicts. Product tests cover incomplete notes, multiple items,
+quantities, unknown product/context and conflicting age. Live outcome evidence
+is recorded in the scoped roadmap checker run.

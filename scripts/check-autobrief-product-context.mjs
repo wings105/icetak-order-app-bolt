@@ -5,7 +5,7 @@ import {stripTypeScriptTypes} from 'node:module';
 const source=readFileSync('supabase/functions/clickup-order-brief/index.ts','utf8').replace(/^import .*;\n/gm,'');
 let handler;
 const load=fetcher=>new Function('Deno','fetch',stripTypeScriptTypes(source)+
- '\nreturn {labelledProductWordingRule,productReferences,targetProduct,aiAnalyzeOrder,briefText,process};')(
+ '\nreturn {completeMultilineNoteRule,labelledProductWordingRule,productReferences,targetProduct,aiAnalyzeOrder,briefText,process};')(
  {env:{get:k=>({SUPABASE_URL:'https://order.test',SUPABASE_SERVICE_ROLE_KEY:'test-service',OPENAI_API_KEY:'test-ai'})[k]||''},serve:fn=>handler=fn},fetcher);
 const items=[
  {item_sku:'CN1001',title:'CUSTOM NAME Spiderman Cake Topper',provider_item_id:'1111111111',quantity:1},
@@ -15,6 +15,10 @@ const items=[
 const note='Spiderman - Sample Alpha turn 8\nKuromi - Sample Beta turn 3\nFrozen - Sample Gamma turn 1';
 const base={note,existingWord:note,sku:'CN1001',items,siblingTasks:items.map(x=>({task_name:'1x '+x.item_sku})),messages:[],context:{}};
 const api=load(async()=>{throw Error('unexpected network')});
+const complete={note:'Sample Child\nturn 7',existingWord:'',items:[items[0]],siblingTasks:[{task_id:'qa'}],provider:{available:true,order_status:'READY_TO_SHIP',messages:[]},context:{ambiguous:true},decision:{},sku:'CN1001',task_id:'qa',multi:false,messages:[]};
+assert.equal(api.completeMultilineNoteRule(complete).confidence,88);
+for(const change of [{context:{truncated:true}},{context:{unavailable:true}},{multi:true},{items},{items:[{...items[0],quantity:2}]},{siblingTasks:[]},{existingWord:'Staff Name'},{decision:{age_conflict:true}},{provider:{available:false}},{note:'Sample Child'},{note:'Sample Child\nturn 7\nturn 8'},{messages:[{message_type:'image'}]}])assert.equal(api.completeMultilineNoteRule({...complete,...change}).eligible,false,JSON.stringify(change));
+
 assert.equal(api.labelledProductWordingRule(base).wording,'Sample Alpha turn 8');
 assert.equal(api.labelledProductWordingRule({...base,sku:'CN1002'}).wording,'Sample Gamma turn 1');
 assert.equal(api.labelledProductWordingRule({...base,sku:'CN1003',items:[items[2],items[0],items[1]]}).wording,'Sample Beta turn 3');

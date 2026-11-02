@@ -1,3 +1,8 @@
+## 2026-11-03 — [VERIFIED] Complete multiline AutoBrief notes
+
+- Complete single-product Buyer Notes with explicit name and age can reach 88% and Confirmed/Ai Check independently of ambiguous linked-chat matching. Fresh provider order/no substantive reply, unique product/task, paid/status/time and staff/conflict gates remain required.
+- Actual combined handler tests prove ordinary/escaped/labelled multiline notes, CF/comment/replay and zero sends; negative product/context/staff/reply cases pass. Worker v49 is deployed; scoped live verification is tracked in the AutoBrief checker. See [contract](docs/AUTOBRIEF_FOLLOWUP.md#complete-multiline-buyer-note--3-november-2026).
+
 ## 2026-11-02 — [VERIFIED] AutoBrief logs and brief remarks
 
 - Admin V2 Automation gains a private read-only AutoBrief tab with Order ID, phase/status filtering, receipt details and meaningful transition history. API acceptance, staff observations and unknown outcomes stay distinct; unchanged polls do not create log spam, and failed refreshes retain their last receipt snapshot.

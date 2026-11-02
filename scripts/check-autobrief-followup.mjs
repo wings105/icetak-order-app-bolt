@@ -10,11 +10,12 @@ globalThis.Date=class extends RealDate {constructor(...args){super(...(args.leng
 const shop='111111111',buyer='222222222',order='QA000000000001',cid='123456789012345678',taskId='qa-followup';
 const phaseKey=p=>shop+':'+order+':'+p;
 let ledger=new Map(),history=[],sends=[],unknown=false,recorded={},comment='',commentPosts=0,fieldWrites=[];
+let ambiguousOrder=false;
 let providerStatus='READY_TO_SHIP',buyerNote='',control=true,replyInserted=false,linkedReply=false;
 const cf={name:'7c88d5cf-56e9-4108-86c5-b8e7baaf5bdc',review:'01cec4ef-a30b-443d-a43a-9ab09835b78c',confirmed:'afa87c64-3e48-4056-b720-cf8ea9b243e8',ai:'d84d57b3-41f3-473d-b502-4e7bf45ace0c',follow:'qa-follow-option'};
 let task;
 function reset(){
- now=fixed;ledger=new Map();history=[];sends=[];unknown=false;recorded={};comment='';commentPosts=0;fieldWrites=[];providerStatus='READY_TO_SHIP';buyerNote='';control=true;replyInserted=false;linkedReply=false;
+ ambiguousOrder=false;now=fixed;ledger=new Map();history=[];sends=[];unknown=false;recorded={};comment='';commentPosts=0;fieldWrites=[];providerStatus='READY_TO_SHIP';buyerNote='';control=true;replyInserted=false;linkedReply=false;
  task={id:taskId,status:{status:'design editing -topper'},list:{id:'18375902'},custom_fields:[
   {id:'sku',name:'SKU',value:'CN1001'},{id:cf.name,name:'Customize Name',value:''},
   {id:cf.confirmed,name:'confirmed',value:false},{id:cf.review,name:'Review customer',value:'',type_config:{options:[{id:cf.ai,name:'Ai Check',orderindex:15},{id:cf.follow,name:'follow up1',orderindex:12}]}}
@@ -123,7 +124,7 @@ const orderFetch=async(raw,opts={})=>{
   if(path.endsWith('/icetak_record_order_brief')){recorded=b;return Response.json({ok:true});}
  }
  if(path.endsWith('/autobrief-followup'))return await invoke(b);
- if(path.endsWith('/task-brief-media'))return Response.json(b.action==='buyer_note'?{ok:true,available:true,order_sn:order,shop_id:shop,buyer_note:'',buyer_user_id:buyer}:{ok:true,matched:true,conversation_id:'local',messages:linkedReply?[{id:'aaaaaaaa-2222-4222-8222-aaaaaaaaaaaa',conversation_id:'local',direction:'inbound',channel:'whatsapp',is_history:false,message_type:'text',text_content:'Boleh pos esok?',created_at:new Date(now).toISOString()}]:[]});
+ if(path.endsWith('/task-brief-media'))return Response.json(ambiguousOrder&&b.action==='order_proof'?{ok:true,reason:'MULTIPLE_LINKED_ORDERS'}:b.action==='buyer_note'?{ok:true,available:true,order_sn:order,shop_id:shop,buyer_note:'',buyer_user_id:buyer}:{ok:true,matched:true,conversation_id:'local',messages:linkedReply?[{id:'aaaaaaaa-2222-4222-8222-aaaaaaaaaaaa',conversation_id:'local',direction:'inbound',channel:'whatsapp',is_history:false,message_type:'text',text_content:'Boleh pos esok?',created_at:new Date(now).toISOString()}]:[]});
  if(u.hostname==='api.clickup.com'){
   if(path.endsWith('/task/'+taskId))return Response.json(clone(task));
   if(path.endsWith('/task/'+taskId+'/comment')){
@@ -140,6 +141,15 @@ const run=async(expectedError='')=>{
  const result=await worker.process({task_id:taskId,source_fingerprint:'synthetic',state:'processing',brief:previous,comment_id:comment?'comment1':null,checked_message_ids:previous.checked_message_ids||[],field_receipts:previous.field_receipts||{}},'synthetic','bridge-test');
  assert.equal(result.error,expectedError,JSON.stringify(result));return result;
 };
+for(const note of ['Sample Child\n\nturn 7','Sample Child\\n\\nturn 7','Nama: Sample Child\nUmur: 7']){
+ reset();ambiguousOrder=true;buyerNote=note;await run();
+ assert.equal(recorded.p_brief.complete_note_rule.eligible,true,JSON.stringify(recorded));
+ assert.equal(recorded.p_brief.confidence,88);assert.equal(recorded.p_brief.confirmed,true);
+ assert.equal(task.custom_fields[2].value,true);assert.equal(task.custom_fields[3].value,cf.ai);assert.equal(sends.length,0);
+ await run();assert.equal(commentPosts,1);assert.equal(sends.length,0);
+}
+reset();ambiguousOrder=true;buyerNote='Sample Child\nturn 7';task.custom_fields[1].value='Staff Name';await run();assert.equal(recorded.p_brief.complete_note_rule.eligible,false);assert.equal(recorded.p_brief.confirmed,false);
+reset();ambiguousOrder=true;buyerNote='Sample Child\nturn 7';history=[providerMessage('Tukar kepada Other Child')];await run();assert.equal(recorded.p_brief.complete_note_rule.eligible,false);assert.equal(recorded.p_brief.confirmed,false);
 reset();await run();assert.equal(sends.length,1);assert.equal(task.custom_fields[3].value,cf.follow);assert.equal(task.custom_fields[1].value,'');assert.match(comment,/Order ID: QA000000000001/);
 await run();assert.equal(sends.length,1);assert.equal(commentPosts,1);
 history.push(providerMessage('Sample Child 6 tahun'));await run();

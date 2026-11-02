@@ -314,6 +314,27 @@ function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean,allM
  return {wording:wording.slice(0,255),instruction:[actual.instruction,extraInstruction,extraPhotos].filter(Boolean).join(" ").slice(0,400),confidence,
   chat_evidence:!!lastChatName,note_evidence:!!noteName,age:age??null,age_conflict:ageConflict,name_conflict:nameConflict};
 }
+// A complete order-owned multiline note can stand on its own; never borrow ambiguous chat.
+function completeMultilineNoteRule(input:Obj):Obj{
+ const no=(reason:string)=>({eligible:false,reason});
+ const {note,existingWord,items,siblingTasks,provider,context,decision,sku,task_id}=input;
+ if(!provider?.available||!['READY_TO_SHIP','PROCESSED'].includes(provider.order_status))return no("FRESH_ORDER_REQUIRED");
+ if(context.truncated||context.unavailable)return no("INCOMPLETE_CONTEXT");
+ if(input.multi||items.length!==1||Number(items[0].quantity)!==1||siblingTasks.length!==1||String(siblingTasks[0].task_id)!==task_id)return no("SINGLE_PRODUCT_REQUIRED");
+ if(!targetProduct(sku,items).product_id)return no("PRODUCT_NOT_VERIFIED");
+ const lines=string(note,1200).replace(/\\r\\n|\\n|\\r/g,"\n").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+ if(lines.length<2||lines.length>5)return no("COMPLETE_MULTILINE_NOTE_REQUIRED");
+ const ageLine=lines.pop()!,age=extractAge(ageLine);
+ if(age===null||! /^(?:(?:turns?|turning|umur|usia|age)\s*[:=\-]?\s*\d{1,3}(?:\s*(?:tahun|years?(?: old)?))?|\d{1,3}\s*(?:tahun|years?(?: old)?))$/i.test(ageLine))return no("EXPLICIT_AGE_REQUIRED");
+ const name=lines.join(" ").replace(/^(?:nama(?: custom)?|custom name|name)\s*[:=\-]?\s*/i,"").trim();
+ if(!/^[\p{L}\p{M}][\p{L}\p{M} .’'\-]{1,120}$/u.test(name)||isNonDesignWording(name)||mayNeedChange(name))return no("EXPLICIT_NAME_REQUIRED");
+ const wording=name+" "+(/^(?:umur|usia|age)\b/i.test(ageLine)?String(age):ageLine);
+ if(existingWord&&normalized(existingWord)!==normalized(wording))return no("STAFF_WORDING_PROTECTED");
+ if(decision.name_conflict||decision.age_conflict)return no("DETAIL_CONFLICT");
+ const messages=[...(provider.messages||[]),...(input.messages||[])].filter((m:Obj)=>m.direction!=="outbound");
+ if(messages.some((m:Obj)=>(m.message_type&&m.message_type!=="text")||!isUnimportant(string(m.text_content||m.caption))))return no("CUSTOMER_REPLY_REQUIRES_REVIEW");
+ return {eligible:true,reason:"COMPLETE_ORDER_BUYER_NOTE",wording,confidence:88};
+}
 // Single explicit buyer note may apply to all glossy toppers of one order.
 // Conservative: no heterogeneous item types, conflicting words, item-specific
 // instructions, missing SKU/task mapping or unverified chat context.
@@ -727,6 +748,8 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    items:orderItems,siblingTasks,messages:chronological,context});
   if(labelledRule.eligible)decision={...decision,wording:labelledRule.wording,confidence:labelledRule.confidence,
    age:extractAge(labelledRule.wording),note_evidence:true,name_conflict:false,age_conflict:false};
+  const completeNoteRule=completeMultilineNoteRule({note,existingWord,items:orderItems,siblingTasks,provider:providerContext,context,decision,sku:productSku,task_id:id,multi,messages:chronological});
+  if(completeNoteRule.eligible)decision={...decision,wording:completeNoteRule.wording,confidence:completeNoteRule.confidence,note_evidence:true};
   const missing=Array.isArray(detail.missing)?detail.missing:[];
   const unresolvedMissing=missing.filter((x:Obj)=>{
    const key=String(x.key||"").toLowerCase();
@@ -737,7 +760,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   // multi-item confidence cap; all SKU/status/time/conflict gates still apply.
   let confidence=sharedRule.eligible&&unresolvedMissing.length===0?
    Math.max(ordinaryConfidence,sharedRule.confidence):ordinaryConfidence;
-  let verified=!orderUnpaid && confidence>=80 && (decision.note_evidence||decision.chat_evidence) && !context.ambiguous && !context.truncated;
+  let verified=!orderUnpaid && confidence>=80 && (decision.note_evidence||decision.chat_evidence) && (!context.ambiguous||completeNoteRule.eligible) && !context.truncated;
   if(providerContext?.available){
    followup=await handleFollowup({task,existingWord,existingConfirmed,decision,context,provider:providerContext,sku:productSku,product_id:product.product_id},clickupToken,bridge);
    if(followup.defaulted){
@@ -948,7 +971,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status,product_title:product.title||"",product_id:product.product_id||"",
-   order_products:productReferences(orderItems),labelled_wording_rule:labelledRule,followup,followup_remark:followupNote,
+   order_products:productReferences(orderItems),complete_note_rule:completeNoteRule,labelled_wording_rule:labelledRule,followup,followup_remark:followupNote,
    shared_wording_rule:sharedRule,ai_analysis:aiAnalysis?.input_hash?aiAnalysis:null,ai_mode:"advisory"};
   state=holdForReview?"review":verified?"completed":"review";
  }catch(e){
