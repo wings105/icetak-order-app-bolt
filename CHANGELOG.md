@@ -1,3 +1,7 @@
+## 2026-11-03 — Pending Pickup admin digest
+
+- [VERIFIED backend; scheduled delivery pending] Internal daily MYT digest identifies generated AWBs lacking a physical first scan, including older unresolved bookings, and excludes cancelled/completed/scanned parcels. A private daily receipt and queue key prevent duplicate admin digests; existing WhatsApp window/template/outbox rules apply, with dispatch-time master/recipient guards. Native rolled-back exclusion/empty/master/replay/safe-retry/privacy tests, actual-handler clock/window tests and deployed read-only preview pass without sends. Utility-template approval and first scheduled delivery remain pending. See [shipping contract](docs/SHIPPING_AGENT_GUIDE.md#daily-pending-pickup-admin-digest).
+
 ## 2026-11-03 — SPX alphabetic tracking suffixes
 
 - [PRODUCTION backend] Shared courier/link helpers accept optional A–Z suffixes while preserving the complete SPX number and existing Ninja/J&T rules. Existing newly supported unsent shipments are privately snapshotted, held with per-shipment auto-send OFF and refreshed without historical sends. Live link/hold/queue readback, native A–Z/invalid-input assertions and rolled-back queue/payload/replay regressions pass. No customer messages were sent. See [shipping contract](docs/SHIPPING_AGENT_GUIDE.md#spx-alphabetic-suffixes).

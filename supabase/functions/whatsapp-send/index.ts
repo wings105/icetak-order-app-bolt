@@ -329,6 +329,12 @@ Deno.serve(async (req) => {
     const recipient = validPhone ? { to: validPhone } : { user_id: bsuid };
 
     const eventType = body.event_type || 'manual';
+    // Recheck the admin-only digest at dispatch time, including after queue delays.
+    if (eventType === 'admin_pending_pickup') {
+      if (!enabledValue(await setting('enabled'))) return json({ ok: false, error: 'admin_pickup_disabled' }, 409);
+      const adminPhone = phoneOf(await setting('admin_order_notify_phone'));
+      if (!validPhone || validPhone !== adminPhone || bsuid) return json({ ok: false, error: 'admin_pickup_recipient_mismatch' }, 409);
+    }
     if (eventType === 'finance_bill_reminder') {
       if (!enabledValue(await setting('enabled'))) return json({ok:false,error:'billing_master_disabled'},409);
       const allowed = await rest('rpc/finance_billing_dispatch_allowed', {method:'POST',body:JSON.stringify({p_bill_id:body.vars?.bill_id})});
