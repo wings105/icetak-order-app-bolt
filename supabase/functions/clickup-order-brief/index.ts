@@ -128,9 +128,10 @@ function isUnimportant(text:string){
 function mayNeedChange(text:string){
  return /\b(?:tukar|ubah|change|edit|replace|instead|silap|salah|wrong|correct|betul\s+semula|sepatutnya|jangan\s+guna|use\s+this|guna\s+yang|new\s+wording|new\s+name|nama\s+baru|tambah|buang|remove|add|umur|usia|age|turns?|turning)\b/i.test(text)||!!extractInstruction(text);
 }
-function briefText(taskId:string,sku:string,wording:string,instruction:string,image:string,review:boolean,confirmed:boolean,confidence:number,note:string,proof:Obj[],product:Obj={}){
+function briefText(taskId:string,sku:string,wording:string,instruction:string,image:string,review:boolean,confirmed:boolean,confidence:number,note:string,proof:Obj[],product:Obj={},orderId=''){
  const lines=[
   "[iCetak-AutoBrief:"+taskId+"]",
+  "Order ID: "+(orderId||"—"),
   "SKU product: "+(sku||"— (SKU belum tersedia)"),
   "Tajuk product: "+(string(product.title,450)||"— (tajuk belum tersedia)"),
   "Product ID (Shopee): "+(string(product.product_id,70)||"— (ID belum tersedia)"),
@@ -221,6 +222,10 @@ function selectProof(context:Obj,placedMs:number){
  return {chronological,proof:[...chosen.values()].sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at))};
 }
 function namedWordingFromMessage(text:string):string{
+ const direct=string(text,1400).trim();
+ const ageLine=direct.match(/^([\p{L}][\p{L}\p{M}\s.'’&-]{1,85}?)\s+(\d{1,3})\s*(?:tahun|thn|years?\s*old|yrs?\s*old|yo|y\/o)[.!]?$/iu);
+ if(ageLine&&!/[\r\n]/.test(direct)&&! /^(?:nama|name|umur|age)\b/i.test(ageLine[1])&&Number(ageLine[2])>=1&&Number(ageLine[2])<=120&&
+  !/\b(?:order|postage|harga|rm|shipping|boleh|gambar|tambah|nak|hari|days?|minggu|weeks?)\b/i.test(ageLine[1]))return direct;
  // A customer may supply printable name and age directly, with no "Nama:" label.
  // Accept only explicit birthday-age phrases, never arbitrary chat or image requests.
  const natural=string(text,1400).trim().replace(/\s+/g," ").match(
@@ -528,6 +533,61 @@ async function aiAnalyzeOrder(params:{
    input_tokens:Number(data.usage?.input_tokens)||0,output_tokens:Number(data.usage?.output_tokens)||0};
  }catch(e){return {ok:false,model,error:string(e instanceof Error?e.message:e,100)};}
 }
+async function followupRequest(body:Obj,bridge:string):Promise<Obj>{
+ try{
+  const response=await fetch(INBOX+"/functions/v1/autobrief-followup",{method:"POST",
+   headers:{"content-type":"application/json","x-admin-window-token":bridge},body:JSON.stringify(body),signal:AbortSignal.timeout(60000)});
+  const value=await response.json();return response.ok?value:{available:false,error:string(value.error||"FOLLOWUP_UNAVAILABLE",160)};
+ }catch{return {available:false,error:"FOLLOWUP_CONTEXT_UNAVAILABLE"};}
+}
+function reviewSelection(task:Obj){
+ const f=field(task,"Review customer"),value=String(f?.value?.id||f?.value||"");
+ const selected=(f?.type_config?.options||[]).find((x:Obj)=>String(x.id)===value||String(x.orderindex)===value);
+ return {value,name:normalized(selected?.name||f?.value?.name),id:string(selected?.id||f?.value?.id)};
+}
+async function handleFollowup(input:Obj,token:string,bridge:string):Promise<Obj>{
+ const {task,existingWord,existingConfirmed,decision,context,provider,sku}=input;
+ const first=provider.deliveries?.find((x:Obj)=>x.phase==="first"),deadline=provider.deliveries?.find((x:Obj)=>x.phase==="deadline");
+ const result:Obj={enabled:provider.enabled===true,first:first||null,deadline:deadline||null,due_at:provider.due_at,checked_at:provider.checked_at};
+ if(!provider.enabled)return {...result,blocked:"DISABLED"};
+ if(context.ambiguous||context.truncated||context.unavailable)return {...result,blocked:"CHAT_CONTEXT_UNVERIFIED"};
+ if(!["READY_TO_SHIP","PROCESSED"].includes(provider.order_status))return {...result,blocked:"ORDER_NOT_FULFILLABLE"};
+ if(existingConfirmed||decision.wording)return result;
+ const scoped=selectProof(context,Date.parse(provider.placed_at)).chronological;
+ const scopedReply=scoped.some((m:Obj)=>Date.parse(m.created_at)>=Date.parse(provider.placed_at));
+ const scopedDetail=scoped.some((m:Obj)=>m.message_type!=="text"||!isUnimportant(string(m.text_content||m.caption)));
+ const initial=reviewSelection(task),manual=initial.name==="follow up1";
+ if(initial.value&&initial.id!==CF.ai&&!manual)return {...result,blocked:"STAFF_REVIEW_PROTECTED"};
+ const freshGuard=async()=>{
+  const latest=await clickup(token,"task/"+task.id),selected=reviewSelection(latest);
+  return String(latest.id)===String(task.id)&&String(latest.list?.id)==="18375902"&&
+   normalized(latest.status?.status)==="design editing -topper"&&!fieldChecked(field(latest,"confirmed"))&&
+   string(field(latest,"SKU")?.value)===sku&&normalized(field(latest,"Customize Name")?.value)===normalized(existingWord)&&
+   (!selected.value||selected.id===CF.ai||selected.name==="follow up1");
+ };
+ const send=async(phase:string)=>{
+  if(!await freshGuard())return {ok:true,skipped:true,reason:"TASK_CHANGED_BEFORE_SEND"};
+  return await followupRequest({action:"send",phase,shop_id:provider.shop_id,order_sn:provider.order_sn,
+   buyer_user_id:provider.buyer_user_id,target_sku:sku,revision:provider.revision,manual_followup:manual},bridge);
+ };
+ if(!result.first||!['sent','manual'].includes(result.first.state)){
+  if(!manual&&scopedReply)return {...result,blocked:"CUSTOMER_REPLIED_IN_LINKED_CONTEXT"};
+  if(!manual&&Number.isFinite(Date.parse(provider.due_at||''))&&Date.now()>=Date.parse(provider.due_at))return {...result,blocked:"FIRST_REQUEST_NOT_RECORDED_BEFORE_DEADLINE"};
+  const sent=await send("first");
+  if(sent.delivery)result.first=sent.delivery;
+  if(sent.skipped||!sent.ok)result.blocked=sent.reason||sent.delivery?.state||sent.error||"FIRST_SEND_NOT_CONFIRMED";
+ }
+ if(!result.first||!['sent','manual'].includes(result.first.state))return result;
+ if(scopedDetail)return {...result,blocked:"CUSTOMER_DETAIL_REQUIRES_REVIEW"};
+ if(result.deadline?.state==="sent")return {...result,defaulted:true};
+ if(Number.isFinite(Date.parse(provider.due_at||''))&&Date.now()>=Date.parse(provider.due_at)){
+  const sent=await send("deadline");
+  if(sent.delivery)result.deadline=sent.delivery;
+  if(sent.ok&&sent.delivery?.state==="sent")result.defaulted=true;
+  else result.blocked=sent.reason||sent.delivery?.state||sent.error||"DEADLINE_SEND_NOT_CONFIRMED";
+ }
+ return result;
+}
 async function process(job:Obj,clickupToken:string,bridge:string){
  const id=string(job.task_id,80),fp=string(job.source_fingerprint,128);
  let media:Obj[]=[],commentId:string|null=job.comment_id||null,state="failed",error="",brief:Obj={};
@@ -550,10 +610,13 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const productSku=string(field(task,"SKU")?.value,120);
   const phone=string(field(task,"phone")?.value,30);
   const identity=string(field(task,"User ID")?.value,100);
+  const followupEnabled=await setting("order_brief_followup_enabled")==="true";
+  let providerContext:Obj|null=null,followup:Obj={},orderFacts:Obj={};
   let note="",placed="",buyerId="",multi=false,orderUnpaid=false;
   if(uuid(s.marketplace_order_id)){
    const orders=await db("marketplace_orders?id=eq."+s.marketplace_order_id+"&select=buyer_message,placed_at,first_seen_at,current_status,buyer_user_id,shop_id,order_sn,raw_detail&limit=1");
    const order=orders?.[0]||{};
+   orderFacts=order;
    note=string(order.buyer_message,1200);placed=string(order.placed_at||order.first_seen_at,40);buyerId=string(order.buyer_user_id,100);orderUnpaid=String(order.current_status||"").toUpperCase()==="UNPAID";
    if(!note){
     const provider=await readShopeeBuyerNote(string(order.order_sn),string(order.shop_id),bridge);
@@ -580,6 +643,22 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   if(Date.now()-placedMs<900000)throw Error("WAIT_15_MINUTES");
   const key=(s.marketplace_order_id?"shopee:":"icetak:")+(s.marketplace_order_id||s.order_id);
   const context=await loadChat(placedIso,buyerId,phone,key,String(s.order_reference||""),bridge);
+  if(followupEnabled&&uuid(s.marketplace_order_id)&&/^(?:CN|YS)\d{3,6}$/i.test(productSku)){
+   const rivals=buyerId&&orderFacts.shop_id?await db("marketplace_orders?buyer_user_id=eq."+encodeURIComponent(buyerId)+
+    "&shop_id=eq."+encodeURIComponent(orderFacts.shop_id)+"&id=neq."+s.marketplace_order_id+
+    "&current_status=in.(READY_TO_SHIP,PROCESSED,UNPAID,RETRY_SHIP)&select=id&limit=1"):[{unverified:true}];
+   if(rivals.length)followup={enabled:true,blocked:"MULTIPLE_OR_UNVERIFIED_ACTIVE_ORDER"};
+   else{
+    providerContext=await followupRequest({action:"inspect",shop_id:string(orderFacts.shop_id),order_sn:string(orderFacts.order_sn),buyer_user_id:buyerId},bridge);
+    if(providerContext.available&&providerContext.order_sn===s.order_reference&&providerContext.buyer_user_id===buyerId){
+     const inbound=(providerContext.messages||[]).filter((m:Obj)=>m.direction==="inbound");
+     context.messages=[...new Map([...(context.messages||[]),...inbound].map((m:Obj)=>[String(m.id),m])).values()];
+     context.bindings=[...(context.bindings||[]),...inbound.map((m:Obj)=>({id:m.conversation_id,usable:true}))];
+     note=string(providerContext.buyer_note,1200);
+     orderUnpaid=providerContext.order_status==="UNPAID";
+    }else followup={enabled:true,blocked:string(providerContext.error||"PROVIDER_CONTEXT_UNAVAILABLE",150)};
+   }
+  }
   const {chronological,proof}=selectProof(context,placedMs);
   // A transient empty context must never erase previously confirmed proof.
   if(proof.length===0&&Array.isArray(job.brief?.proof)&&job.brief.proof.length>0)
@@ -589,7 +668,8 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     "&is_current=eq.true&select=item_sku,variation_sku,title,variation_name,quantity,provider_item_id,provider_variation_id&limit=30"):[];
   // Multi-item means >1 line item OR a single line with more than 1 quantity.
   multi=multi||orderItems.length>1||orderItems.some((x:Obj)=>Number(x.quantity)>1);
-  let decision=decide(note,existingWord,proof,context,multi,chronological);
+  const priorDefault=providerContext?.deliveries?.some((d:Obj)=>d.phase==="deadline"&&d.state==="sent")&&normalized(existingWord)==="hb";
+  let decision=decide(note,priorDefault?"":existingWord,proof,context,multi,chronological);
   const siblingTasks=uuid(s.marketplace_order_id)?
    await db("ai_clickup_work_snapshots?marketplace_order_id=eq."+s.marketplace_order_id+
     "&select=task_id,task_name,clickup_status&limit=30"):[];
@@ -608,13 +688,20 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const ordinaryConfidence=unresolvedMissing.length?Math.min(decision.confidence,75):decision.confidence;
   // A verified shared buyer note is explicitly allowed to bypass only the
   // multi-item confidence cap; all SKU/status/time/conflict gates still apply.
-  const confidence=sharedRule.eligible&&unresolvedMissing.length===0?
+  let confidence=sharedRule.eligible&&unresolvedMissing.length===0?
    Math.max(ordinaryConfidence,sharedRule.confidence):ordinaryConfidence;
-  const verified=!orderUnpaid && confidence>=80 && (decision.note_evidence||decision.chat_evidence) && !context.ambiguous && !context.truncated;
+  let verified=!orderUnpaid && confidence>=80 && (decision.note_evidence||decision.chat_evidence) && !context.ambiguous && !context.truncated;
+  if(providerContext?.available){
+   followup=await handleFollowup({task,existingWord,existingConfirmed,decision,context,provider:providerContext,sku:productSku},clickupToken,bridge);
+   if(followup.defaulted){
+    decision={...decision,wording:"hb",instruction:"Default hb mengikut polisi 2 petang hari shipment.",confidence:0,note_evidence:false,chat_evidence:false};
+    confidence=0;verified=false;
+   }
+  }
   // AI-assisted analysis is advisory only. Rules remain sole authority for CF/confirmed.
   // Cache by verified input signature to avoid re-billing each 1-minute scheduler run.
   let aiAnalysis:Obj=job.brief?.ai_analysis||{};
-  const aiCandidate=!sharedRule.eligible&&!labelledRule.eligible&&!orderUnpaid&&(confidence<80||multi)&&!context.ambiguous&&!context.truncated
+  const aiCandidate=!followup.defaulted&&!sharedRule.eligible&&!labelledRule.eligible&&!orderUnpaid&&(confidence<80||multi)&&!context.ambiguous&&!context.truncated
    &&!context.unavailable&&(chronological.length>0||note.trim().length>0)&&!!productSku;
   if(aiCandidate){
    const signature=await digest(JSON.stringify({
@@ -716,9 +803,10 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const primaryBackup=holdForReview?string(previous.image_backup,1100):(backupImage||string(previous.image_backup,3500));
   const requiresReview=reviewRequested(chronological)||Boolean(previous.review_requested);
   let text=briefText(id,productSku,primaryWording,primaryInstruction,primaryImage,requiresReview,
-   holdForReview?true:(verified||existingConfirmed),primaryConfidence,note,proof,product)
+   holdForReview?true:(verified||existingConfirmed),primaryConfidence,note,proof,product,string(s.order_reference))
    .replace("confirm: ✅",holdForReview?"confirm: ✅ (perubahan baharu perlu review)":verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")
-   +(orderUnpaid?"\n⚠️ Order masih UNPAID — semak bayaran sebelum proses.":"");
+   +(orderUnpaid?"\n⚠️ Order masih UNPAID — semak bayaran sebelum proses.":"")
+   +(followup.defaulted?"\nDefault: notis 2 petang telah dihantar; wording hb.":"");
   if(aiCandidate&&aiAnalysis?.ok&&aiAnalysis?.needs_review!==false||aiCandidate&&aiAnalysis?.ok&&confidence<80){
    // One concise advisory block inside the existing AutoBrief, never a second comment.
    text+="\n\nAI cadangan (perlu semak, tidak auto-confirm): "+
@@ -750,7 +838,8 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    String(selectedReviewOption?.id||"")===CF.ai||
    String(selectedReviewOption?.name||"").toLowerCase()==="ai check"||
    String(review?.value?.name||"").toLowerCase()==="ai check";
-  const reviewAllowed=!reviewValue||aiReviewSelected;
+  const followupSelected=normalized(selectedReviewOption?.name||review?.value?.name)==="follow up1";
+  const reviewAllowed=!reviewValue||aiReviewSelected||followupSelected;
   const applied:Obj={...(job.field_receipts||{})};
   if(verified&&!holdForReview){
    if(reviewAllowed&&reviewValue!==CF.ai){
@@ -764,6 +853,21 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    if(!existingConfirmed){
     await clickup(clickupToken,"task/"+id+"/field/"+CF.confirmed,"POST",{value:true});
     applied.confirmed=true;
+   }
+  }
+  if(!verified&&!holdForReview&&followup.first&&["sent","manual"].includes(followup.first.state)){
+   const latest=await clickup(clickupToken,"task/"+id);
+   if(normalized(latest.status?.status)==="design editing -topper"&&String(latest.list?.id)==="18375902"){
+    const current=field(latest,"Review customer"),value=String(current?.value?.id||current?.value||"");
+    const option=(current?.type_config?.options||[]).find((x:Obj)=>normalized(x.name)==="follow up1");
+    const selected=(current?.type_config?.options||[]).find((x:Obj)=>String(x.id)===value||String(x.orderindex)===value);
+    if(option&&(!value||String(selected?.id)===CF.ai||normalized(selected?.name)==="follow up1")&&String(selected?.id)!==String(option.id)){
+     await clickup(clickupToken,"task/"+id+"/field/"+CF.review,"POST",{value:option.id});applied.followup="follow up1";
+    }
+    const currentWord=string(field(latest,"Customize Name")?.value,1200);
+    if(followup.defaulted&&!fieldChecked(field(latest,"confirmed"))&&(!currentWord||normalized(currentWord)==="hb")&&currentWord!=="hb"){
+     await clickup(clickupToken,"task/"+id+"/field/"+CF.name,"POST",{value:"hb"});applied.default_wording="hb";
+    }
    }
   }
   // Later customer changes get separate per-message comments, not silent design overwrites.
@@ -796,7 +900,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status,product_title:product.title||"",product_id:product.product_id||"",
-   order_products:productReferences(orderItems),labelled_wording_rule:labelledRule,
+   order_products:productReferences(orderItems),labelled_wording_rule:labelledRule,followup,
    shared_wording_rule:sharedRule,ai_analysis:aiAnalysis?.input_hash?aiAnalysis:null,ai_mode:"advisory"};
   state=holdForReview?"review":verified?"completed":"review";
  }catch(e){

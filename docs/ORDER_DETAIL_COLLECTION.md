@@ -1,5 +1,11 @@
 # Order detail collection and chat sessions
 
+**2 November 2026:** the owner's glossy Shopee AutoBrief workflow now has a
+separate production backend path for a 15-minute missing-detail request, reply
+writeback and 14:00 MYT shipment-day default. See [exact scope and verification](AUTOBRIEF_FOLLOWUP.md).
+The historical 30-minute/manual-only collector described below is unchanged for
+other workflows; its legacy adapter capability is not this new sender's switch.
+
 2026-10-04. Status: VERIFIED in the real gateway and rendered components with controlled saves and actual read snapshots. Backend deployed; authenticated hosted-owner save confirmation remains pending.
 
 ## Staff surface

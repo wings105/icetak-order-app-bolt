@@ -205,6 +205,18 @@ The standalone exact-order AWB preview reads Order System's private ClickUp proj
 
 The active Inbox staff session calls JWT/member-checked `inbox-reply-suggest` in Inbox. That gateway loads actual chat evidence and calls private `inbox-reply-context` in Order System with the existing bridge key. Canonical CRM/session/order/work reads and the shared AI Dashboard SOP analyzer return a short draft DTO. Inbox rechecks chat revision before returning it; the composer discards expired/outdated results. This is a read-only draft calculation, with existing send paths preserved. See INBOX_REPLY_SUGGESTIONS.md.
 
+## 2026-11-02 — AutoBrief transactional follow-up
+
+Order AutoBrief owns exact task/wording/CF evaluation and its leased worker. A
+service-only priority dispatcher reuses that worker for missing-detail and due
+tasks. Private Inbox `autobrief-followup` verifies the provider order and exact
+shop/buyer conversation using the existing credential/signing transport, then
+owns one durable delivery receipt per order/phase. Fresh revisions and both
+project controls guard its two fixed transactional texts. Existing local session
+evidence remains authoritative for linked WhatsApp/pre-order context; fallback
+provider reads never precede placement. There is no new public sender, credential
+producer, owner UI or payment/shipping ownership change. See AUTOBRIEF_FOLLOWUP.md.
+
 ## 2026-10-12 — Shopee operations and direct finance
 
 Private marketplace_ops in Order System owns durable raw-event recovery, audit attempts, auxiliary shop alerts and release cursors. Admin V2 Shopee Monitor accesses a JWT/active-admin gateway with order-management and finance permission checks. Inbox owns per-shop credentials and fixed signed read-only financial APIs; Order normalizes evidence into the existing finance pipeline and separate currency wallets. Historical chat preserves session and current identity boundaries. The old AP finance dispatch is disabled; existing external token refresh remains the only producer. SG credential import is still blocked, and financial history proceeds asynchronously. See SHOPEE_WEBHOOK_OPERATIONS.md.

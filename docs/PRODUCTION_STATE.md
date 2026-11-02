@@ -1,3 +1,7 @@
+# 2026-11-02 — AutoBrief missing-detail follow-up
+
+[PRODUCTION backend; controlled workflow VERIFIED] Order `clickup-order-brief` v43 and Inbox `autobrief-followup` v4 implement the owner-approved glossy Shopee 15-minute request, reply/CF recheck and shipment-day 14:00 MYT hb policy. Private receipt/context/control tables, service-only claim/dispatch RPCs and minute plus 06:00 UTC daily dispatch are active. Existing real manual API delivery is adopted with zero new attempts, its live task retains follow up1, the same AutoBrief now includes Order ID, and minute cron smoke succeeds. Actual combined handler/provider clock/CF/replay/guard tests and native rollback/ACL checks pass. Future real deadline send and fresh autonomous reply receipt remain unobserved. See [contract](AUTOBRIEF_FOLLOWUP.md).
+
 # 2026-11-02 — AutoBrief product references
 
 [PRODUCTION backend] Order `clickup-order-brief` v42 includes current product title/SKU/product ID in its single comment, private brief and advisory AI context/cache. Unique one-to-one labelled Buyer Notes produce item-specific wording through deterministic matching with existing paid/time/status/staff/context guards; ambiguous labels remain review. Actual three-item ClickUp fields/comment references and persisted outcomes, live advisory title matching and controlled handler/replay/auth regressions verified. Product-card sequencing and broader media/post-confirmation acceptance remain separate. See [contract](AUTOBRIEF_PRODUCT_CONTEXT.md).

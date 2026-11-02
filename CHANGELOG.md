@@ -1,3 +1,8 @@
+## 2026-11-02 — [PRODUCTION backend] Glossy AutoBrief detail follow-up
+
+- Owner's 15-minute policy sends one fixed Shopee detail request and records follow up1; clear exact-order replies update wording/brief/Ai Check. A shipment-day 14:00 MYT notice permits lowercase hb only after confirmed delivery. Order ID is included in AutoBrief comments.
+- Same shop credentials/signing transport, fresh provider/linked-context and live task guards, private per-phase receipts, unknown-safe reconciliation and bounded minute/deadline dispatch are active. Existing real manual delivery is adopted without resending; live comment/order-reference and minute dispatch smoke pass. Actual combined-worker clock/CF/send/reply/duplicate/unknown/guard tests and native rolled-back receipt/ACL checks pass; future real deadline delivery remains unobserved. See [follow-up contract](docs/AUTOBRIEF_FOLLOWUP.md).
+
 ## 2026-11-02 — [PRODUCTION] AutoBrief product references and per-item wording
 
 - AutoBrief includes exact ordered product title and Shopee product ID in its comment, persisted references and advisory AI input/cache. Unique Buyer Note labels map to current product titles/SKUs/IDs without array-order assignment; ambiguous, conflicting or unverified cases retain review.
