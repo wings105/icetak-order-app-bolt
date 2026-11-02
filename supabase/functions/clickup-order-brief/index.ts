@@ -643,7 +643,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   if(Date.now()-placedMs<900000)throw Error("WAIT_15_MINUTES");
   const key=(s.marketplace_order_id?"shopee:":"icetak:")+(s.marketplace_order_id||s.order_id);
   const context=await loadChat(placedIso,buyerId,phone,key,String(s.order_reference||""),bridge);
-  if(followupEnabled&&uuid(s.marketplace_order_id)&&/^(?:CN|YS)\d{3,6}$/i.test(productSku)){
+  if(followupEnabled&&uuid(s.marketplace_order_id)&&/^(?:CN|YS)\d{3,6}(?:\s+SG)?$/i.test(productSku)){
    const rivals=buyerId&&orderFacts.shop_id?await db("marketplace_orders?buyer_user_id=eq."+encodeURIComponent(buyerId)+
     "&shop_id=eq."+encodeURIComponent(orderFacts.shop_id)+"&id=neq."+s.marketplace_order_id+
     "&current_status=in.(READY_TO_SHIP,PROCESSED,UNPAID,RETRY_SHIP)&select=id&limit=1"):[{unverified:true}];

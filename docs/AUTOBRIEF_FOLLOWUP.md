@@ -7,7 +7,7 @@ topper workflow**. Other detail collectors and draft follow-ups are unchanged.
 
 - At least 15 minutes after placement, an active paid Shopee order with no Buyer
   Note, no printable wording and no customer reply gets one fixed detail request.
-  Only live ORDER LIST CN/YS tasks in DESIGN EDITING -TOPPER qualify. Successful
+  Only live ORDER LIST CN/YS tasks (including the standard SG SKU suffix) in DESIGN EDITING -TOPPER qualify. Successful
   provider receipt changes Review customer to the existing `follow up1` option.
 - Exact order/shop/buyer provider reads and the existing linked Inbox/WhatsApp
   reader recheck replies. Clear detail updates the same AutoBrief, Customize Name,

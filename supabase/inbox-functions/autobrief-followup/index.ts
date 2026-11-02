@@ -140,7 +140,7 @@ function phaseGuard(ctx:Obj,phase:string,now=Date.now()){
 async function send(input:Obj,config:Obj){
  const ctx=await inspect(input,config),phase=s(input.phase);
  if(!['first','deadline'].includes(phase))throw Error('INVALID_PHASE');
- if(!/^(?:CN|YS)\d{3,6}$/i.test(s(input.target_sku))||!ctx.product_items.some((x:Obj)=>x.sku===s(input.target_sku)))throw Error('TARGET_PRODUCT_NOT_VERIFIED');
+ if(!/^(?:CN|YS)\d{3,6}(?:\s+SG)?$/i.test(s(input.target_sku))||!ctx.product_items.some((x:Obj)=>x.sku===s(input.target_sku)))throw Error('TARGET_PRODUCT_NOT_VERIFIED');
  const text=phase==='first'?FIRST:DEADLINE;
  const existing=ctx.messages.filter((m:Obj)=>m.direction==='outbound'&&m.message_type==='text'&&canonical(s(m.text_content))===canonical(text)&&
   Date.parse(m.created_at)>=Date.parse(ctx.placed_at)&&(phase==='first'||Date.parse(m.created_at)>=Date.parse(ctx.due_at||''))).at(-1);

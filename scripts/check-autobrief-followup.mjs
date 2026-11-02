@@ -24,7 +24,7 @@ const clone=x=>JSON.parse(JSON.stringify(x));
 const providerMessage=(text,direction='inbound',id='987654321012345678')=>({message_id:id,conversation_id:cid,message_type:'text',content:{text},from_id:direction==='inbound'?buyer:'333333333',to_id:direction==='inbound'?'333333333':buyer,created_timestamp:Math.floor(now/1000)});
 const provider=async(config,path,payload,method)=>{
  assert.equal(config.shop_id,shop);
- if(path.endsWith('/get_order_detail'))return Response.json({response:{order_list:[{order_sn:order,buyer_user_id:buyer,order_status:providerStatus,create_time:Math.floor(Date.parse('2026-11-02T00:00:00Z')/1000),ship_by_date:Math.floor(Date.parse('2026-11-02T15:59:59Z')/1000),message_to_seller:buyerNote,item_list:[{item_sku:'CN1001',item_id:'444444444'}]}]}});
+ if(path.endsWith('/get_order_detail'))return Response.json({response:{order_list:[{order_sn:order,buyer_user_id:buyer,order_status:providerStatus,create_time:Math.floor(Date.parse('2026-11-02T00:00:00Z')/1000),ship_by_date:Math.floor(Date.parse('2026-11-02T15:59:59Z')/1000),message_to_seller:buyerNote,item_list:[{item_sku:task.custom_fields[0].value,item_id:'444444444'}]}]}});
  if(path.endsWith('/get_conversation_list'))return Response.json({response:{conversations:[{conversation_id:cid,to_id:buyer}]}});
  if(path.endsWith('/get_one_conversation'))return Response.json({response:{conversation_id:cid,to_id:buyer}});
  if(path.endsWith('/get_message'))return Response.json({response:{messages:clone(history)}});
@@ -118,7 +118,7 @@ const orderFetch=async(raw,opts={})=>{
   if(path.endsWith('/ai_clickup_work_snapshots'))return Response.json(u.searchParams.has('task_id')?[{task_id:taskId,task_name:'1x CN1001',list_id:'18375902',marketplace_order_id:'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',clickup_status:'design editing -topper',order_reference:order}]:[{task_id:taskId,task_name:'1x CN1001'}]);
   if(path.endsWith('/task_detail_automation'))return Response.json([{data:{missing:[{key:'wording'}],info_status:'missing'}}]);
   if(path.endsWith('/marketplace_orders'))return Response.json(u.searchParams.has('buyer_user_id')?[]:[{buyer_message:'',placed_at:'2026-11-02T00:00:00Z',current_status:providerStatus,buyer_user_id:buyer,shop_id:shop,order_sn:order}]);
-  if(path.endsWith('/marketplace_order_items'))return Response.json([{item_sku:'CN1001',title:'Synthetic Topper',quantity:1,provider_item_id:'444444444'}]);
+  if(path.endsWith('/marketplace_order_items'))return Response.json([{item_sku:task.custom_fields[0].value,title:'Synthetic Topper',quantity:1,provider_item_id:'444444444'}]);
   if(path.endsWith('/icetak_record_order_brief')){recorded=b;return Response.json({ok:true});}
  }
  if(path.endsWith('/autobrief-followup'))return await invoke(b);
@@ -151,6 +151,7 @@ history.push(providerMessage('Nama: Sample Late\nUmur: 7'));await run();assert.e
 reset();linkedReply=true;await run();assert.equal(sends.length,0,'linked WhatsApp reply stops first request');
 reset();await run();linkedReply=true;now=Date.parse('2026-11-02T06:00:00Z');await run();assert.equal(sends.length,1,'linked WhatsApp detail/question stops default');assert.equal(task.custom_fields[1].value,'');
 reset();task.custom_fields[1].value='Staff Provided Name';await run();assert.equal(sends.length,0);assert.equal(task.custom_fields[1].value,'Staff Provided Name');
+reset();task.custom_fields[0].value='CN1001 SG';await run();assert.equal(sends.length,1,'SG SKU suffix uses the same verified provider product');assert.equal(task.custom_fields[3].value,cf.follow);
 reset();const oldMessage=providerMessage('Old Customer Name turns 4');oldMessage.created_timestamp=Date.parse('2026-11-01T23:59:00Z')/1000;history=[oldMessage];ctx=await bridgeApi.inspect(input,config);assert.equal(ctx.messages.length,0,'provider fallback never reuses pre-order history');
 reset();task.status.status='cake topper - printing';await run('OUT_OF_SCOPE_TOPPER_ONLY');assert.equal(sends.length,0);assert.equal(fieldWrites.length,0);
 globalThis.Date=RealDate;
