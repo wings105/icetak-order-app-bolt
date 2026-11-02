@@ -24,7 +24,7 @@ const clone=x=>JSON.parse(JSON.stringify(x));
 const providerMessage=(text,direction='inbound',id='987654321012345678')=>({message_id:id,conversation_id:cid,message_type:'text',content:{text},from_id:direction==='inbound'?buyer:'333333333',to_id:direction==='inbound'?'333333333':buyer,created_timestamp:Math.floor(now/1000)});
 const provider=async(config,path,payload,method)=>{
  assert.equal(config.shop_id,shop);
- if(path.endsWith('/get_order_detail'))return Response.json({response:{order_list:[{order_sn:order,buyer_user_id:buyer,order_status:providerStatus,create_time:Math.floor(Date.parse('2026-11-02T00:00:00Z')/1000),ship_by_date:Math.floor(Date.parse('2026-11-02T15:59:59Z')/1000),message_to_seller:buyerNote,item_list:[{item_sku:task.custom_fields[0].value,item_id:'444444444'}]}]}});
+ if(path.endsWith('/get_order_detail'))return Response.json({response:{order_list:[{order_sn:order,buyer_user_id:buyer,order_status:providerStatus,create_time:Math.floor(Date.parse('2026-11-02T00:00:00Z')/1000),ship_by_date:Math.floor(Date.parse('2026-11-02T15:59:59Z')/1000),message_to_seller:buyerNote,item_list:[{item_sku:task.custom_fields[0].value.replace(/ SG$/,''),item_id:'444444444'}]}]}});
  if(path.endsWith('/get_conversation_list'))return Response.json({response:{conversations:[{conversation_id:cid,to_id:buyer}]}});
  if(path.endsWith('/get_one_conversation'))return Response.json({response:{conversation_id:cid,to_id:buyer}});
  if(path.endsWith('/get_message'))return Response.json({response:{messages:clone(history)}});
@@ -60,10 +60,11 @@ let inboxHandler;
 const bridgeApi=new Function('Deno','fetch','shopeeRequest',code+'\nreturn {inspect,send,phaseGuard,deadlineAt,FIRST,DEADLINE,providerJSON};')(
  {env:{get:k=>k==='SUPABASE_URL'?'https://inbox.test':'synthetic'},serve:fn=>inboxHandler=fn},inboxFetch,provider);
 const config={shop_id:shop};
-const input={shop_id:shop,order_sn:order,buyer_user_id:buyer,target_sku:'CN1001'};
+const input={shop_id:shop,order_sn:order,buyer_user_id:buyer,target_sku:'CN1001',target_product_id:'444444444'};
 const invoke=body=>inboxHandler(new Request('https://bridge.test',{method:'POST',headers:{'content-type':'application/json','x-admin-window-token':'bridge-test'},body:JSON.stringify({...input,...body})}));
 reset();
 assert.equal(bridgeApi.deadlineAt(Date.parse('2026-11-02T15:59:59Z')/1000),Date.parse('2026-11-02T06:00:00Z'));
+await assert.rejects(bridgeApi.send({...input,phase:'first',target_product_id:'999'},config),/TARGET_PRODUCT_NOT_VERIFIED/);assert.equal(sends.length,0);
 assert.equal(bridgeApi.providerJSON('{"conversation_id":123456789012345678}').conversation_id,cid);
 let ctx=await bridgeApi.inspect(input,config);assert.equal(ctx.available,true);assert.equal(ctx.conversation_id,cid);
 const firstRequest={...input,phase:'first',revision:ctx.revision};
@@ -118,7 +119,7 @@ const orderFetch=async(raw,opts={})=>{
   if(path.endsWith('/ai_clickup_work_snapshots'))return Response.json(u.searchParams.has('task_id')?[{task_id:taskId,task_name:'1x CN1001',list_id:'18375902',marketplace_order_id:'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',clickup_status:'design editing -topper',order_reference:order}]:[{task_id:taskId,task_name:'1x CN1001'}]);
   if(path.endsWith('/task_detail_automation'))return Response.json([{data:{missing:[{key:'wording'}],info_status:'missing'}}]);
   if(path.endsWith('/marketplace_orders'))return Response.json(u.searchParams.has('buyer_user_id')?[]:[{buyer_message:'',placed_at:'2026-11-02T00:00:00Z',current_status:providerStatus,buyer_user_id:buyer,shop_id:shop,order_sn:order}]);
-  if(path.endsWith('/marketplace_order_items'))return Response.json([{item_sku:task.custom_fields[0].value,title:'Synthetic Topper',quantity:1,provider_item_id:'444444444'}]);
+  if(path.endsWith('/marketplace_order_items'))return Response.json([{item_sku:task.custom_fields[0].value.replace(/ SG$/,''),title:'Synthetic Topper',quantity:1,provider_item_id:'444444444'}]);
   if(path.endsWith('/icetak_record_order_brief')){recorded=b;return Response.json({ok:true});}
  }
  if(path.endsWith('/autobrief-followup'))return await invoke(b);

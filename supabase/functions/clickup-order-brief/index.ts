@@ -350,7 +350,8 @@ function productReferences(items:Obj[]){
   variation:string(x.variation_name,180),quantity:Number(x.quantity)||0}));
 }
 function targetProduct(sku:string,items:Obj[]):Obj{
- const matches=productReferences(items).filter(x=>normalized(x.sku)===normalized(sku));
+ const referenceSku=(value:string)=>normalized(value).replace(/\s+sg$/i,"");
+ const matches=productReferences(items).filter(x=>referenceSku(x.sku)===referenceSku(sku));
  return matches.length===1?matches[0]:{};
 }
 // Labels must identify one current order line by SKU/product ID or a unique title
@@ -568,7 +569,7 @@ async function handleFollowup(input:Obj,token:string,bridge:string):Promise<Obj>
  const send=async(phase:string)=>{
   if(!await freshGuard())return {ok:true,skipped:true,reason:"TASK_CHANGED_BEFORE_SEND"};
   return await followupRequest({action:"send",phase,shop_id:provider.shop_id,order_sn:provider.order_sn,
-   buyer_user_id:provider.buyer_user_id,target_sku:sku,revision:provider.revision,manual_followup:manual},bridge);
+   buyer_user_id:provider.buyer_user_id,target_sku:sku,target_product_id:string(input.product_id),revision:provider.revision,manual_followup:manual},bridge);
  };
  if(!result.first||!['sent','manual'].includes(result.first.state)){
   if(!manual&&scopedReply)return {...result,blocked:"CUSTOMER_REPLIED_IN_LINKED_CONTEXT"};
@@ -692,7 +693,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    Math.max(ordinaryConfidence,sharedRule.confidence):ordinaryConfidence;
   let verified=!orderUnpaid && confidence>=80 && (decision.note_evidence||decision.chat_evidence) && !context.ambiguous && !context.truncated;
   if(providerContext?.available){
-   followup=await handleFollowup({task,existingWord,existingConfirmed,decision,context,provider:providerContext,sku:productSku},clickupToken,bridge);
+   followup=await handleFollowup({task,existingWord,existingConfirmed,decision,context,provider:providerContext,sku:productSku,product_id:product.product_id},clickupToken,bridge);
    if(followup.defaulted){
     decision={...decision,wording:"hb",instruction:"Default hb mengikut polisi 2 petang hari shipment.",confidence:0,note_evidence:false,chat_evidence:false};
     confidence=0;verified=false;
