@@ -17,8 +17,16 @@ Deno.serve(async req=>{
   if(!manage&&!permissions.includes('view_orders'))return out({ok:false,error:'AUTOMATION_ACCESS_REQUIRED'},403);
   const raw=await req.text();if(raw.length>16000)return out({ok:false,error:'PAYLOAD_TOO_LARGE'},413);
   const b=JSON.parse(raw),action=String(b.action||'snapshot');
-  if(!['snapshot','detail','preview','save','retry'].includes(action))return out({ok:false,error:'INVALID_ACTION'},400);
+  if(!['snapshot','detail','preview','save','retry','autobrief_logs','autobrief_log_detail'].includes(action))return out({ok:false,error:'INVALID_ACTION'},400);
   if(['save','retry'].includes(action)&&!manage)return out({ok:false,error:'MANAGE_AUTOMATION_REQUIRED'},403);
+  // Read-only Order RPC: same active-admin/view_orders gate, no provider or send proxy.
+  if(action==='autobrief_logs'||action==='autobrief_log_detail'){
+   const p=b.payload||{},task=String(p.task_id||'');
+   if(action==='autobrief_log_detail'&&!/^[a-zA-Z0-9_-]{1,80}$/.test(task))return out({ok:false,error:'INVALID_TASK'},400);
+   const response=await fetch(`${U}/rest/v1/rpc/icetak_autobrief_logs`,{method:'POST',headers:{apikey:K,authorization:`Bearer ${K}`,'content-type':'application/json'},body:JSON.stringify({p_query:String(p.query||'').slice(0,80),p_phase:String(p.phase||''),p_state:String(p.state||''),p_offset:Math.min(100000,Math.max(0,Math.floor(Number(p.offset)||0))),p_task_id:action==='autobrief_log_detail'?task:''}),signal:AbortSignal.timeout(8000)});
+   if(!response.ok)throw Error('AUTOBRIEF_LOGS_UNAVAILABLE');
+   return out({ok:true,data:await response.json(),can_manage:false});
+  }
   const [setting]=await read('private_runtime_settings?setting_key=eq.qrpay_ai_worker_token&select=setting_value&limit=1');
   if(!setting?.setting_value)throw Error('AUTOMATION_NOT_CONFIGURED');
   const response=await fetch('https://uujcqcsfghqkukaydruc.supabase.co/functions/v1/automation-engine',{method:'POST',redirect:'error',headers:{'content-type':'application/json','x-automation-token':setting.setting_value},body:JSON.stringify({action,payload:b.payload||{},actor:admin.username}),signal:AbortSignal.timeout(25000)});

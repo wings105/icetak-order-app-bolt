@@ -248,3 +248,13 @@ Order System owns `icetak_roadmap_ai_runs` and append-only `icetak_roadmap_ai_ev
 ## Native WhatsApp keyword automation (30 October 2026)
 
 Unified Inbox owns the private wa_automation rules/run/event ledger and message-driven leased work. Order System owns staff authorization, canonical draft replay and order notification policy. Existing draft extraction and external sender guards are reused. The three native rules are active after corresponding external actions were skipped/published and hosted Admin verification passed. Every native transition establishes a fresh message-time boundary; settings edits preserve it. See `WHATSAPP_KEYWORD_AUTOMATION.md`.
+
+## AutoBrief operational logs — 2 November 2026
+
+Admin V2's existing Automation page reads Order-owned job snapshots and private
+follow-up transition history through the active-admin JWT gateway. The invoker
+log RPC is service-only; no browser grants or customer send controls are added.
+Inbox remains authoritative for per-order/phase delivery receipts and exposes
+attempt metadata through its existing private inspect bridge. Routine poll
+clocks do not create transitions or change the stable ClickUp brief remark.
+See [AutoBrief contract](AUTOBRIEF_FOLLOWUP.md).

@@ -1,3 +1,8 @@
+## 2026-11-02 — [VERIFIED] AutoBrief logs and brief remarks
+
+- Admin V2 Automation gains a private read-only AutoBrief tab with Order ID, phase/status filtering, receipt details and meaningful transition history. API acceptance, staff observations and unknown outcomes stay distinct; unchanged polls do not create log spam, and failed refreshes retain their last receipt snapshot.
+- Order v46 updates the same AutoBrief comment with a stable MYT follow-up/cut-off/default/review remark. Live exact-task readback confirms it without a duplicate comment or new send attempt. Gateway/formatter and workflow regressions, native rolled-back privacy/history/filter/pagination/recovery checks, root/Inbox/Admin builds and controlled desktop/375px browser interactions pass. Backend gateway v5 and Inbox v7 are active; hosted UI delivery and signed-in acceptance are tracked separately. See [contract](docs/AUTOBRIEF_FOLLOWUP.md#admin-v2-logs-and-brief-remarks--2-november-2026).
+
 ## 2026-11-02 — [PRODUCTION backend] Glossy AutoBrief detail follow-up
 
 - Owner's 15-minute policy sends one fixed Shopee detail request and records follow up1; clear exact-order replies update wording/brief/Ai Check. A shipment-day 14:00 MYT notice permits lowercase hb only after confirmed delivery. Order ID is included in AutoBrief comments.

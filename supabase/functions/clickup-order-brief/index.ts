@@ -589,6 +589,29 @@ async function handleFollowup(input:Obj,token:string,bridge:string):Promise<Obj>
  }
  return result;
 }
+// Stable wording: polling time is deliberately excluded so no-change polls do not edit ClickUp.
+function followupRemark(f:Obj,hasDetail=false){
+ if(!f?.enabled&&!f?.blocked&&!f?.first&&!f?.deadline)return "";
+ const when=(v:unknown)=>{const n=Date.parse(String(v||""));return Number.isFinite(n)?new Date(n).toLocaleString("en-GB",{timeZone:"Asia/Kuala_Lumpur",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"})+" MYT":"";};
+ const receipt=(r:Obj,label:string)=>{
+  if(!r)return "";
+  if(r.state==="sent")return label+" diterima API Shopee"+(when(r.sent_at)?" pada "+when(r.sent_at):"")+".";
+  if(r.state==="manual")return "follow up1 direkod staf; tiada bukti penghantaran API.";
+  if(r.state==="unknown")return label+" belum pasti; semak Shopee sebelum hantar semula.";
+  if(r.state==="failed")return label+" gagal; perlu semakan.";
+  if(r.state==="sending")return label+" sedang diproses; belum disahkan dihantar.";
+  if(r.state==="blocked")return label+" ditahan untuk semakan.";
+  return "";
+ };
+ const reasons:Record<string,string>={DISABLED:"Automation dipause",CHAT_CONTEXT_UNVERIFIED:"Konteks chat belum disahkan",ORDER_NOT_FULFILLABLE:"Status order tidak layak",STAFF_REVIEW_PROTECTED:"Pilihan review staf dilindungi",CUSTOMER_REPLIED_IN_LINKED_CONTEXT:"Customer sudah membalas; perlu semak detail",CUSTOMER_DETAIL_REQUIRES_REVIEW:"Balasan customer perlu disemak",MULTIPLE_OR_UNVERIFIED_ACTIVE_ORDER:"Padanan order tidak tunggal atau belum disahkan",FIRST_REQUEST_NOT_RECORDED_BEFORE_DEADLINE:"Tiada rekod permintaan detail sebelum cut-off",WAIT_15_MINUTES:"Menunggu 15 minit selepas order",WAIT_1400_MYT:"Menunggu cut-off 2 petang",TASK_CHANGED_BEFORE_SEND:"Task berubah sebelum penghantaran"};
+ const parts=[receipt(f.first,"Permintaan detail"),receipt(f.deadline,"Notis deadline")].filter(Boolean);
+ if(hasDetail)parts.push("Detail tersedia; rujuk wording dan status confirm di atas.");
+ else if(f.defaulted)parts.push("Default wording: hb (tiada detail customer).");
+ else if(f.first&&["sent","manual"].includes(f.first.state))parts.push("Menunggu detail customer."+(when(f.due_at)?" Cut-off default hb: "+when(f.due_at)+".":""));
+ else if(!f.blocked)parts.push("Menunggu semakan kelayakan dan timer 15 minit; belum ada receipt penghantaran.");
+ if(f.blocked)parts.push((reasons[String(f.blocked)]||"Tindakan ditahan untuk semakan")+" ["+String(f.blocked).replace(/[\r\n]/g," ").slice(0,120)+"].");
+ return parts.join(" ");
+}
 async function process(job:Obj,clickupToken:string,bridge:string){
  const id=string(job.task_id,80),fp=string(job.source_fingerprint,128);
  let media:Obj[]=[],commentId:string|null=job.comment_id||null,state="failed",error="",brief:Obj={};
@@ -803,11 +826,12 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const primaryImage=holdForReview?string(previous.image,1000):img;
   const primaryBackup=holdForReview?string(previous.image_backup,1100):(backupImage||string(previous.image_backup,3500));
   const requiresReview=reviewRequested(chronological)||Boolean(previous.review_requested);
+  const followupNote=followupRemark(followup,!!primaryWording&&!followup.defaulted);
   let text=briefText(id,productSku,primaryWording,primaryInstruction,primaryImage,requiresReview,
    holdForReview?true:(verified||existingConfirmed),primaryConfidence,note,proof,product,string(s.order_reference))
    .replace("confirm: ✅",holdForReview?"confirm: ✅ (perubahan baharu perlu review)":verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")
    +(orderUnpaid?"\n⚠️ Order masih UNPAID — semak bayaran sebelum proses.":"")
-   +(followup.defaulted?"\nDefault: notis 2 petang telah dihantar; wording hb.":"");
+   +(followupNote?"\n\nAutomation follow-up: "+followupNote:"");
   if(aiCandidate&&aiAnalysis?.ok&&aiAnalysis?.needs_review!==false||aiCandidate&&aiAnalysis?.ok&&confidence<80){
    // One concise advisory block inside the existing AutoBrief, never a second comment.
    text+="\n\nAI cadangan (perlu semak, tidak auto-confirm): "+
@@ -901,7 +925,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status,product_title:product.title||"",product_id:product.product_id||"",
-   order_products:productReferences(orderItems),labelled_wording_rule:labelledRule,followup,
+   order_products:productReferences(orderItems),labelled_wording_rule:labelledRule,followup,followup_remark:followupNote,
    shared_wording_rule:sharedRule,ai_analysis:aiAnalysis?.input_hash?aiAnalysis:null,ai_mode:"advisory"};
   state=holdForReview?"review":verified?"completed":"review";
  }catch(e){

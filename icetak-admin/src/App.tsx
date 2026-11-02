@@ -37,7 +37,7 @@ const Stock = lazy(() => import('./pages/Stock'));
 const TaskWorkspace = lazy(() => import('./pages/TaskWorkspace'));
 
 const pageMap: Record<string, { title: string; subtitle?: string }> = {
-  automation: {title:'Automation',subtitle:'Arahan WhatsApp & rekod tindakan'},
+  automation: {title:'Automation',subtitle:'WhatsApp, AutoBrief & rekod tindakan'},
   'task-workspace': {title:'Task Workspace',subtitle:'Designer & Production'},
   'acrylic-production': {title:'Production Acrylic',subtitle:'Acrylic & Artpaper · Cutting'},
   products: {title:'Produk',subtitle:'Katalog Shopee & website'},

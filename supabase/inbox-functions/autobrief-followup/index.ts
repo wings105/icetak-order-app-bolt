@@ -108,7 +108,7 @@ async function inspect(input:Obj,config:Obj){
   order_status:s(order.order_status),buyer_note:s(order.message_to_seller),
   messages:normalized.map(m=>[m.provider_message_id,m.direction,m.text_content,m.media_url])};
  const revision=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(facts)))),x=>x.toString(16).padStart(2,'0')).join('');
- const deliveries=await db('autobrief_followup_deliveries?shop_id=eq.'+shop+'&order_sn=eq.'+orderSn+'&select=phase,state,request_id,provider_message_id,sent_at,updated_at,error');
+ const deliveries=await db('autobrief_followup_deliveries?shop_id=eq.'+shop+'&order_sn=eq.'+orderSn+'&select=phase,state,request_id,provider_message_id,sent_at,updated_at,error,attempts,next_retry_at');
  const control=await db('autobrief_followup_control?singleton=eq.true&select=enabled&limit=1');
  return {ok:true,available:true,enabled:control[0]?.enabled===true,revision,deliveries,shop_id:shop,order_sn:orderSn,buyer_user_id:buyer,
   placed_at:new Date(placedMs).toISOString(),order_status:s(order.order_status),buyer_note:s(order.message_to_seller),
