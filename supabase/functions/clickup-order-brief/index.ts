@@ -160,6 +160,23 @@ function briefText(taskId:string,sku:string,wording:string,instruction:string,im
  return lines.join("\n").slice(0,14000);
 }
 
+// Native rich-text operations, not Markdown in comment_text. Keep copy payloads label-free.
+function briefComment(text:string):Obj[]{
+ const ops:Obj[]=[],header=text.split("\n\nactual buyer nota:")[0];
+ const fields=[header.match(/^(SKU product): ([^\n]*)/m),header.match(/^(wording): ([\s\S]*?)(?=\ngambar link \(Shopee\):)/m)]
+  .filter((m):m is RegExpMatchArray=>m!==null).sort((a,b)=>(a.index||0)-(b.index||0));
+ let cursor=0;
+ for(const match of fields){
+  const start=match.index||0;
+  if(start>cursor)ops.push({text:text.slice(cursor,start),attributes:{}});
+  ops.push({text:match[1]+":",attributes:{bold:true}},{text:"\n",attributes:{}});
+  for(const line of match[2].split("\n"))ops.push({text:line,attributes:{}},{text:"\n",attributes:{"code-block":{"code-block":"plain"}}});
+  cursor=start+match[0].length;
+ }
+ if(cursor<text.length)ops.push({text:text.slice(cursor),attributes:{}});
+ return ops;
+}
+
 async function readShopeeBuyerNote(orderSn:string,shopId:string,bridge:string){
  if(!/^[0-9A-Z]{10,24}$/.test(orderSn)||!/^[0-9]{1,20}$/.test(shopId))return {available:false};
  try{
@@ -846,17 +863,17 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     (string(aiAnalysis.instruction,250)?"\nAI instruction: "+string(aiAnalysis.instruction,250):"")+
     (string(aiAnalysis.image_description,250)?"\nAI image: "+string(aiAnalysis.image_description,250):"");
   }
-  const hash=await digest(text);
+  const hash=await digest("rich-code-v1\n"+text);
   const comments=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment");
   const old=(comments.comments||[]).find((c:Obj)=>contains(c.comment,marker)||contains(c.comment,"[iCetak-AutoBrief:"+id+":"));
   commentId=old?.id?String(old.id):commentId;
   // Preserve single comment even if source fingerprint changes or ClickUp comment pagination changes.
   if(commentId){
    if(previous.text_hash!==hash){
-    await clickup(clickupToken,"comment/"+encodeURIComponent(commentId),"PUT",{comment_text:text});
+    await clickup(clickupToken,"comment/"+encodeURIComponent(commentId),"PUT",{comment:briefComment(text)});
    }
   }else{
-   const posted=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment","POST",{comment_text:text,notify_all:false});
+   const posted=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment","POST",{comment:briefComment(text),notify_all:false});
    if(!posted?.id)throw Error("COMMENT_UNCERTAIN");
    commentId=String(posted.id);
   }
@@ -927,7 +944,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const deferredChanges=new Set(changed.slice(8).map(m=>String(m.id)));
   const ids=[...new Set([...oldIds,...chronological.filter(m=>!deferredChanges.has(String(m.id))).map(m=>String(m.id))])].slice(-140);
   brief={sku:productSku,wording:primaryWording,instruction:primaryInstruction,confidence:primaryConfidence,actual_buyer_note:note,proof:proof.map((m:Obj)=>({id:m.id,channel:m.channel,at:m.created_at})),
-   image:primaryImage,image_backup:primaryBackup,media_count:mediaCandidates.length,media_warnings:uploadWarnings,review_requested:requiresReview,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,pending_change_ids:pendingChangeIds,
+   image:primaryImage,image_backup:primaryBackup,media_count:mediaCandidates.length,media_warnings:uploadWarnings,review_requested:requiresReview,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,comment_format:"rich-code-v1",pending_change_ids:pendingChangeIds,
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status,product_title:product.title||"",product_id:product.product_id||"",

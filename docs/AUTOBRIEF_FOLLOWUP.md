@@ -20,6 +20,10 @@ topper workflow**. Other detail collectors and draft follow-ups are unchanged.
   `hb`. This default does not claim customer confirmation or change follow up1
   to Ai Check. A later clear reply can replace policy hb with customer wording.
 - Every AutoBrief comment now includes Order ID alongside SKU/title/product ID.
+- SKU and wording use separate native plain-text code blocks with bold labels;
+  ClickUp supplies the hover Copy control. Copy values exclude labels. Custom
+  pixel font sizes are controlled by ClickUp. Rich payloads have a versioned
+  presentation hash so each existing brief migrates once on its next normal poll.
 - Human-visible proof/change-message timestamps use `DD/MM/YYYY HH:mm:ss MYT`
   in Asia/Kuala_Lumpur. Stored message/audit timestamps remain their original instants.
 

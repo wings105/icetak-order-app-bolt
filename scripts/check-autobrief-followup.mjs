@@ -127,9 +127,9 @@ const orderFetch=async(raw,opts={})=>{
  if(u.hostname==='api.clickup.com'){
   if(path.endsWith('/task/'+taskId))return Response.json(clone(task));
   if(path.endsWith('/task/'+taskId+'/comment')){
-   if(method==='POST'){commentPosts++;comment=b.comment_text;return Response.json({id:'comment1'});}return Response.json({comments:comment?[{id:'comment1',comment:[{text:comment}]}]:[]});
+   if(method==='POST'){commentPosts++;comment=b.comment?b.comment.map(op=>op.text||'').join(''):b.comment_text;return Response.json({id:'comment1'});}return Response.json({comments:comment?[{id:'comment1',comment:[{text:comment}]}]:[]});
   }
-  if(path.endsWith('/comment/comment1')){comment=b.comment_text;return Response.json({});}
+  if(path.endsWith('/comment/comment1')){comment=b.comment?b.comment.map(op=>op.text||'').join(''):b.comment_text;return Response.json({});}
   if(path.includes('/field/')){const id=path.split('/').at(-1),f=task.custom_fields.find(x=>x.id===id);assert(f);f.value=b.value;fieldWrites.push({id,value:b.value});return Response.json({});}
  }
  throw Error('Unexpected Order path '+u.origin+path);

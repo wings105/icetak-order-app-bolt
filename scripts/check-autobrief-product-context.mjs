@@ -81,10 +81,10 @@ const transport=async(raw,opts={})=>{
   const path=url.pathname;
   if(path.endsWith('/task/'+taskId))return Response.json(task);
   if(path.endsWith('/task/'+taskId+'/comment')){
-   if(method==='POST'){posts++;comments=[{id:'comment1',comment:[{text:body.comment_text}]}];return Response.json({id:'comment1'});}
+   if(method==='POST'){posts++;comments=[{id:'comment1',comment:body.comment||[{text:body.comment_text}]}];return Response.json({id:'comment1'});}
    return Response.json({comments});
   }
-  if(path.endsWith('/comment/comment1')&&method==='PUT'){comments=[{id:'comment1',comment:[{text:body.comment_text}]}];return Response.json({});}
+  if(path.endsWith('/comment/comment1')&&method==='PUT'){comments=[{id:'comment1',comment:body.comment||[{text:body.comment_text}]}];return Response.json({});}
   if(path.includes('/field/')){writes++;const f=task.custom_fields.find(x=>x.id===path.split('/').at(-1));assert(f);f.value=body.value;return Response.json({});}
  }
  throw Error('Unexpected request '+method+' '+url.origin+url.pathname);
@@ -105,8 +105,13 @@ const initialWrites=writes;
 await worker.process({...job,brief:stored.p_brief,comment_id:'comment1',field_receipts:stored.p_brief.field_receipts},'test-clickup','test-bridge');
 assert.equal(posts,1);assert.equal(writes,initialWrites,'replay must not repeat field updates');
 assert.equal(comments.length,1);
-assert.match(comments[0].comment[0].text,/Tajuk product: CUSTOM NAME Spiderman/);
-assert.match(comments[0].comment[0].text,/Product ID \(Shopee\): 1111111111/);
+assert.equal(comments[0].comment.filter(op=>op.attributes?.['code-block']).length,2,'native SKU and wording code blocks');
+assert.equal(stored.p_brief.comment_format,'rich-code-v1');
+const codeValues=comments[0].comment.flatMap((op,i,all)=>op.attributes?.['code-block']?[all[i-1].text]:[]);
+assert.deepEqual(codeValues,['CN1001','Sample Alpha turn 8'],'copy values contain no labels or product title');
+
+assert.match(comments[0].comment.map(op=>op.text||'').join(''),/Tajuk product: CUSTOM NAME Spiderman/);
+assert.match(comments[0].comment.map(op=>op.text||'').join(''),/Product ID \(Shopee\): 1111111111/);
 unpaid=true;task.custom_fields[2].value=false;
 await worker.process({...job,brief:{}},'test-clickup','test-bridge');
 assert.equal(stored.p_brief.confirmed,false,'unpaid must never auto-confirm');
