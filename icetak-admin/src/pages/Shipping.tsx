@@ -564,9 +564,16 @@ export default function Shipping() {
                         )}
                         <div style={{ fontWeight: 700 }}>{row.recipient_name || 'Nama tiada'}</div>
                         {phone ? (
-                          <a href={`tel:${phone}`} className="cell-sub" title={`Call ${phone}`} style={{ display: 'inline-block', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
-                            {row.recipient_phone}
-                          </a>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            <a href={`tel:${phone}`} className="cell-sub" title={`Call ${phone}`} style={{ display: 'inline-block', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
+                              {row.recipient_phone}
+                            </a>
+                            <a href={`https://wa.me/${phone}`} target="_blank" rel="noopener noreferrer"
+                              title="Buka WhatsApp (wa.me)" aria-label={`Buka WhatsApp (wa.me) ${phone}`}
+                              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 6, color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0', textDecoration: 'none', flexShrink: 0 }}>
+                              <IconMessage size={13} aria-hidden="true" />
+                            </a>
+                          </span>
                         ) : <div className="cell-sub">Phone tiada</div>}
                         {row.reference && /^86[a-z0-9]+$/i.test(row.reference) && (
                           <div style={{ marginTop: 3 }}>
