@@ -20,6 +20,8 @@ topper workflow**. Other detail collectors and draft follow-ups are unchanged.
   `hb`. This default does not claim customer confirmation or change follow up1
   to Ai Check. A later clear reply can replace policy hb with customer wording.
 - Every AutoBrief comment now includes Order ID alongside SKU/title/product ID.
+- Human-visible proof/change-message timestamps use `DD/MM/YYYY HH:mm:ss MYT`
+  in Asia/Kuala_Lumpur. Stored message/audit timestamps remain their original instants.
 
 First message:
 

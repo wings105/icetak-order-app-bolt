@@ -128,6 +128,12 @@ function isUnimportant(text:string){
 function mayNeedChange(text:string){
  return /\b(?:tukar|ubah|change|edit|replace|instead|silap|salah|wrong|correct|betul\s+semula|sepatutnya|jangan\s+guna|use\s+this|guna\s+yang|new\s+wording|new\s+name|nama\s+baru|tambah|buang|remove|add|umur|usia|age|turns?|turning)\b/i.test(text)||!!extractInstruction(text);
 }
+// Human-visible chat timestamps only; keep source/audit instants in UTC.
+const briefClock=new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Kuala_Lumpur",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"});
+function briefTimestamp(value:unknown){
+ const instant=Date.parse(string(value,80));
+ return Number.isFinite(instant)?briefClock.format(new Date(instant)).replace(",","")+" MYT":"— (masa mesej belum tersedia)";
+}
 function briefText(taskId:string,sku:string,wording:string,instruction:string,image:string,review:boolean,confirmed:boolean,confidence:number,note:string,proof:Obj[],product:Obj={},orderId=''){
  const lines=[
   "[iCetak-AutoBrief:"+taskId+"]",
@@ -148,7 +154,7 @@ function briefText(taskId:string,sku:string,wording:string,instruction:string,im
  ];
  if(!proof.length)lines.push("— Tiada mesej order yang dipadankan");
  for(const m of proof){
-  const label=string(m.channel||"Chat",30),at=string(m.created_at,35);
+  const label=string(m.channel||"Chat",30),at=briefTimestamp(m.created_at);
   lines.push(at+" ["+label+"] "+string(m.text_content||m.caption||"(gambar)",210));
  }
  return lines.join("\n").slice(0,14000);
@@ -903,7 +909,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    const ageDetected=extractAge(string(m.text_content||m.caption));
    const changeKind=m.message_type==="image"?"image":ageDetected!==null?"age":"design";
    const body=changeMarker+"\n⚠️ Mesej pelanggan selepas confirmed — semak sebelum printing\n"+
-    string(m.created_at,40)+" ["+string(m.channel,24)+"] "+
+    briefTimestamp(m.created_at)+" ["+string(m.channel,24)+"] "+
     string(m.text_content||m.caption,600)+
     (ageDetected!==null?"\nUmur baharu: "+ageDetected+" tahun. Wording/CF asal tidak diubah.":"")+
     "\nReview manual sebelum edit.";
