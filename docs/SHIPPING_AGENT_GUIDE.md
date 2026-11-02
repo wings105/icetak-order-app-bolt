@@ -165,3 +165,9 @@ do not remove the suffix to satisfy a validator. Regression assertions are in
 ## Source code
 
 Full Edge Function source for `shipping-agent`, `shipping-api`, and PDF archival service `shipping-awb` is stored in this repository. The live RPC gateway is installed through Supabase migrations, so external AI integration does not depend on a custom-auth Edge Function deployment.
+
+## Credit statement
+
+Shipping & Tracking also mounts the private wallet read model described in
+[PARCELDAILY_CREDIT.md](PARCELDAILY_CREDIT.md). It does not change shipment booking,
+tracking, checkout or customer notification behavior.
