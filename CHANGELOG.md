@@ -1,3 +1,8 @@
+## 2026-11-02 — [PRODUCTION] AutoBrief product references and per-item wording
+
+- AutoBrief includes exact ordered product title and Shopee product ID in its comment, persisted references and advisory AI input/cache. Unique Buyer Note labels map to current product titles/SKUs/IDs without array-order assignment; ambiguous, conflicting or unverified cases retain review.
+- Live scoped three-item writebacks, product references, 95% rule confirmation and unchanged comment IDs verified. Actual AI title-based matching and controlled handler/guard/replay, existing selftests and detail/readiness regressions pass. Source is synchronized from the live worker into production; product-card sequence mapping remains separate. See [AutoBrief contract](docs/AUTOBRIEF_PRODUCT_CONTEXT.md).
+
 ## 2026-11-01 — [VERIFIED] Acrylic trusted-PC production action access
 
 - Corrects the earlier visibility-only release: dedicated Acrylic/Artpaper links can authenticate production actions without an admin login, with a revocable scoped capability and device audit actor. Public bare URLs still do not authorize writes.

@@ -1,3 +1,7 @@
+# 2026-11-02 — AutoBrief product references
+
+[PRODUCTION backend] Order `clickup-order-brief` v42 includes current product title/SKU/product ID in its single comment, private brief and advisory AI context/cache. Unique one-to-one labelled Buyer Notes produce item-specific wording through deterministic matching with existing paid/time/status/staff/context guards; ambiguous labels remain review. Actual three-item ClickUp fields/comment references and persisted outcomes, live advisory title matching and controlled handler/replay/auth regressions verified. Product-card sequencing and broader media/post-confirmation acceptance remain separate. See [contract](AUTOBRIEF_PRODUCT_CONTEXT.md).
+
 # 2026-10-31 — Preserve Shopee fee detail at wallet release
 
 [PRODUCTION backend] Release-only finance snapshots retain the immediately preceding complete webhook detail with original field provenance and enqueue the existing signed detail worker without stealing processing leases. Full/partial income responses and explicit zero remain authoritative; immutable history and source-key replay are preserved. Owner-scoped provider refresh restores complete monthly component coverage. Native deployed capture/report/replay/zero/missing/Excel/lease/privacy regressions pass in rollback, with no added security advisor findings. Hosted owner browser acceptance remains separate. See [finance contract](ORDER_FINANCE_DETAIL.md#preserve-detail-across-wallet-release--31-october-2026).
