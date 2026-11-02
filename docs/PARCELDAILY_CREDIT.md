@@ -29,3 +29,11 @@ Backend verification: live provider read and persisted opening, native rollback 
 for charge/replay/refund, exact threshold, one claim per episode, recovery/rearm, topup
 classification and schema/RPC privacy passed. Full Admin, root and Inbox builds passed.
 Hosted UI and utility-template acceptance are tracked in release evidence.
+
+## Browser CORS correction
+
+The first deployment omitted the SDK x-client-info request header from allowed CORS
+headers. Browser preflight failed even while server-to-server reads passed. Function
+v4 permits that header and explicitly lists POST/OPTIONS. The deployed preflight and
+actual signed-in hosted balance, statement expansion and API refresh were verified.
+The regression exercises OPTIONS anonymously with the real SDK header set.

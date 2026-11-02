@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.110.7';
 const url=Deno.env.get('SUPABASE_URL')!;
 const key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const db=createClient(url,key,{auth:{persistSession:false}});
-const headers={'content-type':'application/json','cache-control':'no-store','access-control-allow-origin':'*','access-control-allow-headers':'authorization,apikey,content-type,x-credit-token'};
+const headers={'content-type':'application/json','cache-control':'no-store','access-control-allow-origin':'*','access-control-allow-headers':'authorization,apikey,content-type,x-client-info,x-credit-token','access-control-allow-methods':'POST,OPTIONS'};
 const out=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers});
 async function rpc(name:string,args:Record<string,unknown>={}){const r=await db.rpc(name,args);if(r.error)throw new Error(r.error.message);return r.data;}
 async function setting(k:string){const r=await db.from('whatsapp_settings').select('text_value,secret_value').eq('key',k).maybeSingle();if(r.error)throw r.error;return String(r.data?.secret_value||r.data?.text_value||'');}

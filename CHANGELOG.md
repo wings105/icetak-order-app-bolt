@@ -1,3 +1,7 @@
+## 2026-11-03 — Shipping credit browser request correction
+
+- [PRODUCTION] shipping-credit v4 permits the Supabase browser SDK x-client-info preflight header and explicit POST/OPTIONS methods. The prior server-only smoke missed this browser transport failure. Actual signed-in hosted Shipping now displays the provider balance without errors; statement and API refresh controls are verified. The actual-handler regression now asserts the full browser preflight contract. Other wallet/template acceptance limits remain in [credit contract](docs/PARCELDAILY_CREDIT.md).
+
 ## 2026-11-03 — ParcelDaily credit statement
 
 - [VERIFIED backend; frontend delivery pending] Private wallet ledger records idempotent confirmed shipment charge deltas and refunds, serialized live provider balance snapshots, monthly MYT totals and receipt-based topup classification. Five-minute cron and event kicks are active; low-credit episodes use existing admin recipient/master/window/outbox controls and a dedicated utility template pending provider approval. Native rollback and actual-handler regressions plus full builds pass. Historical topup amounts are unavailable from the public API; hosted UI acceptance is tracked separately. See [credit contract](docs/PARCELDAILY_CREDIT.md).
