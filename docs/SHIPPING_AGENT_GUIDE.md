@@ -171,3 +171,21 @@ Full Edge Function source for `shipping-agent`, `shipping-api`, and PDF archival
 Shipping & Tracking also mounts the private wallet read model described in
 [PARCELDAILY_CREDIT.md](PARCELDAILY_CREDIT.md). It does not change shipment booking,
 tracking, checkout or customer notification behavior.
+
+## SPX alphabetic suffixes
+
+The shared tracking-link and courier helpers accept MY + digits with an optional
+single A–Z suffix. Input is trimmed and uppercased; the complete tracking number
+is retained in the SPX URL. Numeric SPX, Ninja and J&T behavior is retained;
+multiple-letter suffixes, missing digits and URL fragments remain rejected.
+
+The suffix rollout privately snapshots existing newly supported unsent shipments,
+sets their per-shipment auto-send OFF, and refreshes their derived tracking state
+without queueing historical notifications. New shipments retain normal first-scan,
+opt-in, global/per-shipment, cancellation and idempotency guards. Recovery identifiers
+and prior state stay in private_runtime_settings, not public documentation.
+
+Native helper assertions cover all A–Z suffixes and malformed input. A rolled-back
+queue test proves the historical hold, enabled B link payload and duplicate guard;
+no fixture queue or customer send persists. Live recovery readback confirms valid
+links and zero queued/sent records for the bounded recovery set.

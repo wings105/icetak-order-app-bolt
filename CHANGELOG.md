@@ -1,3 +1,7 @@
+## 2026-11-03 — SPX alphabetic tracking suffixes
+
+- [PRODUCTION backend] Shared courier/link helpers accept optional A–Z suffixes while preserving the complete SPX number and existing Ninja/J&T rules. Existing newly supported unsent shipments are privately snapshotted, held with per-shipment auto-send OFF and refreshed without historical sends. Live link/hold/queue readback, native A–Z/invalid-input assertions and rolled-back queue/payload/replay regressions pass. No customer messages were sent. See [shipping contract](docs/SHIPPING_AGENT_GUIDE.md#spx-alphabetic-suffixes).
+
 ## 2026-11-03 — Shipping credit browser request correction
 
 - [PRODUCTION] shipping-credit v4 permits the Supabase browser SDK x-client-info preflight header and explicit POST/OPTIONS methods. The prior server-only smoke missed this browser transport failure. Actual signed-in hosted Shipping now displays the provider balance without errors; statement and API refresh controls are verified. The actual-handler regression now asserts the full browser preflight contract. Other wallet/template acceptance limits remain in [credit contract](docs/PARCELDAILY_CREDIT.md).

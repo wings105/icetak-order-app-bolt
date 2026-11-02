@@ -6,6 +6,9 @@ declare
 begin
   for c in
     select * from (values
+      ('MY06108672761B', 'https://spx.com.my/track?MY06108672761B', 'spx'),
+      ('MY06108672761C', 'https://spx.com.my/track?MY06108672761C', 'spx'),
+      (' my06108672761z ', 'https://spx.com.my/track?MY06108672761Z', 'spx'),
       ('MY06504484563A', 'https://spx.com.my/track?MY06504484563A', 'spx'),
       ('MY068121614929', 'https://spx.com.my/track?MY068121614929', 'spx'),
       (' my06504484563a ', 'https://spx.com.my/track?MY06504484563A', 'spx'),
@@ -29,3 +32,15 @@ begin
 end;
 $$;
 
+
+-- All future single-letter suffixes, including lowercase, retain exact number bytes.
+do $$
+declare suffix text; tracking text;
+begin
+ for suffix in select chr(n) from generate_series(65,90) n loop
+  tracking:='MY12345678901'||suffix;
+  if public.icetak_tracking_link(lower(tracking)) is distinct from 'https://spx.com.my/track?'||tracking
+    or public.icetak_tracking_courier(tracking,null) is distinct from 'spx'
+  then raise exception 'Unsupported SPX suffix %',suffix;end if;
+ end loop;
+end $$;
