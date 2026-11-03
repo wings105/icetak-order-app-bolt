@@ -1,3 +1,7 @@
+## 2026-11-03 — Stable customer item header emoji
+
+- [PRODUCTION] The small image beside each customer order item name is replaced with an accessible cake emoji, preventing conflicting image enrichers from assigning an internal media URI there. The separate component/design preview code stays unchanged. Production build and hosted emoji/no-header-image/original-loaded-preview checks pass. See [customer item header contract](docs/SHIPPING_AGENT_GUIDE.md#customer-item-header-emoji).
+
 ## 2026-11-03 — Customer courier icons
 
 - [PRODUCTION] Customer shipment, awaiting-tracking and pickup headers use the owner's supplied SPX, J&T, Ninja Van and Pickup images as compact same-origin default icons, with accessible names and safe unknown-courier text fallback. Original file hashes, alias mapping, current renderer regression, production build and hosted SPX size/loading/POD interaction checks pass. See [shipping contract](docs/SHIPPING_AGENT_GUIDE.md#default-courier-icons).

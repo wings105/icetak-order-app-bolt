@@ -221,3 +221,7 @@ Actual provider recovery and private archive/viewer checks are verified; actual-
 ## Default courier icons
 
 The current customer portal uses the owner's four supplied images at `/images/couriers/spx.png`, `jnt.png`, `ninjavan.png` and `pickup.png`. Original artwork is stored byte-for-byte in public site assets; no third-party image host is required. The shared `src/courier-icons.ts` renderer recognizes SPX/Shopee Express, J&T/JNT/J&T Express, Ninja/Ninja Van and Pickup/Self Collect. Shipment, awaiting-tracking and pickup headers display compact 80×30 px contained images with accessible labels; unknown couriers retain escaped text. No shipment/status/POD behavior changes.
+
+## Customer item header emoji
+
+The order detail item header uses a fixed accessible cake emoji instead of a product/design image. Existing image enrichers cannot overwrite this header because it no longer contains an image element. Separate component/design preview rendering, loading and zoom behavior remain unchanged.
