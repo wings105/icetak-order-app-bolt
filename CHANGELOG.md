@@ -1,6 +1,6 @@
 ## 2026-11-03 — Customer portal Proof of Delivery
 
-- [VERIFIED backend; hosted frontend acceptance pending] The current customer portal gains delivered POD thumbnails/PDF links and an explicit courier-unavailable state. Its token-scoped shipment API recovers available provider POD into private storage with per-shipment claim, exact identity, delivery, host, size and file-signature guards. Actual provider archival, helper/renderer regressions and production build pass; hosted rendering remains a separate check. See [shipping contract](docs/SHIPPING_AGENT_GUIDE.md#customer-portal-pod).
+- [PRODUCTION] The current customer portal gains delivered POD thumbnails/PDF links and an explicit courier-unavailable state. Its token-scoped shipment API recovers available provider POD into private storage with per-shipment claim, exact identity, delivery, host, size and file-signature guards. Actual provider archival, helper/renderer regressions, production build, hosted gallery/image-opening and desktop/mobile browser checks pass. See [shipping contract](docs/SHIPPING_AGENT_GUIDE.md#customer-portal-pod).
 
 ## 2026-11-03 — Pending Pickup provider cancellation recovery
 
