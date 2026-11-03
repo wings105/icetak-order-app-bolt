@@ -225,3 +225,7 @@ The current customer portal uses the owner's four supplied images at `/images/co
 ## Customer item header emoji
 
 The order detail item header uses a fixed accessible cake emoji instead of a product/design image. Existing image enrichers cannot overwrite this header because it no longer contains an image element. Separate component/design preview rendering, loading and zoom behavior remain unchanged.
+
+## Order Detail Home link
+
+The customer Order Detail top bar has an accessible Home icon centered independently of the existing back control/title. It navigates in the same tab to `https://shop.decocake.my/`, without carrying an order token in the destination. The header keeps its existing sticky positioning. The enhancer adds at most one link and handles initial order shells and subsequent customer route rendering.

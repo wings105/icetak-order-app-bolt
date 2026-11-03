@@ -1,3 +1,7 @@
+## 2026-11-03 — Order Detail Home navigation
+
+- [PRODUCTION] The customer Order Detail bar has a centered accessible Home icon linking to the shop root in the same tab. Existing title/back control and sticky scrolling stay intact. Hosted desktop/mobile centering, non-overlap, sticky position and actual root navigation are verified; production build passes. See [navigation contract](docs/SHIPPING_AGENT_GUIDE.md#order-detail-home-link).
+
 ## 2026-11-03 — Customer pickup BOX guide
 
 - [PRODUCTION] Pickup cards link the location, show owner-specified hours and provide a paid-only BOX control opening the supplied original photo in a same-page dialog. Stage-aware instructions distinguish production, ready collection and already-collected orders; Ready to Process is not pickup readiness. Existing confirmation notes now match BOX self-collection while payment/collection gates remain unchanged. Actual hosted paid-ready, paid-production, unpaid and collected read/interaction checks, photo popup, renderer regressions and production build pass. See [pickup guide contract](docs/CUSTOMER_PICKUP_GUIDE.md).
