@@ -1,3 +1,7 @@
+## 2026-11-03 — Customer courier icons
+
+- [PRODUCTION] Customer shipment, awaiting-tracking and pickup headers use the owner's supplied SPX, J&T, Ninja Van and Pickup images as compact same-origin default icons, with accessible names and safe unknown-courier text fallback. Original file hashes, alias mapping, current renderer regression, production build and hosted SPX size/loading/POD interaction checks pass. See [shipping contract](docs/SHIPPING_AGENT_GUIDE.md#default-courier-icons).
+
 ## 2026-11-03 — Compact customer POD popup
 
 - [PRODUCTION] Delivered now shows compact POD1/POD2/POD3 text controls, with no inline proof thumbnails. Clicking loads a same-page image/PDF dialog. Hosted tests verify image loading, one-tab behavior, close button, Escape and focus restoration; current-renderer regression and production build pass. See [shipping contract](docs/SHIPPING_AGENT_GUIDE.md#customer-portal-pod).
