@@ -1,5 +1,6 @@
 import { api } from './appdeploy-client';
 import './customer-portal.css';
+import { renderCourierIcon } from './courier-icons';
 
 type HistoryTab = 'to_pay' | 'progress' | 'receive' | 'completed';
 type Component = {
@@ -359,20 +360,20 @@ function renderShipment(order: Order) {
   if (order.delivery === 'Pickup') {
     const ready = order.status.toLowerCase().includes('ready');
     return `<section class="cp-section cp-pickup-card ${ready ? 'ready' : ''}">
-      <header><div><small>Pickup</small><h3>${ready ? 'Order Ready for Pickup' : 'Pickup di Kedai'}</h3></div><span>${ready ? '✅' : '📍'}</span></header>
+      <header><div>${renderCourierIcon(order.delivery)}<h3>${ready ? 'Order Ready for Pickup' : 'Pickup di Kedai'}</h3></div><span>${ready ? '✅' : '📍'}</span></header>
       <p>Bandar Baru Pasir Puteh</p>
       <small>${ready ? 'Bawa Order ID semasa pickup.' : 'Status akan berubah kepada Ready for Pickup selepas packing selesai.'}</small>
     </section>`;
   }
   if (!shipment?.tracking) {
-  return `<section class="cp-section cp-shipment-card"><header><div><small>${escapeHtml(order.delivery)}</small><h3>Tracking belum tersedia</h3></div><span>🚚</span></header><p>AWB dan tracking akan muncul secara automatik selepas parcel disediakan.</p></section>`;
+  return `<section class="cp-section cp-shipment-card"><header><div>${renderCourierIcon(order.delivery)}<h3>Tracking belum tersedia</h3></div><span>🚚</span></header><p>AWB dan tracking akan muncul secara automatik selepas parcel disediakan.</p></section>`;
   }
   const podLinks = String(shipment.statusGroup || shipment.status).toLowerCase() === 'delivered'
     ? shipment.pods?.length ? `<div class="cp-pod-links" aria-label="Proof of Delivery">${shipment.pods.map((pod, index) => `${index ? '<span aria-hidden="true">, </span>' : ''}<button type="button" data-cp-pod="${escapeHtml(pod.id)}" aria-haspopup="dialog">POD${pod.position}</button>`).join('')}</div>`
       : '<small class="cp-pod-pending">POD belum tersedia daripada courier.</small>' : '';
   return `<section class="cp-section cp-shipment-card">
     <header class="cp-shipment-head">
-      <div><small>${escapeHtml(shipment.courier || order.delivery)}</small><h3>${escapeHtml(shipment.status || 'Shipment Data Received')}</h3>${shipment.statusGroup ? `<span>${escapeHtml(shipment.statusGroup)}</span>` : ''}${podLinks}</div>
+      <div>${renderCourierIcon(shipment.courier || order.delivery)}<h3>${escapeHtml(shipment.status || 'Shipment Data Received')}</h3>${shipment.statusGroup ? `<span>${escapeHtml(shipment.statusGroup)}</span>` : ''}${podLinks}</div>
       ${shipment.trackingLink ? `<a href="${escapeHtml(shipment.trackingLink)}" target="_blank" rel="noopener">Track Parcel</a>` : ''}
     </header>
     <button class="cp-tracking-copy" data-cp-copy-tracking="${escapeHtml(shipment.tracking)}"><span>${escapeHtml(shipment.tracking)}</span><b>Copy</b></button>
