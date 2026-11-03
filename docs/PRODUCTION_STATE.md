@@ -1,3 +1,14 @@
+# 2026-11-03 — Direct cake topper WhatsApp AutoBrief
+
+Order worker v52 and Inbox task-brief-media v8 are active. Two service-only
+read contracts bind canonical printed component/item to the converted
+pickup/prepaid draft session, or a unique website WhatsApp window after checkout.
+Controlled actual-handler and native rollback suites prove CF/brief outcomes,
+provenance, replay and identity/history/session safeguards. Live exact-order
+reads/canary persist session provenance and hold a newer dated request without
+field writes or sends. Fresh autonomous successful direct CF assignment remains
+pending. See [contract](AUTOBRIEF_FOLLOWUP.md#decocake-pickup-website-and-converted-whatsapp-drafts--3-november-2026).
+
 # 2026-11-03 — AutoBrief order card before detail request
 
 Inbox `autobrief-followup` v8 and Order `clickup-order-brief` v50 are active.

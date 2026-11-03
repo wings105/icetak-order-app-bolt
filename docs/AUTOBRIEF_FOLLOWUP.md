@@ -200,3 +200,52 @@ prove card-gated text claims, independent receipts, private ACL and bounded
 first-chat recovery. Deployed v8 adopted the existing real card/text IDs with
 zero additional attempts. Future fresh autonomous provider delivery and the
 previously pending full media/hosted operator acceptance remain separate.
+
+
+## Decocake pickup, website and converted WhatsApp drafts — 3 November 2026
+
+Order worker v52 reads direct-order details through the service-only invoker
+`icetak_autobrief_direct_scope(order_id, task_id)`. It verifies the canonical
+order, exact active ORDER LIST task, printed production component and item.
+Confirmed prepaid/pickup drafts retain their original draft/session/conversation
+IDs after conversion; they do not start a new phone-only context at checkout.
+Pending drafts continue through the existing draft engine; this feature does not
+create an order or ClickUp task before confirmation/conversion.
+
+Inbox `task-brief-media` v8 adds a mandatory-token `direct_context` read route
+backed by service-only `icetak_autobrief_whatsapp_context`. The exact draft
+conversation and session start are authoritative. A later order/session bounds
+its end. Inbound non-history WhatsApp details before checkout remain usable
+inside that certified session, removing the previous one-hour pre-order cap.
+Website orders without a draft session use a unique WhatsApp identity and read
+only from checkout onward; competing active orders or ambiguous identity hold
+for review. Neither RPC changes an order, draft, payment, session or customer.
+
+Canonical item wording can contribute detail; a bare CN/YS reference cannot
+become printable wording. Escaped WhatsApp line breaks decode for parsing, while
+message IDs/times remain provider evidence. A unique explicit Happy Birthday
+line can supply complete wording without inventing an age. Missing/ambiguous
+or truncated context, multiple items, unpaid prepaid orders, closed fulfillment
+and unsupported products retain review. Cash-counter pickup remains eligible.
+New-order phrases or a newer topper request with a different explicit date hold
+assignment to the earlier converted order. Staff confirmation is preserved.
+
+Existing 15-minute scheduler, one AutoBrief comment, advisory AI, Customize Name,
+Ai Check/Confirmed thresholds and post-confirmation change review are reused.
+Direct scope and staff fields are read again before comment/CF mutation. The
+brief stores canonical order/item/draft/session provenance and uses the canonical
+IC order number rather than a pickup customer-name reference. Product IDs are
+labelled iCetak for these tasks; WhatsApp image labels retain native code blocks.
+No WhatsApp follow-up sender or Shopee card/message action is added to this lane.
+
+Verification: actual worker/private bridge tests cover pickup, converted prepaid,
+website, older in-session details, escaped lines, explicit birthday wording,
+exact field/proof/comment persistence and replay, plus old/next-session/history/
+identity/unpaid/multi/closed/auth and new-request guards. Native rollback tests
+exercise canonical component/item matching, converted-session/next-session
+bounds, SKU exclusion, read windows, truncation and browser ACL denial. Both
+projects retain unchanged security advisor counts. A deployed exact-order read
+and canary record real session provenance and correctly hold a newer differently
+dated request for review, preserving its comment ID with no field receipts or
+customer sends. Fresh autonomous successful direct-order CF assignment and full
+hosted/media acceptance remain pending.

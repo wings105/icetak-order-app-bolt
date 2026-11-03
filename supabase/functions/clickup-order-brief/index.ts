@@ -140,9 +140,9 @@ function briefText(taskId:string,sku:string,wording:string,instruction:string,im
   "Order ID: "+(orderId||"—"),
   "SKU product: "+(sku||"— (SKU belum tersedia)"),
   "Tajuk product: "+(string(product.title,450)||"— (tajuk belum tersedia)"),
-  "Product ID (Shopee): "+(string(product.product_id,70)||"— (ID belum tersedia)"),
+  "Product ID ("+(product.source==="icetak"?"iCetak":"Shopee")+"): "+(string(product.product_id,70)||"— (ID belum tersedia)"),
   "wording: "+(wording||"Perlu detail"),
-  "gambar link (Shopee): "+(image||"—"),
+  "gambar link ("+(product.source==="icetak"?"WhatsApp":"Shopee")+"): "+(image||"—"),
   "confirm: "+(confirmed?"✅":"⏳"),
   "keyakinan: "+confidence+"%",
   "review: "+(review?"Yes ✅":"No ❌"),
@@ -163,7 +163,7 @@ function briefText(taskId:string,sku:string,wording:string,instruction:string,im
 // Native rich-text operations, not Markdown in comment_text. Keep copy payloads label-free.
 function briefComment(text:string):Obj[]{
  const ops:Obj[]=[],header=text.split("\n\nactual buyer nota:")[0];
- const fields=[header.match(/^(SKU product): ([^\n]*)/m),header.match(/^(wording): ([\s\S]*?)(?=\ngambar link \(Shopee\):)/m)]
+ const fields=[header.match(/^(SKU product): ([^\n]*)/m),header.match(/^(wording): ([\s\S]*?)(?=\ngambar link \((?:Shopee|WhatsApp)\):)/m)]
   .filter((m):m is RegExpMatchArray=>m!==null).sort((a,b)=>(a.index||0)-(b.index||0));
  let cursor=0;
  for(const match of fields){
@@ -225,14 +225,33 @@ async function loadChat(placed:string,buyerId:string,phone:string,key:string,ref
   return data.contexts?.[key]||{messages:[],bindings:[]};
  }catch{return {messages:[],bindings:[],unavailable:true};}
 }
+async function loadDirectChat(scope:Obj,bridge:string){
+ try{
+  const r=await fetch(INBOX+"/functions/v1/task-brief-media",{method:"POST",headers:{"content-type":"application/json","x-admin-window-token":bridge},body:JSON.stringify({action:"direct_context",scope}),signal:AbortSignal.timeout(16000)});
+  const v=await r.json();if(!r.ok||!v.ok||!v.context||v.context.order_id!==scope.order_id||String(v.context.session_id||"")!==String(scope.session_id||""))throw Error("DIRECT_CONTEXT_UNAVAILABLE");
+  const ctx=v.context;
+  const plain=(m:Obj)=>String(m.text_content||m.caption||"").replace(/\\n/g,"\n");
+  const requestDate=(m:Obj)=>{const t=plain(m);return /\b(?:nak|mahu|order)\b[\s\S]{0,60}(?:topper|order)/i.test(t)?t.match(/\b([0-3]?\d)\/([01]?\d)\b/)?.slice(1).map(Number).join("/"):null;};
+  const before=(ctx.messages||[]).filter((m:Obj)=>Date.parse(m.created_at)<=Date.parse(scope.placed_at));
+  const initialDates=new Set(before.map(requestDate).filter(Boolean));
+  const newer=(ctx.messages||[]).find((m:Obj)=>Date.parse(m.created_at)>Date.parse(scope.placed_at)&&
+   (/\b(?:order\s+(?:baru|lagi)|new\s+order|another\s+order)\b/i.test(plain(m))||
+    (initialDates.size===1&&requestDate(m)&&!initialDates.has(requestDate(m)))));
+  if(newer)return {...ctx,ambiguous:true,reason:"NEW_ORDER_REQUEST_AFTER_CONVERSION",messages:ctx.messages.filter((m:Obj)=>Date.parse(m.created_at)<Date.parse(newer.created_at))};
+  return {...ctx,messages:(ctx.messages||[]).map((m:Obj)=>({...m,source_text_content:m.text_content,text_content:plain(m)}))};
+ }catch{return {messages:[],bindings:[],unavailable:true,evidence_source:"exact_direct_session"};}
+}
 function selectProof(context:Obj,placedMs:number){
  const allowed=new Set((context.bindings||[]).filter((b:Obj)=>b.usable===true).map((b:Obj)=>String(b.id)));
+ const direct=context.evidence_source==="exact_direct_session";
+ const starts=Date.parse(context.scope_start||""),ends=Date.parse(context.scope_end||"");
  const valid=(context.messages||[]).filter((m:Obj)=>m.direction==="inbound"&&!m.is_history&&allowed.has(String(m.conversation_id))&&
   !/^\[Shopee (?:item|order):/i.test(string(m.text_content||m.caption,120))&&
-  Number.isFinite(Date.parse(m.created_at))&&Date.parse(m.created_at)>=placedMs-60*60*1000&&Date.parse(m.created_at)<=Date.now());
+  Number.isFinite(Date.parse(m.created_at))&&(direct?Number.isFinite(starts)&&Date.parse(m.created_at)>starts&&(!Number.isFinite(ends)||Date.parse(m.created_at)<ends):Date.parse(m.created_at)>=placedMs-60*60*1000)&&Date.parse(m.created_at)<=Date.now());
  const unique=new Map<string,Obj>();
  for(const m of valid)unique.set(String(m.id),m);
  const chronological=[...unique.values()].sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at));
+ if(direct)return {chronological,proof:chronological};
  const prior=chronological.filter(m=>Date.parse(m.created_at)<=placedMs).slice(-2);
  const later=chronological.filter(m=>Date.parse(m.created_at)>placedMs);
  // Retain nearest messages AND latest follow-up, not just the first three replies.
@@ -680,7 +699,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const phone=string(field(task,"phone")?.value,30);
   const identity=string(field(task,"User ID")?.value,100);
   const followupEnabled=await setting("order_brief_followup_enabled")==="true";
-  let providerContext:Obj|null=null,followup:Obj={},orderFacts:Obj={};
+  let providerContext:Obj|null=null,followup:Obj={},orderFacts:Obj={},directScope:Obj|null=null;
   let note="",placed="",buyerId="",multi=false,orderUnpaid=false;
   if(uuid(s.marketplace_order_id)){
    const orders=await db("marketplace_orders?id=eq."+s.marketplace_order_id+"&select=buyer_message,placed_at,first_seen_at,current_status,buyer_user_id,shop_id,order_sn,raw_detail&limit=1");
@@ -704,14 +723,18 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    const items=order.raw_detail?.stock_item_recovery?.items;
    multi=Array.isArray(items)&&items.length>1;
   }else if(uuid(s.order_id)){
-   const orders=await db("orders?id=eq."+s.order_id+"&select=created_at&limit=1");
-   placed=string(orders?.[0]?.created_at,40);note="";
+   directScope=await db("rpc/icetak_autobrief_direct_scope",{p_order_id:s.order_id,p_task_id:id});
+   if(!directScope?.eligible)throw Error(string(directScope?.reason||"DIRECT_ORDER_UNVERIFIED",80));
+   placed=string(directScope.placed_at,40);note=string(directScope.note,1200);
+   orderUnpaid=!['paid','cash_counter'].includes(normalized(directScope.payment_status));
+   multi=directScope.single_item_scope!==true;
+
   }
   const placedMs=Date.parse(placed),placedIso=Number.isFinite(placedMs)?new Date(placedMs).toISOString():"";
   if(!placedIso)throw Error("ORDER_TIME_UNAVAILABLE");
   if(Date.now()-placedMs<900000)throw Error("WAIT_15_MINUTES");
   const key=(s.marketplace_order_id?"shopee:":"icetak:")+(s.marketplace_order_id||s.order_id);
-  const context=await loadChat(placedIso,buyerId,phone,key,String(s.order_reference||""),bridge);
+  const context=directScope?await loadDirectChat(directScope,bridge):await loadChat(placedIso,buyerId,phone,key,String(s.order_reference||""),bridge);
   if(followupEnabled&&uuid(s.marketplace_order_id)&&/^(?:CN|YS)\d{3,6}(?:\s+SG)?$/i.test(productSku)){
    const rivals=buyerId&&orderFacts.shop_id?await db("marketplace_orders?buyer_user_id=eq."+encodeURIComponent(buyerId)+
     "&shop_id=eq."+encodeURIComponent(orderFacts.shop_id)+"&id=neq."+s.marketplace_order_id+
@@ -734,17 +757,25 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    throw Error("PREVIOUS_PROOF_TEMPORARILY_UNAVAILABLE");
   const orderItems=uuid(s.marketplace_order_id)?
    await db("marketplace_order_items?order_id=eq."+s.marketplace_order_id+
-    "&is_current=eq.true&select=item_sku,variation_sku,title,variation_name,quantity,provider_item_id,provider_variation_id&limit=30"):[];
+    "&is_current=eq.true&select=item_sku,variation_sku,title,variation_name,quantity,provider_item_id,provider_variation_id&limit=30"):(directScope?.items||[]);
   // Multi-item means >1 line item OR a single line with more than 1 quantity.
   multi=multi||orderItems.length>1||orderItems.some((x:Obj)=>Number(x.quantity)>1);
   const priorDefault=providerContext?.deliveries?.some((d:Obj)=>d.phase==="deadline"&&d.state==="sent")&&normalized(existingWord)==="hb";
-  let decision=decide(note,priorDefault?"":existingWord,proof,context,multi,chronological);
+  const directSkuOnly=!!directScope&&/^(?:CN|YS)\d{3,6}(?: SG)?$/i.test(existingWord);
+  let decision=decide(note,priorDefault||directSkuOnly?"":existingWord,proof,context,multi,chronological);
+  if(directScope&&!multi&&!context.ambiguous&&!context.truncated&&!context.unavailable&&!decision.chat_evidence){
+   const phrases=chronological.flatMap((m:Obj)=>String(m.text_content||m.caption||"").replace(/\\n/g,"\n").split(/\r?\n/)).map((line:string)=>line.trim()).filter((line:string)=>/^happy\s+(?:\d{1,3}(?:st|nd|rd|th)\s+)?birthday\s+[\p{L}][\p{L}\p{M} .’'&-]{1,85}$/iu.test(line));
+   const unique=[...new Map(phrases.map((x:string)=>[normalized(x),x])).values()] as string[];
+   if(unique.length===1&&(!existingWord||directSkuOnly||normalized(existingWord)===normalized(unique[0]))&&!note){
+    decision={...decision,wording:unique[0],confidence:88,chat_evidence:true,name_conflict:false};
+   }
+  }
   const siblingTasks=uuid(s.marketplace_order_id)?
    await db("ai_clickup_work_snapshots?marketplace_order_id=eq."+s.marketplace_order_id+
     "&select=task_id,task_name,clickup_status&limit=30"):[];
   const sharedRule=sharedTopperWordingRule({note,existingWord,sku:productSku,
    items:orderItems,siblingTasks,decision,messages:chronological,context});
-  const product=targetProduct(productSku,orderItems);
+  const product=directScope?{...productReferences(orderItems.filter((x:Obj)=>x.local_item_id===directScope?.target_item_id))[0],source:"icetak"}:targetProduct(productSku,orderItems);
   const labelledRule=labelledProductWordingRule({note,existingWord,sku:productSku,
    items:orderItems,siblingTasks,messages:chronological,context});
   if(labelledRule.eligible)decision={...decision,wording:labelledRule.wording,confidence:labelledRule.confidence,
@@ -761,7 +792,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   // multi-item confidence cap; all SKU/status/time/conflict gates still apply.
   let confidence=sharedRule.eligible&&unresolvedMissing.length===0?
    Math.max(ordinaryConfidence,sharedRule.confidence):ordinaryConfidence;
-  let verified=!orderUnpaid && confidence>=80 && (decision.note_evidence||decision.chat_evidence) && (!context.ambiguous||completeNoteRule.eligible) && !context.truncated;
+  let verified=!orderUnpaid && confidence>=80 && (decision.note_evidence||decision.chat_evidence) && (!context.ambiguous||completeNoteRule.eligible) && !context.truncated&&!context.unavailable;
   if(providerContext?.available){
    followup=await handleFollowup({task,existingWord,existingConfirmed,decision,context,provider:providerContext,sku:productSku,product_id:product.product_id},clickupToken,bridge);
    if(followup.defaulted){
@@ -875,7 +906,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const requiresReview=reviewRequested(chronological)||Boolean(previous.review_requested);
   const followupNote=followupRemark(followup,!!primaryWording&&!followup.defaulted);
   let text=briefText(id,productSku,primaryWording,primaryInstruction,primaryImage,requiresReview,
-   holdForReview?true:(verified||existingConfirmed),primaryConfidence,note,proof,product,string(s.order_reference))
+   holdForReview?true:(verified||existingConfirmed),primaryConfidence,note,proof,product,string(directScope?.order_no||s.order_reference))
    .replace("confirm: ✅",holdForReview?"confirm: ✅ (perubahan baharu perlu review)":verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")
    +(orderUnpaid?"\n⚠️ Order masih UNPAID — semak bayaran sebelum proses.":"")
    +(followupNote?"\n\nAutomation follow-up: "+followupNote:"");
@@ -891,6 +922,13 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const comments=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment");
   const old=(comments.comments||[]).find((c:Obj)=>contains(c.comment,marker)||contains(c.comment,"[iCetak-AutoBrief:"+id+":"));
   commentId=old?.id?String(old.id):commentId;
+  if(directScope){
+   const freshScope=await db("rpc/icetak_autobrief_direct_scope",{p_order_id:s.order_id,p_task_id:id});
+   if(!freshScope.eligible||JSON.stringify(freshScope)!==JSON.stringify(directScope))throw Error("DIRECT_ORDER_CHANGED");
+   const latest=await clickup(clickupToken,"task/"+id);
+   if(normalized(latest.status?.status)!=="design editing -topper"||String(latest.list?.id)!=="18375902"||
+    JSON.stringify((latest.custom_fields||[]).filter((x:Obj)=>[CF.name,CF.review,CF.confirmed].includes(x.id)))!==JSON.stringify((task.custom_fields||[]).filter((x:Obj)=>[CF.name,CF.review,CF.confirmed].includes(x.id))))throw Error("DIRECT_TASK_CHANGED");
+  }
   // Preserve single comment even if source fingerprint changes or ClickUp comment pagination changes.
   if(commentId){
    if(previous.text_hash!==hash){
@@ -972,7 +1010,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status,product_title:product.title||"",product_id:product.product_id||"",
-   order_products:productReferences(orderItems),complete_note_rule:completeNoteRule,labelled_wording_rule:labelledRule,followup,followup_remark:followupNote,
+   direct_session:directScope?{order_id:directScope.order_id,order_no:directScope.order_no,session_id:directScope.session_id,draft_id:directScope.draft_id,target_item_id:directScope.target_item_id,start_at:context.scope_start,end_at:context.scope_end,evidence_source:context.evidence_source,reason:context.reason}:null,order_products:productReferences(orderItems),complete_note_rule:completeNoteRule,labelled_wording_rule:labelledRule,followup,followup_remark:followupNote,
    shared_wording_rule:sharedRule,ai_analysis:aiAnalysis?.input_hash?aiAnalysis:null,ai_mode:"advisory"};
   state=holdForReview?"review":verified?"completed":"review";
  }catch(e){
