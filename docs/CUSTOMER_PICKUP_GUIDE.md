@@ -1,0 +1,9 @@
+# Customer pickup guide
+
+The customer order pickup card links Bandar Baru Pasir Puteh to the owner's supplied `https://swiy.co/decocakePP` location. It displays the owner-specified pickup operating hours: 9am–7pm, Saturday–Thursday. This is pickup-card guidance; it does not change backend scheduling or other operational settings.
+
+Only the canonical customer `Paid` label displays the BOX text control. Unpaid/cash-counter and pending-review orders do not see it. The control opens the original supplied `/images/pickup-box.jpg` in an accessible same-page image dialog, with close button, Escape/backdrop handling and focus restoration. The original street/BOX photo is stored as a stable public site asset.
+
+Ready to Process is distinct from Ready for Pickup. Paid orders still in production are explicitly told to wait for Ready for Pickup before coming. Ready paid orders are told to collect during operating hours, identify their name/Order ID label and take only their own package. Collected orders keep their existing confirmation and show the BOX guide as a location reference. The final pickup helper remains compatible with the existing lifecycle enhancer, and customer receipt confirmation continues to require the normal explicit action. No payment, readiness, collected status or notification is changed by viewing the guide.
+
+Regression: `node scripts/check-customer-pod.mjs` exercises the actual pickup renderer's link/hours, paid/unpaid/pending-review gate and ready/collected guidance. Hosted paid-ready, paid-production, unpaid cash-counter and collected screens are verified. The location href, hours, BOX photo loading/closing, collected label and stage-specific confirmation note are observed on production after build `85043c8d` for `423a165f`. No customer receipt confirmation was submitted.
