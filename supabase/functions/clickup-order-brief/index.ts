@@ -251,8 +251,16 @@ async function loadDirectChat(scope:Obj,bridge:string){
   const newer=(ctx.messages||[]).find((m:Obj)=>Date.parse(m.created_at)>Date.parse(scope.placed_at)&&
    (/\b(?:order\s+(?:baru|lagi)|new\s+order|another\s+order)\b/i.test(plain(m))||
     (initialDates.size===1&&requestDate(m)&&!initialDates.has(requestDate(m)))));
-  if(newer)return {...ctx,ambiguous:true,reason:"NEW_ORDER_REQUEST_AFTER_CONVERSION",messages:ctx.messages.filter((m:Obj)=>Date.parse(m.created_at)<Date.parse(newer.created_at))};
-  return {...ctx,messages:(ctx.messages||[]).map((m:Obj)=>({...m,source_text_content:m.text_content,text_content:plain(m)}))};
+  const messages=(ctx.messages||[]).map((m:Obj)=>({...m,source_text_content:m.text_content,text_content:plain(m)}));
+  if(newer){
+   const originalDraft=uuid(scope.draft_id)&&uuid(scope.session_id)&&ctx.draft_id===scope.draft_id&&ctx.session_id===scope.session_id;
+   const prior=messages.filter((m:Obj)=>Date.parse(m.created_at)<Date.parse(newer.created_at));
+   // A later independent request bounds a proven converted draft; it must not
+   // invalidate the original order's already-owned wording/reference evidence.
+   if(originalDraft)return {...ctx,messages:prior,scope_end:newer.created_at,later_request_excluded:true,reason:"LATER_ORDER_REQUEST_EXCLUDED"};
+   return {...ctx,ambiguous:true,reason:"NEW_ORDER_REQUEST_AFTER_CONVERSION",messages:prior};
+  }
+  return {...ctx,messages};
  }catch{return {messages:[],bindings:[],unavailable:true,evidence_source:"exact_direct_session"};}
 }
 function selectProof(context:Obj,placedMs:number){
@@ -1024,7 +1032,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status,product_title:product.title||"",product_id:product.product_id||"",
-   direct_session:directScope?{order_id:directScope.order_id,order_no:directScope.order_no,session_id:directScope.session_id,draft_id:directScope.draft_id,target_item_id:directScope.target_item_id,start_at:context.scope_start,end_at:context.scope_end,evidence_source:context.evidence_source,reason:context.reason}:null,order_products:productReferences(orderItems),complete_note_rule:completeNoteRule,labelled_wording_rule:labelledRule,followup,followup_remark:followupNote,
+   direct_session:directScope?{order_id:directScope.order_id,order_no:directScope.order_no,session_id:directScope.session_id,draft_id:directScope.draft_id,target_item_id:directScope.target_item_id,start_at:context.scope_start,end_at:context.scope_end,evidence_source:context.evidence_source,later_request_excluded:context.later_request_excluded===true,reason:context.reason}:null,order_products:productReferences(orderItems),complete_note_rule:completeNoteRule,labelled_wording_rule:labelledRule,followup,followup_remark:followupNote,
    shared_wording_rule:sharedRule,ai_analysis:aiAnalysis?.input_hash?aiAnalysis:null,ai_mode:"advisory"};
   state=holdForReview?"review":verified?"completed":"review";
  }catch(e){

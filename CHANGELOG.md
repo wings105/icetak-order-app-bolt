@@ -1,5 +1,9 @@
 # 2026-11-03
 
+- [PRODUCTION] AutoBrief preserves original converted pickup/prepaid draft wording and image when a later independent request appears in the same chat. Worker v54 requires matching canonical draft/session IDs and bounds proof before the new request; missing/mismatched evidence still holds. Actual-handler/replay guards and real exact-task recovery verify 88% wording, Ai Check, existing confirmation, one original image attachment and the same comment. See [contract](docs/AUTOBRIEF_FOLLOWUP.md#preserve-original-converted-draft-evidence--3-november-2026).
+
+# 2026-11-03
+
 - [PRODUCTION] Historical/completed/cancelled Shopee order links no longer block AutoBrief when the authoritative reader proves one usable current order session. Worker v53 retains active ambiguity/truncation/closed-boundary guards. Actual-handler tests and a real exact-order canary prove one card then one fixed detail text, follow up1, separate provider receipts and the same brief comment. See [contract](docs/AUTOBRIEF_FOLLOWUP.md#historical-shopee-links-versus-current-session--3-november-2026).
 
 # 2026-11-03

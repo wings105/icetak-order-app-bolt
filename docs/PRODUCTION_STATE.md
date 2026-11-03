@@ -1,3 +1,12 @@
+# 2026-11-03 — Recover original converted-draft AutoBrief
+
+Order worker v54 preserves the original proven draft session before a later
+independent order request. Matching draft/session IDs are mandatory; unknown or
+mismatched scope remains review. Controlled actual-handler/replay checks and a
+live exact pickup recovery verify correct 88% wording, Ai Check, existing
+confirmation, one original reference attachment and stable comment identity.
+No customer send or canonical payment/date/lifecycle change. See [contract](AUTOBRIEF_FOLLOWUP.md#preserve-original-converted-draft-evidence--3-november-2026).
+
 # 2026-11-03 — Shopee historical-link AutoBrief recovery
 
 Order worker v53 uses the existing authoritative current session reader when

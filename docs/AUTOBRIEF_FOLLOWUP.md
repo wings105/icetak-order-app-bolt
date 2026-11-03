@@ -299,3 +299,28 @@ provider IDs and one attempt each. ClickUp readback shows follow up1, empty word
 and no customer confirmation; the existing brief comment ID is retained with MYT
 card/text receipt times. The active order remains READY_TO_SHIP, while its older
 cancelled order remains CANCELLED. Receipt IDs and customer evidence are private.
+
+
+## Preserve original converted-draft evidence — 3 November 2026
+
+Worker v54 treats a later independent order request as the end of a proven
+converted draft's chat window, rather than invalidating its original evidence.
+Both canonical draft and session UUIDs must match the private Inbox response.
+Earlier wording/reference messages remain usable, escaped line breaks decode
+consistently, and the later request is excluded from proof. Without matching
+converted-draft evidence, the existing ambiguity hold remains. Native ambiguous,
+truncated or unavailable contexts are never promoted by this rule.
+
+The private brief records the derived end time, `later_request_excluded` and
+`LATER_ORDER_REQUEST_EXCLUDED`. Staff fields remain protected; an owner-requested
+correction of a previously confirmed SKU-as-wording value is a scoped manual
+correction, not permission for automatic staff overrides on other tasks.
+
+Actual-handler regressions prove original Happy Birthday wording survives a later
+dated request, its message ID is excluded, replay retains one comment, and missing
+or mismatched draft proof remains blocked. Existing direct/Shopee/product/log
+regressions pass. An exact live pickup recovery now stores verified WhatsApp
+wording at 88%, Ai Check and existing confirmation, with the same AutoBrief comment
+ID and one original message image attached. Provider readback confirms the exact
+wording, field option, proof attachment and comment. Canonical draft evidence,
+payments, pickup dates and order/task lifecycle are unchanged; no customer send.
