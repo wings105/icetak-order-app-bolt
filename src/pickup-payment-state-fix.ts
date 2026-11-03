@@ -279,7 +279,7 @@ function ensurePickupButton(card: HTMLElement) {
   card.querySelector('[data-payment-guard]')?.remove();
   const note = document.createElement('p');
   note.dataset.lifecycleNote = 'pickup-confirmation';
-  note.textContent = 'Tekan butang di bawah hanya selepas barang sudah diterima daripada staff.';
+  note.textContent = card.querySelector('[data-cp-pickup-box]') ? 'Tekan butang di bawah hanya selepas anda sudah mengambil bungkusan sendiri daripada pickup BOX.' : 'Tekan butang di bawah hanya selepas barang sudah diterima daripada staff.';
   Object.assign(note.style, { padding: '10px 12px', borderRadius: '10px', background: '#fff3cd', color: '#7a4b00', fontWeight: '700' });
   const button = document.createElement('button');
   button.type = 'button';
