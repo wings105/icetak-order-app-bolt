@@ -4,3 +4,5 @@
 .cp-courier-icon{display:block;width:80px;height:30px;object-fit:contain;object-position:left center;margin:0 0 5px;border-radius:2px}
 
 .cp-item-card>header>.cp-item-emoji{display:grid;place-items:center;width:46px;height:50px;font-size:30px;line-height:1}
+
+.cp-pickup-location,.cp-pickup-box-link{color:#0671c9;text-decoration:underline}.cp-pickup-hours{display:grid;gap:3px;font-size:12px;margin:10px 0}.cp-pickup-box{margin:10px 0}.cp-pickup-box-link{border:0;background:none;padding:3px 0;font-size:13px;font-weight:700;cursor:pointer}.cp-pickup-box p{font-size:12px;line-height:1.6;margin:5px 0 10px}

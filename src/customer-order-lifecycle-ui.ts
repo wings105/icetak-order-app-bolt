@@ -415,7 +415,7 @@ function enhancePickupCard(detail: HTMLElement) {
   const ready = pickupCard.classList.contains('ready') || normalizeLifecycleValue(heading?.textContent).includes('ready_for_pickup') || pageStatus.includes('ready_for_pickup');
   if (!ready || pickupCard.querySelector('[data-customer-confirm-pickup]')) return true;
 
-  addLifecycleNote(pickupCard, 'pickup-confirmation', 'Tekan butang di bawah hanya selepas barang sudah diterima daripada staff.', true);
+  addLifecycleNote(pickupCard, 'pickup-confirmation', pickupCard.querySelector('[data-cp-pickup-box]') ? 'Tekan butang di bawah hanya selepas anda sudah mengambil bungkusan sendiri daripada pickup BOX.' : 'Tekan butang di bawah hanya selepas barang sudah diterima daripada staff.', true);
   const button = document.createElement('button');
   button.type = 'button';
   button.dataset.customerConfirmPickup = '1';

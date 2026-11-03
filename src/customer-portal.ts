@@ -359,9 +359,13 @@ function renderShipment(order: Order) {
   const shipment = order.shipment;
   if (order.delivery === 'Pickup') {
     const ready = order.status.toLowerCase().includes('ready');
+    const collected = ['completed', 'collected', 'customer_collected'].includes(order.status.toLowerCase().replaceAll(' ', '_'));
+    const paid = order.payment === 'Paid';
     return `<section class="cp-section cp-pickup-card ${ready ? 'ready' : ''}">
       <header><div>${renderCourierIcon(order.delivery)}<h3>${ready ? 'Order Ready for Pickup' : 'Pickup di Kedai'}</h3></div><span>${ready ? '✅' : '📍'}</span></header>
-      <p>Bandar Baru Pasir Puteh</p>
+      <p><a class="cp-pickup-location" href="https://swiy.co/decocakePP" target="_blank" rel="noopener noreferrer">Bandar Baru Pasir Puteh ↗</a></p>
+      <div class="cp-pickup-hours"><b>Waktu Operasi:</b><span>⌚ 9am–7.00pm</span><span>🏪 Sabtu–Khamis</span></div>
+      ${paid ? `<div class="cp-pickup-box"><button type="button" class="cp-pickup-box-link" data-cp-pickup-box aria-haspopup="dialog">BOX</button><p>${collected ? 'Panduan lokasi pickup BOX di luar kedai boleh dilihat melalui pautan BOX.' : ready ? 'Order anda sudah dibayar dan sedia untuk diambil di pickup BOX di luar kedai, dalam waktu operasi. Cari bungkusan berlabel nama atau Order ID anda dan ambil bungkusan milik anda sahaja.' : 'Order yang sudah dibayar boleh diambil melalui pickup BOX di luar kedai selepas status Ready for Pickup. Sila tunggu status siap sebelum datang. Cari bungkusan berlabel nama atau Order ID anda dan ambil bungkusan milik anda sahaja.'}</p></div>` : ''}
       <small>${ready ? 'Bawa Order ID semasa pickup.' : 'Status akan berubah kepada Ready for Pickup selepas packing selesai.'}</small>
     </section>`;
   }
@@ -381,12 +385,12 @@ function renderShipment(order: Order) {
   </section>`;
 }
 
-function openPodPopup(pod: NonNullable<Shipment['pods']>[number], trigger: HTMLElement) {
+function openPodPopup(pod: NonNullable<Shipment['pods']>[number], trigger: HTMLElement, title?: string) {
   document.querySelector<HTMLDialogElement>('.cp-pod-dialog')?.close();
   const dialog = document.createElement('dialog');
   dialog.className = 'cp-pod-dialog';
-  dialog.setAttribute('aria-label', `Proof of Delivery ${pod.position}`);
-  dialog.innerHTML = `<header><strong>POD${pod.position}</strong><button type="button" aria-label="Tutup POD" autofocus>×</button></header>${pod.contentType === 'application/pdf' ? `<iframe src="${escapeHtml(pod.url)}" title="Proof of Delivery ${pod.position}" referrerpolicy="no-referrer"></iframe>` : `<img src="${escapeHtml(pod.url)}" alt="Bukti penghantaran ${pod.position}" referrerpolicy="no-referrer">`}`;
+  dialog.setAttribute('aria-label', title || `Proof of Delivery ${pod.position}`);
+  dialog.innerHTML = `<header><strong>${escapeHtml(title || `POD${pod.position}`)}</strong><button type="button" aria-label="${title ? 'Tutup panduan BOX' : 'Tutup POD'}" autofocus>×</button></header>${pod.contentType === 'application/pdf' ? `<iframe src="${escapeHtml(pod.url)}" title="Proof of Delivery ${pod.position}" referrerpolicy="no-referrer"></iframe>` : `<img src="${escapeHtml(pod.url)}" alt="${escapeHtml(title || `Bukti penghantaran ${pod.position}`)}" referrerpolicy="no-referrer">`}`;
   dialog.querySelector('button')!.onclick = () => dialog.close();
   dialog.addEventListener('click', event => { if (event.target === dialog) { const box = dialog.getBoundingClientRect(); if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) dialog.close(); } });
   dialog.addEventListener('close', () => { dialog.remove(); if (trigger.isConnected) trigger.focus(); }, { once: true });
@@ -464,6 +468,9 @@ function renderOrder(main: HTMLElement, order: Order) {
   });
   main.querySelectorAll<HTMLButtonElement>('[data-cp-pod]').forEach(button => {
     button.onclick = () => { const pod = order.shipment?.pods?.find(item => item.id === button.dataset.cpPod); if (pod) openPodPopup(pod, button); };
+  });
+  main.querySelector<HTMLButtonElement>('[data-cp-pickup-box]')?.addEventListener('click', event => {
+    openPodPopup({ id: 'pickup-box', position: 1, contentType: 'image/jpeg', url: '/images/pickup-box.jpg' }, event.currentTarget as HTMLElement, 'Panduan Lokasi Pickup BOX');
   });
   main.querySelector<HTMLButtonElement>('[data-cp-pay-now]')?.addEventListener('click', () => void openPayment(order, main));
   main.querySelector<HTMLButtonElement>('[data-cp-cancel]')?.addEventListener('click', () => void confirmCancel(order, main));
