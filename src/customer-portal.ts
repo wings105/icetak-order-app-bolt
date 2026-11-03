@@ -34,6 +34,7 @@ type ShipmentEvent = {
   eventTime: number;
 };
 type Shipment = {
+  pods?: { id: string; position: number; contentType: string; url: string }[];
   tracking: string;
   courier: string;
   trackingLink: string;
@@ -372,6 +373,7 @@ function renderShipment(order: Order) {
       ${shipment.trackingLink ? `<a href="${escapeHtml(shipment.trackingLink)}" target="_blank" rel="noopener">Track Parcel</a>` : ''}
     </header>
     <button class="cp-tracking-copy" data-cp-copy-tracking="${escapeHtml(shipment.tracking)}"><span>${escapeHtml(shipment.tracking)}</span><b>Copy</b></button>
+    ${String(shipment.statusGroup || shipment.status).toLowerCase() === 'delivered' ? `<section class="cp-pod"><h3>Proof of Delivery</h3><p>Bukti penghantaran</p>${shipment.pods?.length ? `<div class="cp-pod-grid">${shipment.pods.map(pod => `<a href="${escapeHtml(pod.url)}" target="_blank" rel="noopener noreferrer">${pod.contentType?.startsWith('image/') ? `<img src="${escapeHtml(pod.url)}" alt="Bukti penghantaran ${pod.position}" loading="lazy" referrerpolicy="no-referrer">` : '<span>📄 PDF</span>'}<b>Lihat bukti ${pod.position}</b></a>`).join('')}</div>` : '<p class="cp-pod-pending">Bukti penghantaran belum tersedia daripada courier. Sila semak semula kemudian.</p>'}</section>` : ''}
     ${shipment.events?.length ? `<div class="cp-shipment-timeline">${shipment.events.map((event, index) => `<article class="${index === 0 ? 'latest' : ''}"><i></i><div><b>${escapeHtml(event.status)}</b>${event.statusGroup ? `<span>${escapeHtml(event.statusGroup)}</span>` : ''}<small>${event.eventTime ? new Date(event.eventTime).toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur' }) : ''}</small></div></article>`).join('')}</div>` : ''}
   </section>`;
 }

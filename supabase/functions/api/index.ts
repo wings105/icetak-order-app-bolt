@@ -1,4 +1,5 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import { recoverCustomerPod } from './customer-pod.ts';
 
 const cors = {
   'access-control-allow-origin': '*',
@@ -221,7 +222,17 @@ async function shipmentFor(order: any) {
     db(`shipment_events?order_id=eq.${order.id}&order=event_time.desc`).catch(() => []),
   ]);
   const shipment = latest(shipments || []);
+  let pods: any[] = [];
+  if (shipment?.normalized_status === 'delivered') {
+    await recoverCustomerPod(shipment, db, url, serviceRole).catch(() => null);
+    pods = await db(`shipment_pod_files?shipment_id=eq.${shipment.id}&archive_status=in.(archived_db,archived_storage)&select=id,position,content_type&order=position.asc`).catch(() => []);
+    if (pods.length && (shipment.pod_count !== pods.length || shipment.pod_status !== 'archived_storage')) {
+      await db(`shipments?id=eq.${shipment.id}`, { method: 'PATCH', body: JSON.stringify({ pod_count: pods.length, pod_status: 'archived_storage', pod_error: null, pod_archived_at: new Date().toISOString() }) }).catch(() => null);
+    }
+  }
   return {
+    pods: pods.map((pod: any) => ({ id: pod.id, position: pod.position, contentType: pod.content_type,
+      url: `${url}/functions/v1/shipping-pod-view?token=${encodeURIComponent(shipment.public_tracking_token)}&pod_id=${encodeURIComponent(pod.id)}` })),
     tracking: text(shipment?.tracking_no || order.tracking),
     courier: text(shipment?.courier || shipment?.service_provider || order.courier || order.delivery),
     trackingLink: text(shipment?.tracking_link || order.tracking_link),

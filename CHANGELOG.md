@@ -1,3 +1,7 @@
+## 2026-11-03 — Customer portal Proof of Delivery
+
+- [VERIFIED backend; hosted frontend acceptance pending] The current customer portal gains delivered POD thumbnails/PDF links and an explicit courier-unavailable state. Its token-scoped shipment API recovers available provider POD into private storage with per-shipment claim, exact identity, delivery, host, size and file-signature guards. Actual provider archival, helper/renderer regressions and production build pass; hosted rendering remains a separate check. See [shipping contract](docs/SHIPPING_AGENT_GUIDE.md#customer-portal-pod).
+
 ## 2026-11-03 — Pending Pickup provider cancellation recovery
 
 - [PRODUCTION backend] Periodic read-only ParcelDaily tracking reconciles confirmed cancellations for unresolved, unscanned AWBs into iCetak shipment/tracking state with private check receipts and idempotent events. Requested cancellation, identity/error responses and scan races leave shipment status unchanged; superseded AWBs cannot overwrite their orders’ current shipment. Actual provider reads, persisted cancellation/remaining-pending readback, zero customer jobs, native rollback regressions and actual-handler tests pass. See [shipping contract](docs/SHIPPING_AGENT_GUIDE.md#pending-pickup-provider-cancellation-reconciliation).
