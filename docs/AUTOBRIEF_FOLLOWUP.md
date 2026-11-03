@@ -278,3 +278,24 @@ Actual worker tests prove no writes at 14:59.999, processing at 15:00 and websit
 pre-checkout wording/CF/proof. Existing follow-up, product and session-isolation
 regressions pass; security advisor counts are unchanged. A fresh autonomous
 website checkout-to-CF event remains unobserved.
+
+
+## Historical Shopee links versus current session — 3 November 2026
+
+Worker v53 no longer treats the exact-proof reader's generic
+`MULTIPLE_LINKED_ORDERS` response as a final ambiguity verdict. It queries the
+existing authoritative exact-order context reader. Only one usable Shopee
+session with explicit start/boundary/end containing placement can resolve this
+case; messages remain inside that conversation/window. Native ambiguity,
+truncation, unavailable data, multiple sessions, unusable/closed boundaries and
+phone-only or other-channel bindings still hold. Historical links are retained;
+no order/session state is rewritten and no new reader/schema is introduced.
+
+Actual-handler regressions prove the fallback, old/other-conversation exclusion,
+genuine ambiguity/closed-window denial and card→text→follow up1 with one send each
+on replay. Existing direct WhatsApp, product and log tests pass. Production exact
+claimed canary now sends one native card then the fixed first text, with distinct
+provider IDs and one attempt each. ClickUp readback shows follow up1, empty wording
+and no customer confirmation; the existing brief comment ID is retained with MYT
+card/text receipt times. The active order remains READY_TO_SHIP, while its older
+cancelled order remains CANCELLED. Receipt IDs and customer evidence are private.
