@@ -593,7 +593,7 @@ function reviewSelection(task:Obj){
 async function handleFollowup(input:Obj,token:string,bridge:string):Promise<Obj>{
  const {task,existingWord,existingConfirmed,decision,context,provider,sku}=input;
  const first=provider.deliveries?.find((x:Obj)=>x.phase==="first"),deadline=provider.deliveries?.find((x:Obj)=>x.phase==="deadline");
- const result:Obj={enabled:provider.enabled===true,first:first||null,deadline:deadline||null,due_at:provider.due_at,checked_at:provider.checked_at};
+ const result:Obj={enabled:provider.enabled===true,order_card:provider.deliveries?.find((x:Obj)=>x.phase==="order_card")||null,first:first||null,deadline:deadline||null,due_at:provider.due_at,checked_at:provider.checked_at};
  if(!provider.enabled)return {...result,blocked:"DISABLED"};
  if(context.ambiguous||context.truncated||context.unavailable)return {...result,blocked:"CHAT_CONTEXT_UNVERIFIED"};
  if(!["READY_TO_SHIP","PROCESSED"].includes(provider.order_status))return {...result,blocked:"ORDER_NOT_FULFILLABLE"};
@@ -620,6 +620,7 @@ async function handleFollowup(input:Obj,token:string,bridge:string):Promise<Obj>
   if(!manual&&Number.isFinite(Date.parse(provider.due_at||''))&&Date.now()>=Date.parse(provider.due_at))return {...result,blocked:"FIRST_REQUEST_NOT_RECORDED_BEFORE_DEADLINE"};
   const sent=await send("first");
   if(sent.delivery)result.first=sent.delivery;
+  if(sent.order_card)result.order_card=sent.order_card;
   if(sent.skipped||!sent.ok)result.blocked=sent.reason||sent.delivery?.state||sent.error||"FIRST_SEND_NOT_CONFIRMED";
  }
  if(!result.first||!['sent','manual'].includes(result.first.state))return result;
@@ -647,8 +648,8 @@ function followupRemark(f:Obj,hasDetail=false){
   if(r.state==="blocked")return label+" ditahan untuk semakan.";
   return "";
  };
- const reasons:Record<string,string>={DISABLED:"Automation dipause",CHAT_CONTEXT_UNVERIFIED:"Konteks chat belum disahkan",ORDER_NOT_FULFILLABLE:"Status order tidak layak",STAFF_REVIEW_PROTECTED:"Pilihan review staf dilindungi",CUSTOMER_REPLIED_IN_LINKED_CONTEXT:"Customer sudah membalas; perlu semak detail",CUSTOMER_DETAIL_REQUIRES_REVIEW:"Balasan customer perlu disemak",MULTIPLE_OR_UNVERIFIED_ACTIVE_ORDER:"Padanan order tidak tunggal atau belum disahkan",FIRST_REQUEST_NOT_RECORDED_BEFORE_DEADLINE:"Tiada rekod permintaan detail sebelum cut-off",WAIT_15_MINUTES:"Menunggu 15 minit selepas order",WAIT_1400_MYT:"Menunggu cut-off 2 petang",TASK_CHANGED_BEFORE_SEND:"Task berubah sebelum penghantaran"};
- const parts=[receipt(f.first,"Permintaan detail"),receipt(f.deadline,"Notis deadline")].filter(Boolean);
+ const reasons:Record<string,string>={DISABLED:"Automation dipause",CHAT_CONTEXT_UNVERIFIED:"Konteks chat belum disahkan",ORDER_NOT_FULFILLABLE:"Status order tidak layak",STAFF_REVIEW_PROTECTED:"Pilihan review staf dilindungi",CUSTOMER_REPLIED_IN_LINKED_CONTEXT:"Customer sudah membalas; perlu semak detail",CUSTOMER_DETAIL_REQUIRES_REVIEW:"Balasan customer perlu disemak",MULTIPLE_OR_UNVERIFIED_ACTIVE_ORDER:"Padanan order tidak tunggal atau belum disahkan",FIRST_REQUEST_NOT_RECORDED_BEFORE_DEADLINE:"Tiada rekod permintaan detail sebelum cut-off",WAIT_15_MINUTES:"Menunggu 15 minit selepas order",WAIT_1400_MYT:"Menunggu cut-off 2 petang",TASK_CHANGED_BEFORE_SEND:"Task berubah sebelum penghantaran",ORDER_CARD_NOT_CONFIRMED:"Kad order belum disahkan; mesej detail ditahan"};
+ const parts=[receipt(f.order_card,"Kad order"),receipt(f.first,"Permintaan detail"),receipt(f.deadline,"Notis deadline")].filter(Boolean);
  if(hasDetail)parts.push("Detail tersedia; rujuk wording dan status confirm di atas.");
  else if(f.defaulted)parts.push("Default wording: hb (tiada detail customer).");
  else if(f.first&&["sent","manual"].includes(f.first.state))parts.push("Menunggu detail customer."+(when(f.due_at)?" Cut-off default hb: "+when(f.due_at)+".":""));

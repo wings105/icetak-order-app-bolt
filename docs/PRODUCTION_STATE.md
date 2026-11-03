@@ -1,3 +1,12 @@
+# 2026-11-03 — AutoBrief order card before detail request
+
+Inbox `autobrief-followup` v8 and Order `clickup-order-brief` v50 are active.
+Independent native order-card proof gates the first fixed detail text; uncertain
+cards hold text, history reconciles without duplicates, and the stable brief/log
+snapshot includes card status. Controlled actual-handler/native rollback checks
+pass; deployed adoption preserves existing provider receipts with no new sends.
+Fresh autonomous provider delivery remains pending. See [contract](AUTOBRIEF_FOLLOWUP.md#order-card-before-first-detail-request--3-november-2026).
+
 # 2026-11-02 — AutoBrief logs and follow-up remarks
 
 [PRODUCTION backend and frontend delivery; controlled UI VERIFIED] Private Order log events and a service-only paged RPC expose receipt snapshots and meaningful transitions through authenticated Admin V2 Automation → Log AutoBrief. Manual/API/unknown states, order/phase/status filters, receipt IDs/times/attempts, preserved failure snapshots and no-change dedupe are verified. Order worker v46 writes a stable MYT follow-up remark into the existing single AutoBrief; real ClickUp readback retains its comment ID and adopted first receipt has no new sends. Inbox bridge v7 and admin gateway v5 preserve authentication and send behavior. Native rollback and actual-handler regressions plus root/Inbox/Admin builds pass; rendered desktop/375px synthetic browser interactions pass. Release `60950cbd` passed Workers build `71d2e99b`; the hosted log route reaches its Admin V2 login gate. Hosted signed-in acceptance remains pending. See [contract](AUTOBRIEF_FOLLOWUP.md#admin-v2-logs-and-brief-remarks--2-november-2026).

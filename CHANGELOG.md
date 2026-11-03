@@ -1,3 +1,7 @@
+# 2026-11-03
+
+- [VERIFIED] AutoBrief missing-detail automation sends the exact native Shopee order card before its first fixed text, with independent private receipts, card-gated text claims, bounded recovery of the earlier first-chat rejection and card status in the existing brief/log snapshot. Actual combined handler and native rollback tests prove sequencing, unknown/failure/reply/concurrency guards and no premature follow up1. Inbox v8 / Order v50 are deployed; live existing card/text adoption adds zero sends. Fresh autonomous provider delivery remains pending. See [contract](docs/AUTOBRIEF_FOLLOWUP.md#order-card-before-first-detail-request--3-november-2026).
+
 ## 2026-11-03 — Order Detail Home navigation
 
 - [PRODUCTION] The customer Order Detail bar has a centered accessible Home icon linking to the shop root in the same tab. Existing title/back control and sticky scrolling stay intact. Hosted desktop/mobile centering, non-overlap, sticky position and actual root navigation are verified; production build passes. See [navigation contract](docs/SHIPPING_AGENT_GUIDE.md#order-detail-home-link).
