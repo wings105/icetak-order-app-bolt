@@ -100,13 +100,13 @@ async function inspect(input:Obj,config:Obj){
   const id=s(m.message_id),at=timestamp(m);if(!id||!Number.isFinite(at)||at<=0)throw Error('PROVIDER_MESSAGE_ID_TIME_INVALID');
   normalized.push({id:localMessageIds.get(id)||await messageId(shop,id),provider_message_id:id,conversation_id:localId||cid,
    channel:'shopee',direction:s(m.from_id)===buyer?'inbound':'outbound',is_history:false,
-   message_type:s(m.message_type),text_content:s(m.content?.text),media_url:s(m.content?.image_url),
+   order_sn:s(m.content?.order_sn),message_type:s(m.message_type),text_content:s(m.content?.text),media_url:s(m.content?.image_url),
    created_at:new Date(at).toISOString()});
  }
  normalized.sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at));
  const facts={shop_id:shop,order_sn:orderSn,buyer_user_id:buyer,placed_at:new Date(placedMs).toISOString(),
   order_status:s(order.order_status),buyer_note:s(order.message_to_seller),
-  messages:normalized.map(m=>[m.provider_message_id,m.direction,m.text_content,m.media_url])};
+  messages:normalized.map(m=>[m.provider_message_id,m.direction,m.text_content,m.media_url,m.order_sn])};
  const revision=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(facts)))),x=>x.toString(16).padStart(2,'0')).join('');
  const deliveries=await db('autobrief_followup_deliveries?shop_id=eq.'+shop+'&order_sn=eq.'+orderSn+'&select=phase,state,request_id,provider_message_id,sent_at,updated_at,error,attempts,next_retry_at');
  const control=await db('autobrief_followup_control?singleton=eq.true&select=enabled&limit=1');
@@ -118,7 +118,7 @@ async function inspect(input:Obj,config:Obj){
 }
 async function delivery(action:string,ctx:Obj,phase:string,body:Obj={}){
  return await db('rpc/icetak_autobrief_delivery',{p_action:action,p_shop:ctx.shop_id,p_order:ctx.order_sn,p_phase:phase,
-  p_body:{buyer_id:ctx.buyer_user_id,text:phase==='first'?FIRST:DEADLINE,...body}});
+  p_body:{buyer_id:ctx.buyer_user_id,text:phase==='order_card'?'[Order #'+ctx.order_sn+']':phase==='first'?FIRST:DEADLINE,...body}});
 }
 function phaseGuard(ctx:Obj,phase:string,now=Date.now()){
  if(!ctx.enabled)return 'DISABLED';
@@ -138,7 +138,7 @@ function phaseGuard(ctx:Obj,phase:string,now=Date.now()){
  return '';
 }
 async function send(input:Obj,config:Obj){
- const ctx=await inspect(input,config),phase=s(input.phase);
+ let ctx=await inspect(input,config);const phase=s(input.phase);
  if(!['first','deadline'].includes(phase))throw Error('INVALID_PHASE');
  const referenceSku=(value:string)=>s(value).replace(/\s+SG$/i,'').toUpperCase();
  if(!/^(?:CN|YS)\d{3,6}(?:\s+SG)?$/i.test(s(input.target_sku))||!/^\d{1,20}$/.test(s(input.target_product_id))||
@@ -146,31 +146,61 @@ async function send(input:Obj,config:Obj){
  const text=phase==='first'?FIRST:DEADLINE;
  const existing=ctx.messages.filter((m:Obj)=>m.direction==='outbound'&&m.message_type==='text'&&canonical(s(m.text_content))===canonical(text)&&
   Date.parse(m.created_at)>=Date.parse(ctx.placed_at)&&(phase==='first'||Date.parse(m.created_at)>=Date.parse(ctx.due_at||''))).at(-1);
- if(existing)return out({ok:true,delivery:await delivery('observe',ctx,phase,{provider_message_id:existing.provider_message_id,conversation_id:ctx.conversation_id,sent_at:existing.created_at}),observed:true});
+ const observedCard=phase==='first'?await observeOrderCard(ctx):null;
+ if(existing)return out({ok:true,order_card:observedCard,delivery:await delivery('observe',ctx,phase,{provider_message_id:existing.provider_message_id,conversation_id:ctx.conversation_id,sent_at:existing.created_at}),observed:true});
  if(phase==='first'&&input.manual_followup===true)return out({ok:true,delivery:await delivery('manual',ctx,phase),manual:true});
  const previous=ctx.deliveries.find((x:Obj)=>x.phase===phase);
- if(previous&&['sent','manual','unknown','sending'].includes(previous.state))return out({ok:['sent','manual'].includes(previous.state),delivery:previous,duplicate:true});
+ if(previous&&['sent','manual','unknown','sending'].includes(previous.state))return out({ok:['sent','manual'].includes(previous.state),delivery:previous,order_card:observedCard,duplicate:true});
  const reason=phaseGuard(ctx,phase);
  if(reason)return out({ok:true,skipped:true,reason});
  if(s(input.revision)!==ctx.revision)return out({ok:true,skipped:true,reason:'ORDER_OR_CHAT_CHANGED'});
+ let card:Obj|null=null;
+ if(phase==='first'){
+  card=await ensureOrderCard(ctx,config);
+  if(card.state!=='sent')return out({ok:false,order_card:card,reason:'ORDER_CARD_NOT_CONFIRMED'});
+  // Card send is a network boundary: re-read the exact order/chat before text.
+  // Our own card changes the revision, but never bypasses reply/status/note guards.
+  ctx=await inspect(input,config);
+  const stopped=phaseGuard(ctx,phase);
+  if(stopped)return out({ok:true,skipped:true,reason:stopped,order_card:card});
+  if(!ctx.product_items.some((x:Obj)=>x.product_id===s(input.target_product_id)&&referenceSku(x.sku)===referenceSku(s(input.target_sku))))throw Error('TARGET_PRODUCT_NOT_VERIFIED');
+ }
  const claimed=await delivery('claim',ctx,phase);
- if(!claimed.claimed)return out({ok:['sent','manual'].includes(claimed.state),delivery:claimed,duplicate:true});
- const record=async(state:string,extra:Obj={})=>await delivery('record',ctx,phase,{request_id:claimed.request_id,state,...extra});
- // All guards above use a fresh signed provider read immediately before claiming.
- // A lost/uncertain POST is never retried automatically; history can reconcile it.
- let response:Response;
- try{response=await shopeeRequest(config,'/api/v2/sellerchat/send_message',{
-  to_id:Number(ctx.buyer_user_id),message_type:'text',content:{text}},'POST');}
- catch{return out({ok:false,delivery:await record('unknown',{error:'PROVIDER_RESPONSE_UNAVAILABLE'})});}
- const value=await response.text();let body:Obj;
- try{body=providerJSON(value);}catch{return out({ok:false,delivery:await record('unknown',{error:'PROVIDER_RESPONSE_INVALID'})});}
+ if(!claimed.claimed)return out({ok:['sent','manual'].includes(claimed.state),delivery:claimed,order_card:card,duplicate:true});
+ const receipt=await transmit(ctx,config,phase,claimed,{text});
+ return out({ok:receipt.state==='sent',delivery:receipt,order_card:card});
+}
+function existingOrderCard(ctx:Obj){
+ return ctx.messages.filter((m:Obj)=>m.direction==='outbound'&&m.message_type==='order'&&m.order_sn===ctx.order_sn).at(-1);
+}
+async function observeOrderCard(ctx:Obj){
+ const m=existingOrderCard(ctx);
+ return m?await delivery('observe',ctx,'order_card',{provider_message_id:m.provider_message_id,conversation_id:ctx.conversation_id,sent_at:m.created_at}):null;
+}
+async function ensureOrderCard(ctx:Obj,config:Obj){
+ const observed=await observeOrderCard(ctx);if(observed)return observed;
+ const prior=ctx.deliveries.find((d:Obj)=>d.phase==='order_card');
+ if(prior&&['sent','sending','unknown','blocked'].includes(prior.state))return prior;
+ const claimed=await delivery('claim',ctx,'order_card');
+ if(!claimed.claimed)return claimed;
+ return await transmit(ctx,config,'order_card',claimed,{order_sn:ctx.order_sn});
+}
+async function transmit(ctx:Obj,config:Obj,phase:string,claimed:Obj,content:Obj){
+ const record=async(state:string,extra:Obj={})=>await delivery('record',ctx,phase,{request_id:claimed.request_id,state,conversation_id:ctx.conversation_id,...extra});
+ // A lost/uncertain POST is never retried automatically; history reconciles it.
+ let response:Response,body:Obj;
+ try{
+  response=await shopeeRequest(config,'/api/v2/sellerchat/send_message',{
+   to_id:Number(ctx.buyer_user_id),message_type:phase==='order_card'?'order':'text',content},'POST');
+  body=providerJSON(await response.text());
+ }catch{return await record('unknown',{error:'PROVIDER_RESPONSE_UNAVAILABLE'});}
  const pid=s(body.response?.message_id||body.message_id);
  if(!response.ok||body.error){
   const state=response.status>=500?'unknown':'failed';
-  return out({ok:false,delivery:await record(state,{error:'SHOPEE_'+(s(body.error).replace(/[^a-zA-Z0-9_.-]/g,'').slice(0,70)||response.status)})});
+  return await record(state,{error:'SHOPEE_'+(s(body.error).replace(/[^a-zA-Z0-9_.-]/g,'').slice(0,70)||response.status)});
  }
- if(!pid)return out({ok:false,delivery:await record('unknown',{error:'PROVIDER_MESSAGE_ID_MISSING'})});
- return out({ok:true,delivery:await record('sent',{provider_message_id:pid})});
+ if(!pid)return await record('unknown',{error:'PROVIDER_MESSAGE_ID_MISSING'});
+ return await record('sent',{provider_message_id:pid});
 }
 Deno.serve(async(req:Request)=>{
  if(req.method!=='POST')return out({ok:false,error:'POST_REQUIRED'},405);

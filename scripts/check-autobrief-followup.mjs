@@ -10,11 +10,13 @@ globalThis.Date=class extends RealDate {constructor(...args){super(...(args.leng
 const shop='111111111',buyer='222222222',order='QA000000000001',cid='123456789012345678',taskId='qa-followup';
 const phaseKey=p=>shop+':'+order+':'+p;
 let ledger=new Map(),history=[],sends=[],unknown=false,recorded={},comment='',commentPosts=0,fieldWrites=[];
+let cardSends=[],providerCalls=[],cardMode='',replyAfterCard=false;
 let ambiguousOrder=false;
 let providerStatus='READY_TO_SHIP',buyerNote='',control=true,replyInserted=false,linkedReply=false;
 const cf={name:'7c88d5cf-56e9-4108-86c5-b8e7baaf5bdc',review:'01cec4ef-a30b-443d-a43a-9ab09835b78c',confirmed:'afa87c64-3e48-4056-b720-cf8ea9b243e8',ai:'d84d57b3-41f3-473d-b502-4e7bf45ace0c',follow:'qa-follow-option'};
 let task;
 function reset(){
+ cardSends=[];providerCalls=[];cardMode='';replyAfterCard=false;
  ambiguousOrder=false;now=fixed;ledger=new Map();history=[];sends=[];unknown=false;recorded={};comment='';commentPosts=0;fieldWrites=[];providerStatus='READY_TO_SHIP';buyerNote='';control=true;replyInserted=false;linkedReply=false;
  task={id:taskId,status:{status:'design editing -topper'},list:{id:'18375902'},custom_fields:[
   {id:'sku',name:'SKU',value:'CN1001'},{id:cf.name,name:'Customize Name',value:''},
@@ -30,7 +32,17 @@ const provider=async(config,path,payload,method)=>{
  if(path.endsWith('/get_one_conversation'))return Response.json({response:{conversation_id:cid,to_id:buyer}});
  if(path.endsWith('/get_message'))return Response.json({response:{messages:clone(history)}});
  if(path.endsWith('/send_message')){
-  assert.equal(method,'POST');assert.equal(payload.to_id,Number(buyer));sends.push(clone(payload));
+  assert.equal(method,'POST');assert.equal(payload.to_id,Number(buyer));providerCalls.push(clone(payload));
+  if(payload.message_type==='order'){
+   cardSends.push(clone(payload));assert.deepEqual(payload.content,{order_sn:order});
+   if(cardMode==='lost')throw Error('lost card response');
+   if(cardMode==='failed')return Response.json({error:'rejected'});
+   const m={...providerMessage('','outbound',String(800000000000000000n+BigInt(cardSends.length))),message_type:'order',content:{order_sn:order}};history.push(m);
+   if(replyAfterCard)history.push(providerMessage('Sample Child turns 6'));
+   if(cardMode==='missing_id')return Response.json({response:{}});
+   return Response.json({response:{message_id:m.message_id}});
+  }
+  sends.push(clone(payload));
   if(unknown)throw Error('lost response');
   const m=providerMessage(payload.content.text,'outbound',String(900000000000000000n+BigInt(sends.length)));history.push(m);
   return Response.json({response:{message_id:m.message_id}});
@@ -47,6 +59,7 @@ const inboxFetch=async(raw,opts={})=>{
  if(path.endsWith('/icetak_autobrief_delivery')){
   const k=phaseKey(body.p_phase),b=body.p_body;let r=ledger.get(k);
   if(body.p_action==='claim'){
+   if(body.p_phase==='first')assert.equal(ledger.get(phaseKey('order_card'))?.state,'sent','text claim needs accepted order card');
    if(r)return Response.json({...r,claimed:false});
    r={phase:body.p_phase,state:'sending',request_id:crypto.randomUUID(),buyer_id:buyer,text_content:b.text};ledger.set(k,r);return Response.json({...r,claimed:true});
   }
@@ -67,10 +80,11 @@ reset();
 assert.equal(bridgeApi.deadlineAt(Date.parse('2026-11-02T15:59:59Z')/1000),Date.parse('2026-11-02T06:00:00Z'));
 await assert.rejects(bridgeApi.send({...input,phase:'first',target_product_id:'999'},config),/TARGET_PRODUCT_NOT_VERIFIED/);assert.equal(sends.length,0);
 assert.equal(bridgeApi.providerJSON('{"conversation_id":123456789012345678}').conversation_id,cid);
+let response;
 let ctx=await bridgeApi.inspect(input,config);assert.equal(ctx.available,true);assert.equal(ctx.conversation_id,cid);
 const firstRequest={...input,phase:'first',revision:ctx.revision};
 await Promise.all([bridgeApi.send(firstRequest,config),bridgeApi.send(firstRequest,config)]);
-assert.equal(sends.length,1,'concurrent duplicate must send once');assert.equal(sends[0].content.text,bridgeApi.FIRST);
+assert.equal(sends.length,1,'concurrent duplicate must send once');assert.equal(cardSends.length,1);assert.deepEqual(providerCalls.map(x=>x.message_type),['order','text']);assert.equal(sends[0].content.text,bridgeApi.FIRST);
 await bridgeApi.send(firstRequest,config);assert.equal(sends.length,1);
 
 reset();unknown=true;ctx=await bridgeApi.inspect(input,config);
@@ -81,6 +95,29 @@ history.push(providerMessage(bridgeApi.FIRST,'outbound'));unknown=false;
 await bridgeApi.send({...input,phase:'first',revision:ctx.revision},config);
 assert.equal(sends.length,1);assert.equal(ledger.get(phaseKey('first')).state,'sent','provider history repairs unknown without resend');
 
+// Card receipt is independent; uncertain/failed cards never permit text/CF.
+for(const mode of ['lost','failed','missing_id']){
+ reset();cardMode=mode;ctx=await bridgeApi.inspect(input,config);
+ await bridgeApi.send({...input,phase:'first',revision:ctx.revision},config);
+ assert.equal(cardSends.length,1);assert.equal(sends.length,0);
+ assert.equal(ledger.has(phaseKey('first')),false);
+ if(mode==='lost'){
+  await bridgeApi.send({...input,phase:'first',revision:ctx.revision},config);
+  assert.equal(cardSends.length,1,'unknown card never blindly retried');
+ }
+}
+reset();replyAfterCard=true;ctx=await bridgeApi.inspect(input,config);
+response=await(await bridgeApi.send({...input,phase:'first',revision:ctx.revision},config)).json();
+assert.equal(response.reason,'CUSTOMER_REPLIED');assert.equal(sends.length,0);assert.equal(cardSends.length,1);
+reset();history=[{...providerMessage('','outbound'),message_type:'order',content:{order_sn:'OTHERORDER00001'}}];
+ctx=await bridgeApi.inspect(input,config);await bridgeApi.send({...input,phase:'first',revision:ctx.revision},config);
+assert.equal(cardSends.length,1,'another order card cannot satisfy this order');
+reset();cardMode='missing_id';ctx=await bridgeApi.inspect(input,config);
+await bridgeApi.send({...input,phase:'first',revision:ctx.revision},config);
+cardMode='';ctx=await bridgeApi.inspect(input,config);
+await bridgeApi.send({...input,phase:'first',revision:ctx.revision},config);
+assert.equal(cardSends.length,1);assert.equal(sends.length,1,'history reconciles accepted card without another card');
+
 reset();task.custom_fields[3].value=cf.follow;
 history=[providerMessage(bridgeApi.FIRST.replace(/\n/g,'\\n').replace(/"/g,'\\"'),'outbound')];
 ctx=await bridgeApi.inspect(input,config);
@@ -89,7 +126,7 @@ assert.equal(sends.length,0);assert.equal(ledger.get(phaseKey('first')).state,'s
 
 const original=clone(ledger.get(phaseKey('first')));
 now=Date.parse('2026-11-02T05:59:59Z');ctx=await bridgeApi.inspect(input,config);
-let response=await (await bridgeApi.send({...input,phase:'deadline',revision:ctx.revision},config)).json();assert.equal(response.reason,'WAIT_1400_MYT');assert.equal(sends.length,0);
+response=await (await bridgeApi.send({...input,phase:'deadline',revision:ctx.revision},config)).json();assert.equal(response.reason,'WAIT_1400_MYT');assert.equal(sends.length,0);
 now=Date.parse('2026-11-02T06:00:00Z');ctx=await bridgeApi.inspect(input,config);
 await bridgeApi.send({...input,phase:'deadline',revision:ctx.revision},config);
 assert.equal(sends.length,1);assert.equal(sends[0].content.text,bridgeApi.DEADLINE);
@@ -150,7 +187,7 @@ for(const note of ['Sample Child\n\nturn 7','Sample Child\\n\\nturn 7','Nama: Sa
 }
 reset();ambiguousOrder=true;buyerNote='Sample Child\nturn 7';task.custom_fields[1].value='Staff Name';await run();assert.equal(recorded.p_brief.complete_note_rule.eligible,false);assert.equal(recorded.p_brief.confirmed,false);
 reset();ambiguousOrder=true;buyerNote='Sample Child\nturn 7';history=[providerMessage('Tukar kepada Other Child')];await run();assert.equal(recorded.p_brief.complete_note_rule.eligible,false);assert.equal(recorded.p_brief.confirmed,false);
-reset();await run();assert.equal(sends.length,1);assert.equal(task.custom_fields[3].value,cf.follow);assert.equal(task.custom_fields[1].value,'');assert.match(comment,/Order ID: QA000000000001/);
+reset();await run();assert.equal(cardSends.length,1);assert.match(comment,/Kad order diterima API Shopee/);assert.equal(recorded.p_brief.followup.order_card.state,'sent');assert.equal(sends.length,1);assert.equal(task.custom_fields[3].value,cf.follow);assert.equal(task.custom_fields[1].value,'');assert.match(comment,/Order ID: QA000000000001/);
 await run();assert.equal(sends.length,1);assert.equal(commentPosts,1);
 history.push(providerMessage('Sample Child 6 tahun'));await run();
 assert.equal(task.custom_fields[1].value,'Sample Child 6 tahun');assert.equal(task.custom_fields[3].value,cf.ai);assert.equal(task.custom_fields[2].value,true);assert.equal(sends.length,1);assert.equal(recorded.p_brief.confirmed,true);
@@ -159,6 +196,8 @@ reset();await run();now=Date.parse('2026-11-02T06:00:00Z');await run();
 assert.equal(sends.length,2);assert.equal(task.custom_fields[1].value,'hb');assert.equal(task.custom_fields[2].value,false,'default only changes requested wording, not customer confirmation');assert.equal(task.custom_fields[3].value,cf.follow);assert.equal(recorded.p_brief.followup.defaulted,true);
 await run();assert.equal(sends.length,2);assert.equal(commentPosts,1);
 history.push(providerMessage('Nama: Sample Late\nUmur: 7'));await run();assert.equal(task.custom_fields[1].value,'Sample Late 7');assert.equal(task.custom_fields[3].value,cf.ai);assert.equal(task.custom_fields[2].value,true);
+reset();cardMode='failed';await run();assert.equal(cardSends.length,1);assert.equal(sends.length,0);assert.equal(task.custom_fields[3].value,'');assert.equal(recorded.p_brief.followup.order_card.state,'failed');assert.match(comment,/Kad order gagal/);
+reset();cardMode='lost';await run();await run();assert.equal(cardSends.length,1);assert.equal(sends.length,0);assert.equal(task.custom_fields[3].value,'');assert.match(comment,/Kad order belum pasti/);
 reset();linkedReply=true;await run();assert.equal(sends.length,0,'linked WhatsApp reply stops first request');
 reset();await run();linkedReply=true;now=Date.parse('2026-11-02T06:00:00Z');await run();assert.equal(sends.length,1,'linked WhatsApp detail/question stops default');assert.equal(task.custom_fields[1].value,'');
 reset();task.custom_fields[1].value='Staff Provided Name';await run();assert.equal(sends.length,0);assert.equal(task.custom_fields[1].value,'Staff Provided Name');

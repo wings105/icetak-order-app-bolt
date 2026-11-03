@@ -165,3 +165,38 @@ sends for ordinary/escaped/labelled multiline notes, stable replay and denied
 staff/reply conflicts. Product tests cover incomplete notes, multiple items,
 quantities, unknown product/context and conflicting age. Live outcome evidence
 is recorded in the scoped roadmap checker run.
+
+
+## Order card before first detail request — 3 November 2026
+
+Inbox bridge v8 sends the native `order` card for the exact provider order before
+its first fixed text. A separate private `order_card` receipt shares the existing
+shop/order/phase claim ledger. The first text claim requires a provider-confirmed
+card for that buyer/order. Card failures, pending claims and uncertain responses
+hold the text; a later exact card in provider history reconciles uncertainty
+without another send. Cards for other orders never satisfy this prerequisite.
+After card acceptance the bridge re-reads order/chat and target product, so a
+new customer reply, Buyer Note or fulfillment change stops the detail request.
+The deadline notice remains a separate once-only phase, without another card.
+
+Existing matching first texts are adopted before considering a new card. Already
+sent/manual first receipts do not trigger historical card backfills. Exhausted
+first-text attempts with the specific `first_chat_without_order_info` rejection
+receive at most one additional claim after a confirmed card and existing backoff;
+other exhausted failures and unknown outcomes retain their existing protections.
+No historical receipt is reset. Review customer becomes `follow up1` only after
+the text receipt, never from card acceptance alone.
+
+Order worker v50 includes the card receipt in the private follow-up snapshot and
+stable AutoBrief remark, with MYT time and separate text/deadline status. Existing
+Admin log event snapshots retain it alongside the comment remark. Authentication,
+RLS, eligibility, staff fields and the 14:00 MYT hb policy are preserved.
+
+Verification: the combined actual-handler suite proves card→text order,
+concurrent/repeated calls, card failure/lost response/missing ID, exact-order
+history reconciliation, customer reply between sends, no premature follow up1,
+CF/default/reply protection and a single stable comment. Native rollback tests
+prove card-gated text claims, independent receipts, private ACL and bounded
+first-chat recovery. Deployed v8 adopted the existing real card/text IDs with
+zero additional attempts. Future fresh autonomous provider delivery and the
+previously pending full media/hosted operator acceptance remain separate.
