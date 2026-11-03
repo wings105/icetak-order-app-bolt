@@ -53,6 +53,17 @@ for(const mode of ['unavailable','ambiguous','truncated','old','future_session',
 reset();scope.payment_status='paid';scope.delivery='courier';await run();assert.equal(task.custom_fields.find(x=>x.id===cf.word).value,'Sample Child 6');assert.equal(recorded.p_brief.direct_session.draft_id,scope.draft_id);
 reset();scope={eligible:false,reason:'ORDER_CLOSED'};r=await run();assert.equal(r.error,'ORDER_CLOSED');assert.equal(posts,0);assert.equal(writes.length,0);
 reset();scope.source='customer';scope.delivery='courier';scope.payment_status='paid';scope.session_id=null;context.session_id=null;scope.draft_id=null;scope.start_at=scope.placed_at;context.scope_start=scope.start_at;context.messages=[message('Nama: Website Child\nUmur: 7','2026-11-01T02:00:00Z')];await run();assert.equal(task.custom_fields.find(x=>x.id===cf.word).value,'Website Child 7');
+// Website phone-session includes pre-checkout detail, with the same 15-minute gate.
+reset();scope.source='customer';scope.payment_status='paid';scope.session_id=null;scope.draft_id=null;context.session_id=null;scope.session_source='website_phone_session';
+context.messages=[message('Nama: Before Checkout\nUmur: 9','2026-10-29T01:00:00Z')];
+await run();assert.equal(task.custom_fields.find(x=>x.id===cf.word).value,'Before Checkout 9');assert.equal(recorded.p_brief.proof[0].channel,'whatsapp');
+reset();const OriginalDate=Date,fixed=OriginalDate.parse('2026-11-03T12:00:00Z');let clock=fixed;
+globalThis.Date=class extends OriginalDate {constructor(...args){super(...(args.length?args:[clock]));}static now(){return clock;}};
+scope.source='customer';scope.payment_status='paid';scope.session_id=null;context.session_id=null;scope.draft_id=null;
+scope.placed_at=new OriginalDate(fixed-899999).toISOString();
+r=await run();assert.equal(r.error,'WAIT_15_MINUTES');assert.equal(posts,0);assert.equal(writes.length,0);
+clock+=1;r=await run();assert.equal(r.error,'');assert.equal(task.custom_fields.find(x=>x.id===cf.word).value,'Sample Child 6');
+globalThis.Date=OriginalDate;
 // New read-only bridge route uses the existing mandatory token; no send capability.
 let handler,rpc=0;
 new Function('Deno','fetch',strip('supabase/inbox-functions/task-brief-media/index.ts'))({env:{get:k=>k==='SUPABASE_URL'?'https://inbox.test':'synthetic'},serve:h=>handler=h},async(raw,opts={})=>{

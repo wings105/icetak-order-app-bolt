@@ -1,3 +1,12 @@
+# 2026-11-03 — Website phone-session AutoBrief
+
+The existing private direct-scope RPC now includes eligible pre-checkout WhatsApp
+detail for website checkout phones using the draft lifecycle boundary, rather
+than starting every website read at checkout. Inbox uniqueness, next-order and
+15-minute worker gates are retained. Migration 20261103124646 is active; deployed
+native rollback and actual worker boundary/CF tests pass. Fresh autonomous
+website acceptance remains pending. See [contract](AUTOBRIEF_FOLLOWUP.md#website-checkout-phone-session--3-november-2026).
+
 # 2026-11-03 — Direct cake topper WhatsApp AutoBrief
 
 Order worker v52 and Inbox task-brief-media v8 are active. Two service-only
