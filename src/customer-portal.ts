@@ -420,7 +420,7 @@ function renderOrder(main: HTMLElement, order: Order) {
     <section class="cp-section cp-production">
       <header class="cp-section-head"><b>Item & Production Tracking</b><button data-cp-refresh-order>↻ Refresh</button></header>
       ${order.items.map((item, itemIndex) => `<article class="cp-item-card">
-        <header><img src="${imageFor(item.k)}" alt="${escapeHtml(item.title)}"><div><small>Item ${itemIndex + 1}</small><b>${item.qty}× ${escapeHtml(item.title)}</b><span>${escapeHtml([item.size, item.style].filter(Boolean).join(' • '))}</span></div><strong>${money(item.price * item.qty)}</strong></header>
+        <header><span class="cp-item-emoji" role="img" aria-label="Kek">🎂</span><div><small>Item ${itemIndex + 1}</small><b>${item.qty}× ${escapeHtml(item.title)}</b><span>${escapeHtml([item.size, item.style].filter(Boolean).join(' • '))}</span></div><strong>${money(item.price * item.qty)}</strong></header>
         ${item.customText ? `<p class="cp-custom-text">${escapeHtml(item.customText)}</p>` : ''}
         <div class="cp-component-list">${(item.components || []).map((component) => {
           const steps = componentSteps(component, order.delivery);
