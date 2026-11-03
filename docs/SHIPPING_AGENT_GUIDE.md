@@ -212,7 +212,7 @@ Production worker v2 and native RPC outcomes are verified against actual ParcelD
 
 ## Customer portal POD
 
-The token-scoped customer order shipment API returns archived POD links for delivered shipments. The current customer portal displays an image gallery/PDF links with a separate courier-unavailable state; selecting a proof opens the existing token-scoped POD viewer. The viewer binds the file ID to its shipment capability token. No provider key or raw provider URL is exposed to the customer.
+The token-scoped customer order shipment API returns archived POD links for delivered shipments. The current customer portal displays compact POD1, POD2 and subsequent links beneath Delivered, with a separate courier-unavailable state. No proof thumbnail loads inline. Selecting a link opens its image/PDF in a same-page native dialog, with close button, Escape, backdrop dismissal and focus return. The dialog uses the existing token-scoped POD viewer. The viewer binds the file ID to its shipment capability token. No provider key or raw provider URL is exposed to the customer.
 
 For delivered ParcelDaily shipments missing an archive, opening the shipment API performs a bounded recovery from the provider's read-only order list. A private service-only invoker claim limits recovery to once per shipment per hour. Exact order/tracking identity and Delivered status are required. Only HTTPS provider-owned POD hosts, supported file signatures and files up to 5 MB are accepted, with redirects rejected. Actual bytes are uploaded to the existing private POD bucket and recorded idempotently by provider/source URL. Existing webhook archival remains in place. No customer messaging is triggered.
 

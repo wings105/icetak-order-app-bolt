@@ -1,3 +1,7 @@
+## 2026-11-03 — Compact customer POD popup
+
+- [PRODUCTION] Delivered now shows compact POD1/POD2/POD3 text controls, with no inline proof thumbnails. Clicking loads a same-page image/PDF dialog. Hosted tests verify image loading, one-tab behavior, close button, Escape and focus restoration; current-renderer regression and production build pass. See [shipping contract](docs/SHIPPING_AGENT_GUIDE.md#customer-portal-pod).
+
 ## 2026-11-03 — Customer portal Proof of Delivery
 
 - [PRODUCTION] The current customer portal gains delivered POD thumbnails/PDF links and an explicit courier-unavailable state. Its token-scoped shipment API recovers available provider POD into private storage with per-shipment claim, exact identity, delivery, host, size and file-signature guards. Actual provider archival, helper/renderer regressions, production build, hosted gallery/image-opening and desktop/mobile browser checks pass. See [shipping contract](docs/SHIPPING_AGENT_GUIDE.md#customer-portal-pod).
