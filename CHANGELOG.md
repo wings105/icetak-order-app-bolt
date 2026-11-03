@@ -1,5 +1,9 @@
 # 2026-11-03
 
+- [VERIFIED] Website cake topper AutoBrief includes pre-checkout WhatsApp details inside the canonical customer-phone session, with earlier closed-order and next-order boundaries. Existing unique-chat and 15-minute gates remain. Active migration, native rollback phone/window/ACL checks and actual worker 14:59.999/15:00/CF/proof tests pass; fresh autonomous website acceptance remains pending. See [contract](docs/AUTOBRIEF_FOLLOWUP.md#website-checkout-phone-session--3-november-2026).
+
+# 2026-11-03
+
 - [VERIFIED] Cake topper AutoBrief reads the original WhatsApp session for converted Decocake pickup/prepaid drafts and a unique post-checkout window for website orders. Canonical component/item identity, session boundaries, escaped lines, exact wording, CF/Ai Check/Confirmed and one-comment replay pass actual-handler and native rollback tests. Order v52 / Inbox media v8 are deployed; real session provenance/new-request review is verified without customer sends or field writes. Fresh autonomous successful direct CF assignment remains pending. See [contract](docs/AUTOBRIEF_FOLLOWUP.md#decocake-pickup-website-and-converted-whatsapp-drafts--3-november-2026).
 
 # 2026-11-03

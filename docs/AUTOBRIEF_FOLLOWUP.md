@@ -217,9 +217,9 @@ backed by service-only `icetak_autobrief_whatsapp_context`. The exact draft
 conversation and session start are authoritative. A later order/session bounds
 its end. Inbound non-history WhatsApp details before checkout remain usable
 inside that certified session, removing the previous one-hour pre-order cap.
-Website orders without a draft session use a unique WhatsApp identity and read
-only from checkout onward; competing active orders or ambiguous identity hold
-for review. Neither RPC changes an order, draft, payment, session or customer.
+Website orders without a draft session use a unique WhatsApp identity and the
+current customer-phone session boundary, including eligible pre-checkout detail
+(extended below); competing active orders or ambiguous identity hold for review. Neither RPC changes an order, draft, payment, session or customer.
 
 Canonical item wording can contribute detail; a bare CN/YS reference cannot
 become printable wording. Escaped WhatsApp line breaks decode for parsing, while
@@ -249,3 +249,32 @@ and canary record real session provenance and correctly hold a newer differently
 dated request for review, preserving its comment ID with no field receipts or
 customer sends. Fresh autonomous successful direct-order CF assignment and full
 hosted/media acceptance remain pending.
+
+
+## Website checkout phone session — 3 November 2026
+
+The owner extended website coverage beyond post-checkout-only messages. For
+`customer` / `customer_portal` orders with no directly linked session, the existing
+private Order scope RPC now derives the same normalized-phone lifecycle window
+used by the draft engine: start after the latest earlier closed/converted session,
+canonical order or converted draft, bounded to 45 days before placement when
+there is no earlier boundary. This checkout and future orders cannot become its
+start. The next order/session still bounds its end. An unbound active session or
+invalid checkout phone holds scope rather than borrowing another draft.
+
+The Inbox reader still requires a unique WhatsApp conversation for that phone;
+multiple candidates or a competing active order hold for review. Inbound detail
+sent before checkout is now usable within this certified window. No draft/session
+row is created or changed, and no sender or scheduler is added. The existing
+worker waits 15 minutes from placement, then updates the same brief and eligible
+Customize Name / Ai Check / Confirmed fields. Stored session start/end and message
+IDs/times remain the audit evidence.
+
+Migration `20261103124646_autobrief_website_phone_session` is active. Native
+rollback tests on the deployed RPC prove local phone normalization, exclusion of
+prior closed-order history, pre-checkout inclusion and next-order cutoff. Native
+Inbox tests exercise actual unique-phone lookup and reject duplicate chats.
+Actual worker tests prove no writes at 14:59.999, processing at 15:00 and website
+pre-checkout wording/CF/proof. Existing follow-up, product and session-isolation
+regressions pass; security advisor counts are unchanged. A fresh autonomous
+website checkout-to-CF event remains unobserved.
