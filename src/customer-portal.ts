@@ -506,6 +506,20 @@ async function loadFullOrder(main: HTMLElement, token: string, silent = false) {
   }
 }
 
+function enhanceOrderHomeLink() {
+  const header = document.querySelector<HTMLElement>('header.checkout-head');
+  if (!header || !document.querySelector('main.order-detail-page') || header.querySelector('[data-cp-home]')) return;
+  header.classList.add('cp-order-header');
+  const home = document.createElement('a');
+  home.href = 'https://shop.decocake.my/';
+  home.className = 'cp-home-link';
+  home.dataset.cpHome = '1';
+  home.setAttribute('aria-label', 'Home');
+  home.title = 'Home';
+  home.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 10 12 3l9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg>';
+  header.append(home);
+}
+
 function renderOrderShell(token: string) {
   let main = document.querySelector<HTMLElement>('main.order-detail-page');
   if (!main) {
@@ -515,7 +529,7 @@ function renderOrderShell(token: string) {
     app.querySelector<HTMLButtonElement>('#back')!.onclick = () => history.back();
     main = app.querySelector<HTMLElement>('main.order-detail-page');
   }
-  if (main) { startOrderLivePoll(token); void loadFullOrder(main, token); }
+  if (main) { enhanceOrderHomeLink(); startOrderLivePoll(token); void loadFullOrder(main, token); }
 }
 
 async function reviewAction(order: Order, main: HTMLElement, button: HTMLButtonElement, requestEdit: boolean) {
@@ -705,7 +719,7 @@ function enhanceCurrentView() {
     }
     const orderMain = document.querySelector<HTMLElement>('main.order-detail-page');
     const token = selectedOrderToken();
-    if (orderMain && token) { startOrderLivePoll(token); if (orderMain.dataset.fullPortal !== '1') void loadFullOrder(orderMain, token); }
+    if (orderMain && token) { enhanceOrderHomeLink(); startOrderLivePoll(token); if (orderMain.dataset.fullPortal !== '1') void loadFullOrder(orderMain, token); }
   });
 }
 
