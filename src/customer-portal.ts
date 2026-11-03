@@ -365,17 +365,32 @@ function renderShipment(order: Order) {
     </section>`;
   }
   if (!shipment?.tracking) {
-    return `<section class="cp-section cp-shipment-card"><header><div><small>${escapeHtml(order.delivery)}</small><h3>Tracking belum tersedia</h3></div><span>🚚</span></header><p>AWB dan tracking akan muncul secara automatik selepas parcel disediakan.</p></section>`;
+  return `<section class="cp-section cp-shipment-card"><header><div><small>${escapeHtml(order.delivery)}</small><h3>Tracking belum tersedia</h3></div><span>🚚</span></header><p>AWB dan tracking akan muncul secara automatik selepas parcel disediakan.</p></section>`;
   }
+  const podLinks = String(shipment.statusGroup || shipment.status).toLowerCase() === 'delivered'
+    ? shipment.pods?.length ? `<div class="cp-pod-links" aria-label="Proof of Delivery">${shipment.pods.map((pod, index) => `${index ? '<span aria-hidden="true">, </span>' : ''}<button type="button" data-cp-pod="${escapeHtml(pod.id)}" aria-haspopup="dialog">POD${pod.position}</button>`).join('')}</div>`
+      : '<small class="cp-pod-pending">POD belum tersedia daripada courier.</small>' : '';
   return `<section class="cp-section cp-shipment-card">
     <header class="cp-shipment-head">
-      <div><small>${escapeHtml(shipment.courier || order.delivery)}</small><h3>${escapeHtml(shipment.status || 'Shipment Data Received')}</h3>${shipment.statusGroup ? `<span>${escapeHtml(shipment.statusGroup)}</span>` : ''}</div>
+      <div><small>${escapeHtml(shipment.courier || order.delivery)}</small><h3>${escapeHtml(shipment.status || 'Shipment Data Received')}</h3>${shipment.statusGroup ? `<span>${escapeHtml(shipment.statusGroup)}</span>` : ''}${podLinks}</div>
       ${shipment.trackingLink ? `<a href="${escapeHtml(shipment.trackingLink)}" target="_blank" rel="noopener">Track Parcel</a>` : ''}
     </header>
     <button class="cp-tracking-copy" data-cp-copy-tracking="${escapeHtml(shipment.tracking)}"><span>${escapeHtml(shipment.tracking)}</span><b>Copy</b></button>
-    ${String(shipment.statusGroup || shipment.status).toLowerCase() === 'delivered' ? `<section class="cp-pod"><h3>Proof of Delivery</h3><p>Bukti penghantaran</p>${shipment.pods?.length ? `<div class="cp-pod-grid">${shipment.pods.map(pod => `<a href="${escapeHtml(pod.url)}" target="_blank" rel="noopener noreferrer">${pod.contentType?.startsWith('image/') ? `<img src="${escapeHtml(pod.url)}" alt="Bukti penghantaran ${pod.position}" loading="lazy" referrerpolicy="no-referrer">` : '<span>📄 PDF</span>'}<b>Lihat bukti ${pod.position}</b></a>`).join('')}</div>` : '<p class="cp-pod-pending">Bukti penghantaran belum tersedia daripada courier. Sila semak semula kemudian.</p>'}</section>` : ''}
     ${shipment.events?.length ? `<div class="cp-shipment-timeline">${shipment.events.map((event, index) => `<article class="${index === 0 ? 'latest' : ''}"><i></i><div><b>${escapeHtml(event.status)}</b>${event.statusGroup ? `<span>${escapeHtml(event.statusGroup)}</span>` : ''}<small>${event.eventTime ? new Date(event.eventTime).toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur' }) : ''}</small></div></article>`).join('')}</div>` : ''}
   </section>`;
+}
+
+function openPodPopup(pod: NonNullable<Shipment['pods']>[number], trigger: HTMLElement) {
+  document.querySelector<HTMLDialogElement>('.cp-pod-dialog')?.close();
+  const dialog = document.createElement('dialog');
+  dialog.className = 'cp-pod-dialog';
+  dialog.setAttribute('aria-label', `Proof of Delivery ${pod.position}`);
+  dialog.innerHTML = `<header><strong>POD${pod.position}</strong><button type="button" aria-label="Tutup POD" autofocus>×</button></header>${pod.contentType === 'application/pdf' ? `<iframe src="${escapeHtml(pod.url)}" title="Proof of Delivery ${pod.position}" referrerpolicy="no-referrer"></iframe>` : `<img src="${escapeHtml(pod.url)}" alt="Bukti penghantaran ${pod.position}" referrerpolicy="no-referrer">`}`;
+  dialog.querySelector('button')!.onclick = () => dialog.close();
+  dialog.addEventListener('click', event => { if (event.target === dialog) { const box = dialog.getBoundingClientRect(); if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) dialog.close(); } });
+  dialog.addEventListener('close', () => { dialog.remove(); if (trigger.isConnected) trigger.focus(); }, { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
 }
 
 function renderOrder(main: HTMLElement, order: Order) {
@@ -445,6 +460,9 @@ function renderOrder(main: HTMLElement, order: Order) {
     const button = event.currentTarget as HTMLButtonElement;
     await navigator.clipboard.writeText(button.dataset.cpCopyTracking || '');
     toast('Tracking copied');
+  });
+  main.querySelectorAll<HTMLButtonElement>('[data-cp-pod]').forEach(button => {
+    button.onclick = () => { const pod = order.shipment?.pods?.find(item => item.id === button.dataset.cpPod); if (pod) openPodPopup(pod, button); };
   });
   main.querySelector<HTMLButtonElement>('[data-cp-pay-now]')?.addEventListener('click', () => void openPayment(order, main));
   main.querySelector<HTMLButtonElement>('[data-cp-cancel]')?.addEventListener('click', () => void confirmCancel(order, main));

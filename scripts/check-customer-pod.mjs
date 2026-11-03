@@ -14,7 +14,7 @@ let r=await run();assert.equal(r.calls.length,3);const row=JSON.parse(r.writes.f
 for(const options of [{claim:false},{status:'in_transit'},{identity:false},{host:'127.0.0.1'},{valid:false}]){r=await run(options);assert.ok(!r.writes.some(x=>x.path.startsWith('shipment_pod_files')));}
 console.log('PASS: actual POD recovery downloaded bytes/private archive; delivered, lease, exact identity, allowed host and file signature guards');
 const ui=fs.readFileSync('src/customer-portal.ts','utf8');const start=ui.indexOf('function renderShipment('),end=ui.indexOf('\nfunction renderOrder(',start);const scope={escapeHtml:x=>String(x).replaceAll('"','&quot;')};vm.createContext(scope);vm.runInContext(ts.transpile(ui.slice(start,end),{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None})+'\nthis.render=renderShipment;',scope);
-const shipment={tracking:'MY123B',statusGroup:'delivered',status:'Delivered',pods:[{position:1,contentType:'image/jpeg',url:'https://qa.invalid/pod'}]};let html=scope.render({shipment});assert.ok(html.includes('Proof of Delivery')&&html.includes('Lihat bukti 1')&&html.includes('noopener noreferrer'));
+const shipment={tracking:'MY123B',statusGroup:'delivered',status:'Delivered',pods:[{position:1,contentType:'image/jpeg',url:'https://qa.invalid/pod'}]};let html=scope.render({shipment});assert.ok(html.includes('Proof of Delivery')&&html.includes('POD1')&&html.includes('aria-haspopup="dialog"')&&!html.includes('<img'));
 html=scope.render({shipment:{...shipment,pods:[]}});assert.ok(html.includes('belum tersedia'));
 html=scope.render({shipment:{...shipment,statusGroup:'in_transit'}});assert.ok(!html.includes('Proof of Delivery'));
 console.log('PASS: actual customer shipment renderer delivered gallery, empty state and in-transit exclusion');
