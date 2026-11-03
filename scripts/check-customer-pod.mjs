@@ -22,6 +22,6 @@ const pickup={delivery:'Pickup',status:'Ready for Pickup',payment:'Paid'};
 html=scope.render(pickup);assert.ok(html.includes('data-cp-pickup-box'));assert.ok(html.includes('https://swiy.co/decocakePP'));assert.ok(html.includes('9am–7.00pm')&&html.includes('Sabtu–Khamis'));assert.ok(html.includes('ambil bungkusan milik anda sahaja'));
 html=scope.render({...pickup,payment:'Unpaid'});assert.ok(!html.includes('data-cp-pickup-box'));
 html=scope.render({...pickup,payment:'Unpaid',paymentStatus:'pending_review'});assert.ok(!html.includes('data-cp-pickup-box'));
-html=scope.render({...pickup,status:'In Production'});assert.ok(html.includes('Sila tunggu status siap sebelum datang'));
+for(const status of ['In Production','Ready to Process']){html=scope.render({...pickup,status});assert.ok(html.includes('Sila tunggu status siap sebelum datang'));assert.ok(!html.includes('Order Ready for Pickup'));}
 html=scope.render({...pickup,status:'Completed'});assert.ok(!html.includes('Order anda sudah dibayar dan sedia'));
 console.log('PASS: pickup location/hours, confirmed-paid-only BOX, unpaid/pending exclusion and ready/collected guidance');

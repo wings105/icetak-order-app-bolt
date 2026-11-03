@@ -358,7 +358,7 @@ function stepLabel(step: string) {
 function renderShipment(order: Order) {
   const shipment = order.shipment;
   if (order.delivery === 'Pickup') {
-    const ready = order.status.toLowerCase().includes('ready');
+    const ready = ['ready_for_pickup', 'ready_pickup', 'pickup_ready', 'ready_to_pickup'].includes(order.status.toLowerCase().replace(/[\s-]+/g, '_'));
     const collected = ['completed', 'collected', 'customer_collected'].includes(order.status.toLowerCase().replaceAll(' ', '_'));
     const paid = order.payment === 'Paid';
     return `<section class="cp-section cp-pickup-card ${ready ? 'ready' : ''}">
