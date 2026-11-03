@@ -1,5 +1,9 @@
 # 2026-11-03
 
+- [VERIFIED] Cake topper AutoBrief reads the original WhatsApp session for converted Decocake pickup/prepaid drafts and a unique post-checkout window for website orders. Canonical component/item identity, session boundaries, escaped lines, exact wording, CF/Ai Check/Confirmed and one-comment replay pass actual-handler and native rollback tests. Order v52 / Inbox media v8 are deployed; real session provenance/new-request review is verified without customer sends or field writes. Fresh autonomous successful direct CF assignment remains pending. See [contract](docs/AUTOBRIEF_FOLLOWUP.md#decocake-pickup-website-and-converted-whatsapp-drafts--3-november-2026).
+
+# 2026-11-03
+
 - [VERIFIED] AutoBrief missing-detail automation sends the exact native Shopee order card before its first fixed text, with independent private receipts, card-gated text claims, bounded recovery of the earlier first-chat rejection and card status in the existing brief/log snapshot. Actual combined handler and native rollback tests prove sequencing, unknown/failure/reply/concurrency guards and no premature follow up1. Inbox v8 / Order v50 are deployed; live existing card/text adoption adds zero sends. Fresh autonomous provider delivery remains pending. See [contract](docs/AUTOBRIEF_FOLLOWUP.md#order-card-before-first-detail-request--3-november-2026).
 
 ## 2026-11-03 — Order Detail Home navigation
