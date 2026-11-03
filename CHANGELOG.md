@@ -1,3 +1,7 @@
+## 2026-11-03 — Pending Pickup provider cancellation recovery
+
+- [PRODUCTION backend] Periodic read-only ParcelDaily tracking reconciles confirmed cancellations for unresolved, unscanned AWBs into iCetak shipment/tracking state with private check receipts and idempotent events. Requested cancellation, identity/error responses and scan races leave shipment status unchanged; superseded AWBs cannot overwrite their orders’ current shipment. Actual provider reads, persisted cancellation/remaining-pending readback, zero customer jobs, native rollback regressions and actual-handler tests pass. See [shipping contract](docs/SHIPPING_AGENT_GUIDE.md#pending-pickup-provider-cancellation-reconciliation).
+
 ## 2026-11-03 — Pending Pickup admin digest
 
 - [VERIFIED backend; scheduled delivery pending] Internal daily MYT digest identifies generated AWBs lacking a physical first scan, including older unresolved bookings, and excludes cancelled/completed/scanned parcels. A private daily receipt and queue key prevent duplicate admin digests; existing WhatsApp window/template/outbox rules apply, with dispatch-time master/recipient guards. Native rolled-back exclusion/empty/master/replay/safe-retry/privacy tests, actual-handler clock/window tests and deployed read-only preview pass without sends. Utility-template approval and first scheduled delivery remain pending. See [shipping contract](docs/SHIPPING_AGENT_GUIDE.md#daily-pending-pickup-admin-digest).
