@@ -1,3 +1,11 @@
+# 2026-11-03 — Shopee historical-link AutoBrief recovery
+
+Order worker v53 uses the existing authoritative current session reader when
+historical order links cause a generic overlap response. Real ambiguity and
+closed/history boundaries remain guarded. A live exact-order canary proves card
+then detail text with one provider receipt/attempt each, follow up1 and a stable
+brief comment; canonical active/cancelled statuses are unchanged. See [contract](AUTOBRIEF_FOLLOWUP.md#historical-shopee-links-versus-current-session--3-november-2026).
+
 # 2026-11-03 — Website phone-session AutoBrief
 
 The existing private direct-scope RPC now includes eligible pre-checkout WhatsApp

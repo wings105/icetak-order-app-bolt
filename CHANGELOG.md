@@ -1,5 +1,9 @@
 # 2026-11-03
 
+- [PRODUCTION] Historical/completed/cancelled Shopee order links no longer block AutoBrief when the authoritative reader proves one usable current order session. Worker v53 retains active ambiguity/truncation/closed-boundary guards. Actual-handler tests and a real exact-order canary prove one card then one fixed detail text, follow up1, separate provider receipts and the same brief comment. See [contract](docs/AUTOBRIEF_FOLLOWUP.md#historical-shopee-links-versus-current-session--3-november-2026).
+
+# 2026-11-03
+
 - [VERIFIED] Website cake topper AutoBrief includes pre-checkout WhatsApp details inside the canonical customer-phone session, with earlier closed-order and next-order boundaries. Existing unique-chat and 15-minute gates remain. Active migration, native rollback phone/window/ACL checks and actual worker 14:59.999/15:00/CF/proof tests pass; fresh autonomous website acceptance remains pending. See [contract](docs/AUTOBRIEF_FOLLOWUP.md#website-checkout-phone-session--3-november-2026).
 
 # 2026-11-03

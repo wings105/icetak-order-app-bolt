@@ -193,6 +193,7 @@ async function readShopeeBuyerNote(orderSn:string,shopId:string,bridge:string){
 }
 async function loadChat(placed:string,buyerId:string,phone:string,key:string,reference:string,bridge:string){
  if(!placed)return {messages:[],bindings:[],unavailable:true};
+ let overlappingLinks=false;
  // Exact order-link proof remains retrievable after the short-lived session context expires.
  if(key.startsWith("shopee:")&&/^[A-Z0-9]{10,24}$/.test(reference)){
   try{
@@ -208,7 +209,7 @@ async function loadChat(placed:string,buyerId:string,phone:string,key:string,ref
        ambiguous:false,truncated:exact.messages.length>=100,unavailable:false,
        evidence_source:"exact_order_id"};
     }
-    if(exact.reason==="MULTIPLE_LINKED_ORDERS")return {messages:[],bindings:[],ambiguous:true};
+    if(exact.reason==="MULTIPLE_LINKED_ORDERS")overlappingLinks=true;
    }
   }catch{/* Fall back to the ordinary exact-session context. */}
  }
@@ -222,7 +223,20 @@ async function loadChat(placed:string,buyerId:string,phone:string,key:string,ref
   if(!r.ok)throw Error("CONTEXT_UNAVAILABLE");
   const data=await r.json();
   if(!data.ok)throw Error("CONTEXT_UNAVAILABLE");
-  return data.contexts?.[key]||{messages:[],bindings:[]};
+  const context=data.contexts?.[key]||{messages:[],bindings:[]};
+  if(overlappingLinks){
+   // Historical links are not active-session conflicts. Only the authoritative
+   // exact-order session reader may resolve this; phone-only bindings cannot.
+   const placedMs=Date.parse(placed);
+   const scopes=(context.bindings||[]).filter((b:Obj)=>b.usable===true&&b.channel==="shopee"&&b.source==="shopee_session"&&
+    Number.isFinite(Date.parse(b.start_at))&&Date.parse(b.start_at)<=placedMs&&
+    (!b.end_at||Number.isFinite(Date.parse(b.end_at))&&Date.parse(b.end_at)>placedMs));
+   if(context.ambiguous||context.truncated||context.unavailable||scopes.length!==1)return {...context,ambiguous:true};
+   const scope=scopes[0],start=Math.max(Date.parse(scope.start_at),Number.isFinite(Date.parse(scope.boundary_at))?Date.parse(scope.boundary_at):-Infinity),end=scope.end_at?Date.parse(scope.end_at):Infinity;
+   if(start>placedMs)return {...context,ambiguous:true};
+   return {...context,bindings:[scope],messages:(context.messages||[]).filter((m:Obj)=>String(m.conversation_id)===String(scope.id)&&Date.parse(m.created_at)>=start&&Date.parse(m.created_at)<end),evidence_source:"scoped_order_session"};
+  }
+  return context;
  }catch{return {messages:[],bindings:[],unavailable:true};}
 }
 async function loadDirectChat(scope:Obj,bridge:string){
