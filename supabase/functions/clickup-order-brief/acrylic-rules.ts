@@ -8,7 +8,7 @@ const inbound = (m: RecordData) => m.direction === "inbound";
 const value = (m: RecordData) => text(m.text_content || m.caption);
 const placeholder = (s: string) => !s || /^(?:custom\s*\d*\s*(?:inch|inci|kek)|perlu detail|number\s*$|—)/i.test(s);
 export function cleanWording(s: string): string {
- return text(s).replace(/^(?:tulis(?:an)?|huruf|initial|wording|nama\s*custom|custom\s*name|nama|name|ayat|text)\s*[:=,-]?\s*/i, "").trim();
+ return text(s).replace(/^["“']|["”']$/g,'').replace(/^(?:tulis(?:an)?|huruf|initial|word(?:ing)?|nama\s*custom|custom\s*name|nama|name|ayat|text)\s*[:=,-]?\s*/i, "").replace(/\s*\bbelow\s*:\s*/i,'\n').trim();
 }
 function pair(s: string) {
  const c = cleanWording(s);
@@ -53,8 +53,8 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
   if(words.length && words.every(Boolean)) candidates.push({words,m,source,score:source==="buyer_note"?94:92});
  };
  if(note && !placeholder(note) && (scope.single_item_scope || items.length===1)) {
-  const p=pair(note), explicit=/^(?:wording|tulis|nama|huruf|initial|text)\b/i.test(note);
-  if(p || explicit || /^(?:Happy|Selamat)\s+(?:Birthday|Engagement|Wedding)/i.test(note)) add([p||cleanWording(note)],{id:"buyer_note"},"buyer_note");
+  const p=pair(note), explicit=/^["“']?\s*(?:word(?:ing)?|tulis|nama|huruf|initial|text)\s*[:=]/i.test(note);
+  if(p || explicit || (/[❤♥]/.test(note)&&!/\b(?:ship|urgent|please)\b/i.test(note)) || /^(?:Happy|Selamat)\s+(?:Birthday|Engagement|Wedding)/i.test(note)) add([p||cleanWording(note)],{id:"buyer_note"},"buyer_note");
  }
  // Canonical local item text is only a candidate; the chat can correct it.
  if(existing && !placeholder(existing) && !/\b(?:inch|inci|kek|gold|black|silver|yellow)\b/i.test(existing)) {
