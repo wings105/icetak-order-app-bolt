@@ -63,7 +63,7 @@ export function mergeAI(r:Obj,ai:Obj,scope:Obj):Obj{
  const exampleOrReplacement=/\b(?:contoh|sample|example|inspo|inspiration)\b|(?:tukar|ubah|ganti|replace|change)[\s\S]{0,50}(?:nama|name|wording|initial|huruf|tulisan)/i.test(customerText);
  const imageOnly=!r.units.length&&units.some((u:Obj)=>(u.evidence_ids||[]).some((id:string)=>ai.image_message_ids.includes(id)));
  const finalArtwork=ai.artwork_kind==="ready_black_artwork"&&!exampleOrReplacement&&ai.image_message_ids.length>0;
- result.artwork_kind=ai.artwork_kind||"none";result.use_original_artwork=finalArtwork;
+ result.artwork_kind=ai.artwork_kind||"none";result.use_original_artwork=finalArtwork;result.wording_transcription_unverified=finalArtwork&&!r.units.length;
  if(finalArtwork)result.instruction=[r.instruction,"Guna artwork hitam asal customer terus; kekalkan wording dan susunan. Warna bahan ikut variation order."].filter(Boolean).join("\n");
  if(!r.units.length&&(!imageOnly||finalArtwork)&&units.length===r.quantity&&units.every(accepted)) {
   result.units=units.map((u:Obj,i:number)=>({unit:i+1,wording:short(u.wording,255),colour:r.colour,size:r.size,evidence_ids:u.evidence_ids}));
@@ -85,7 +85,7 @@ function commentText(id:string,scope:Obj,r:Obj,ctx:Obj,ai:Obj|null,state:string,
   "SKU product: "+(scope.target.sku||"—"),"Tajuk product: "+scope.target.title,
   "Category: Acrylic · Qty "+r.quantity,"wording: "+(r.wording||"Perlu detail"),
   "gambar link ("+(scope.provider==="shopee"?"Shopee":"WhatsApp")+"): "+(r.references.map((x:Obj)=>x.media_url).join("\n")||"—"),
-  ...(r.use_original_artwork?["Artwork: Artwork hitam siap customer — guna fail asal tanpa tukar wording/layout."]:[]),
+  ...(r.use_original_artwork?["Artwork: Artwork hitam siap customer — guna fail asal tanpa tukar wording/layout. Bacaan teks AI bukan sumber untuk reka semula."]:[]),
   "Warna bahan: "+r.colour+(r.parts.length?" · Komponen: "+r.parts.map((p:Obj)=>p.wording+" = "+p.colour).join("; "):""),
   "Saiz dibeli: "+r.size,"Tarikh diperlukan / due: "+(scope.due_at||"—"),"Status AutoBrief: "+state,
   "confirm: "+(r.ready?"✅ detail lengkap":"⏳ semakan diperlukan"),"keyakinan: "+r.confidence+"%",
@@ -107,7 +107,7 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
   // Shopee's existing checkout automation copies Note to Seller into Customize Name.
   // A missing database cache must not relabel this checkout source as a staff invention.
   const checkoutCopy=scope.provider==='shopee'?short(field(task,CF.name)?.value,1200):'';
-  if(!scope.note&&checkoutCopy){scope.note=checkoutCopy;scope.note_source='checkout_automation_customize_name';}
+  if(!scope.note&&checkoutCopy&&job.field_receipts?.wording!==checkoutCopy){scope.note=checkoutCopy;scope.note_source='checkout_automation_customize_name';}
   if(String(task.id)!==id||String(task.list?.id)!=="18375902"||norm(task.status?.status)!=="acrylic"||task.archived)throw Error("TASK_NO_LONGER_ACRYLIC");
   if(Date.now()-Date.parse(scope.placed_at)<900000)throw Error("WAIT_15_MINUTES");
   const ctx=await context(scope,bridge,d);
@@ -162,9 +162,10 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
   if(norm(latest.status?.status)!=="acrylic"||JSON.stringify(fields(latest))!==JSON.stringify(fields(task)))throw Error("TASK_CHANGED_BEFORE_WRITE");
   if(rules.ready) {
    const selected=selection(task),allowed=!selected.id||selected.id===CF.ai||norm(selected.name)==="follow up1";
-   if(rules.wording&&rules.wording.length<=255&&norm(currentWord)!==norm(rules.wording)&&(!checked(field(task,CF.confirmed))||owned||placeholder||!currentWord)) {
+   if(!rules.wording_transcription_unverified&&rules.wording&&rules.wording.length<=255&&norm(currentWord)!==norm(rules.wording)&&(!checked(field(task,CF.confirmed))||owned||placeholder||!currentWord)) {
     await d.clickup(token,"task/"+id+"/field/"+CF.name,"POST",{value:rules.wording});brief.field_receipts.wording=rules.wording;
    }
+   if(rules.wording_transcription_unverified&&owned&&currentWord){await d.clickup(token,"task/"+id+"/field/"+CF.name,"DELETE");delete brief.field_receipts.wording;}
    if(allowed&&selected.id!==CF.ai){await d.clickup(token,"task/"+id+"/field/"+CF.review,"POST",{value:CF.ai});brief.field_receipts.review="Ai Check";}
    if(!checked(field(task,CF.confirmed))){await d.clickup(token,"task/"+id+"/field/"+CF.confirmed,"POST",{value:true});brief.field_receipts.confirmed=true;}
   }
