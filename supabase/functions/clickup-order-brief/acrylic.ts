@@ -1,3 +1,4 @@
+import {briefAction} from "./lifecycle.ts";
 import {acrylicRules,ACRYLIC_VERSION,norm,cleanWording,type RecordData as Obj} from "./acrylic-rules.ts";
 export type AcrylicDeps = {db:(p:string,b?:unknown)=>Promise<any>;clickup:(token:string,p:string,m?:string,b?:unknown)=>Promise<any>;digest:(s:string)=>Promise<string>;safeDownload:(url:string,allow:boolean)=>Promise<any>;clock:(s:any)=>string;rich:(s:string)=>Obj[];inbox:string};
 const CF={name:"7c88d5cf-56e9-4108-86c5-b8e7baaf5bdc",review:"01cec4ef-a30b-443d-a43a-9ab09835b78c",ai:"d84d57b3-41f3-473d-b502-4e7bf45ace0c",confirmed:"afa87c64-3e48-4056-b720-cf8ea9b243e8"};
@@ -108,7 +109,7 @@ function commentText(id:string,scope:Obj,r:Obj,ctx:Obj,ai:Obj|null,state:string,
  const proof=r.messages.filter((m:Obj)=>m.direction==="inbound"&&(r.evidence_ids.includes(m.id)||r.corrections.some((x:Obj)=>x.id===m.id)||r.references.some((x:Obj)=>x.id===m.id))).slice(-16);
  return ["[iCetak-AutoBrief-Acrylic:"+id+"]","Order ID: "+scope.order_no,
   "SKU product: "+(scope.target.sku||"—"),"Tajuk product: "+scope.target.title,
-  "Category: Acrylic · Qty "+r.quantity,"wording: "+(r.wording||"Perlu detail"),
+  "Category: "+(scope.target.material==="artpaper_gold"?"Artpaper Gold":"Acrylic")+" · Qty "+r.quantity,"wording: "+(r.wording||"Perlu detail"),
   "gambar link ("+((r.references||[]).some((x:Obj)=>String(x.media_url).startsWith("wasapflow-media://"))?"WhatsApp":scope.provider==="shopee"?"Shopee":"WhatsApp")+"): "+(r.references.map((x:Obj)=>x.open_url||(/^https:\/\//i.test(x.media_url)?x.media_url:"Gambar belum dapat dibuka — semak Unified Inbox")).join("\n")||"—"),
   ...(r.use_original_artwork?["Artwork: Artwork hitam siap customer — guna fail asal tanpa tukar wording/layout. Bacaan teks AI bukan sumber untuk reka semula."]:[]),
   "Warna bahan: "+r.colour+(r.parts.length?" · Komponen: "+r.parts.map((p:Obj)=>p.wording+" = "+p.colour).join("; "):""),
@@ -126,6 +127,9 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
  const id=job.task_id,fp=job.source_fingerprint,previous=job.brief?.profile===ACRYLIC_VERSION?job.brief:{};
  let brief:Obj={},state="review",error="",commentId=previous.comment_id||null;
  try{
+  const route=(await d.db("clickup_autobrief_routes?task_id=eq."+id+"&select=*&limit=1"))[0];
+  if(route?.profile!=="acrylic")return {task_id:id,eligible:false,reason:"INITIAL_STATUS_NOT_ACRYLIC"};
+  if(route.confirmed_at||previous.confirmed)return {task_id:id,eligible:true,action:"OBSERVE_CUSTOMER_ONLY",brief:previous,provider_called:false};
   const scope=await d.db("rpc/icetak_acrylic_brief_scope",{p_task_id:id});
   if(!scope?.eligible) {if(preview)return {task_id:id,eligible:false,reason:scope?.reason};throw Error(scope?.reason||"OUT_OF_SCOPE");}
   const task=await d.clickup(token,"task/"+id);
@@ -134,7 +138,7 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
   const checkoutCopy=scope.provider==='shopee'?short(field(task,CF.name)?.value,1200):'';
   if(!scope.note&&checkoutCopy&&job.field_receipts?.wording!==checkoutCopy){scope.note=checkoutCopy;scope.note_source='checkout_automation_customize_name';}
   if(String(task.id)!==id||String(task.list?.id)!=="18375902"||norm(task.status?.status)!=="acrylic"||task.archived)throw Error("TASK_NO_LONGER_ACRYLIC");
-  if(Date.now()-Date.parse(scope.placed_at)<900000)throw Error("WAIT_15_MINUTES");
+  if(Date.now()-Date.parse(route.task_created_at)<900000)throw Error("WAIT_15_MINUTES");
   scope.phone=short((task.custom_fields||[]).find((f:Obj)=>norm(f.name)==="phone")?.value,30).replace(/[^0-9]/g,"");
   if(scope.phone.startsWith("0"))scope.phone="6"+scope.phone;
   const ctx=await context(scope,bridge,d);
@@ -150,6 +154,7 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
    rules.conflicts.push('STAFF_DETAIL_UNVERIFIED');rules.ready=false;rules.confidence=75;rules.needs_fallback=false;
   }
   const detail=await d.db("task_detail_automation?task_id=eq."+id+"&select=data&limit=1");
+  if(scope.target.material==="unknown"){rules.ready=false;rules.conflicts.push("MATERIAL_UNVERIFIED");}
   const blocked=ctx.unavailable||ctx.ambiguous||ctx.truncated;
   if(blocked){rules.ready=false;rules.confidence=0;rules.conflicts.push(ctx.reason||"CHAT_CONTEXT_UNVERIFIED");}
   if(detail[0]?.data?.production_started||scope.production_started){rules.ready=false;rules.conflicts.push("PRODUCTION_STARTED");}
@@ -174,7 +179,7 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
    rules.missing.length?"MISSING_DETAILS":"REVIEW_REQUIRED";
   await resolveReferenceLinks(rules,bridge,d);
   brief={...rules,messages:undefined,profile:ACRYLIC_VERSION,state:status,confirmed:rules.ready,confidence:rules.confidence,
-   actual_buyer_note:scope.note,note_source:scope.note_source||'checkout_note',order_id:scope.order_id,target_item_id:scope.target_item_id,order_no:scope.order_no,
+   material:scope.target.material,actual_buyer_note:scope.note,note_source:scope.note_source||'checkout_note',order_id:scope.order_id,target_item_id:scope.target_item_id,order_no:scope.order_no,
    ai,ai_key:aiKey,ai_at:providerCalled?new Date().toISOString():previous.ai_at||null,
    observed_message_ids:(ctx.messages||[]).map((m:Obj)=>m.id),checked_message_ids:rules.messages.map((m:Obj)=>m.id),proof:rules.messages.filter((m:Obj)=>rules.evidence_ids.includes(m.id)).map((m:Obj)=>({id:m.id,at:m.sent_at||m.created_at,channel:m.channel})),
    field_receipts:job.field_receipts||{},scope:{provider:scope.provider,conversation_id:ctx.conversation_id,cross_channel_exact_order:ctx.cross_channel_exact_order,whatsapp_scope_start:ctx.whatsapp_scope_start,start_at:ctx.scope_start,end_at:ctx.scope_end}};
