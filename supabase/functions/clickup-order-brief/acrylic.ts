@@ -63,9 +63,17 @@ export function mergeAI(r:Obj,ai:Obj,scope:Obj):Obj{
  const exampleOrReplacement=/\b(?:contoh|sample|example|inspo|inspiration)\b|(?:tukar|ubah|ganti|replace|change)[\s\S]{0,50}(?:nama|name|wording|initial|huruf|tulisan)/i.test(customerText);
  const imageOnly=!r.units.length&&units.some((u:Obj)=>(u.evidence_ids||[]).some((id:string)=>ai.image_message_ids.includes(id)));
  const finalArtwork=ai.artwork_kind==="ready_black_artwork"&&!exampleOrReplacement&&ai.image_message_ids.length>0;
+ // A single product photo may supply wording when the buyer explicitly adopts it
+ // and answers a seller's lettering/layout question in the same bounded session.
+ const adoptedImage=!exampleOrReplacement&&r.quantity===1&&r.references.length===1&&ai.artwork_kind==="inspiration"
+  &&ai.needs_review===false&&ai.confidence>=80&&ai.image_message_ids.length===1
+  &&/\b(?:nak|mahu|want|order)\b[^\n]{0,45}\b(?:macam ni|seperti ini|same as|exactly like)\b/i.test(customerText)
+  &&r.messages.some((m:Obj,i:number)=>m.direction==="inbound"&&/\b(?:nak|mahu|yes|ya)\b[^\n]{0,25}\b(?:cantum|sambung|asing|join|connect|separate)\b/i.test(m.text_content||"")
+   &&r.messages.slice(0,i).some((q:Obj)=>q.direction==="outbound"&&/\b(?:cantum|sambung|asing|join|connect|separate)\b/i.test(q.text_content||"")
+    &&/\b[A-Z]\b/.test(q.text_content||"")&&units.some((u:Obj)=>(q.text_content||"").match(/\b[A-Z]\b/g)?.some((letter:string)=>new RegExp("\\b"+letter+"\\b","i").test(u.wording)))));
  result.artwork_kind=ai.artwork_kind||"none";result.use_original_artwork=finalArtwork;result.wording_transcription_unverified=finalArtwork&&!r.units.length;
  if(finalArtwork)result.instruction=[r.instruction,"Guna artwork hitam asal customer terus; kekalkan wording dan susunan. Warna bahan ikut variation order."].filter(Boolean).join("\n");
- if(!r.units.length&&(!imageOnly||finalArtwork)&&units.length===r.quantity&&units.every(accepted)) {
+ if(!r.units.length&&(!imageOnly||finalArtwork||adoptedImage)&&units.length===r.quantity&&units.every(accepted)) {
   result.units=units.map((u:Obj,i:number)=>({unit:i+1,wording:short(u.wording,255),colour:r.colour,size:r.size,evidence_ids:u.evidence_ids}));
   result.wording=result.units.map((u:Obj)=>r.quantity>1?u.unit+". "+u.wording:u.wording).join("\n");
   result.evidence_ids=[...new Set(result.units.flatMap((u:Obj)=>u.evidence_ids))];
@@ -74,6 +82,11 @@ export function mergeAI(r:Obj,ai:Obj,scope:Obj):Obj{
  if(r.units.length&&units.length&&units.some((u:Obj,i:number)=>norm(u.wording)!==norm(r.units[i]?.wording)))
   result.conflicts=[...result.conflicts,"AI_WORDING_DISAGREES"];
  result.instruction=[result.instruction||r.instruction,short(ai.instruction,1200),ai.image_description?"Rujukan visual: "+short(ai.image_description,900):""].filter(Boolean).join("\n");
+ if(adoptedImage&&result.units.length){
+  result.reference_wording_adopted=true;
+  result.evidence_ids=[...new Set([...result.evidence_ids,...(ai.evidence_ids||[]).filter((id:string)=>allowed.has(id))])];
+  result.instruction=[result.instruction,"Wording ikut gambar yang customer minta; lukis semula ikut rujukan dan arahan cantuman. Bukan fail artwork siap."].join("\n");
+ }
  result.confidence=Math.min(99,Math.max(0,Number(ai.confidence)||0));
  result.ready=!result.missing.length&&!result.conflicts.length&&ai.needs_review===false&&result.confidence>=80&&!ai.failed_image_ids?.length;
  if(result.missing.length)result.confidence=Math.min(result.confidence,60);
