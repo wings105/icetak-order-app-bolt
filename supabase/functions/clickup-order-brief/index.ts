@@ -753,7 +753,7 @@ async function observeConfirmed(job:Obj,route:Obj,s:Obj,token:string,bridge:stri
    scope={eligible:true,order_id:order.id,order_no:order.order_no,session_id:sessionId,draft_id:saved.draft_id,conversation_id:conversation,
     phone,start_at:saved.start_at,end_at:saved.end_at||null};
    // Bound the old order at the next known order/session, even after its status changes.
-   const sessions=phone?await db("order_sessions?customer_phone=eq."+phone+"&order_id=neq."+order.id+"&created_at=gt."+encodeURIComponent(order.created_at)+"&select=opened_at&order=opened_at.asc&limit=1"):[];
+   const sessions=phone?await db("order_sessions?customer_phone=eq."+phone+"&or=(order_id.is.null,order_id.neq."+order.id+")&created_at=gt."+encodeURIComponent(order.created_at)+"&select=opened_at&order=opened_at.asc&limit=1"):[];
    const next=sessions[0]?.opened_at;if(next&&(!scope.end_at||Date.parse(next)<Date.parse(scope.end_at)))scope.end_at=next;
    ctx=await loadDirectChat(scope,bridge);
   }
@@ -808,6 +808,17 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   ]);
   const s=snap?.[0],detail=autom?.[0]?.data;
   const route=(await db("clickup_autobrief_routes?task_id=eq."+id+"&select=*&limit=1"))[0];
+  if(route&&!route.confirmed_at&&(job.comment_id||job.brief?.comment_id)){
+   const latestTask=await clickup(clickupToken,"task/"+id);
+   if(fieldChecked(field(latestTask,"confirmed"))){
+    const at=new Date().toISOString();
+    const locked=await fetch(BASE+"/rest/v1/clickup_autobrief_routes?task_id=eq."+id+"&confirmed_at=is.null",{
+     method:"PATCH",headers:{...HEAD,prefer:"return=representation"},body:JSON.stringify({confirmed_at:at}),signal:AbortSignal.timeout(10000)});
+    if(!locked.ok)throw Error("CONFIRMATION_LOCK_FAILED");
+    const rows=await locked.json();route.confirmed_at=rows[0]?.confirmed_at||
+     (await db("clickup_autobrief_routes?task_id=eq."+id+"&select=confirmed_at&limit=1"))[0]?.confirmed_at;
+   }
+  }
   const action=briefAction(route,s?.clickup_status,job.brief||{});
   if(action==="OBSERVE_CUSTOMER_ONLY")return await observeConfirmed(job,route,s,clickupToken,bridge);
   if(action!=="INITIAL_BRIEF"){
