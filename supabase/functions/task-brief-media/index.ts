@@ -73,6 +73,13 @@ Deno.serve(async req=>{
      '&order=created_at.asc&limit=100');
    return out({ok:true,matched:true,match_method:linked[0].match_method,conversation_id:conversation,messages:items});
   }
+  if(input.action==='acrylic_context'){
+   return out({ok:true,context:await call('/rest/v1/rpc/icetak_acrylic_brief_context',{p_scope:input.scope})});
+  }
+  if(input.action==='direct_context'){
+   if(!input.scope||input.scope.eligible!==true||!/^([0-9a-f-]{36})$/i.test(String(input.scope.order_id||'')))return out({ok:false,error:'INVALID_DIRECT_SCOPE'},400);
+   return out({ok:true,context:await call('/rest/v1/rpc/icetak_autobrief_whatsapp_context',{p_scope:input.scope})});
+  }
   if(input.action==='context'){
    if(!Array.isArray(input.orders)||!input.orders.length||input.orders.length>50)return out({ok:false},400);
    return out({ok:true,contexts:await call('/rest/v1/rpc/icetak_task_automation_context',{p_orders:input.orders})});
@@ -101,3 +108,4 @@ Deno.serve(async req=>{
   return out({ok:true,media});
  }catch{return out({ok:false,error:'MEDIA_UNAVAILABLE'},503);}
 });
+
