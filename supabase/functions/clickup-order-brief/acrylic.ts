@@ -92,12 +92,24 @@ export function mergeAI(r:Obj,ai:Obj,scope:Obj):Obj{
  if(result.missing.length)result.confidence=Math.min(result.confidence,60);
  return result;
 }
+
+async function resolveReferenceLinks(rules:Obj,bridge:string,d:AcrylicDeps){
+ const ids=[...new Set<string>((rules.references||[]).map((m:Obj)=>String(m.media_url||'')).filter((url:string)=>/^wasapflow-media:\/\/\d{1,40}$/.test(url)).map((url:string)=>url.slice('wasapflow-media://'.length)))];
+ if(!ids.length)return;
+ const media:Obj={};
+ for(let i=0;i<ids.length;i+=4){try{
+  const response=await fetch(d.inbox+'/functions/v1/task-brief-media',{method:'POST',headers:{'content-type':'application/json','x-admin-window-token':bridge},body:JSON.stringify({action:'prepare',ids:ids.slice(i,i+4)}),signal:AbortSignal.timeout(45000)});
+  const body=await response.json();if(response.ok&&body.ok)Object.assign(media,body.media||{});
+ }catch{/* Keep missing access explicit; never publish an internal scheme as a link. */}}
+ rules.references=rules.references.map((m:Obj)=>({...m,open_url:media[m.media_url]?.open_url||(/^https:\/\//i.test(m.media_url)?m.media_url:null)}));
+}
+
 function commentText(id:string,scope:Obj,r:Obj,ctx:Obj,ai:Obj|null,state:string,d:AcrylicDeps){
  const proof=r.messages.filter((m:Obj)=>m.direction==="inbound"&&(r.evidence_ids.includes(m.id)||r.corrections.some((x:Obj)=>x.id===m.id)||r.references.some((x:Obj)=>x.id===m.id))).slice(-16);
  return ["[iCetak-AutoBrief-Acrylic:"+id+"]","Order ID: "+scope.order_no,
   "SKU product: "+(scope.target.sku||"—"),"Tajuk product: "+scope.target.title,
   "Category: Acrylic · Qty "+r.quantity,"wording: "+(r.wording||"Perlu detail"),
-  "gambar link ("+((r.references||[]).some((x:Obj)=>String(x.media_url).startsWith("wasapflow-media://"))?"WhatsApp":scope.provider==="shopee"?"Shopee":"WhatsApp")+"): "+(r.references.map((x:Obj)=>x.media_url).join("\n")||"—"),
+  "gambar link ("+((r.references||[]).some((x:Obj)=>String(x.media_url).startsWith("wasapflow-media://"))?"WhatsApp":scope.provider==="shopee"?"Shopee":"WhatsApp")+"): "+(r.references.map((x:Obj)=>x.open_url||(/^https:\/\//i.test(x.media_url)?x.media_url:"Gambar belum dapat dibuka — semak Unified Inbox")).join("\n")||"—"),
   ...(r.use_original_artwork?["Artwork: Artwork hitam siap customer — guna fail asal tanpa tukar wording/layout. Bacaan teks AI bukan sumber untuk reka semula."]:[]),
   "Warna bahan: "+r.colour+(r.parts.length?" · Komponen: "+r.parts.map((p:Obj)=>p.wording+" = "+p.colour).join("; "):""),
   "Saiz dibeli: "+r.size,"Tarikh diperlukan / due: "+(scope.due_at||"—"),"Status AutoBrief: "+state,
@@ -160,6 +172,7 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
    rules.corrections.length||rules.conflicts.includes("CHANGE_AFTER_CONFIRM")?"CHANGE_AFTER_CONFIRM":
    ai&&!ai.ok&&rules.needs_vision?"MEDIA_OR_AI_UNAVAILABLE":rules.ready?"BRIEF_READY":
    rules.missing.length?"MISSING_DETAILS":"REVIEW_REQUIRED";
+  await resolveReferenceLinks(rules,bridge,d);
   brief={...rules,messages:undefined,profile:ACRYLIC_VERSION,state:status,confirmed:rules.ready,confidence:rules.confidence,
    actual_buyer_note:scope.note,note_source:scope.note_source||'checkout_note',order_id:scope.order_id,target_item_id:scope.target_item_id,order_no:scope.order_no,
    ai,ai_key:aiKey,ai_at:providerCalled?new Date().toISOString():previous.ai_at||null,
@@ -186,7 +199,10 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
    if(!checked(field(task,CF.confirmed))){await d.clickup(token,"task/"+id+"/field/"+CF.confirmed,"POST",{value:true});brief.field_receipts.confirmed=true;}
   }
   if(hash!==previous.comment_hash||!commentId) {
-   const body={comment:d.rich(text),notify_all:false};
+   const body={comment:d.rich(text).flatMap((part:Obj)=>{
+    if(typeof part.text!=="string"||part.attributes?.['code-block'])return [part];
+    return part.text.split(/(https:\/\/[^\s]+)/g).filter(Boolean).map((value:string)=>/^https:\/\//.test(value)?{text:value,attributes:{...part.attributes,link:value}}:{...part,text:value});
+   }),notify_all:false};
    if(!commentId){
     const comments=await d.clickup(token,"task/"+id+"/comment");
     const existing=(comments.comments||[]).find((c:Obj)=>String(c.user?.id)===String(task.creator?.id)&&String(c.comment_text||"").startsWith("[iCetak-AutoBrief-Acrylic:"+id+"]"));
