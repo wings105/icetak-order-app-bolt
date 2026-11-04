@@ -1,3 +1,13 @@
+# 2026-11-05 — Shared name/age AutoBrief and reading summary
+
+Order worker v72 interprets explicit labelled name/age and all-topper scope as
+clean wording plus a separate production instruction. Real two-task readback
+verifies 95%, Ai Check, Confirmed and stable comments with source, understanding
+and current-input AI summaries. Actual worker/replay/negative tests pass on
+baseline and live lifecycle source; existing card/context/wording suites pass.
+No sends; concurrent acrylic/lifecycle modules preserved. See
+[contract](AUTOBRIEF_PRODUCT_CONTEXT.md#explicit-shared-name-and-age-notes--5-november-2026).
+
 # 2026-11-05 — Catalogue-backed AutoBrief product cards
 
 Order worker v71 resolves exact-session Shopee card IDs through the shared

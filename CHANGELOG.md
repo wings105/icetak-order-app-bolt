@@ -1,5 +1,9 @@
 # 2026-11-05
 
+- [PRODUCTION] AutoBrief confirms explicit shared name/age notes for all verified glossy toppers, separates the scope instruction from printable text and cleans CF only when it matches the source note. Worker v72 and real two-task ClickUp readback verify correct clean wording, 95%, Ai Check, Confirmed and original comments containing source/understanding/current-input AI summaries. Actual worker baseline/live, replay and negative guard tests plus existing card/context/wording suites pass. No sends; concurrent lifecycle/acrylic modules preserved. See [contract](docs/AUTOBRIEF_PRODUCT_CONTEXT.md#explicit-shared-name-and-age-notes--5-november-2026).
+
+# 2026-11-05
+
 - [PRODUCTION] AutoBrief resolves Shopee card IDs through the exact shop/item catalogue listing and canonical SKU/title, then associates item-scoped name/age or an explicit unique design label. Live v71 and real ClickUp readback verify two separate 95% wordings, Ai Check, Confirmed, unchanged comment IDs and card ID/title proof. Conflicting, incomplete, unknown-product and media contexts remain review; no customer sends. Actual worker/catalogue/guard/replay tests and existing wording/product-context suites pass. Concurrent acrylic/lifecycle runtime modules preserved. See [contract](docs/AUTOBRIEF_PRODUCT_CONTEXT.md#catalogue-backed-product-card-chat--5-november-2026).
 
 ## [PRODUCTION] 2026-11-04 — Explicit latest chat wording
