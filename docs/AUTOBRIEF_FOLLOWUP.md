@@ -324,3 +324,9 @@ wording at 88%, Ai Check and existing confirmation, with the same AutoBrief comm
 ID and one original message image attached. Provider readback confirms the exact
 wording, field option, proof attachment and comment. Canonical draft evidence,
 payments, pickup dates and order/task lifecycle are unchanged; no customer send.
+
+
+# 2026-11-04 — Explicit latest chat wording
+
+AutoBrief recognizes Tulis, Latest Tulis, wording and Custom name labels with real or escaped newlines. An explicit latest correction supersedes older chat wording and ages; checkout/staff conflicts and incomplete, ambiguous or multi-item context still require review. AI remains advisory. Live worker v68 preserves the concurrent acrylic modules. Exact-task production readback verified the latest full wording, 90% confidence, Ai Check, confirmed and the existing comment identity. Controlled actual parser/decision tests passed; the durable Node regression script was added but could not be run locally because the executor was unavailable.
+

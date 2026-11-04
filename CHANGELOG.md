@@ -1,3 +1,7 @@
+## [PRODUCTION] 2026-11-04 — Explicit latest chat wording
+
+AutoBrief recognizes Tulis, Latest Tulis, wording and Custom name labels with real or escaped newlines. An explicit latest correction supersedes older chat wording and ages; checkout/staff conflicts and incomplete, ambiguous or multi-item context still require review. AI remains advisory. Live worker v68 preserves the concurrent acrylic modules. Exact-task production readback verified the latest full wording, 90% confidence, Ai Check, confirmed and the existing comment identity. Controlled actual parser/decision tests passed; the durable Node regression script was added but could not be run locally because the executor was unavailable.
+
 # 2026-11-03
 
 - [PRODUCTION] AutoBrief preserves original converted pickup/prepaid draft wording and image when a later independent request appears in the same chat. Worker v54 requires matching canonical draft/session IDs and bounds proof before the new request; missing/mismatched evidence still holds. Actual-handler/replay guards and real exact-task recovery verify 88% wording, Ai Check, existing confirmation, one original image attachment and the same comment. See [contract](docs/AUTOBRIEF_FOLLOWUP.md#preserve-original-converted-draft-evidence--3-november-2026).

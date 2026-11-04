@@ -285,7 +285,24 @@ function selectProof(context:Obj,placedMs:number){
  for(const m of [...prior,...next,...chronological.filter(m=>m.message_type==="image"&&string(m.media_url))])chosen.set(String(m.id),m);
  return {chronological,proof:[...chosen.values()].sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at))};
 }
+function explicitChatWording(text:string):Obj|null{
+ const raw=string(text,1400).replace(/\\r\\n|\\n|\\r/g,"\n").replace(/\r\n?/g,"\n");
+ const labelled=raw.match(/(?:^|\n|[.!]\s+)(?:(latest|terkini|updated|update|betul|correction)\s+)?(?:tulis|wording|custom\s*name|nama\s*custom|tulisan)\s*[:=\-]\s*([\s\S]+)$/i);
+ if(!labelled)return null;
+ const lines=labelled[2].split("\n").map(x=>x.trim()).filter(Boolean);
+ const parts:string[]=[];
+ for(const line of lines){
+  if(/^(?:order(?:\s*id)?|nota|note|instruction|gambar|image|photo|pickup|ambil|nak|boleh|tolong|jika|kalau|warna|font|size|saiz|tarikh|date)\b/i.test(line))break;
+  parts.push(line);
+ }
+ const wording=parts.join(" ").replace(/\s+/g," ").replace(/^["“]|["”]$/g,"").trim();
+ if(!parts.length||parts.length>6||wording.length<2||wording.length>180||!/\p{L}/u.test(wording)||
+  /(?:https?:|www\.|@|[:?]|(?:\bRM\s*\d)|(?:\b(?:CN|YS)\d{3,6}\b))/i.test(wording)||
+  isNonDesignWording(wording)||/^(?:umur|age|tahun|years?|hi|hello|ok|thanks)\b/i.test(wording))return null;
+ return {wording,latest:!!labelled[1]};
+}
 function namedWordingFromMessage(text:string):string{
+ const explicit=explicitChatWording(text);if(explicit)return explicit.wording;
  const direct=string(text,1400).trim();
  const ageLine=direct.match(/^([\p{L}][\p{L}\p{M}\s.'’&-]{1,85}?)\s+(\d{1,3})\s*(?:tahun|thn|years?\s*old|yrs?\s*old|yo|y\/o)[.!]?$/iu);
  if(ageLine&&!/[\r\n]/.test(direct)&&! /^(?:nama|name|umur|age)\b/i.test(ageLine[1])&&Number(ageLine[2])>=1&&Number(ageLine[2])<=120&&
@@ -325,11 +342,14 @@ function decide(note:string,cfWord:string,proof:Obj[],ctx:Obj,multi:boolean,allM
  const extraInstruction=previewInstruction(allMessages);
  const extraPhotos=allMessages.some((m:Obj)=>/\b(?:tambah|tmbh|add)\s+(?:gambar|gmbr|gambar2|photo|picture)/i.test(String(m.text_content||m.caption||"")))?
   "Pelanggan mahu tambah/rujuk gambar; semak susunan design sebelum printing.":"";
- const chatNames=allMessages.map((m:Obj)=>({name:namedWordingFromMessage(String(m.text_content||m.caption||"")),at:Date.parse(String(m.created_at||""))}))
+ const latestExplicit=allMessages.map((m:Obj)=>({at:Date.parse(String(m.created_at||"")),value:explicitChatWording(String(m.text_content||m.caption||""))}))
+  .filter(x=>x.value?.latest&&Number.isFinite(x.at)).sort((a,b)=>a.at-b.at).at(-1);
+ const wordingMessages=latestExplicit?allMessages.filter((m:Obj)=>Date.parse(String(m.created_at||""))>=latestExplicit.at):allMessages;
+ const chatNames=wordingMessages.map((m:Obj)=>({name:namedWordingFromMessage(String(m.text_content||m.caption||"")),at:Date.parse(String(m.created_at||""))}))
   .filter(x=>x.name&&Number.isFinite(x.at)).sort((a,b)=>a.at-b.at);
  const lastChatName=chatNames.at(-1)?.name||"";
  const nameConflict=chatNames.some(x=>normalized(x.name)!==normalized(lastChatName));
- const ages=allMessages.map((m:Obj)=>({age:extractAge(String(m.text_content||m.caption||"")),at:Date.parse(String(m.created_at||""))}))
+ const ages=wordingMessages.map((m:Obj)=>({age:extractAge(String(m.text_content||m.caption||"")),at:Date.parse(String(m.created_at||""))}))
   .filter(x=>x.age!==null&&Number.isFinite(x.at)).sort((a,b)=>a.at-b.at);
  const ageFromChat=ages.at(-1)?.age??null;
  const noteAge=extractAge(note),cfAge=extractAge(cfWord),age=noteAge??ageFromChat??cfAge;
