@@ -12,11 +12,7 @@ export function customerText(raw:unknown,trusted=false):Data{
  const name=value.match(/(?:^|\n)\s*(?:nama|name)(?:\s+(?:dia|anak|untuk\s+topper))?\s*[:=\-]\s*([^\n]+)/i)||value.match(/^(?:(?:nak|letak|tulis|guna|untuk)\s+)?(?:nama|name)(?:\s+(?:dia|anak))?\s+(.+?)[?.!]*$/i);
  const age=value.match(/(?:^|\n)\s*(?:umur|age)\s*[:=\-]?\s*(\d{1,3})(?:\b|$)/i)||value.match(/^(\d{1,3})\s*(?:tahun|years?(?:\s*old)?|y\/?o)?[.!]*$/i);
  const wording=value.match(/(?:^|\n)\s*(?:wording|tulisan|text)(?:\s+(?:on|for|atas|pada)\s+(?:the\s+)?(?:cake\s+)?topper)?\s*[:=\-]\s*([\s\S]+)/i)||value.match(/^(?:tukar|ganti|betulkan|change|replace)\s+(?:(?:nama|name|wording|tulisan|text)\s*)?(?:(?:kepada|ke|jadi|to)\s+)?([\s\S]+)$/i)||value.match(/^(?:letak|tulis)\s+(?:wording|tulisan|text)\s+([\s\S]+)$/i);
- const labeled=value.match(/(?:^|\n)\s*(?:nama\s*custom|custom\s*name|nama|name)\s*(?:[:=\-]\s*)?([\s\S]*?)(?=\n\s*(?:umur|usia|age|gambar|image|photo|warna|font)\b|$)/i);
- const labeledName=labeled?.[1]?.replace(/\s+/g,' ').trim()||'';
- if(labeledName&&labeledName.length<=120&&/^[\p{L}][\p{L}\p{M}\s.'’&-]*$/u.test(labeledName)&&!operational.test(labeledName))out.name=labeledName;
- else if(name&&!operational.test(name[1]))out.name=name[1].trim();
- if(age)out.age=age[1];
+ if(name&&!operational.test(name[1]))out.name=name[1].trim();if(age)out.age=age[1];
  if(wording){const v=wording[1].split(/\n\s*(?:(?:saiz|size|warna|colou?r|font|material|qty|kuantiti)\s*[:=])/i)[0].trim();if(v&&!operational.test(v)&&!/^(?:warna|colou?r|saiz|size|font|bentuk|shape|background|material)\b/i.test(v))out.wording=v;}
  if(!out.wording&&!directive.test(value)&&/^[\p{L}\p{M}\s.'’&-]+\s+turns\s+\d{1,3}[.!]*$/iu.test(value)&&!operational.test(value))out.wording=value;
  const bare=value.match(/^([\p{L}][\p{L}\p{M}\s.'’&❤️♥-]{1,100}?)\s*\n?\s*(\d{1,3})\s*(?:tahun|years?(?:\s*old)?|y\/?o)?[.!]*$/iu);
@@ -24,7 +20,7 @@ export function customerText(raw:unknown,trusted=false):Data{
  if(!out.name&&!out.age&&!out.wording&&!operational.test(value)){
   if(trusted||/^(?:happy\b|selamat\b|the\s+wedding\b|tahniah\b|congratulations\b|good\s*luck\b)/i.test(value))out.wording=value;
   else if(/^\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}$/.test(value))out.wording=value;
-  else if(!directive.test(value)&&!/[?]/.test(value)&&!/^(?:klau|kalau|jika|bgi|bagi|boleh|blh|sy|saya|aku|nak|mau|mahu|utk|untuk|ada|itu|ini|ni|yg|yang|bila|mcm|macam|kenapa|tolong|buat|dah|sudah|belum|nanti|sekarang|esok|semua|teruskan|setuju)(?:\s|$)/i.test(value)&&!/\b(?:cake|kek|topper|edible|acrylic|wafer|paper|pcs|unit)\b/i.test(value)&&/^[\p{L}\p{M}][\p{L}\p{M}\d\s.'’&,!()❤️♥-]{0,179}$/u.test(value))out.name=value;
+  else if(!directive.test(value)&&!/[?]/.test(value)&&!/^(?:saya|sy|aku|nak|mau|mahu|utk|untuk|boleh|ada|itu|ini|ni|yg|yang|bila|mcm|macam|kenapa|tolong|buat|dah|sudah|belum|nanti|sekarang|esok|semua|teruskan|setuju)(?:\s|$)/i.test(value)&&!/\b(?:cake|kek|topper|edible|acrylic|wafer|paper|pcs|unit)\b/i.test(value)&&/^[\p{L}\p{M}][\p{L}\p{M}\d\s.'’&,!()❤️♥-]{0,179}$/u.test(value))out.name=value;
  }
  if(Object.keys(out).length&&uncertain.test(value))out.uncertain=true;
  if(directive.test(value)&&!operational.test(value))out.instructions=value;
@@ -70,3 +66,4 @@ export function customerContent(order:Data|null,context:Data,allow:boolean,seed:
  for(const m of allow?messages:[]){const v=text(m.text_content||m.caption);if(uncertain.test(v)&&!ack.test(v)&&!operational.test(v))warnings.push('Customer ada arahan / pilihan yang belum pasti.');}
  return {values,sources,conflicts,warnings:[...new Set(warnings)],evidence,artwork_reference:!!chosen&&/\b(?:contoh|reference|sample|inspiration)\b/i.test(text(chosen.caption||chosen.text_content))};
 }
+
