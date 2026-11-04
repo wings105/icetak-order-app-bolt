@@ -9,6 +9,70 @@ type Detail={product:any;variants:Variant[];images:any[];listings:any[];profiles
 async function request(action:string,payload:Record<string,unknown>={}){const {data,error}=await supabase.functions.invoke('product-admin',{body:{action,payload}});if(error||!data?.ok)throw Error(data?.error||error?.message||'Permintaan gagal');return data;}
 const money=(v:unknown)=>`RM${Number(v||0).toFixed(2)}`;
 const status=(v?:string)=>({NORMAL:'Aktif',UNLIST:'Tidak aktif',BANNED:'Disekat',DELETED:'Dipadam',UNKNOWN:'Belum disemak'}[v||'UNKNOWN']||v);
+const deletedProductReference = <details className="products-import" id="deleted-product-reference">
+ <summary>Rujukan sahaja · Produk dipadam Shopee</summary>
+ <p>Semakan emel pada 5 Nov 2026: 76 emel dalam Inbox (19 Okt 2020–3 Nov 2026), 63 rekod produk bernama dan 56 Product ID. Nama diringkaskan mengikut tema; beberapa listing berkongsi tema yang sama.</p>
+ <div className="products-table" style={{maxHeight:420,overflow:'auto'}}><table><thead><tr><th>Nama / tema</th><th>Jenis</th><th>Product ID</th></tr></thead><tbody>
+  <tr><td>Blippi</td><td>Topper ready stock</td><td>6997179128</td></tr>
+  <tr><td>Blippi</td><td>Topper custom</td><td>15595847136</td></tr>
+  <tr><td>Blippi &amp; Meekah</td><td>Topper custom</td><td>22267185683</td></tr>
+  <tr><td>Tik Tok TikTok</td><td>Topper ready stock</td><td>8893807599, 12210016701, 10248948636</td></tr>
+  <tr><td>Tik Tok TikTok</td><td>Topper custom</td><td>10348943696</td></tr>
+  <tr><td>Baby LOL</td><td>Topper custom</td><td>10204460663</td></tr>
+  <tr><td>Pinkfong</td><td>Topper custom</td><td>14335390832</td></tr>
+  <tr><td>LOL Surprise</td><td>Topper custom</td><td>15151870857, 10345771858</td></tr>
+  <tr><td>LOL Suprise</td><td>Topper custom</td><td>7836145253</td></tr>
+  <tr><td>Dora The Explorer</td><td>Edible</td><td>14150733314</td></tr>
+  <tr><td>Barbie</td><td>Edible</td><td>14751884279</td></tr>
+  <tr><td>New Barbie</td><td>Edible</td><td>17757119459</td></tr>
+  <tr><td>Baby Shark</td><td>Topper custom</td><td>11818142341</td></tr>
+  <tr><td>Money Heist</td><td>Topper custom</td><td>13945104803, 15562822186</td></tr>
+  <tr><td>Dora and Explorer Diego</td><td>Topper custom</td><td>9147487278</td></tr>
+  <tr><td>Blippi</td><td>Edible</td><td>11789495398</td></tr>
+  <tr><td>Nike Jordan</td><td>Topper custom</td><td>15351456558</td></tr>
+  <tr><td>JDT</td><td>Edible</td><td>15045494000</td></tr>
+  <tr><td>Tentera Udara Diraja Malaysia TUDM</td><td>Topper custom</td><td>18371133431</td></tr>
+  <tr><td>Vape</td><td>Topper custom</td><td>3190067281</td></tr>
+  <tr><td>Arsenal 2 (Merah)</td><td>Edible</td><td>15141596057</td></tr>
+  <tr><td>Arsenal</td><td>Topper custom</td><td>11431489765</td></tr>
+  <tr><td>Arsenal 1 ( Biru )</td><td>Edible</td><td>14341594946</td></tr>
+  <tr><td>Manchester City</td><td>Topper custom</td><td>15149966568, 16137053118</td></tr>
+  <tr><td>Manchester City 2</td><td>Edible</td><td>15548948747</td></tr>
+  <tr><td>Ninjago</td><td>Topper custom</td><td>15445891326, 3751954365</td></tr>
+  <tr><td>Ninjago</td><td>Topper ready stock</td><td>12740710641</td></tr>
+  <tr><td>Laser CO₂ 3020 40W</td><td>Mesin</td><td>6250620437</td></tr>
+  <tr><td>Everton</td><td>Edible</td><td>12675399620</td></tr>
+  <tr><td>Cocomelon / Coco Melon</td><td>Topper custom</td><td>16289315100</td></tr>
+  <tr><td>Dunhill Rokok Cigarettes Vape</td><td>Topper custom</td><td>8047458860</td></tr>
+  <tr><td>Clash of Clans 2</td><td>Topper custom</td><td>14249968159</td></tr>
+  <tr><td>Logo Aston Villa FC</td><td>Edible</td><td>12275401663</td></tr>
+  <tr><td>Clash of Clans COC</td><td>Topper custom</td><td>11186298084</td></tr>
+  <tr><td>Fortnite Games</td><td>Topper custom</td><td>7649539303</td></tr>
+  <tr><td>Fortnite</td><td>Topper custom</td><td>16104074757</td></tr>
+  <tr><td>Cocomelon</td><td>Topper custom</td><td>16761198765</td></tr>
+  <tr><td>Baby Minnie Mickey Mouse</td><td>Topper custom</td><td>20306356356</td></tr>
+  <tr><td>Hello Kitty</td><td>Topper custom</td><td>11086918627</td></tr>
+  <tr><td>LOL Surprise</td><td>Topper ready stock</td><td>16545994663</td></tr>
+  <tr><td>Logo Polis (Blue)</td><td>Edible</td><td>Tidak dapat diekstrak</td></tr>
+  <tr><td>BoBoiBoy</td><td>Topper custom</td><td>Tidak dapat diekstrak</td></tr>
+  <tr><td>Bomba</td><td>Topper custom</td><td>Tidak dapat diekstrak</td></tr>
+  <tr><td>Among Us</td><td>Topper custom</td><td>Tidak dapat diekstrak</td></tr>
+  <tr><td>Roblox</td><td>Topper custom</td><td>14253181705</td></tr>
+  <tr><td>Freddy's</td><td>Topper custom</td><td>Tidak dapat diekstrak</td></tr>
+  <tr><td>Home</td><td>Topper custom</td><td>Tidak dapat diekstrak</td></tr>
+  <tr><td>Peter Rabbit</td><td>Topper custom</td><td>Tidak dapat diekstrak</td></tr>
+  <tr><td>The Emoji Movie</td><td>Topper custom</td><td>14045900998</td></tr>
+  <tr><td>Ice Age</td><td>Topper custom</td><td>15245885689</td></tr>
+  <tr><td>Ducati Motor</td><td>Topper custom</td><td>8252036727, 8252029400</td></tr>
+  <tr><td>CatDog</td><td>Topper custom</td><td>13965074638</td></tr>
+  <tr><td>Johor Darul Ta'zim</td><td>Topper custom</td><td>7695828363</td></tr>
+  <tr><td>Spiderman</td><td>Topper custom</td><td>8651632832, 3439019343</td></tr>
+  <tr><td>Minnie mouse</td><td>Topper custom</td><td>7287387591</td></tr>
+ </tbody></table></div>
+ <p>18 emel lama menyebut sejumlah 51 produk dipadam tetapi tidak menyertakan nama atau ID. ID yang tiada dalam jadual tidak dapat diekstrak daripada pautan emel. Rekod sejarah ini untuk rujukan sahaja; bukan pengesahan status katalog semasa.</p>
+ <a href="https://mail.google.com/mail/#search/in%3Ainbox+%7Bsubject%3A%22Products+Deleted%22+subject%3A%22Your+product+has+been+deleted%22%7D" target="_blank" rel="noreferrer">Buka emel sumber ↗</a>
+</details>;
+
 export default function Products(){
  const [rows,setRows]=useState<ProductRow[]>([]),[total,setTotal]=useState(0),[q,setQ]=useState(''),[filter,setFilter]=useState(''),[offset,setOffset]=useState(0),[version,setVersion]=useState(0),[owner,setOwner]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[detail,setDetail]=useState<Detail|null>(null),[preview,setPreview]=useState<Awaited<ReturnType<typeof parseProductFiles>>|null>(null),[files,setFiles]=useState(''),[progress,setProgress]=useState('');
  const [website,setWebsite]=useState(''),[websiteCounts,setWebsiteCounts]=useState<Record<string,number>>({}),[bulk,setBulk]=useState<{rows:ProductRow[];operation?:string;eventId?:string}|null>(null);
@@ -31,6 +95,7 @@ export default function Products(){
  const edit=(field:string,value:unknown)=>setDetail(d=>d?{...d,product:{...d.product,[field]:value}}:d);
  return <div className="products-page">{bulk&&<CatalogBulk {...bulk} onClose={()=>setBulk(null)} onApplied={message=>{setNotice(message);setVersion(v=>v+1);if(detail)void open(detail.product.id);}}/>}<div className="page-header"><div><h1 className="page-title">Produk</h1><p className="page-subtitle">Katalog bersama · Shopee & shop.decocake</p></div><button className="btn btn-outline" disabled={busy} onClick={()=>setVersion(x=>x+1)}>Muat semula</button></div>
  {error&&<p className="products-alert" role="alert">{error}</p>}{notice&&<p className="products-notice" role="status">{notice}</p>}
+ {deletedProductReference}
  {owner&&<details className="products-import"><summary>Import export Shopee</summary><p>Pilih basic info, media info dan sales info (XLSX / ZIP). Produk baru disimpan sebagai draf website. Harga website yang sudah diedit dikekalkan apabila import semula.</p><input aria-label="Fail export Shopee" type="file" multiple accept=".xlsx,.zip" disabled={busy} onChange={e=>{const selected=Array.from(e.target.files||[]);setPreview(null);setFiles(selected.map(f=>f.name).join(', '));void run(async()=>{setPreview(await parseProductFiles(selected));});}}/>{preview&&<div><p>Shop {preview.shop_id} · {preview.products.length.toLocaleString()} produk · {preview.model_count.toLocaleString()} model · gambar utama lengkap</p><button className="btn btn-primary" disabled={busy} onClick={importAll}>Import katalog & gambar inbox</button></div>}{progress&&<p role="status">{progress}</p>}</details>}
  <div className="product-list-tabs" aria-label="Status website">{[['','Semua website'],['published','Diterbitkan'],['ready','Sedia diterbitkan'],['review','Perlu semakan']].map(([value,label])=><button key={value} aria-pressed={website===value} onClick={()=>{setWebsite(value);setOffset(0);}}>{label}{value&&<span>{websiteCounts[value]||0}</span>}</button>)}</div>
  <div className="products-toolbar"><input aria-label="Cari produk" placeholder="Cari tajuk, SKU atau product ID…" value={q} onChange={e=>{setQ(e.target.value);setOffset(0);}}/><select aria-label="Status Shopee" value={filter} onChange={e=>{setFilter(e.target.value);setOffset(0);}}><option value="">Semua status Shopee</option>{['NORMAL','UNLIST','UNKNOWN','BANNED','DELETED'].map(s=><option key={s} value={s}>{status(s)}</option>)}</select>{owner&&<button className="btn btn-outline" disabled={busy||!rows.some(r=>r.listing_id)} onClick={()=>refresh(rows.flatMap(r=>r.listing_id?[r.listing_id]:[]))}>Semak status halaman ini</button>}</div>
