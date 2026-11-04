@@ -155,7 +155,7 @@ function briefText(taskId:string,sku:string,wording:string,instruction:string,im
  if(!proof.length)lines.push("— Tiada mesej order yang dipadankan");
  for(const m of proof){
   const label=string(m.channel||"Chat",30),at=briefTimestamp(m.created_at);
-  lines.push(at+" ["+label+"] "+string(m.text_content||m.caption||"(gambar)",210));
+  lines.push(at+" ["+label+"] "+string(productCardId(m)?"(kad produk) "+productCardId(m):m.text_content||m.caption||"(gambar)",450));
  }
  return lines.join("\n").slice(0,14000);
 }
@@ -263,12 +263,92 @@ async function loadDirectChat(scope:Obj,bridge:string){
   return {...ctx,messages};
  }catch{return {messages:[],bindings:[],unavailable:true,evidence_source:"exact_direct_session"};}
 }
-function selectProof(context:Obj,placedMs:number){
+// Catalogue-backed association of customer wording with ordered glossy toppers.
+// Input messages must already be bounded to the exact order/session.
+const cardNorm=(v:any)=>String(v||'').trim().toLowerCase().replace(/\s+/g,' ');
+const cardSkuOf=(v:Obj)=>String(v.item_sku||v.variation_sku||'').trim().toUpperCase();
+function productCardId(m:Obj):string{
+ return String(m.text_content||m.caption||'').trim().match(/^\[Shopee item:\s*(\d{1,20})\]$/i)?.[1]||'';
+}
+async function loadCardCatalogue(items:Obj[],shopId:string,db:(path:string)=>Promise<any>):Promise<Obj[]>{
+ const ids=[...new Set(items.map(i=>String(i.provider_item_id||'')))];
+ if(!/^\d{1,20}$/.test(shopId)||!ids.length||ids.length>8||ids.some(id=>!/^\d{1,20}$/.test(id)))return [];
+ const listings=await db('product_channel_listings?channel=eq.shopee&shop_id=eq.'+shopId+'&item_id=in.('+ids.join(',')+')&select=item_id,product_id,shop_id&limit=30');
+ const localIds=[...new Set(listings.map((l:Obj)=>String(l.product_id)))];
+ if(!localIds.length||localIds.some(id=>!/^[0-9a-f-]{36}$/i.test(String(id))))return [];
+ const products=await db('products?id=in.('+localIds.join(',')+')&select=id,parent_sku,name,source_title&limit=30');
+ return listings.map((l:Obj)=>{const p=products.find((p:Obj)=>p.id===l.product_id);return {...l,sku:p?.parent_sku,title:p?.source_title||p?.name||''};});
+}
+function productCardWordingRule(input:Obj):Obj{
+ const no=(reason:string)=>({eligible:false,reason});
+ const {items,siblingTasks,messages,context,catalogue,sku,existingWord,note}=input;
+ if(context.ambiguous||context.truncated||context.unavailable)return no('CHAT_CONTEXT_UNVERIFIED');
+ if(cardNorm(note))return no('BUYER_NOTE_REQUIRES_EXISTING_RULE');
+ if(!items.length||items.length>8||items.some((i:Obj)=>! /^(CN|YS)\d{3,6}$/.test(cardSkuOf(i))||Number(i.quantity)!==1))return no('SINGLE_QUANTITY_GLOSSY_REQUIRED');
+ const ids=items.map((i:Obj)=>String(i.provider_item_id||'')),skus=items.map(cardSkuOf);
+ if(new Set(ids).size!==ids.length||new Set(skus).size!==skus.length)return no('DISTINCT_PRODUCTS_REQUIRED');
+ const refs:Obj[]=[];
+ for(const item of items){
+  const id=String(item.provider_item_id),code=cardSkuOf(item);
+  const matches=catalogue.filter((c:Obj)=>String(c.item_id)===id);
+  if(matches.length!==1||cardNorm(matches[0].sku)!==cardNorm(code)||!matches[0].title)return no('CATALOGUE_ID_SKU_UNVERIFIED');
+  if(siblingTasks.filter((t:Obj)=>new RegExp('(?:^|[^A-Z0-9])'+code+'(?:$|[^A-Z0-9])','i').test(t.task_name||'')).length!==1)return no('TASK_MAPPING_UNVERIFIED');
+  refs.push({...matches[0],sku:code});
+ }
+ const target=refs.find(c=>cardNorm(c.sku)===cardNorm(sku));
+ if(!target)return no('TARGET_NOT_IN_ORDER');
+ const values=new Map<string,Obj>(),used=new Map<string,Obj[]>();
+ let active='';
+ const ignore=/^(?:salam|assalamualaikum|hi|hello|ok(?:ay)?|baik|noted|tq|thanks|terima kasih)[!.\s]*$/i;
+ const printable=(s:string)=>s.length>=2&&s.length<=160&&/\p{L}/u.test(s)&&!/[?:]|https?:|www\.|@/i.test(s)&&! /\b(?:nak|boleh|tolong|order|postage|shipping|harga|rm|gambar|warna|font|saiz|size|tukar|ubah|jangan|cancel|sepatutnya|salah|silap|latest|terkini)\b/i.test(s);
+ for(const m of messages){
+  const card=productCardId(m),text=String(m.text_content||m.caption||'').trim().replace(/\\n/g,'\n');
+  if(card){
+   if(!refs.some(c=>c.item_id===card))return no('UNORDERED_PRODUCT_CARD');
+   active=card;used.set(card,[...(used.get(card)||[]),{...m,text_content:'(kad produk) '+card+' — '+refs.find(c=>c.item_id===card)!.title}]);continue;
+  }
+  if(m.direction!=='inbound'||m.is_history)continue;
+  if(!text||ignore.test(text))continue;
+  if(m.message_type&&m.message_type!=='text')return no('NON_TEXT_DETAIL_REQUIRES_REVIEW');
+  let value=text.replace(/\s+/g,' '),explicit=false;
+  const labelled=value.match(/^(?:(?:yg|yang|untuk|for)\s+)?(.{2,90}?)\s+(?:tulis|wording)\s*[:=\-]?\s+(.+)$/i);
+  if(labelled){
+   const label=cardNorm(labelled[1]);
+   if(!/^[\p{L}\p{N} .&'’-]+$/u.test(label))return no('INVALID_PRODUCT_LABEL');
+   const hits=refs.filter(c=>cardNorm(c.sku)===label||c.item_id===label||(' '+cardNorm(c.title).replace(/[^\p{L}\p{N} ]/gu,' ')+' ').includes(' '+label+' '));
+   if(hits.length!==1)return no('PRODUCT_LABEL_AMBIGUOUS');
+   active=hits[0].item_id;value=labelled[2].trim();explicit=true;
+  }
+  if(!active)return no('WORDING_WITHOUT_PRODUCT_SCOPE');
+  const age=value.match(/^(?:turns?|turning|umur|usia|age)\s*[:=\-]?\s*(\d{1,3})(?:\s*(?:tahun|years?(?: old)?))?$/i);
+  const prev=values.get(active)||{};
+  if(age){
+   if(!prev.wording||prev.age||Number(age[1])<1||Number(age[1])>120||/\d/.test(prev.wording))return no('AGE_ASSIGNMENT_CONFLICT');
+   values.set(active,{...prev,wording:prev.wording+' '+value,age:age[1]});
+  }else{
+   value=value.replace(/^(?:tulis|wording|custom name|nama|name)\s*[:=\-]\s*/i,'');
+   const plainName=/^[\p{L}\p{M} .’'&-]{2,85}$/u.test(value)&&value.split(/\s+/).length<=6&&
+    (value===value.toUpperCase()||value.split(/\s+/).every(w=>/^\p{Lu}/u.test(w)));
+   if(!printable(value)||(!explicit&&!plainName&&!/^happy birthday\s+\p{L}/iu.test(value)&&! /\p{L}.+\s+turns?\s+\d{1,3}$/iu.test(value)))return no('UNPARSED_CUSTOMER_DETAIL');
+   if(prev.wording&&cardNorm(prev.wording)!==cardNorm(value))return no('WORDING_CONFLICT');
+   values.set(active,{wording:value});
+  }
+  used.set(active,[...(used.get(active)||[]),m]);
+ }
+ if(refs.some(c=>!values.get(c.item_id)?.wording))return no('PRODUCT_WORDING_COVERAGE_INCOMPLETE');
+ const wording=values.get(target.item_id)!.wording;
+ if(existingWord&&cardNorm(existingWord)!==cardNorm(wording))return no('STAFF_WORDING_PROTECTED');
+ return {eligible:true,reason:'CATALOGUE_PRODUCT_CARD_AND_LABEL',wording,confidence:95,
+  product_id:target.item_id,catalogue_product_id:target.product_id,product_title:target.title,
+  proof:used.get(target.item_id)||[],assignments:refs.map(c=>({product_id:c.item_id,sku:c.sku,wording:values.get(c.item_id)!.wording}))};
+}
+
+function selectProof(context:Obj,placedMs:number,includeProductCards=false){
  const allowed=new Set((context.bindings||[]).filter((b:Obj)=>b.usable===true).map((b:Obj)=>String(b.id)));
  const direct=context.evidence_source==="exact_direct_session";
  const starts=Date.parse(context.scope_start||""),ends=Date.parse(context.scope_end||"");
  const valid=(context.messages||[]).filter((m:Obj)=>m.direction==="inbound"&&!m.is_history&&allowed.has(String(m.conversation_id))&&
-  !/^\[Shopee (?:item|order):/i.test(string(m.text_content||m.caption,120))&&
+  (includeProductCards&&!!productCardId(m)||!/^\[Shopee (?:item|order):/i.test(string(m.text_content||m.caption,120)))&&
   Number.isFinite(Date.parse(m.created_at))&&(direct?Number.isFinite(starts)&&Date.parse(m.created_at)>starts&&(!Number.isFinite(ends)||Date.parse(m.created_at)<ends):Date.parse(m.created_at)>=placedMs-60*60*1000)&&Date.parse(m.created_at)<=Date.now());
  const unique=new Map<string,Obj>();
  for(const m of valid)unique.set(String(m.id),m);
@@ -786,14 +866,15 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     providerContext=await followupRequest({action:"inspect",shop_id:string(orderFacts.shop_id),order_sn:string(orderFacts.order_sn),buyer_user_id:buyerId},bridge);
     if(providerContext.available&&providerContext.order_sn===s.order_reference&&providerContext.buyer_user_id===buyerId){
      const inbound=(providerContext.messages||[]).filter((m:Obj)=>m.direction==="inbound");
-     context.messages=[...new Map([...(context.messages||[]),...inbound].map((m:Obj)=>[String(m.id),m])).values()];
+     context.messages=[...new Map([...(context.messages||[]),...inbound,...(context.messages||[]).filter((m:Obj)=>!!productCardId(m))].map((m:Obj)=>[String(m.id),m])).values()];
      context.bindings=[...(context.bindings||[]),...inbound.map((m:Obj)=>({id:m.conversation_id,usable:true}))];
      note=string(providerContext.buyer_note,1200);
      orderUnpaid=providerContext.order_status==="UNPAID";
     }else followup={enabled:true,blocked:string(providerContext.error||"PROVIDER_CONTEXT_UNAVAILABLE",150)};
    }
   }
-  const {chronological,proof}=selectProof(context,placedMs);
+  const {chronological}=selectProof(context,placedMs);
+  let proof=selectProof(context,placedMs).proof;
   // A transient empty context must never erase previously confirmed proof.
   if(proof.length===0&&Array.isArray(job.brief?.proof)&&job.brief.proof.length>0)
    throw Error("PREVIOUS_PROOF_TEMPORARILY_UNAVAILABLE");
@@ -822,6 +903,17 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    items:orderItems,siblingTasks,messages:chronological,context});
   if(labelledRule.eligible)decision={...decision,wording:labelledRule.wording,confidence:labelledRule.confidence,
    age:extractAge(labelledRule.wording),note_evidence:true,name_conflict:false,age_conflict:false};
+  const cardMessages=selectProof(context,placedMs,true).chronological;
+  let cardRule:Obj={eligible:false,reason:"NO_PRODUCT_CARD"};
+  if(!directScope&&cardMessages.some((m:Obj)=>!!productCardId(m))){
+   let catalogue:Obj[]=[];
+   try{catalogue=await loadCardCatalogue(orderItems,string(orderFacts.shop_id),db);}catch{/* Catalogue unavailable stays review. */}
+   cardRule=productCardWordingRule({items:orderItems,siblingTasks,messages:cardMessages,context,catalogue,sku:productSku,existingWord,note});
+   if(cardRule.eligible){
+    decision={...decision,wording:cardRule.wording,confidence:cardRule.confidence,age:extractAge(cardRule.wording),chat_evidence:true,name_conflict:false,age_conflict:false};
+    proof=cardRule.proof;
+   }
+  }
   const completeNoteRule=completeMultilineNoteRule({note,existingWord,items:orderItems,siblingTasks,provider:providerContext,context,decision,sku:productSku,task_id:id,multi,messages:chronological});
   if(completeNoteRule.eligible)decision={...decision,wording:completeNoteRule.wording,confidence:completeNoteRule.confidence,note_evidence:true};
   const missing=Array.isArray(detail.missing)?detail.missing:[];
@@ -845,7 +937,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   // AI-assisted analysis is advisory only. Rules remain sole authority for CF/confirmed.
   // Cache by verified input signature to avoid re-billing each 1-minute scheduler run.
   let aiAnalysis:Obj=job.brief?.ai_analysis||{};
-  const aiCandidate=!followup.defaulted&&!sharedRule.eligible&&!labelledRule.eligible&&!orderUnpaid&&(confidence<80||multi)&&!context.ambiguous&&!context.truncated
+  const aiCandidate=!followup.defaulted&&!sharedRule.eligible&&!labelledRule.eligible&&!cardRule.eligible&&!orderUnpaid&&(confidence<80||multi)&&!context.ambiguous&&!context.truncated
    &&!context.unavailable&&(chronological.length>0||note.trim().length>0)&&!!productSku;
   if(aiCandidate){
    const signature=await digest(JSON.stringify({
@@ -1052,7 +1144,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status,product_title:product.title||"",product_id:product.product_id||"",
-   direct_session:directScope?{order_id:directScope.order_id,order_no:directScope.order_no,session_id:directScope.session_id,draft_id:directScope.draft_id,target_item_id:directScope.target_item_id,start_at:context.scope_start,end_at:context.scope_end,evidence_source:context.evidence_source,later_request_excluded:context.later_request_excluded===true,reason:context.reason}:null,order_products:productReferences(orderItems),complete_note_rule:completeNoteRule,labelled_wording_rule:labelledRule,followup,followup_remark:followupNote,
+   direct_session:directScope?{order_id:directScope.order_id,order_no:directScope.order_no,session_id:directScope.session_id,draft_id:directScope.draft_id,target_item_id:directScope.target_item_id,start_at:context.scope_start,end_at:context.scope_end,evidence_source:context.evidence_source,later_request_excluded:context.later_request_excluded===true,reason:context.reason}:null,order_products:productReferences(orderItems),complete_note_rule:completeNoteRule,labelled_wording_rule:labelledRule,product_card_rule:cardRule,followup,followup_remark:followupNote,
    shared_wording_rule:sharedRule,ai_analysis:aiAnalysis?.input_hash?aiAnalysis:null,ai_mode:"advisory"};
   state=holdForReview?"review":verified?"completed":"review";
  }catch(e){

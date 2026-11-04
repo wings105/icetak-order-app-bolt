@@ -1,3 +1,7 @@
+# 2026-11-05
+
+- [PRODUCTION] AutoBrief resolves Shopee card IDs through the exact shop/item catalogue listing and canonical SKU/title, then associates item-scoped name/age or an explicit unique design label. Live v71 and real ClickUp readback verify two separate 95% wordings, Ai Check, Confirmed, unchanged comment IDs and card ID/title proof. Conflicting, incomplete, unknown-product and media contexts remain review; no customer sends. Actual worker/catalogue/guard/replay tests and existing wording/product-context suites pass. Concurrent acrylic/lifecycle runtime modules preserved. See [contract](docs/AUTOBRIEF_PRODUCT_CONTEXT.md#catalogue-backed-product-card-chat--5-november-2026).
+
 ## [PRODUCTION] 2026-11-04 — Explicit latest chat wording
 
 AutoBrief recognizes Tulis, Latest Tulis, wording and Custom name labels with real or escaped newlines. An explicit latest correction supersedes older chat wording and ages; checkout/staff conflicts and incomplete, ambiguous or multi-item context still require review. AI remains advisory. Live worker v68 preserves the concurrent acrylic modules. Exact-task production readback verified the latest full wording, 90% confidence, Ai Check, confirmed and the existing comment identity. Controlled actual parser/decision tests passed; the durable Node regression script was added but could not be run locally because the executor was unavailable.

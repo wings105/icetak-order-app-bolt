@@ -24,7 +24,7 @@ one-to-one coverage, standard glossy CN/YS SKUs, valid IDs/quantities, and a
 related task for every SKU. It never assigns by array position or hardcoded
 theme names. Duplicate themes/SKUs, missing coverage, instructions, conflicting
 staff wording, unverified chat or a separate substantive customer reply keep
-the order in review. It does not implement product-card/conversation sequencing.
+the order in review. That buyer-note rule is separate from the catalogue-backed chat rule below.
 
 A verified match gives the exact suffix wording a rule score of 95. Existing
 paid-order, 15-minute, status, missing-detail and post-confirmation guards still
@@ -58,3 +58,39 @@ titles/IDs, independently assigned the target wording at 98%; this remains an
 advisory result rather than write authority. No customer chat send, payment,
 shipping change or new task was involved. Full product-card sequence matching,
 multi-item chat reassignment and later media-change acceptance remain separate.
+
+
+## Catalogue-backed product-card chat — 5 November 2026
+
+The worker retains exact-session inbound `[Shopee item: ID]` references as
+product evidence. It reads `product_channel_listings` by exact Shopee shop/item
+identity and joins canonical `products` for title and parent SKU. The catalogue
+must agree with the ordered product ID and task SKU; array position is never a
+mapping key. Website publication status does not determine catalogue identity.
+No catalogue records are changed.
+
+For distinct glossy items with quantity one, a product card scopes the following
+bounded name and separate age line. An explicit `Yg <unique title phrase> tulis
+<wording>` selects that ordered product even before its next card. Every ordered
+item must have an unambiguous wording and sibling task. Unknown cards, duplicate
+identities, incomplete coverage, unsupported media, conflicts, nonempty buyer
+notes, staff wording differences and unavailable/truncated/ambiguous context
+remain in review. Existing paid/time/initial-status/confirmation guards remain.
+This is deterministic association, not AI authority or unrestricted chat inference.
+
+An accepted match scores 95 and persists item ID, canonical catalogue ID, title,
+assignments and source messages in `product_card_rule`. Each original AutoBrief
+comment shows its own card ID/title and wording proof with MYT timestamps; cards
+are no longer rendered as unexplained images. Printable wording alone enters
+Customize Name; Ai Check and Confirmed follow the existing verified-field path.
+
+Verification: `node scripts/check-autobrief-product-card.mjs` executes the actual
+parser, catalogue loader and worker for two distinct synthetic designs, including
+provider merge of a card represented as an empty image. Catalogue/coverage,
+staff/context/media guards, replay and zero-send checks pass. The same suite
+passes against the live source with its initial-status lifecycle. Existing
+product-context and explicit-wording regressions pass. Live v71 recovered both
+owner-selected items at 95%; ClickUp API readback verified exact wording, Ai
+Check, Confirmed, original comment IDs and item-specific proof. No customer send.
+Concurrent live acrylic and lifecycle modules were retained unchanged; this
+release's repository diff contains only the scoped glossy matching change.
