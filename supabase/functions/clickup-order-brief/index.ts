@@ -479,6 +479,49 @@ function completeMultilineNoteRule(input:Obj):Obj{
 // Single explicit buyer note may apply to all glossy toppers of one order.
 // Conservative: no heterogeneous item types, conflicting words, item-specific
 // instructions, missing SKU/task mapping or unverified chat context.
+// Explicit labelled source values and all-item scope, separate from print wording.
+function sharedNameAgeNoteRule(input:Obj):Obj{
+ const no=(reason:string)=>({eligible:false,reason});
+ const {note,existingWord,items,siblingTasks,messages,context,sku}=input;
+ if(context.ambiguous||context.truncated||context.unavailable)return no("CHAT_CONTEXT_UNVERIFIED");
+ const decode=(s:string)=>string(s,1200).replace(/\\r\\n|\\n|\\r/g,"\n").replace(/\r\n?/g,"\n");
+ const canonical=(s:string)=>decode(s).replace(/\s+/g," ").toLowerCase().trim();
+ const lines=decode(note).split("\n").map(x=>x.trim()).filter(Boolean);
+ if(lines.length!==3)return no("EXPLICIT_SHARED_NAME_AGE_REQUIRED");
+ const name=lines[0].match(/^(?:nama|name)\s*[:=]\s*([\p{L}][\p{L}\p{M} .’'&-]{1,85})$/iu)?.[1]?.trim();
+ const age=lines[1].match(/^(?:umur|usia|age)\s*[:=]\s*(\d{1,3})(?:\s*(?:tahun|years?(?: old)?))?$/i)?.[1];
+ const scope=lines[2].match(/^(dua2|dua-dua|kedua-dua|kedua dua|both|semua|all)\s+(?:topper|toppers)\s+(?:sama\s+nama\s*(?:&|dan)\s*umur|(?:same\s+)?name\s*(?:&|and)\s*age)[.!]?$/i);
+ if(!name||!age||!scope||Number(age)<1||Number(age)>120||isNonDesignWording(name))return no("EXPLICIT_SHARED_NAME_AGE_REQUIRED");
+ const refs=productReferences(items),total=refs.reduce((sum,x)=>sum+x.quantity,0);
+ if(!refs.length||refs.length>8||total<2||total>8||refs.some(x=>! /^(CN|YS)\d{3,6}$/i.test(x.sku)||!/^\d{1,20}$/.test(x.product_id)||!Number.isInteger(x.quantity)||x.quantity<1))return no("GLOSSY_ORDER_ITEMS_REQUIRED");
+ if(!/^(semua|all)$/i.test(scope[1])&&total!==2)return no("SHARED_QUANTITY_MISMATCH");
+ if(new Set(refs.map(x=>normalized(x.sku))).size!==refs.length||!refs.some(x=>normalized(x.sku)===normalized(sku)))return no("SKU_MAPPING_AMBIGUOUS");
+ if(refs.some(x=>siblingTasks.filter((t:Obj)=>new RegExp("(?:^|[^A-Z0-9])"+x.sku+"(?:$|[^A-Z0-9])","i").test(string(t.task_name,300))).length!==1))return no("TASK_MAPPING_UNVERIFIED");
+ // Later chat instructions require review, rather than being silently superseded.
+ if(messages.some((m:Obj)=>m.direction!=="outbound"&&(!isUnimportant(string(m.text_content||m.caption)))))return no("CUSTOMER_REPLY_REQUIRES_REVIEW");
+ const wording=name+" "+String(Number(age));
+ if(existingWord&&canonical(existingWord)!==canonical(note)&&canonical(existingWord)!==canonical(wording))return no("STAFF_WORDING_PROTECTED");
+ return {eligible:true,reason:"EXPLICIT_SHARED_NAME_AGE_NOTE",name,age:Number(age),wording,confidence:95,item_count:refs.length,quantity:total,
+  source:"Buyer Note",instruction:"Semua "+total+" topper guna nama dan umur yang sama.",scope_text:lines[2]};
+}
+function readingSummary(input:Obj):Obj{
+ const {rule,note,messages,items,decision,verified,aiAnalysis,aiCandidate}=input;
+ const source=note?"Buyer Note":"chat customer";
+ const lines=["Ringkasan bacaan & pemahaman AI / AutoBrief:",
+  "Sumber: "+source+"; "+items.length+" jenis produk; "+messages.length+" mesej customer."];
+ if(rule.eligible){
+  lines.push("Nama: "+rule.name+" | Umur: "+rule.age,
+   "Arahan difahami: "+rule.instruction,
+   "Wording cetak: "+rule.wording,
+   "Keputusan: "+(verified?"Disahkan; nota berlabel dan arahan semua item sepadan.":"Perlu semak; masih ada syarat pengesahan belum lengkap."));
+ }else lines.push("Wording dibaca: "+(decision.wording||"Belum pasti"),"Keputusan: "+(verified?"Disahkan berdasarkan bukti sumber.":"Perlu semak sebelum disahkan."));
+ // Only include a model summary when its input signature was checked this run.
+ if(aiCandidate&&aiAnalysis?.ok){
+  lines.push("AI memahami: "+(string(aiAnalysis.summary,300)||string(aiAnalysis.reason,300)||"—")+" | keyakinan AI "+Number(aiAnalysis.confidence||0)+"%.");
+ }
+ return {source,item_count:items.length,message_count:messages.length,name:rule.name||null,age:rule.age??null,instruction:rule.instruction||decision.instruction||"",wording:decision.wording,verified,text:lines.join("\n")};
+}
+
 function sharedTopperWordingRule(input:{
  note:string;existingWord:string;sku:string;items:Obj[];siblingTasks:Obj[];
  decision:Obj;messages:Obj[];context:Obj;
@@ -914,6 +957,8 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     proof=cardRule.proof;
    }
   }
+  const sharedNameRule=sharedNameAgeNoteRule({note,existingWord,items:orderItems,siblingTasks,messages:chronological,context,sku:productSku});
+  if(sharedNameRule.eligible)decision={...decision,wording:sharedNameRule.wording,instruction:sharedNameRule.instruction,confidence:sharedNameRule.confidence,age:sharedNameRule.age,note_evidence:true,name_conflict:false,age_conflict:false};
   const completeNoteRule=completeMultilineNoteRule({note,existingWord,items:orderItems,siblingTasks,provider:providerContext,context,decision,sku:productSku,task_id:id,multi,messages:chronological});
   if(completeNoteRule.eligible)decision={...decision,wording:completeNoteRule.wording,confidence:completeNoteRule.confidence,note_evidence:true};
   const missing=Array.isArray(detail.missing)?detail.missing:[];
@@ -1052,6 +1097,8 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     (string(aiAnalysis.instruction,250)?"\nAI instruction: "+string(aiAnalysis.instruction,250):"")+
     (string(aiAnalysis.image_description,250)?"\nAI image: "+string(aiAnalysis.image_description,250):"");
   }
+  const interpretation=readingSummary({rule:sharedNameRule,note,messages:chronological,items:orderItems,decision,verified,aiAnalysis,aiCandidate});
+  text+="\n\n"+interpretation.text;
   const hash=await digest("rich-code-v1\n"+text);
   const comments=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment");
   const old=(comments.comments||[]).find((c:Obj)=>contains(c.comment,marker)||contains(c.comment,"[iCetak-AutoBrief:"+id+":"));
@@ -1144,7 +1191,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status,product_title:product.title||"",product_id:product.product_id||"",
-   direct_session:directScope?{order_id:directScope.order_id,order_no:directScope.order_no,session_id:directScope.session_id,draft_id:directScope.draft_id,target_item_id:directScope.target_item_id,start_at:context.scope_start,end_at:context.scope_end,evidence_source:context.evidence_source,later_request_excluded:context.later_request_excluded===true,reason:context.reason}:null,order_products:productReferences(orderItems),complete_note_rule:completeNoteRule,labelled_wording_rule:labelledRule,product_card_rule:cardRule,followup,followup_remark:followupNote,
+   direct_session:directScope?{order_id:directScope.order_id,order_no:directScope.order_no,session_id:directScope.session_id,draft_id:directScope.draft_id,target_item_id:directScope.target_item_id,start_at:context.scope_start,end_at:context.scope_end,evidence_source:context.evidence_source,later_request_excluded:context.later_request_excluded===true,reason:context.reason}:null,order_products:productReferences(orderItems),complete_note_rule:completeNoteRule,labelled_wording_rule:labelledRule,product_card_rule:cardRule,shared_name_age_rule:sharedNameRule,reading_summary:interpretation,followup,followup_remark:followupNote,
    shared_wording_rule:sharedRule,ai_analysis:aiAnalysis?.input_hash?aiAnalysis:null,ai_mode:"advisory"};
   state=holdForReview?"review":verified?"completed":"review";
  }catch(e){

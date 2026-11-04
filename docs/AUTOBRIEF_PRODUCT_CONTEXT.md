@@ -94,3 +94,40 @@ owner-selected items at 95%; ClickUp API readback verified exact wording, Ai
 Check, Confirmed, original comment IDs and item-specific proof. No customer send.
 Concurrent live acrylic and lifecycle modules were retained unchanged; this
 release's repository diff contains only the scoped glossy matching change.
+
+
+## Explicit shared name and age notes — 5 November 2026
+
+A three-line Buyer Note containing labelled name, labelled numeric age and an
+explicit all-topper scope is parsed into separate printable wording and
+production instruction. For example `Nama: Sample Child`, `Umur: 5`,
+`Dua2 topper sama nama & umur` yields `Sample Child 5`; the scope sentence never
+enters printable wording. Two/both must agree with total ordered quantity;
+all/semua covers the verified glossy order. SKU/product IDs, task mapping,
+quantity, context, later chat and staff-conflict guards remain mandatory.
+The existing raw note copied into Customize Name may be cleaned only when it
+exactly matches the source note; a different staff value remains protected.
+
+The bounded source rule scores 95, bypassing only the generic multi-item cap.
+Payment, lifecycle/initial status, time and unresolved-detail gates remain.
+AI model confidence alone still cannot promote arbitrary content to confirmed.
+Existing cached analysis is signature-checked against the current inputs.
+
+Each initial brief now includes `Ringkasan bacaan & pemahaman AI / AutoBrief`:
+source, product/message counts, extracted name and age where verified, shared
+instruction, printable wording and confirmation/review result. Current model
+summary/confidence appears when its input signature is checked that run.
+`reading_summary` and `shared_name_age_rule` persist private provenance beside
+full Buyer Note and existing proof, without creating another comment.
+
+Validation command: `node scripts/check-autobrief-shared-name-age.mjs`.
+The actual worker suite exercises both task outcomes, raw-note CF cleanup,
+model summary display, replay/no sends, and malformed, staff/context/media,
+quantity and scope guards. It also supports a deployed-source file argument
+for exercising the concurrent lifecycle implementation without replacing it.
+
+Production evidence: worker v72 source patch preserves all concurrent lifecycle
+and acrylic modules. Exact selected two-task canaries complete without errors;
+direct ClickUp reads verify clean shared wording, 95%, Ai Check, Confirmed and
+unchanged comment IDs. Both comments contain the source/understanding summary
+and current-input AI interpretation at 98%. No customer-send receipts created.
