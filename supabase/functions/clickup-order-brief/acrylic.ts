@@ -97,6 +97,10 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
   const scope=await d.db("rpc/icetak_acrylic_brief_scope",{p_task_id:id});
   if(!scope?.eligible) {if(preview)return {task_id:id,eligible:false,reason:scope?.reason};throw Error(scope?.reason||"OUT_OF_SCOPE");}
   const task=await d.clickup(token,"task/"+id);
+  // Shopee's existing checkout automation copies Note to Seller into Customize Name.
+  // A missing database cache must not relabel this checkout source as a staff invention.
+  const checkoutCopy=scope.provider==='shopee'?short(field(task,CF.name)?.value,1200):'';
+  if(!scope.note&&checkoutCopy){scope.note=checkoutCopy;scope.note_source='checkout_automation_customize_name';}
   if(String(task.id)!==id||String(task.list?.id)!=="18375902"||norm(task.status?.status)!=="acrylic"||task.archived)throw Error("TASK_NO_LONGER_ACRYLIC");
   if(Date.now()-Date.parse(scope.placed_at)<900000)throw Error("WAIT_15_MINUTES");
   const ctx=await context(scope,bridge,d);
@@ -124,7 +128,7 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
    if(ai)rules=mergeAI(rules,ai,scope);
   }
   const placeholder=/^custom\s*\d*\s*(?:inch|inci|kek)/i.test(currentWord);
-  if(currentWord && norm(currentWord)!==norm(rules.wording)&&!owned&&!placeholder&&!rules.staff_wording_source) {
+  if(currentWord && norm(currentWord)!==norm(rules.wording)&&!(scope.provider==='shopee'&&norm(cleanWording(currentWord))===norm(rules.wording))&&!owned&&!placeholder&&!rules.staff_wording_source) {
    rules.ready=false;rules.conflicts.push("STAFF_WORDING_CONFLICT");
   }
   const revision=previous.wording&&norm(previous.wording)!==norm(rules.wording);
@@ -135,7 +139,7 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
    ai&&!ai.ok&&rules.needs_vision?"MEDIA_OR_AI_UNAVAILABLE":rules.ready?"BRIEF_READY":
    rules.missing.length?"MISSING_DETAILS":"REVIEW_REQUIRED";
   brief={...rules,messages:undefined,profile:ACRYLIC_VERSION,state:status,confirmed:rules.ready,confidence:rules.confidence,
-   actual_buyer_note:scope.note,order_id:scope.order_id,target_item_id:scope.target_item_id,order_no:scope.order_no,
+   actual_buyer_note:scope.note,note_source:scope.note_source||'checkout_note',order_id:scope.order_id,target_item_id:scope.target_item_id,order_no:scope.order_no,
    ai,ai_key:aiKey,ai_at:providerCalled?new Date().toISOString():previous.ai_at||null,
    observed_message_ids:(ctx.messages||[]).map((m:Obj)=>m.id),checked_message_ids:rules.messages.map((m:Obj)=>m.id),proof:rules.messages.filter((m:Obj)=>rules.evidence_ids.includes(m.id)).map((m:Obj)=>({id:m.id,at:m.sent_at||m.created_at,channel:m.channel})),
    field_receipts:job.field_receipts||{},scope:{provider:scope.provider,conversation_id:ctx.conversation_id,start_at:ctx.scope_start,end_at:ctx.scope_end}};
