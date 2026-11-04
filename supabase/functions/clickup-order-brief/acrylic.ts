@@ -86,7 +86,7 @@ function commentText(id:string,scope:Obj,r:Obj,ctx:Obj,ai:Obj|null,state:string,
   "Analisis: "+(ai?.ok?"OpenAI "+ai.mode+" (fallback sahaja)":"Aturan dalaman"),
   "instruction: "+(r.instruction||"—"),"Kurang: "+(r.missing.join(", ")||"—"),"Konflik: "+(r.conflicts.join(", ")||ctx.reason||"—"),
   ...r.corrections.map((x:Obj)=>"Pembetulan customer: "+x.old+" → "+x.value+" · message "+x.id),
-  "","actual buyer nota: "+(scope.note||"—"),"","proof message:",
+  "","actual buyer nota: "+(scope.note||"—"),...(r.staff_wording_source?["Sumber wording: ClickUp Customize Name (nilai staf); belum disahkan daripada chat customer.","Nilai asal staf: "+r.staff_wording_source]:[]),"","proof message:",
   ...proof.map((m:Obj)=>d.clock(m.sent_at||m.created_at)+" ["+m.channel+"] "+short(m.text_content||m.caption||"(gambar)",600))
  ].join("\n").slice(0,14000);
 }
@@ -101,6 +101,16 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
   if(Date.now()-Date.parse(scope.placed_at)<900000)throw Error("WAIT_15_MINUTES");
   const ctx=await context(scope,bridge,d);
   let rules=acrylicRules(scope,ctx.messages||[]);
+  const currentWord=short(field(task,CF.name)?.value,1200),owned=job.field_receipts?.wording===currentWord;
+  // Staff-entered wording is a real source even when it is absent from the synced buyer chat.
+  // Preserve provenance and require review; never pretend that the buyer confirmed it.
+  if(!rules.wording&&rules.quantity===1&&currentWord&&!/^custom\s*\d*\s*(?:inch|inci|kek)/i.test(currentWord)){
+   const candidate=currentWord.replace(/^(?:word|wording|text)\s*:\s*/i,'').replace(/\n\s*below\s*:\s*/i,'\n');
+   rules.wording=candidate;rules.units=[{unit:1,wording:candidate,colour:rules.colour,size:rules.size,evidence_ids:['clickup_customize_name']}];
+   rules.evidence_ids=['clickup_customize_name'];rules.staff_wording_source=currentWord;
+   rules.missing=rules.missing.filter((x:string)=>x!=='wording');
+   rules.conflicts.push('STAFF_DETAIL_UNVERIFIED');rules.ready=false;rules.confidence=75;rules.needs_fallback=false;
+  }
   const detail=await d.db("task_detail_automation?task_id=eq."+id+"&select=data&limit=1");
   const blocked=ctx.unavailable||ctx.ambiguous||ctx.truncated;
   if(blocked){rules.ready=false;rules.confidence=0;rules.conflicts.push(ctx.reason||"CHAT_CONTEXT_UNVERIFIED");}
@@ -113,9 +123,8 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
    else {providerCalled=true;ai=await fallback(scope,rules,bridge,d);}
    if(ai)rules=mergeAI(rules,ai,scope);
   }
-  const currentWord=short(field(task,CF.name)?.value,1200),owned=job.field_receipts?.wording===currentWord;
   const placeholder=/^custom\s*\d*\s*(?:inch|inci|kek)/i.test(currentWord);
-  if(currentWord && norm(currentWord)!==norm(rules.wording)&&!owned&&!placeholder) {
+  if(currentWord && norm(currentWord)!==norm(rules.wording)&&!owned&&!placeholder&&!rules.staff_wording_source) {
    rules.ready=false;rules.conflicts.push("STAFF_WORDING_CONFLICT");
   }
   const revision=previous.wording&&norm(previous.wording)!==norm(rules.wording);
