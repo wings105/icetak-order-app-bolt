@@ -115,7 +115,7 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
   const currentWord=short(field(task,CF.name)?.value,1200),owned=job.field_receipts?.wording===currentWord;
   // Staff-entered wording is a real source even when it is absent from the synced buyer chat.
   // Preserve provenance and require review; never pretend that the buyer confirmed it.
-  if(!rules.wording&&rules.quantity===1&&currentWord&&!/^custom\s*\d*\s*(?:inch|inci|kek)/i.test(currentWord)){
+  if(!rules.wording&&!rules.references.length&&rules.quantity===1&&currentWord&&!/^custom\s*\d*\s*(?:inch|inci|kek)/i.test(currentWord)){
    const candidate=currentWord.replace(/^(?:word|wording|text)\s*:\s*/i,'').replace(/\n\s*below\s*:\s*/i,'\n');
    rules.wording=candidate;rules.units=[{unit:1,wording:candidate,colour:rules.colour,size:rules.size,evidence_ids:['clickup_customize_name']}];
    rules.evidence_ids=['clickup_customize_name'];rules.staff_wording_source=currentWord;
