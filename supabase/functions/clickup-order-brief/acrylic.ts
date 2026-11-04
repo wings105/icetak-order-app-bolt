@@ -84,7 +84,7 @@ function commentText(id:string,scope:Obj,r:Obj,ctx:Obj,ai:Obj|null,state:string,
  return ["[iCetak-AutoBrief-Acrylic:"+id+"]","Order ID: "+scope.order_no,
   "SKU product: "+(scope.target.sku||"—"),"Tajuk product: "+scope.target.title,
   "Category: Acrylic · Qty "+r.quantity,"wording: "+(r.wording||"Perlu detail"),
-  "gambar link ("+(scope.provider==="shopee"?"Shopee":"WhatsApp")+"): "+(r.references.map((x:Obj)=>x.media_url).join("\n")||"—"),
+  "gambar link ("+((r.references||[]).some((x:Obj)=>String(x.media_url).startsWith("wasapflow-media://"))?"WhatsApp":scope.provider==="shopee"?"Shopee":"WhatsApp")+"): "+(r.references.map((x:Obj)=>x.media_url).join("\n")||"—"),
   ...(r.use_original_artwork?["Artwork: Artwork hitam siap customer — guna fail asal tanpa tukar wording/layout. Bacaan teks AI bukan sumber untuk reka semula."]:[]),
   "Warna bahan: "+r.colour+(r.parts.length?" · Komponen: "+r.parts.map((p:Obj)=>p.wording+" = "+p.colour).join("; "):""),
   "Saiz dibeli: "+r.size,"Tarikh diperlukan / due: "+(scope.due_at||"—"),"Status AutoBrief: "+state,
@@ -110,6 +110,8 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
   if(!scope.note&&checkoutCopy&&job.field_receipts?.wording!==checkoutCopy){scope.note=checkoutCopy;scope.note_source='checkout_automation_customize_name';}
   if(String(task.id)!==id||String(task.list?.id)!=="18375902"||norm(task.status?.status)!=="acrylic"||task.archived)throw Error("TASK_NO_LONGER_ACRYLIC");
   if(Date.now()-Date.parse(scope.placed_at)<900000)throw Error("WAIT_15_MINUTES");
+  scope.phone=short((task.custom_fields||[]).find((f:Obj)=>norm(f.name)==="phone")?.value,30).replace(/[^0-9]/g,"");
+  if(scope.phone.startsWith("0"))scope.phone="6"+scope.phone;
   const ctx=await context(scope,bridge,d);
   let rules=acrylicRules(scope,ctx.messages||[]);
   const currentWord=short(field(task,CF.name)?.value,1200),owned=job.field_receipts?.wording===currentWord;
@@ -149,12 +151,13 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
    actual_buyer_note:scope.note,note_source:scope.note_source||'checkout_note',order_id:scope.order_id,target_item_id:scope.target_item_id,order_no:scope.order_no,
    ai,ai_key:aiKey,ai_at:providerCalled?new Date().toISOString():previous.ai_at||null,
    observed_message_ids:(ctx.messages||[]).map((m:Obj)=>m.id),checked_message_ids:rules.messages.map((m:Obj)=>m.id),proof:rules.messages.filter((m:Obj)=>rules.evidence_ids.includes(m.id)).map((m:Obj)=>({id:m.id,at:m.sent_at||m.created_at,channel:m.channel})),
-   field_receipts:job.field_receipts||{},scope:{provider:scope.provider,conversation_id:ctx.conversation_id,start_at:ctx.scope_start,end_at:ctx.scope_end}};
+   field_receipts:job.field_receipts||{},scope:{provider:scope.provider,conversation_id:ctx.conversation_id,cross_channel_exact_order:ctx.cross_channel_exact_order,whatsapp_scope_start:ctx.whatsapp_scope_start,start_at:ctx.scope_start,end_at:ctx.scope_end}};
   const text=commentText(id,scope,rules,ctx,ai,status,d),hash=await d.digest(text);
   brief.comment_hash=hash;brief.content_changed_at=previous.comment_hash===hash?previous.content_changed_at:new Date().toISOString();
   if(preview)return {task_id:id,eligible:true,provider_called:providerCalled,ai_cached:!!ai&&!providerCalled,brief,comment:text,message_count:rules.messages.length};
   const freshScope=await d.db("rpc/icetak_acrylic_brief_scope",{p_task_id:id});
   if(!freshScope.eligible||freshScope.target_item_id!==scope.target_item_id||JSON.stringify(freshScope.target)!==JSON.stringify(scope.target))throw Error("ORDER_CHANGED_BEFORE_WRITE");
+  freshScope.phone=scope.phone;
   const freshContext=await context(freshScope,bridge,d);
   const messageSignature=(c:Obj)=>JSON.stringify((c.messages||[]).map((m:Obj)=>[m.id,m.text_content,m.caption,m.media_url]));
   if(messageSignature(freshContext)!==messageSignature(ctx))throw Error("CHAT_CHANGED_BEFORE_WRITE");
