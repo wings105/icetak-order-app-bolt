@@ -4,29 +4,8 @@ const headers={'content-type':'application/json',apikey:key,authorization:`Beare
 async function rest(path:string,body?:unknown){const res=await fetch(`${url}/rest/v1/${path}`,{method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(90000)});const data=await res.json().catch(()=>null);if(!res.ok)throw new Error(data?.message||`Database HTTP ${res.status}`);return data;}
 const rpc=(name:string,body:unknown={})=>rest(`rpc/${name}`,body);
 async function setting(table:string,k:string){const rows=await rest(table==='private_runtime_settings'?`${table}?setting_key=eq.${k}&select=setting_value`:`${table}?key=eq.${k}&select=text_value,secret_value`);return String(rows?.[0]?.setting_value||rows?.[0]?.secret_value||rows?.[0]?.text_value||'');}
-const money=(v:unknown)=>`RM${Number(v||0).toFixed(2)}`;
-const labels:Record<string,string>={shopee:'Shopee',whatsapp:'WhatsApp / chat',pickup_trigger:'Pickup trigger',decocake_web:'Decocake Web',walkin:'Walk-in',unknown:'Belum dikenal pasti',other:'Lain-lain'};
-export function message(s:any){const m=s.mtd,a=s.alerts;return [
- '📊 ICETAK DAILY BUSINESS REPORT',`Tarikh: ${s.report_date} (MYT)`,'','💰 JUALAN PRODUK SEMALAM',
- ...s.daily.channels.map((c:any)=>`${labels[c.channel]||c.channel}: ${money(c.sales)} · ${c.orders} order`),
- `Jumlah: ${money(s.daily.sales)} · ${s.daily.orders} order`,'','📈 MTD HINGGA SEMALAM',
- `Jualan produk: ${money(m.sales)}`,`Postage direct dikutip: ${money(m.shipping_collected)}`,
- `Bulan lepas (${s.period.previous_from} – ${s.period.previous_to}): ${money(m.previous_sales)}`,
- `Perubahan: ${m.change_pct==null?'N/A':`${m.change_pct}%`}`,`Purata 7 hari: ${money(m.avg7)}/hari`,
- `Unjuran akhir bulan: ${money(m.projection)}`,'','💵 KOS & SUMBANGAN MTD',
- `Fee Shopee direkod: ${money(m.fees)}`,`Payout released (kohort jualan MTD): ${money(m.released_payout)}`,
- `Bahan diketahui (actual/estimated): ${money(m.material)}`,`Packing tambahan anggaran: ${money(m.packing_added)}`,
- `Courier direct bersih (kos − caj): ${money(m.direct_courier_net)}`,
- `Baki sumbangan subset: ${money(m.contribution)} (${m.contribution_orders}/${m.orders} order)`,
- `Kelengkapan modal: ${m.cost_completeness_pct}%`,'','⚠️ PERLU PERHATIAN',
- ...(a.shopee_stale?['DATA_INCOMPLETE: Shopee tiada rekod dilihat dalam 24 jam.']:[]),
- `Nilai jualan belum lengkap: ${a.missing_sales}`,`Detail Shopee belum lengkap: ${a.detail_incomplete}`,
- `Payout belum released: ${a.payout_pending}`,`Modal belum lengkap: ${a.missing_costs}`,
- `Shipment tanpa caj: ${a.shipment_without_charge} · tanpa padanan: ${a.unlinked_shipments}`,
- ...(a.sales_drop_alert?['⚠️ Jualan turun melebihi ambang tetapan.']:[]),...(a.fee_rate_increase_alert?['⚠️ Nisbah fee / jualan meningkat; semak campuran channel dan settlement.']:[]),`Trend 7 hari: ${a.trend7}`,'',
- 'Baki sumbangan ialah anggaran subset, sebelum overhead/gaji/iklan yang belum direkod. Fee tidak ditolak dua kali daripada payout. Jualan ikut tarikh order; bukan cash masuk bank.',
- 'Pickup trigger bukan bukti walk-in. Channel yang tidak pasti dipaparkan berasingan.',
- `🔗 https://shop.decocake.my/?admin=v2&view=daily-business-report&date=${s.report_date}`].join('\n');}
+import {message} from './report-message.ts';
+export {message};
 async function send(phone:string,text:string,cfg:any){
  const master=(await rest('whatsapp_settings?key=eq.enabled&select=value,text_value'))?.[0];
  const enabled=master?.text_value||master?.value;
@@ -38,7 +17,7 @@ async function send(phone:string,text:string,cfg:any){
   if(!cfg.template_name)throw new Error('WINDOW_CLOSED: approved daily report template required; reply to business WhatsApp to reopen window');
   const approved=await rest(`whatsapp_templates?name=eq.${encodeURIComponent(cfg.template_name)}&language=eq.${encodeURIComponent(cfg.template_language)}&status=eq.APPROVED&select=name`);
   if(!approved.length)throw new Error('Daily report template not approved');
-  path='/messages/template';payload={to:phone,template:{name:cfg.template_name,language:{code:cfg.template_language},components:[{type:'body',parameters:[{type:'text',text:text.split('\n').filter((line:string)=>/^(Tarikh:|Jumlah:|Jualan produk:|Perubahan:|Unjuran|Baki sumbangan subset:|Kelengkapan modal:|🔗)/.test(line)).join(' | ')}]}]}};
+  path='/messages/template';payload={to:phone,template:{name:cfg.template_name,language:{code:cfg.template_language},components:[{type:'body',parameters:[{type:'text',text:text.split('\n').filter((line:string)=>/^(Tarikh:|Jumlah:|Jualan produk:|Perubahan:|Unjuran|Baki sebelum overhead:|Liputan kiraan:|🔗)/.test(line)).join(' | ')}]}]}};
  }
  const [base,partner,waba]=await Promise.all(['base_url','partner_key','waba_id'].map(k=>setting('whatsapp_settings',k)));
  if(!partner||!waba)throw new Error('WasapFlow credentials incomplete');

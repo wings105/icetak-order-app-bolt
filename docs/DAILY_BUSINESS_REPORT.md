@@ -46,3 +46,37 @@ Private finance packing settings hold owner-approved small/topper, large-edible 
 Finance and Target money breakdowns return packing separately from other extras while retaining their existing profit cohorts. The Target monthly packing summary includes all finance-eligible orders (including incomplete contribution); its card arithmetic covers known contribution only. Untung Order follows its date/status/currency filters and reports the full filtered cohort, not just the current page. These scopes can differ from each other and from the paid-only daily report.
 
 Snapshot schema 2 exposes packing_total, packing_shopee, packing_direct, packing_missing and per-order packing for chart/table/CSV. Reading an older saved snapshot requests a new version through the existing generate action; historical versions and delivery receipts remain intact. Generate does not enqueue or send WhatsApp. The current report date remains yesterday or earlier. Existing sender/automation controls are unchanged.
+
+## Daily and MTD cost bridges — 5 November 2026
+
+Schema 3 uses the existing paid-sale cohort for product sales, detailed per-order
+rows, daily/MTD/channel totals, CSV and WhatsApp. Shopee contribution now uses
+released nett or the stored provider cash-out estimate; released and pending
+cash-out remain separate. The new private invoker report helpers do not modify
+canonical sales, finance, material overrides, shipments or payments.
+
+Both periods expose sales, platform fees, net Shopee shipping, residual provider
+adjustments, collected direct postage, direct courier, material, packing and
+other extras. The matched breakdown includes only calculable orders and has an
+explicit sales/order denominator. The full-cohort known totals remain separate;
+missing order sales and reasons are shown rather than subtracting partial costs
+from full sales and calling the result profit. Cash-out is informational and is
+not deducted again in the sales-to-contribution bridge. A null component never
+becomes a zero cost in a contribution row.
+
+Recovered items with positive provider sales but zero item prices use the sales
+value and the single evidenced category rate only when every material line is
+an estimated category-percent line with the same rate. Those rows are labelled
+financial_sales_category_estimate. Unknown/mixed rates remain incomplete;
+manual actual overrides are preserved. This fallback belongs to the daily report
+read model; it does not silently rewrite other finance reports or source items.
+
+Validation: native rollback assertions pass for daily/MTD cost identities,
+released/pending cash-out, counts, empty periods, MYT month boundaries and private
+ACLs. Live schema-3 snapshot generation/readback is verified. Sender v6 source
+readback matches exactly; formatter tests prove matching daily/MTD scopes, signed
+shipping, missing data, provider length and newlines. Root/Inbox builds and
+changed Admin TypeScript pass. Controlled server-rendered component content is
+checked; signed-in hosted owner UI, mobile visual QA and future scheduled
+provider delivery are still acceptance checks. No report resend is performed by
+snapshot regeneration.
