@@ -1,0 +1,31 @@
+name: Render Studio Checks
+on:
+  pull_request:
+    branches: [production]
+    paths: ['icetak-admin/**', 'public/render-test/**', 'supabase/functions/render-template*/**', 'supabase/render-studio/**', 'scripts/check-render-studio*', '.github/workflows/render-studio-ci.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  studio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Generate migration name through Supabase CLI
+        if: hashFiles('supabase/migrations/*render_template_studio.sql') == ''
+        run: |
+          npx --yes supabase@2 migration new --help
+          npx --yes supabase@2 migration new render_template_studio
+          find supabase/migrations -name '*render_template_studio.sql'
+      - run: npm ci
+      - name: Template and automation contracts
+        run: |
+          if [ -f scripts/check-render-studio.mjs ]; then node --experimental-strip-types scripts/check-render-studio.mjs; fi
+          node --experimental-strip-types scripts/check-autobrief-render.mjs
+          npx tsc --noEmit --project icetak-admin/tsconfig.app.json
+          npm run check:admin-v2
+      - run: npm run build
