@@ -1,10 +1,12 @@
 # 2026-11-06 — Native AutoBrief renderer
 
-`autobrief-render` v1 and `render-template` v8 are ACTIVE. Private queue, confirmation
+`autobrief-render` deployment v2 and `render-template` v8 are ACTIVE. Private queue, confirmation
 +5-minute eligibility, exact wording mapping, source/paid/design guards and reconciled
 ClickUp receipts pass controlled/live rollback tests and an operational native canary.
-One-minute cron is enabled, forward-only rollout. Admin field mappings and log source
-build successfully; hosted UI verification remains separate. See
+One-minute cron is enabled, forward-only rollout. PR #162 merged into `production`
+at `534f517`; Workers Builds and guard passed. Admin field mappings and log source
+build successfully. Hosted browser reaches the login gate, so signed-in mapping/log
+interactions remain unverified. See
 [AUTOBRIEF_RENDER_AUTOMATION.md](AUTOBRIEF_RENDER_AUTOMATION.md).
 
 # 2026-11-05 — Detailed daily/MTD sales reports

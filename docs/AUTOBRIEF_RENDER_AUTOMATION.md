@@ -78,8 +78,14 @@ The intentional service-only RLS tables have no user policies (deny by default).
 - Live operational canary: server dispatcher → renderer → actual ClickUp upload →
   attachment readback succeeded; the recorded input kept the supplied Malay age
   unit. The native cron subsequently ran successfully. No historical queue backfill.
-- Frontend build and Admin source guard pass. Authenticated hosted mapping controls
-  require separate rendered verification after the production source deployment.
+- Frontend build, TypeScript and Admin source guard pass. PR #162 merged into
+  `production` at `534f517`; Workers Builds and guard passed. The hosted route reaches
+  the Admin login gate. Signed-in mapping/log interactions remain unverified.
+- `autobrief-render` deployment v2 and `render-template` v8 source readbacks match
+  the released source. A fresh naturally occurring confirmation with the full
+  elapsed delay remains an operational follow-up; the five-minute lifecycle itself
+  was verified with native rollback tests, and end-to-end delivery with the selected
+  previously confirmed canary.
 
 Queue status and retry receipts are visible through Refresh log render. Unsupported
 templates/details stay in review/skipped with a bounded reason; they are not claimed
