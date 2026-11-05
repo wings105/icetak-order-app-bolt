@@ -14,20 +14,34 @@ export function validatePatterns(config){
   }
   if(l.field_labels!==undefined){if(!l.field_labels||typeof l.field_labels!=='object'||Array.isArray(l.field_labels)||Object.keys(l.field_labels).length>8)throw new Error('Label field tidak sah');for(const [key,label] of Object.entries(l.field_labels))if(!keyPattern.test(key)||reserved.has(key)||typeof label!=='string'||!label.trim()||label.length>60)throw new Error('Label field tidak sah');}
  }
- if(getInputFields(config).length>8)throw new Error('Maksimum 8 input field');
+ const fields=getInputFields(config);if(fields.length>8)throw new Error('Maksimum 8 input field');
+ for(const f of fields)if(!keyPattern.test(f.key)||reserved.has(f.key))throw new Error('Nama field tidak sah');
+ validateAutomation(config);
 }
 export function resolveValues(config,input,{required=false,strict=false}={}){
  const values=Object.create(null);
  if(!input||typeof input!=='object'||Array.isArray(input))throw new Error('fields mesti object');
  for(const [key,value] of Object.entries(input)){if(!keyPattern.test(key)||reserved.has(key)||typeof value!=='string'||value.length>200)throw new Error('Field '+key+' tidak sah / maksimum 200 aksara');values[key]=value.trim();}
  // Opt-in compatibility: old full-phrase name links still work after adding a pattern.
- for(const l of config.layers||[])if(l.pattern&&l.legacy_full_wording&&patternKeys(l.pattern).some(k=>!values[k])&&values[l.field]){
+ for(const l of config.layers||[])if(l.pattern&&l.legacy_full_wording&&[...l.pattern.matchAll(/\{\{([a-zA-Z][a-zA-Z0-9_]*)\}\}/g)].length<=2&&patternKeys(l.pattern).some(k=>!values[k])&&values[l.field]){
   const keys=[];let cursor=0,expression='^';for(const m of l.pattern.matchAll(/\{\{([a-zA-Z][a-zA-Z0-9_]*)\}\}/g)){expression+=l.pattern.slice(cursor,m.index).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(.+?)';keys.push(m[1]);cursor=m.index+m[0].length;}expression+=l.pattern.slice(cursor).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$';const match=values[l.field].match(new RegExp(expression,'i'));if(match)keys.forEach((k,i)=>{values[k]=match[i+1].trim();});
  }
  const fields=getInputFields(config),known=new Set(fields.map(f=>f.key));
  if(strict)for(const key of Object.keys(values))if(!known.has(key))throw new Error('Field '+key+' tidak wujud dalam template');
- if(required)for(const f of fields)if(!values[f.key])throw new Error('Isi '+f.label+' ('+f.key+') dahulu');
+ if(required)for(const f of fields)if(config.automation?.inputs?.[f.key]?.required!==false&&!values[f.key])throw new Error('Isi '+f.label+' ('+f.key+') dahulu');
  for(const l of config.layers||[])if(resolveLayerText(l,values).length>200)throw new Error(l.label+': hasil wording maksimum 200 aksara');
  return values;
 }
 export function resolveLayerText(layer,values){return layer.pattern?layer.pattern.replace(/\{\{([a-zA-Z][a-zA-Z0-9_]*)\}\}/g,(_,key)=>values[key]||''):String(values[layer.field]??'');}
+
+
+export function validateAutomation(config){
+ const a=config.automation;if(a===undefined)return;
+ if(!a||typeof a.enabled!=='boolean'||!a.inputs||typeof a.inputs!=='object'||Array.isArray(a.inputs))throw new Error('Mapping automation tidak sah');
+ const known=new Set(getInputFields(config).map(f=>f.key));
+ for(const [key,r] of Object.entries(a.inputs)){
+  if(!known.has(key)||!r||!['greeting','name','age','name_age','wording','date','literal'].includes(r.source)||typeof r.required!=='boolean'||typeof r.default!=='string'||r.default.length>200||/[\r\n]/.test(r.default))throw new Error('Mapping field tidak sah');
+  if(r.default&&!['greeting','literal'].includes(r.source))throw new Error('Default hanya untuk ucapan / teks tetap');
+ }
+ if(a.enabled&&[...known].some(k=>!a.inputs[k]))throw new Error('Lengkapkan mapping setiap field');
+}

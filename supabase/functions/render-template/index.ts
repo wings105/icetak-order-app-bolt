@@ -45,6 +45,7 @@ function config(value:any,s:string){
  });
  if(fields.size>8)throw new Error('Maksimum 8 input field');
  const labels=new Map();for(const l of c.layers){if(labels.has(l.field)&&labels.get(l.field)!==l.label)throw new Error('Label input yang sama mesti sepadan');labels.set(l.field,l.label);}
+ if(value.automation!==undefined)c.automation=value.automation;
  validatePatterns(c);return c;
 }
 function assetPath(s:string,path:unknown,kind:string,optional=false){
@@ -133,6 +134,7 @@ Deno.serve(async req=>{
    return out({ok:true,token,message:'Simpan key dalam AP. Key lama bagi admin ini dibatalkan.'});
   }
   if(b.action==='automation-revoke'){await rest('rpc/icetak_render_key_revoke',{p_actor:a.username});return out({ok:true});}
+  if(b.action==='auto-status')return out({ok:true,...await rest('rpc/icetak_render_auto_status',{})});
   if(b.action==='list')return out({ok:true,templates:await rest('render_templates?select=sku,image_path,font_path,config,version,updated_at&order=sku&limit=200')});
   if(b.action!=='save')throw new Error('Action tidak sah');
   const s=sku(b.sku),image=assetPath(s,b.image_path,'images')!,font=assetPath(s,b.font_path,'fonts',true),c=config(b.config,s);

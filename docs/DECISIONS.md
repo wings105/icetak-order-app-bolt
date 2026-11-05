@@ -488,3 +488,14 @@ snapshots establish the balance; confirmed shipment charge deltas record usage w
 replaying historical costs. Unexplained positive changes require receipt classification
 and never automatically become topups. A private serialized account/episode prevents
 concurrent balance races and repeated low-credit alerts. See PARCELDAILY_CREDIT.md.
+
+## 2026-11-06 — AutoBrief native render ownership
+
+Order System's private `render_auto` queue owns five-minute delayed work after a new
+AutoBrief confirmation. The separate authenticated `autobrief-render` worker uses
+existing integration credentials, deterministic wording-preserving field mapping and
+the shared Cloudflare Canvas renderer. Template readiness/mapping is Admin-managed;
+unknown input stays review. Fresh canonical/task/version checks precede upload;
+leased deterministic filenames and uncertain-result reconciliation prevent blind
+resends. Existing confirmed tasks are not backfilled; no customer sends/status edits.
+See [native render contract](AUTOBRIEF_RENDER_AUTOMATION.md).

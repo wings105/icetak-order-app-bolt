@@ -1,3 +1,12 @@
+# 2026-11-06 — Native AutoBrief renderer
+
+`autobrief-render` v1 and `render-template` v8 are ACTIVE. Private queue, confirmation
++5-minute eligibility, exact wording mapping, source/paid/design guards and reconciled
+ClickUp receipts pass controlled/live rollback tests and an operational native canary.
+One-minute cron is enabled, forward-only rollout. Admin field mappings and log source
+build successfully; hosted UI verification remains separate. See
+[AUTOBRIEF_RENDER_AUTOMATION.md](AUTOBRIEF_RENDER_AUTOMATION.md).
+
 # 2026-11-05 — Detailed daily/MTD sales reports
 
 Backend schema 3 and sender v6 are active with exact source/snapshot readback. Estimated provider cash-out contributes before release; matched-cost coverage, pending sales, signed shipping, material, packing and other extras share the paid-sale cohort. Calculation/ACL/month-boundary tests and formatter/CSV checks pass. Frontend source and builds are verified; signed-in hosted owner UI and future scheduled delivery remain separate. See [report contract](DAILY_BUSINESS_REPORT.md#daily-and-mtd-cost-bridges--5-november-2026).

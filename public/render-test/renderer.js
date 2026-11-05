@@ -36,7 +36,7 @@ export async function loadFont(path,weight='400'){
 }
 // Legacy records stay readable without rewriting database rows.
 export function normalizeConfig(c,fontPath=null){
- return {width:c?.width,height:c?.height,layers:Array.isArray(c?.layers)?c.layers.map(l=>({...l,text:{...DEFAULT_TEXT,...l.text}})):[{id:'wording',field:'name',label:'Wording',font_path:fontPath,text:{...DEFAULT_TEXT,...c?.text}}]};
+ return {width:c?.width,height:c?.height,...(c?.automation?{automation:c.automation}:{}),layers:Array.isArray(c?.layers)?c.layers.map(l=>({...l,text:{...DEFAULT_TEXT,...l.text}})):[{id:'wording',field:'name',label:'Wording',font_path:fontPath,text:{...DEFAULT_TEXT,...c?.text}}]};
 }
 export function getFields(c){
  return getInputFields(normalizeConfig(c));

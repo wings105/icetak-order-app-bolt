@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { API, DEFAULT_TEXT, displayRender, downloadCanvas, getFields, loadFont, normalizeConfig, prepareRender, readImageFile, validateConfig } from '../../../public/render-test/renderer.js';
-import type { RenderConfig, RenderTemplate, TextConfig, TextLayer } from '../../../public/render-test/renderer.js';
+import type { AutomationInput, RenderConfig, RenderTemplate, TextConfig, TextLayer } from '../../../public/render-test/renderer.js';
 import {patternKeys} from '../../../public/render-test/fields.js';
 import './RenderTemplates.css';
 
@@ -18,13 +18,16 @@ export default function RenderTemplates(){
  const [templates,setTemplates]=useState<RenderTemplate[]>([]),[sku,setSku]=useState('YS0184'),[imagePath,setImagePath]=useState('');
  const [config,setConfig]=useState<RenderConfig>(freshConfig),[version,setVersion]=useState(0),[selected,setSelected]=useState('wording');
  const [values,setValues]=useState<Record<string,string>>({name:'Jayna turns 4'}),[guides,setGuides]=useState(true);
+ const [autoStatus,setAutoStatus]=useState<any>(null);
  const [automationKey,setAutomationKey]=useState(''),[outputUrl,setOutputUrl]=useState('');
  const [busy,setBusy]=useState(true),[notice,setNotice]=useState(''),[error,setError]=useState(''),[ready,setReady]=useState(false),[sizes,setSizes]=useState<Record<string,number>>({}),[saved,setSaved]=useState(false);
  const canvas=useRef<HTMLCanvasElement>(null),sequence=useRef(0),drag=useRef<{x:number;y:number}|null>(null);
  const layer=config.layers.find(l=>l.id===selected)||config.layers[0],style=layer.text,fields=getFields(config);
  const template:RenderTemplate={sku,image_path:imagePath,font_path:null,config,version};
  function invalidate(){sequence.current++;setReady(false);setOutputUrl('');}
- function change(update:(c:RenderConfig)=>RenderConfig){invalidate();setSaved(false);setConfig(update);}
+ function change(update:(c:RenderConfig)=>RenderConfig){invalidate();setSaved(false);setConfig(c=>{const next=update(c);if(next.automation){const keys=new Set(getFields(next).map(f=>f.key));next.automation={...next.automation,inputs:Object.fromEntries(Object.entries(next.automation.inputs).filter(([k])=>keys.has(k)))};}return next;});}
+ function autoInput(key:string,patch:Partial<AutomationInput>){change(c=>({...c,automation:{enabled:c.automation?.enabled||false,inputs:{...c.automation?.inputs,[key]:{source:'wording',required:true,default:'',...c.automation?.inputs[key],...patch,...(patch.source&&!['greeting','literal'].includes(patch.source)?{default:''}:{})}}}}));}
+ async function refreshAuto(){try{setAutoStatus(await request({action:'auto-status'}));}catch(e){setNotice(message(e));}}
  function patchLayer(p:Partial<TextLayer>){change(c=>({...c,layers:c.layers.map(l=>l.id===layer.id?{...l,...p}:l)}));}
  function text<K extends keyof TextConfig>(key:K,value:TextConfig[K]){patchLayer({text:{...style,[key]:value}});}
  function apply(t?:RenderTemplate,s='YS0184'){
@@ -93,6 +96,20 @@ export default function RenderTemplates(){
    <div className="rt-actions">{([[-1,0,'←'],[0,-1,'↑'],[0,1,'↓'],[1,0,'→']] as const).map(([dx,dy,label])=><button type="button" className="rt-secondary" key={label} aria-label={'Gerak '+label+' 1 px'} onClick={()=>position(style.x+dx/config.width*100,style.y+dy/config.height*100)}>{label}</button>)}</div>
    <div className="rt-actions"><button type="button" disabled={!ready||!imagePath} onClick={()=>void save()}>Save Template</button><span className={saved?'rt-saved':'rt-unsaved'}>{saved?'Disimpan':'Belum disimpan'}</span></div>
    </fieldset><p role="status" className="rt-notice">{notice}</p>
+   <h3>AutoBrief → Render automatik</h3>
+   <p>Berjalan sekurang-kurangnya 5 minit selepas AutoBrief confirm. Wording tidak diterjemah. Detail kabur ditahan untuk semakan.</p>
+   <label className="rt-check"><input aria-label="Aktifkan render selepas AutoBrief" type="checkbox" checked={config.automation?.enabled||false} onChange={e=>change(c=>({...c,automation:{enabled:e.target.checked,inputs:c.automation?.inputs||{}}}))}/>Template sedia untuk automation</label>
+   {fields.map(f=>{const rule=config.automation?.inputs[f.key];return <div key={f.key} className="rt-card">
+    <strong>{f.label} ({f.key})</strong>
+    <label>Sumber field<select aria-label={'Sumber '+f.key} value={rule?.source||''} onChange={e=>autoInput(f.key,{source:e.target.value as AutomationInput['source']})}>
+     <option value="" disabled>Pilih mapping</option><option value="greeting">Ucapan customer / default</option><option value="name">Nama pada topper</option><option value="age">Umur seperti diberi</option><option value="name_age">Nama + umur seperti diberi</option><option value="wording">Wording tepat customer</option><option value="date">Tarikh seperti diberi</option><option value="literal">Teks tetap template</option>
+    </select></label>
+    <label className="rt-check"><input aria-label={'Wajib '+f.key} type="checkbox" disabled={!rule} checked={rule?.required!==false} onChange={e=>autoInput(f.key,{required:e.target.checked})}/>Wajib diisi</label>
+    {rule&&['greeting','literal'].includes(rule.source)&&<label>Default<input aria-label={'Default '+f.key} value={rule.default} maxLength={200} onChange={e=>autoInput(f.key,{default:e.target.value})}/></label>}
+   </div>})}
+   <small>Nama + umur digabung tanpa tambah TURN / TAHUN. Unit umur dan bahasa ikut customer. Optional kosong tidak dicetak. Pola dengan perkataan tetap memerlukan semakan.</small>
+   <div className="rt-actions"><button type="button" disabled={busy||!ready} onClick={()=>void save()}>Save mapping & template</button><button type="button" className="rt-secondary" onClick={()=>void refreshAuto()}>Refresh log render</button></div>
+   {autoStatus&&<><p>{autoStatus.enabled?'Worker aktif':'Worker belum aktif'}</p><div style={{overflowX:'auto'}}><table><thead><tr><th>Task</th><th>Status</th><th>Makluman</th></tr></thead><tbody>{(autoStatus.jobs||[]).filter((j:any)=>j.fields||j.last_error).slice(0,20).map((j:any)=><tr key={j.task_id}><td><a href={'https://app.clickup.com/t/'+j.task_id} target="_blank" rel="noreferrer">{j.task_id}</a></td><td>{j.state}</td><td>{j.last_error||j.filename}</td></tr>)}</tbody></table></div></>}
    <h3>Automation AP</h3><p>Request PNG terus tanpa tekan Download. Field ikut template yang disimpan.</p>
    <code>/render-test/output.png</code><p>{fields.map(f=>f.key).join(', ')}</p>
    <div className="rt-actions"><button type="button" disabled={busy||!saved||!ready} onClick={async()=>{setBusy(true);try{const r=await request({action:'automation-link',sku,fields:Object.fromEntries(fields.map(f=>[f.key,values[f.key]||'']))});setOutputUrl(location.origin+'/render-test/output.png?'+new URLSearchParams(r.query));setNotice('Link PNG sah 30 minit.');}catch(e){setNotice(message(e));}finally{setBusy(false);}}}>Jana link PNG terus</button></div>

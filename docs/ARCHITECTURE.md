@@ -258,3 +258,14 @@ Inbox remains authoritative for per-order/phase delivery receipts and exposes
 attempt metadata through its existing private inspect bridge. Routine poll
 clocks do not create transitions or change the stable ClickUp brief remark.
 See [AutoBrief contract](AUTOBRIEF_FOLLOWUP.md).
+
+## 2026-11-06 — AutoBrief native render ownership
+
+Order System's private `render_auto` queue owns five-minute delayed work after a new
+AutoBrief confirmation. The separate authenticated `autobrief-render` worker uses
+existing integration credentials, deterministic wording-preserving field mapping and
+the shared Cloudflare Canvas renderer. Template readiness/mapping is Admin-managed;
+unknown input stays review. Fresh canonical/task/version checks precede upload;
+leased deterministic filenames and uncertain-result reconciliation prevent blind
+resends. Existing confirmed tasks are not backfilled; no customer sends/status edits.
+See [native render contract](AUTOBRIEF_RENDER_AUTOMATION.md).

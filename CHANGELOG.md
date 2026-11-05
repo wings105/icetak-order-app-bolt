@@ -1,3 +1,7 @@
+# 2026-11-06 — Native AutoBrief template rendering
+
+- [VERIFIED] Server-owned queue waits at least five minutes after AutoBrief confirmation, applies Admin-managed field mappings without translating wording/age units, checks fresh paid/design/order/template state and uploads one deterministic PNG attachment to the exact ClickUp task. Deployed worker and actual provider receipt readback pass; cron is active. Optional missing inputs, ambiguous patterns, revision holds and uncertain-upload reconciliation are covered. Existing confirmed orders are not backfilled. Admin mapping/log controls build successfully; hosted frontend confirmation follows this release. See [contract](docs/AUTOBRIEF_RENDER_AUTOMATION.md).
+
 # 2026-11-05
 
 - [VERIFIED] Daily Business Report now includes stored estimated Shopee cash-out, daily/MTD/channel cost bridges, matched-order coverage, pending sales, category-price fallback and detailed CSV. Native/live backend and actual formatter checks pass; changed Admin types, root/Inbox builds and server-rendered component content pass. Hosted signed-in UI and next scheduled provider delivery remain unverified. See [contract](docs/DAILY_BUSINESS_REPORT.md#daily-and-mtd-cost-bridges--5-november-2026).
