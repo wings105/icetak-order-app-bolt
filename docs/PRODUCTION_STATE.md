@@ -1,3 +1,7 @@
+# 2026-11-05 — Detailed daily/MTD sales reports
+
+Backend schema 3 and sender v6 are active with exact source/snapshot readback. Estimated provider cash-out contributes before release; matched-cost coverage, pending sales, signed shipping, material, packing and other extras share the paid-sale cohort. Calculation/ACL/month-boundary tests and formatter/CSV checks pass. Frontend source and builds are verified; signed-in hosted owner UI and future scheduled delivery remain separate. See [report contract](DAILY_BUSINESS_REPORT.md#daily-and-mtd-cost-bridges--5-november-2026).
+
 # 2026-11-05 — Shared name/age AutoBrief and reading summary
 
 Order worker v72 interprets explicit labelled name/age and all-topper scope as

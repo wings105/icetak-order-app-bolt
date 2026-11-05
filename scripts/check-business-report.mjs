@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {message} from '../supabase/functions/daily-business-report/report-message.ts';
+import {csvRows} from '../icetak-admin/src/components/business-report/model.ts';
+const b={sales:100,shipping_collected:5,shopee_shipping_net:-1,shopee_adjustments:2,fees:20,courier_total:6,material:20,packing_total:1,other_extras:1,contribution:58};
+const t={...b,orders:3,sales:130,contribution_orders:2,breakdown:b,contribution_complete:false,missing_contribution:1,pending_sales:30,estimated_orders:2,actual_orders:0,cash_out:76,released_payout:40,pending_cash_out:36,channels:[{sales:130,orders:3,channel:'shopee'}]};
+const s={daily:t,mtd:{...t,previous_sales:100,change_pct:30,avg7:20,projection:600},period:{from:'2026-11-01',to:'2026-11-04'},report_date:'2026-11-04',alerts:{missing_costs:0,missing_nett:1,material_price_estimates:1}};
+const text=message(s);
+assert.equal(text.match(/Baki sebelum overhead: RM58.00/g).length,2);
+assert.equal(text.match(/Jualan dalam kiraan: RM100.00/g).length,2);
+assert.equal(text.match(/Belum masuk baki: 1 order · jualan RM30.00/g).length,2);
+assert(text.includes('Shipping Shopee bersih (+/−): RM-1.00'));
+assert(text.includes('released RM40.00 + anggaran belum release RM36.00'));
+assert(!text.includes('\\n'));assert(text.length<4096);
+const csv=csvRows([{order_id:'fixture',reference:'QA,"1"',channel:'shopee',day:'2026-11-04',sales:130,material:null,packing:1,payout:76,contribution:null,reasons:['Modal belum lengkap']}]);
+assert(csv.includes('"QA,""1"""'));assert(csv.includes('Modal belum lengkap'));assert(csv.includes('Fee MYR'));
+console.log('PASS business report: daily/MTD matched arithmetic labels, missing sales, signed shipping, cashout split, newlines, provider length and detailed CSV.');

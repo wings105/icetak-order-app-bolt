@@ -1,0 +1,32 @@
+const money=(v:unknown)=>v==null?'Belum lengkap':`RM${Number(v).toFixed(2)}`;
+const labels:Record<string,string>={shopee:'Shopee',whatsapp:'WhatsApp / chat',pickup_trigger:'Pickup trigger',decocake_web:'Decocake Web',walkin:'Walk-in',unknown:'Belum dikenal pasti',other:'Lain-lain'};
+function period(title:string,t:any){const b=t.breakdown;return [title,
+ ...t.channels.map((c:any)=>`${labels[c.channel]||c.channel}: ${money(c.sales)} · ${c.orders} order`),
+ `Jualan produk: ${money(t.sales)} · ${t.orders} order`,
+ `Fee Shopee: ${money(t.fees)}`,
+ `Shipping Shopee bersih (+/−): ${money(t.shopee_shipping_net)}`,
+ `Pelarasan Shopee lain (+/−): ${money(t.shopee_adjustments)}`,
+ `Postage direct dikutip: ${money(t.shipping_collected)}`,
+ `Kos courier direct diketahui: ${money(t.courier_total)}`,
+ `Modal diketahui: ${money(t.material)}`,
+ `Packing: ${money(t.packing_total)} · kos lain: ${money(t.other_extras)}`,
+ '',`KIRAAN SEPADAN · ${t.contribution_orders}/${t.orders} order`,
+ `Jualan dalam kiraan: ${money(b.sales)}`,
+ `+ Postage direct: ${money(b.shipping_collected)}`,
+ `+ Shipping / pelarasan Shopee: ${money(Number(b.shopee_shipping_net)+Number(b.shopee_adjustments))}`,
+ `− Fee: ${money(b.fees)} · courier direct: ${money(b.courier_total)}`,
+ `− Modal: ${money(b.material)} · packing: ${money(b.packing_total)} · lain: ${money(b.other_extras)}`,
+ `Baki sebelum overhead: ${money(t.contribution)}${t.contribution_complete?'':' (sebahagian order)'}`,
+ `Liputan kiraan: ${t.contribution_orders}/${t.orders} · ${t.estimated_orders} anggaran, ${t.actual_orders} sebenar`,
+ ...(t.missing_contribution?[`Belum masuk baki: ${t.missing_contribution} order · jualan ${money(t.pending_sales)}`]:[]),
+ `Cash out Shopee: ${money(t.cash_out)} = released ${money(t.released_payout)} + anggaran belum release ${money(t.pending_cash_out)}`];}
+export function message(s:any){const m=s.mtd,a=s.alerts;return [
+ '📊 ICETAK DAILY BUSINESS REPORT',`Tarikh: ${s.report_date} (MYT)`,'',
+ ...period('💰 SEMALAM',s.daily),'',...period(`📈 BULAN SEMASA · ${s.period.from} – ${s.period.to}`,m),'',
+ `Bulan lepas, tarikh sama: ${money(m.previous_sales)} · perubahan ${m.change_pct==null?'N/A':`${m.change_pct}%`}`,
+ `Purata 7 hari: ${money(m.avg7)}/hari · unjuran akhir bulan ${money(m.projection)}`,'',
+ `⚠️ DATA: modal belum lengkap ${a.missing_costs} · nett/courier belum lengkap ${a.missing_nett} · harga item menggunakan anggaran kategori ${a.material_price_estimates}`,
+ ...(a.shopee_stale?['Shopee tiada rekod dilihat dalam 24 jam; semak kesegaran data.']:[]),
+ 'Cash out sudah mengambil kira fee dan shipping Shopee. Jangan tolak dua kali. Shipping bersih = caj/subsidi ditolak kos courier dan SST; pelarasan lain merangkumi beza kepada nett provider.',
+ 'Baki ialah anggaran sebelum overhead/gaji dan kos belum direkod. Jualan ikut tarikh order; released bukan bukti cash masuk bank.',
+ `🔗 https://shop.decocake.my/?admin=v2&view=daily-business-report&date=${s.report_date}`].join('\n');}

@@ -1,5 +1,9 @@
 # 2026-11-05
 
+- [VERIFIED] Daily Business Report now includes stored estimated Shopee cash-out, daily/MTD/channel cost bridges, matched-order coverage, pending sales, category-price fallback and detailed CSV. Native/live backend and actual formatter checks pass; changed Admin types, root/Inbox builds and server-rendered component content pass. Hosted signed-in UI and next scheduled provider delivery remain unverified. See [contract](docs/DAILY_BUSINESS_REPORT.md#daily-and-mtd-cost-bridges--5-november-2026).
+
+# 2026-11-05
+
 - [PRODUCTION] AutoBrief confirms explicit shared name/age notes for all verified glossy toppers, separates the scope instruction from printable text and cleans CF only when it matches the source note. Worker v72 and real two-task ClickUp readback verify correct clean wording, 95%, Ai Check, Confirmed and original comments containing source/understanding/current-input AI summaries. Actual worker baseline/live, replay and negative guard tests plus existing card/context/wording suites pass. No sends; concurrent lifecycle/acrylic modules preserved. See [contract](docs/AUTOBRIEF_PRODUCT_CONTEXT.md#explicit-shared-name-and-age-notes--5-november-2026).
 
 # 2026-11-05
