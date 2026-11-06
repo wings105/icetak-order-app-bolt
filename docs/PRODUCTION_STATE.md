@@ -1,3 +1,13 @@
+# 2026-11-07 — Default shared name for two custom sets
+
+Order worker v75 applies one unambiguous note/chat name to both custom sets by
+owner policy unless item-specific/conflicting instructions exist. Two-unit and
+custom-task mapping guards remain; ready stock is excluded. Actual-worker tests
+verify both custom task paths. Live mixed-order custom-task recovery verifies92%,
+Ai Check, Confirmed and original scope/proof summary; no sends or ready-stock
+change. Multiline proof is deduplicated by message ID. See
+[contract](AUTOBRIEF_PRODUCT_CONTEXT.md#one-name-defaults-across-two-custom-sets--7-november-2026).
+
 # 2026-11-06 — Unlabelled custom-name AutoBrief
 
 Order worker v73 accepts a plain name with optional separate age for one verified
