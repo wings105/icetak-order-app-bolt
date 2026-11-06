@@ -2,7 +2,7 @@ name: Render Studio Checks
 on:
   pull_request:
     branches: [production]
-    paths: ['icetak-admin/**', 'public/render-test/**', 'supabase/functions/render-template*/**', 'supabase/functions/ai-qc/**', 'scripts/check-ai-qc.mjs', 'supabase/migrations/*studio*', 'scripts/check-render-studio*', '.github/workflows/render-studio-ci.yml']
+    paths: ['icetak-admin/**', 'public/render-test/**', 'supabase/functions/render-template*/**', 'supabase/functions/ai-qc/**', 'supabase/functions/clickup-designflow-sync/**', 'scripts/check-designflow-sync.mjs', 'scripts/check-ai-qc.mjs', 'supabase/migrations/*studio*', 'scripts/check-render-studio*', '.github/workflows/render-studio-ci.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,6 +22,7 @@ jobs:
           node --experimental-strip-types scripts/check-autobrief-render.mjs
           node scripts/check-render-age.mjs
           node --experimental-strip-types scripts/check-ai-qc.mjs
+          node --experimental-strip-types scripts/check-designflow-sync.mjs
           npx tsc --noEmit --project icetak-admin/tsconfig.app.json
           npm run check:admin-v2
       - run: npm run build
