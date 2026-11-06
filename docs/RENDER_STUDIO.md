@@ -64,3 +64,13 @@ order/payment mutation, historical order backfill or change to AutoBrief rules.
 
 Bulk pairing and automatic physical print calibration are outside this release.
 Unsupported typography still needs operator review using the exposed controls.
+
+## Hosted acceptance — 6 November 2026
+
+Owner-authenticated production Browser proves list/search, exact catalogue SKU
+selection, font-family adoption, full-resolution preview copying and clipboard
+image paste. A real native vision job completed in one attempt with two correctly
+mapped custom-font layers while the previous confirmed version stayed unchanged.
+Native successful-result tests preserve raw/reference/instructions as well as
+reject stale results. Remaining operator confirmation is deliberate; the generated
+draft is not silently activated.
