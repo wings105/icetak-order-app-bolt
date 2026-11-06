@@ -1,3 +1,13 @@
+## 2026-11-07 — MCP popup consent cookies
+
+- [VERIFIED controlled popup; owner linking pending] Reproduce `consent_expired`
+  in a connected-Chrome opaque-origin popup and identify `cookie_missing`. Use
+  Secure/HttpOnly/SameSite=None per-form cookies while retaining signed double-submit,
+  request/expiry and foreign-Origin guards. The same popup and normal tab reach
+  expected credential rejection with invalid QA credentials after v7 deployment.
+  Fifteen regressions pass; actual owner ChatGPT connection remains unverified.
+  Safe error reasons distinguish missing cookies from expiry. See docs/ICETAK_MCP.md.
+
 ## 2026-11-07 — Parallel MCP consent forms
 
 - [PRODUCTION backend; owner linking pending] Isolate signed consent cookies per

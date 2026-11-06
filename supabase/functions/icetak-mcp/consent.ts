@@ -16,16 +16,26 @@ export function consentCookieName(token:string){
  if(typeof value.nonce!=='string'||!/^[-a-f0-9]{36}$/i.test(value.nonce))throw Error('INVALID_CONSENT_NONCE');
  return CONSENT_COOKIE+'-'+value.nonce.replace(/-/g,'');
 }
-export async function validConsent(q:URLSearchParams,cookieHeader:string,secret:string,now=Date.now()){
+export const CONSENT_REVISION='popup-cookie-1';
+export async function checkConsent(q:URLSearchParams,cookieHeader:string,secret:string,now=Date.now()):Promise<{ok:true}|{ok:false;reason:string}>{
  try{
   const token=q.get('_csrf')||'';
-  if(!token||token.length>2000)return false;
-  const name=consentCookieName(token),cookie=cookieHeader.split(';').map(x=>x.trim()).find(x=>x.startsWith(name+'='))?.slice(name.length+1)||'';
-  if(token!==cookie)return false;
-  const pieces=token.split('.');if(pieces.length!==2)return false;
-  if(!await crypto.subtle.verify('HMAC',await key(secret),unb64(pieces[1]),encoder.encode('icetak-mcp-consent-v1.'+pieces[0])))return false;
+  if(!token)return {ok:false,reason:'form_missing'};
+  if(token.length>2000)return {ok:false,reason:'form_invalid'};
+  const pieces=token.split('.');if(pieces.length!==2)return {ok:false,reason:'form_invalid'};
+  if(!await crypto.subtle.verify('HMAC',await key(secret),unb64(pieces[1]),encoder.encode('icetak-mcp-consent-v1.'+pieces[0])))return {ok:false,reason:'signature_invalid'};
   const value=JSON.parse(new TextDecoder().decode(unb64(pieces[0])));
-  return value.v===1&&Number.isFinite(value.expires)&&value.expires>now&&value.expires<=now+600000&&value.request===await requestHash(q);
- }catch{return false;}
+  if(value.v!==1||!Number.isFinite(value.expires)||value.expires<=now||value.expires>now+600000)return {ok:false,reason:'expired'};
+  if(value.request!==await requestHash(q))return {ok:false,reason:'request_changed'};
+  const name=consentCookieName(token),cookie=cookieHeader.split(';').map(x=>x.trim()).find(x=>x.startsWith(name+'='))?.slice(name.length+1)||'';
+  if(!cookie)return {ok:false,reason:'cookie_missing'};
+  if(token!==cookie)return {ok:false,reason:'cookie_mismatch'};
+  return {ok:true};
+ }catch{return {ok:false,reason:'form_invalid'};}
 }
-export const consentCookie=(token:string,clear=false)=>`${consentCookieName(token)}=${clear?'':token}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=${clear?0:600}`;
+export async function validConsent(q:URLSearchParams,cookieHeader:string,secret:string,now=Date.now()){
+ return (await checkConsent(q,cookieHeader,secret,now)).ok;
+}
+// Opaque-origin OAuth popups send the form as cross-site POST. The signed
+// per-form double-submit binding remains mandatory; SameSite is not our CSRF proof.
+export const consentCookie=(token:string,clear=false)=>`${consentCookieName(token)}=${clear?'':token}; Path=/; Secure; HttpOnly; SameSite=None; Max-Age=${clear?0:600}`;
