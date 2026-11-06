@@ -1,3 +1,13 @@
+# 2026-11-06 — AI QC Topper pilot
+
+`ai-qc` v3 and `render-template` v14 are ACTIVE. Private QC queue, rules versions,
+audit, native source/readiness checks and OpenAI vision are active for two pilot
+templates. A real selected output passed rules v3. Earlier calibration defects
+were safely held. Automatic printing release is disabled during pilot calibration.
+Controlled actual-worker tests verify native file/brief/readiness handoff and
+receipt reconciliation. Hosted log acceptance is pending publication. See
+[AI QC contract](AI_QC_TOPPER.md).
+
 # 2026-11-06 — Conditional age layout (controlled verification)
 
 Native renderer v4, gateway v13 and template vision v3 are ACTIVE. Sources

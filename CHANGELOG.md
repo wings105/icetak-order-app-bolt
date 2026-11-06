@@ -1,3 +1,8 @@
+## 2026-11-06 — AI QC Topper pilot
+
+- [PRODUCTION] Private native QC queue and OpenAI vision compare rendered topper PNGs with scoped customer evidence, AutoBrief and template. An explicitly selected real pilot passed exact name/number/unit reading; source, byte-hash and version checks gate approval. Provider/lease failures remain bounded holds/retries.
+- [VERIFIED] Owner QC log builds in Render Templates. Controlled actual-worker tests prove native final-file/brief/readiness printing handoff and receipt reconciliation. Printing auto-release remains disabled during calibration; no claim of real unattended release or calibrated accuracy. See docs/AI_QC_TOPPER.md.
+
 ## 2026-11-06 — Conditional age label rendering
 
 - [VERIFIED] Native AutoBrief render bridge extracts exact name/age spans from confirmed wording and supports separate number, prefix and suffix inputs. Actual-worker transport tests prove TURN/TURNS above, TAHUN/YEARS OLD below, one upload and receipt verification; ambiguous text stays held and existing full-age fields preserve units.
