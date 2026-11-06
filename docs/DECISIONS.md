@@ -508,3 +508,11 @@ private drafts/fonts/jobs in Order System, preserve the last confirmed template
 during edits, and bind results to exact draft revisions. Reuse the existing
 server credential and native cron; never use a ChatGPT scheduler for this path.
 See [Render Studio](RENDER_STUDIO.md).
+
+## 2026-11-06 — Owner MCP is separate from native automation
+
+Use owner-authenticated, narrowly scoped MCP tools plus forward-only exact-order AutoBrief
+events. Keep credentials and canonical data in Order System, with a credential-free OAuth
+gateway and isolated delivery queue. Never replace native AutoBrief/render jobs with ChatGPT
+or expose customer/payment/status writes through this first bridge. Plugin linking and a
+closed-browser ChatGPT→ClickUp result remain acceptance work. See [contract](ICETAK_MCP.md).

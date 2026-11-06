@@ -1,3 +1,12 @@
+## 2026-11-06 — Owner MCP bridge
+
+- [PRODUCTION backend; ChatGPT acceptance pending] Provisioned owner OAuth/PKCE MCP
+  tools, forward-only exact-order AutoBrief events, persistent signed delivery queue and
+  guarded idempotent ClickUp review comments. Hosted auth/read and consent HTML/CSP,
+  actual-handler/gateway and native rollback regressions pass. No operational subscription
+  or customer send added; owner plugin linking and closed-browser ClickUp result remain
+  unverified. See [MCP contract](docs/ICETAK_MCP.md).
+
 ## 2026-11-06 — AI Designer and QC ClickUp fields
 
 - [PRODUCTION] Completed native renders synchronize Review customer to the existing Render ai option; QC decisions synchronize designflow to existing Ai QC pass/hold/fail/retry options. A private versioned outbox verifies source and provider readback with bounded retries. Both real fields were observed on an explicitly selected operational task. Printing pilot policy and task status remain unchanged. See docs/CLICKUP_DESIGNFLOW_SYNC.md.

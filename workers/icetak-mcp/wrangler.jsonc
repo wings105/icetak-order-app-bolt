@@ -1,0 +1,1 @@
+{"name":"icetak-mcp","main":"worker.js","compatibility_date":"2026-11-06","workers_dev":true,"observability":{"enabled":true,"redact_query_string":true,"logs":{"enabled":true,"invocation_logs":true},"traces":{"enabled":true}}}

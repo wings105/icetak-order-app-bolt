@@ -276,3 +276,10 @@ Order System owns private draft/font/vision-job/event records. Authenticated
 Render Templates edits a draft; explicit confirmation publishes through the
 existing audited template save RPC. Only confirmed records feed public PNG
 rendering and the native five-minute AutoBrief worker. See [contract](RENDER_STUDIO.md).
+
+## Owner MCP event bridge — 6 November 2026
+
+A credential-free `icetak-mcp.msg-ebye.workers.dev` gateway forwards MCP/OAuth to the
+Order System Edge Function. Exact-order AutoBrief confirmations enter a separate private
+outbox. ChatGPT can read current briefs and post scoped ClickUp review comments after
+subscription. Existing native automation remains independent. See [MCP contract](ICETAK_MCP.md).
