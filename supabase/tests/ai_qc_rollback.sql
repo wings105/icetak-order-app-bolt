@@ -2,6 +2,8 @@ begin;
 DO $$declare lease uuid; r jsonb; key text; runid uuid=gen_random_uuid(); t text; begin
  select task_id into t from render_qc.runs where state='PASS' and rules_version=3 order by created_at desc limit 1;
  if t is null then raise exception 'A verified pilot fixture is required';end if;
+ if public.icetak_ai_qc('record',gen_random_uuid(),gen_random_uuid(),'{"state":"PASS"}')->>'saved'<>'false' then raise exception 'UNKNOWN_RUN_ACCEPTED';end if;
+ if public.icetak_ai_qc_audit(gen_random_uuid(),gen_random_uuid(),'{}') then raise exception 'UNKNOWN_AUDIT_ACCEPTED';end if;
  if has_schema_privilege('anon','render_qc','USAGE') or has_schema_privilege('authenticated','render_qc','USAGE') then raise exception 'PRIVATE_SCHEMA_EXPOSED';end if;
  if has_function_privilege('anon','public.icetak_ai_qc(text,uuid,uuid,jsonb)','EXECUTE') or has_function_privilege('authenticated','public.icetak_ai_qc_audit(uuid,uuid,jsonb)','EXECUTE') then raise exception 'RPC_EXPOSED';end if;
  if (select count(*) from render_qc.runs where task_id=t and rules_version=3)<>1 then raise exception 'CANARY_DEDUP';end if;
