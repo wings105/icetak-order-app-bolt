@@ -1,3 +1,7 @@
+## 2026-11-06 — AI Designer and QC ClickUp fields
+
+- [PRODUCTION] Completed native renders synchronize Review customer to the existing Render ai option; QC decisions synchronize designflow to existing Ai QC pass/hold/fail/retry options. A private versioned outbox verifies source and provider readback with bounded retries. Both real fields were observed on an explicitly selected operational task. Printing pilot policy and task status remain unchanged. See docs/CLICKUP_DESIGNFLOW_SYNC.md.
+
 ## 2026-11-06 — AI QC Topper pilot
 
 - [PRODUCTION] Private native QC queue and OpenAI vision compare rendered topper PNGs with scoped customer evidence, AutoBrief and template. An explicitly selected real pilot passed exact name/number/unit reading; source, byte-hash and version checks gate approval. Provider/lease failures remain bounded holds/retries.

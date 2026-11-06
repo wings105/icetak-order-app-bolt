@@ -65,3 +65,11 @@ and observed the latest real PASS summary and template version. Pilot mode is
 explicit in the UI. Unauthenticated worker requests return 401. SQL tests also
 cover unknown run/audit IDs and stale leases. The native printing auto-release
 path remains disabled and has controlled rather than real-release evidence.
+
+## ClickUp field receipts
+
+Completed render jobs synchronize Review customer → Render ai. Each latest QC
+decision synchronizes designflow → Ai QC pass/hold/fail/retry, including pilot
+results. A separate private outbox verifies actual dropdown IDs and task readback
+with bounded retries. See [mapping and contract](CLICKUP_DESIGNFLOW_SYNC.md).
+These field receipts do not activate automatic printing release.
