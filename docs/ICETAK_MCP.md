@@ -160,3 +160,52 @@ Do not reuse or refresh an old failed POST. If it still fails, retain its new re
 and revision; browser cookie blocking can still prevent storage/sending. Owner login,
 ChatGPT linking and closed-browser ClickUp delivery remain pending acceptance.
 The temporary QA launcher is removed after verification.
+
+
+## Post-login database timeout recovery — 7 November
+
+The next owner attempt passed password authentication but failed saving its OAuth
+code. Scoped production Auth/PostgREST evidence records a successful login followed
+by `POST /icetak_mcp_codes` HTTP 500 with SQLSTATE `57014` (statement timeout);
+several unrelated database operations timed out in that same interval. This is a
+provider/database availability failure after consent, not another cookie rejection.
+
+Edge Function v8 saves the same random code hash using
+`on_conflict=code_hash` and `resolution=ignore-duplicates,return=minimal`. A transient
+failure permits one bounded retry with the identical row/hash. A lost reply cannot
+produce another grant or overwrite the first. Permanent failures are not retried;
+token exchange, rotating refresh consumption, comments and arbitrary writes are
+never automatically retried by this change. Authorization client/owner reads are
+bounded at five seconds each, login/code writes at ten seconds each; session cleanup
+remains a best-effort ten-second call in `finally`, including when owner lookup or
+code persistence fails. The normal request budget fits the gateway timeout.
+
+Unhandled failures now log/return only a random request ID, safe stage/reason,
+upstream status and a bounded provider code. No URL/query/form, password, session,
+OAuth code, raw provider message/detail or SQL is logged. Transient service failures
+return 503 and Retry-After; Auth 5xx/429 is not reported as a wrong password.
+
+Twenty actual-handler/consent/gateway regressions verify successful redirect/state,
+57014 recovery, lost-response idempotency, bounded persistent/permanent failure,
+negative owner/CSRF gates, cleanup and redaction. `tests/mcp/code-retry.sql` passes
+inside a live BEGIN/ROLLBACK, proving conflict-ignore preserves one original grant,
+wrong PKCE rejection and one-use consumption. No test client/grant is retained.
+The owner connection and genuine ChatGPT callback/token exchange remain acceptance
+work. A bounded retry improves transient recovery; it does not repair a sustained
+Supabase outage or prove final ChatGPT linking.
+
+
+## Callback navigation policy — 7 November
+
+After fixing code persistence, a separate review found consent CSP still restricted
+`form-action` to self. Connected Chrome control testing with two owned QA origins
+proves a same-origin POST's 302 to a second origin stays blocked under self-only
+policy and succeeds when that exact destination is allowed. No ChatGPT navigation
+or owner credentials were used in this test.
+
+Edge v9 and the stable gateway now allow only self, `https://chatgpt.com` and
+`https://chat.openai.com` for form navigation. The POST action remains same-origin;
+its 302 returns via GET to the exact registered HTTPS callback, after all existing
+consent/owner/PKCE checks. Other origins, scripts and framing remain blocked. The
+gateway must carry the same policy because it restores Supabase's HTML headers.
+This controlled navigation test does not establish real ChatGPT callback acceptance.
