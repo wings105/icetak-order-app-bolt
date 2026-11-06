@@ -1,3 +1,8 @@
+## 2026-11-06 — Conditional age label rendering
+
+- [VERIFIED] Native AutoBrief render bridge extracts exact name/age spans from confirmed wording and supports separate number, prefix and suffix inputs. Actual-worker transport tests prove TURN/TURNS above, TAHUN/YEARS OLD below, one upload and receipt verification; ambiguous text stays held and existing full-age fields preserve units.
+- [VERIFIED] Template editor and vision draft schema support the same conditional age sources with three preview cases. Layout changes remain drafts until operator confirmation; fresh hosted layout acceptance is separate from controlled worker proof.
+
 # 2026-11-06 — Catalogue-linked Render Studio
 
 - [PRODUCTION backend and hosted editor] Render Templates adds searchable SKU list, Add New Template from catalogue products/variants, paired raw/reference paste/drop/upload and product-gallery selection, reusable font names/aliases, native queued vision draft setup, comparison/overlay, sample wording tests and explicit confirmation. Drafts preserve the last confirmed renderer version; stale results, duplicate jobs/publications, missing fonts/mapping and private access are guarded. Signed-in hosted list/editor/SKU/font/paste and real two-layer vision delivery pass alongside native rollback/actual-handler tests, TypeScript, full build and PR #164/#165 deployment checks. Operator approval of the generated draft remains deliberate; broad typography and a fresh natural five-minute order acceptance remain separate. See [contract](docs/RENDER_STUDIO.md).

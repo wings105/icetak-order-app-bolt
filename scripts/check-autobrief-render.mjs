@@ -39,24 +39,27 @@ await writeFile(testFile,(await readFile(file,'utf8')).replace("import 'jsr:@sup
 globalThis.Deno={env:{get:k=>({SUPABASE_URL:'https://db.test',SUPABASE_SERVICE_ROLE_KEY:'qa-secret'})[k]},serve:()=>{}};
 let process;
 try{({process}=await import(pathToFileURL(testFile.pathname)));}finally{await unlink(testFile);}
-async function run({uncertain=false,existing=false,stale=false}={}){
+async function run({uncertain=false,existing=false,stale=false,layoutWording='',expectedFields=null}={}){
+ const selectedTemplate=layoutWording?{...template,config:{width:100,height:100,layers:['name','age_number','age_prefix','age_suffix'].map(field=>({field})),automation:{enabled:true,inputs:Object.fromEntries(['name','age_number','age_prefix','age_suffix'].map(source=>[source,{source,required:source==='name',default:''}]))}}}:template;
+ const selectedJob=layoutWording?{...job,brief:{...brief,wording:layoutWording}}:job;
+ const selectedTask=layoutWording?{...task,custom_fields:task.custom_fields.map(f=>f.name==='Customize Name'?{...f,value:layoutWording}:f)}:task;
  const calls=[],patches=[];let attached=existing;
  globalThis.fetch=async(url,opt={})=>{
   url=String(url);calls.push({url,method:opt.method||'GET'});
   const json=(x,status=200)=>Response.json(x,{status});
   if(url.includes('icetak_render_auto_record')){patches.push(JSON.parse(opt.body).p_patch);return json(true);}
   if(url.includes('icetak_render_auto_source'))return json(!stale);
-  if(url.includes('/rest/v1/render_templates'))return json([template]);
+  if(url.includes('/rest/v1/render_templates'))return json([selectedTemplate]);
   if(url.includes('/render-test/output.png')){
-   const p=JSON.parse(opt.body);assert.equal(p.fields.name,'Ahmad 6 tahun');assert.ok(p.sig);assert.equal(p.version,1);
+   const p=JSON.parse(opt.body);if(expectedFields)assert.deepEqual(p.fields,expectedFields);else assert.equal(p.fields.name,'Ahmad 6 tahun');assert.ok(p.sig);assert.equal(p.version,1);
    const png=new Uint8Array(24);png.set([137,80,78,71,13,10,26,10]);new DataView(png.buffer).setUint32(16,100);new DataView(png.buffer).setUint32(20,100);
    return new Response(png,{headers:{'content-type':'image/png'}});
   }
   if(url.endsWith('/attachment')){if(uncertain)throw Error('network interrupted');attached=true;return json({id:'attachment-qa',url:'https://attachment.test/output.png'});}
-  if(url.includes('api.clickup.com'))return json({...task,attachments:attached?[{id:'attachment-qa',title:patches.find(p=>p.filename)?.filename||'existing.png',url:'https://attachment.test/output.png'}]:[]});
+  if(url.includes('api.clickup.com'))return json({...selectedTask,attachments:attached?[{id:'attachment-qa',title:patches.find(p=>p.filename)?.filename||'existing.png',url:'https://attachment.test/output.png'}]:[]});
   throw Error('Unexpected test URL');
  };
- const result=await process(existing?{...job,filename:'existing.png',upload_started_at:'2026-01-01'}:job,'qa-clickup');
+ const result=await process(existing?{...selectedJob,filename:'existing.png',upload_started_at:'2026-01-01'}:selectedJob,'qa-clickup');
  return {result,calls,patches};
 }
 let out=await run();assert.equal(out.result.state,'completed');assert.equal(out.calls.filter(c=>c.url.endsWith('/attachment')).length,1);
@@ -64,3 +67,9 @@ out=await run({existing:true});assert.equal(out.result.state,'completed');assert
 out=await run({uncertain:true});assert.equal(out.result.state,'uncertain');
 out=await run({stale:true});assert.equal(out.result.state,'review');assert.equal(out.calls.filter(c=>c.url.endsWith('/attachment')).length,0);
 console.log('PASS: wording preservation, optional fields, strict mapping, task guards, signed render, one upload, receipt recovery, stale-source rejection, uncertain upload');
+
+for(const [layoutWording,age_prefix,age_number,age_suffix] of [['Lily Turns 4','Turns','4',''],['Lily 4 tahun','','4','tahun'],['Lily 4 years old','','4','years old']]){
+ const result=await run({layoutWording,expectedFields:{name:'Lily',age_number,age_prefix,age_suffix}});
+ assert.equal(result.result.state,'completed');assert.equal(result.calls.filter(c=>c.url.endsWith('/attachment')).length,1);
+}
+console.log('PASS: actual native worker routes all three age layouts into signed render, uploads once and verifies receipt');
