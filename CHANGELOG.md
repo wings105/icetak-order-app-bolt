@@ -1,3 +1,11 @@
+## 2026-11-07 — Parallel MCP consent forms
+
+- [PRODUCTION backend; owner linking pending] Isolate signed consent cookies per
+  form so a later Connect/tab cannot invalidate an earlier form. Reproduced the
+  cookie overwrite in connected Chrome, then verified both parallel forms reach
+  credential validation using invalid QA credentials. Fourteen regression tests
+  pass; real owner OAuth linking remains pending. See docs/ICETAK_MCP.md.
+
 ## 2026-11-07 — MCP OAuth consent submission
 
 - [PRODUCTION backend; owner login pending] Bind OAuth consent

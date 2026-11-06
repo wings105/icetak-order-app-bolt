@@ -11,14 +11,21 @@ export async function createConsent(q:URLSearchParams,secret:string,now=Date.now
  const signature=await crypto.subtle.sign('HMAC',await key(secret),encoder.encode('icetak-mcp-consent-v1.'+value));
  return value+'.'+b64(new Uint8Array(signature));
 }
+export function consentCookieName(token:string){
+ const value=JSON.parse(new TextDecoder().decode(unb64(token.split('.')[0])));
+ if(typeof value.nonce!=='string'||!/^[-a-f0-9]{36}$/i.test(value.nonce))throw Error('INVALID_CONSENT_NONCE');
+ return CONSENT_COOKIE+'-'+value.nonce.replace(/-/g,'');
+}
 export async function validConsent(q:URLSearchParams,cookieHeader:string,secret:string,now=Date.now()){
  try{
-  const token=q.get('_csrf')||'',cookie=cookieHeader.split(';').map(x=>x.trim()).find(x=>x.startsWith(CONSENT_COOKIE+'='))?.slice(CONSENT_COOKIE.length+1)||'';
-  if(!token||token.length>2000||token!==cookie)return false;
+  const token=q.get('_csrf')||'';
+  if(!token||token.length>2000)return false;
+  const name=consentCookieName(token),cookie=cookieHeader.split(';').map(x=>x.trim()).find(x=>x.startsWith(name+'='))?.slice(name.length+1)||'';
+  if(token!==cookie)return false;
   const pieces=token.split('.');if(pieces.length!==2)return false;
   if(!await crypto.subtle.verify('HMAC',await key(secret),unb64(pieces[1]),encoder.encode('icetak-mcp-consent-v1.'+pieces[0])))return false;
   const value=JSON.parse(new TextDecoder().decode(unb64(pieces[0])));
   return value.v===1&&Number.isFinite(value.expires)&&value.expires>now&&value.expires<=now+600000&&value.request===await requestHash(q);
  }catch{return false;}
 }
-export const consentCookie=(token:string)=>`${CONSENT_COOKIE}=${token}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=${token?600:0}`;
+export const consentCookie=(token:string,clear=false)=>`${consentCookieName(token)}=${clear?'':token}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=${clear?0:600}`;
