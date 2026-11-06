@@ -1,3 +1,4 @@
+import {createConsent,validConsent,consentCookie} from './consent.ts';
 import {request as httpsRequest} from 'node:https';
 import {lookup as dnsLookup} from 'node:dns';
 import {VERSION,ORIGIN,SCOPES,EVENT,tools,eventDefinition,sha,random,exactReference,exactId,redirectAllowed,callbackAllowed,publicAddress,signedHeaders,validateObject} from './protocol.ts';
@@ -35,10 +36,13 @@ async function authorize(req:Request,url:URL){
  const c=(await db('icetak_mcp_clients?client_id=eq.'+encodeURIComponent(client_id)+'&select=redirect_uris&limit=1'))[0];
  if(!c||!redirectAllowed(redirect_uri)||!c.redirect_uris.includes(redirect_uri)||q.get('response_type')!=='code'||q.get('code_challenge_method')!=='S256'||!/^[-_A-Za-z0-9]{43}$/.test(challenge)||state.length>2048||scope.split(' ').some(s=>!SCOPES.includes(s))||q.get('resource')&&q.get('resource')!==ORIGIN+'/mcp')return json({error:'invalid_request'},400);
  if(req.method==='GET'){
+ const csrf=await createConsent(q,KEY);
  const hidden=['client_id','redirect_uri','code_challenge','code_challenge_method','response_type','state','scope','resource'].map(k=>`<input type="hidden" name="${k}" value="${esc(q.get(k)||'')}">`).join('');
- return new Response(`<!doctype html><html lang="ms"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Sambung iCetak MCP</title><body style="font:17px system-ui;max-width:480px;margin:64px auto;padding:24px"><h1>Sambung iCetak ke ChatGPT</h1><p>Akses owner: baca AutoBrief/order, pantau satu order yang dipilih dan tambah komen semakan di ClickUp.</p><p>Tiada akses menghantar mesej pelanggan, mengubah bayaran atau status order.</p><form method="post" action="/authorize">${hidden}<p><label>Email owner<br><input name="email" type="email" required autocomplete="username" style="width:95%;padding:12px"></label></p><p><label>Kata laluan iCetak<br><input name="password" type="password" required autocomplete="current-password" style="width:95%;padding:12px"></label></p><button style="padding:12px 20px">Log masuk &amp; benarkan sambungan</button></form></body></html>`,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",'referrer-policy':'no-referrer','x-content-type-options':'nosniff'}});
+ return new Response(`<!doctype html><html lang="ms"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Sambung iCetak MCP</title><body style="font:17px system-ui;max-width:480px;margin:64px auto;padding:24px"><h1>Sambung iCetak ke ChatGPT</h1><p>Akses owner: baca AutoBrief/order, pantau satu order yang dipilih dan tambah komen semakan di ClickUp.</p><p>Tiada akses menghantar mesej pelanggan, mengubah bayaran atau status order.</p><form method="post" action="/authorize">${hidden}<input type="hidden" name="_csrf" value="${csrf}"><p><label>Email owner<br><input name="email" type="email" required autocomplete="username" style="width:95%;padding:12px"></label></p><p><label>Kata laluan iCetak<br><input name="password" type="password" required autocomplete="current-password" style="width:95%;padding:12px"></label></p><button style="padding:12px 20px">Log masuk &amp; benarkan sambungan</button></form></body></html>`,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",'referrer-policy':'no-referrer','x-content-type-options':'nosniff','set-cookie':consentCookie(csrf)}});
  }
- if(req.headers.get('origin')!==ORIGIN)return json({error:'invalid_origin'},403);
+ const origin=req.headers.get('origin');
+ if(origin&&origin!=='null'&&origin!==ORIGIN)return json({error:'invalid_origin'},403);
+ if(!await validConsent(q,req.headers.get('cookie')||'',KEY))return json({error:'consent_expired',message:'Buka semula Connect iCetak dalam ChatGPT untuk memulakan login baharu.'},403);
  const login=await fetch(BASE+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({email:q.get('email'),password:q.get('password')}),signal:AbortSignal.timeout(15000)});
  if(!login.ok)return json({error:'OWNER_LOGIN_FAILED',message:'Semak email/kata laluan owner dan cuba semula.'},401);
  const signed=await login.json();
@@ -48,7 +52,7 @@ async function authorize(req:Request,url:URL){
  if(!allowed)return json({error:'OWNER_REQUIRED'},403);
  const code=random();await db('icetak_mcp_codes',{code_hash:await sha(code),client_id,owner_id:signed.user.id,redirect_uri,challenge,scope,expires_at:new Date(Date.now()+180000).toISOString()});
  const dest=new URL(redirect_uri);dest.searchParams.set('code',code);dest.searchParams.set('state',state);dest.searchParams.set('iss',ORIGIN);
- return new Response(null,{status:302,headers:{location:dest.href,'cache-control':'no-store','referrer-policy':'no-referrer'}});
+ return new Response(null,{status:302,headers:{location:dest.href,'cache-control':'no-store','referrer-policy':'no-referrer','set-cookie':consentCookie('')}});
 }
 async function token(req:Request){
  const f=await req.formData(),client=String(f.get('client_id')||''),grant=f.get('grant_type');

@@ -107,3 +107,14 @@ To pause delivery, unschedule only `icetak-mcp-delivery`, or deactivate the exac
 subscription. Revocation/unsubscribe does not alter orders or AutoBrief. Removing the
 MCP capture trigger does not change existing native AutoBrief/render behavior. Revoke
 access and deactivate subscriptions before removing gateway/function infrastructure.
+
+## 7 November — OAuth consent form origin handling
+
+Consent GET now issues a ten-minute HMAC-signed double-submit token in a Secure,
+HttpOnly, SameSite=Lax host-only cookie and hidden form field. The signature binds
+client, exact redirect, PKCE challenge/method, response type, state, scope and resource.
+POST verifies this binding before contacting Supabase Auth. Canonical, absent or opaque
+`Origin` is supported only with the valid browser-bound token; explicit untrusted origins,
+missing/mismatched cookies, tampering and expired or changed requests are rejected.
+Old forms must be restarted using Connect in ChatGPT; refreshing the failed POST does
+not acquire a new token. No owner credentials are used in live negative-path probes.

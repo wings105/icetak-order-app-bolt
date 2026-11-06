@@ -1,3 +1,11 @@
+## 2026-11-07 — MCP OAuth consent submission
+
+- [VERIFIED controlled; hosted verification recorded in release PR] Bind OAuth consent
+  forms to an expiring signed browser cookie and hidden field, allowing opaque/missing
+  Origin without accepting unbound submissions. Foreign origins, tampered/expired
+  requests and missing cookies remain blocked. Restart Connect after an old form fails.
+  Owner login and full ChatGPT linking still require user acceptance.
+
 # 2026-11-06
 
 - [PRODUCTION] AutoBrief treats an unlabelled customer name and optional separate age as customization for one verified custom glossy topper, tolerates identical repetitions and retains source/understanding proof. Worker v73 and exact-task ClickUp readback verify90%, clean Customize Name, Ai Check, Confirmed and original comment identity. Actual worker baseline/live, context/staff/media/conflict/logistics guards and existing regressions pass; no sends or concurrent module changes. See [contract](docs/AUTOBRIEF_PRODUCT_CONTEXT.md#unlabelled-custom-name-chat--6-november-2026).

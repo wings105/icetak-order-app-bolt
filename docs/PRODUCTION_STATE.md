@@ -1,3 +1,11 @@
+# 2026-11-07 — MCP consent origin handling
+
+MCP Edge Function v4 adds signed browser/request-bound consent tokens before password
+authentication. Opaque/missing Origin no longer fails solely on that header; invalid
+origin or CSRF evidence still blocks. Current actual-handler regressions pass. Owner
+credential login and complete ChatGPT linking remain separate acceptance work. See
+[contract](ICETAK_MCP.md#7-november--oauth-consent-form-origin-handling).
+
 # 2026-11-06 — Unlabelled custom-name AutoBrief
 
 Order worker v73 accepts a plain name with optional separate age for one verified
