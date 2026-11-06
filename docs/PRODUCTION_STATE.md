@@ -1,3 +1,13 @@
+# 2026-11-06 — Owner MCP backend provisioned
+
+`icetak-mcp` v3 and its credential-free Workers gateway are ACTIVE. OAuth discovery,
+unauthorized rejection, controlled owner-grant exchange/current-brief read and hosted
+consent HTML/CSP are verified. Handler/gateway and native rollback regressions prove
+scoped tools, event capture/filter/retry, cursors, key rotation and comment dedupe.
+No operational ChatGPT subscription or comment was created. Owner plugin linking,
+real callbacks and closed-browser ChatGPT→ClickUp acceptance remain pending. See
+[MCP contract](ICETAK_MCP.md).
+
 # 2026-11-06 — AI QC Topper pilot
 
 `ai-qc` v3 and `render-template` v14 are ACTIVE. Private QC queue, rules versions,
