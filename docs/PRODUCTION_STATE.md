@@ -1,10 +1,13 @@
 # 2026-11-06 — Render Studio draft workflow
 
-`render-template` v9 and `render-template-ai` v1 are ACTIVE. Catalogue SKU selection,
-paired-image paste/upload, reusable fonts, queued vision setup and explicit
-confirmed-version publication are implemented. Private native rollback lifecycle
-and actual-handler regressions pass; hosted editor and real vision acceptance
-remain pending in PR #164. See [contract](RENDER_STUDIO.md).
+`render-template` v12 and `render-template-ai` v2 are ACTIVE. Catalogue SKU selection,
+paired-image paste/upload, reusable font names/aliases, queued vision setup and
+explicit confirmed-version publication are implemented. Native rollback lifecycle,
+actual-handler regressions, Admin TypeScript/source guard and full builds pass.
+PRs #164/#165 frontend delivery passed Workers Builds and guard. Signed-in hosted
+list/editor/catalogue selection, font-family adoption, full-resolution clipboard
+paste and a real two-layer native vision draft are observed. Existing confirmed
+versions remain unchanged until operator approval. See [contract](RENDER_STUDIO.md).
 
 # 2026-11-06 — Native AutoBrief renderer
 

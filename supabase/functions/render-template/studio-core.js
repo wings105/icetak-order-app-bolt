@@ -37,5 +37,5 @@ export function aiDraft(result,fonts,width,height){
   return {id,field:l.field,label:l.label.trim(),font_path:font?.path||null,text:{...l.text,fontFamily:font?.path?'Arial':font?.name||'Arial',autoFit:true,letterCase:'input'}};
  });
  if(Object.keys(inputs).length>8)throw Error('AI_TOO_MANY_FIELDS');
- return {config:{width,height,layers,automation:{enabled:false,inputs}},values,analysis:{summary:String(result.summary||'').slice(0,2000),warnings:(result.warnings||[]).filter(x=>typeof x==='string').slice(0,12).map(x=>x.slice(0,250)),unresolved_fonts:unresolved,confidence:Math.max(0,Math.min(100,Number(result.confidence)||0)),origin:'ai',review_required:true}};
+ return {config:{width,height,layers,automation:{enabled:false,inputs}},values,analysis:{summary:String(result.summary||'').slice(0,2000),warnings:(result.warnings||[]).filter(x=>typeof x==='string').slice(0,12).map(x=>x.slice(0,250)),unresolved_fonts:unresolved,confidence:Math.max(0,Math.min(100,((Number(result.confidence)||0)<=1?(Number(result.confidence)||0)*100:Number(result.confidence)))),origin:'ai',review_required:true}};
 }
