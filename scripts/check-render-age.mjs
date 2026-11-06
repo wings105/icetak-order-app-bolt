@@ -21,3 +21,7 @@ assert.equal(parseDetail('Nama: Lily\nUmur: 4').age_number,'4');
 const full=structuredClone(template);full.config.layers=[{field:'name'},{field:'age'}];full.config.automation.inputs={name:{source:'name',required:true,default:''},age:{source:'age',required:false,default:''}};
 assert.deepEqual(mapFields(full,{},'AQILAH SOFIA 6 TAHUN').fields,{name:'AQILAH SOFIA',age:'6 TAHUN'});
 console.log('PASS: exact name, number, conditional prefix/suffix, Malay/English/case preservation, optional age, ambiguous wording held');
+
+const verbatim={config:{layers:[{field:'wording'}],automation:{enabled:true,inputs:{wording:{source:'wording',required:true,default:''}}}}};
+assert.equal(mapFields(verbatim,{},'Lily 4 tahun').fields.wording,'Lily 4 tahun');
+assert.equal(mapFields(verbatim,{},'4 years old').fields.wording,'4 years old');

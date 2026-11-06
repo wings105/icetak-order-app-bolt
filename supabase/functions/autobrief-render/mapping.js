@@ -32,8 +32,8 @@ export function parseDetail(input){
   return {...result,...(splitAge(result.age)||{})};
  }
  const single=compact(raw),m=single.match(/^(.*?)\s+((?:turns?\s+\d{1,3}(?:st|nd|rd|th)?)|(?:\d{1,3}(?:st|nd|rd|th)?(?:\s+(?:tahun|thn|bulan|months?|years?(?:\s+old)?|yrs?|y\/o))?))$/i);
- if(m&&safeName(m[1])&&splitAge(m[2]))return {ok:true,kind:'labelled',raw,name:m[1],age:m[2],greeting:'',date:'',...splitAge(m[2])};
- const onlyAge=splitAge(single);if(onlyAge)return {ok:true,kind:'labelled',raw,name:'',age:single,greeting:'',date:'',...onlyAge};
+ if(m&&safeName(m[1])&&splitAge(m[2]))return {ok:true,kind:'labelled',inferred:true,raw,name:m[1],age:m[2],greeting:'',date:'',...splitAge(m[2])};
+ const onlyAge=splitAge(single);if(onlyAge)return {ok:true,kind:'labelled',inferred:true,raw,name:'',age:single,greeting:'',date:'',...onlyAge};
  return {ok:true,kind:'verbatim',raw,lines:raw.split(/\n+/).map(s=>s.trim()).filter(Boolean)};
 }
 
@@ -44,8 +44,9 @@ export function mapFields(template,brief,taskWording){
  const fields=getInputFields(c),rules=auto.inputs||{};
  if(fields.some(f=>!rules[f.key]?.source))return failure('UNMAPPED_TEMPLATE_FIELD');
  if(brief.instruction||brief.media_count>0||brief.review_requested||brief.pending_change_ids?.length||brief.change_detected>0)return failure('BRIEF_NEEDS_REVIEW');
- const selected=clean(taskWording||brief.wording),parsed=parseDetail(selected);
+ const selected=clean(taskWording||brief.wording);let parsed=parseDetail(selected);
  if(!parsed.ok)return parsed;
+ if(parsed.inferred&&fields.every(f=>['wording','literal','greeting'].includes(rules[f.key].source)))parsed={ok:true,kind:'verbatim',raw:parsed.raw,lines:parsed.raw.split(/\n+/).map(s=>s.trim()).filter(Boolean)};
  if(parsed.kind==='labelled'&&parsed.age&&fields.some(f=>['age_number','age_prefix','age_suffix'].includes(rules[f.key].source))&&!splitAge(parsed.age))return failure('AGE_LAYOUT_NEEDS_REVIEW');
  const values={};
  if(parsed.kind==='verbatim'){
