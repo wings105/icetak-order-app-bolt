@@ -2,7 +2,7 @@ import {createTaskClickUpHandler} from '../task-clickup/handler.ts';
 import {productionItem,type SourceRow} from '../acrylic-production/model.ts';
 type Actor={username:string;role:string;permissions:string[]};
 type Factory=(o:{url:string;key:string;fetcher?:typeof fetch;trustedActor:Actor})=>(r:Request)=>Promise<Response>;
-const cors={'access-control-allow-origin':'https://shop.decocake.my','access-control-allow-methods':'POST,OPTIONS','access-control-allow-headers':'authorization,content-type','vary':'Origin','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'};
+const cors={'access-control-allow-origin':'https://shop.decocake.my','access-control-allow-methods':'POST,OPTIONS','access-control-allow-headers':'authorization,content-type,x-task-service','vary':'Origin','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'};
 const reply=(body:unknown,status=200)=>Response.json(body,{status,headers:cors});
 const labels=new Set(['FINISHED product Printed','AWB/address printed']);
 export async function acrylicDigest(token:string){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token)))].map(n=>n.toString(16).padStart(2,'0')).join('');}
