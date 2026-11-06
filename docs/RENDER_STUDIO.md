@@ -74,3 +74,15 @@ mapped custom-font layers while the previous confirmed version stayed unchanged.
 Native successful-result tests preserve raw/reference/instructions as well as
 reject stale results. Remaining operator confirmation is deliberate; the generated
 draft is not silently activated.
+
+## Conditional age layout acceptance — 6 November 2026
+
+PR #167 merged at `2bd4058`; Workers Builds, guard and Studio checks passed.
+Native renderer v4, gateway v13 and vision v3 source readbacks include the new
+exact-span parser and age mapping sources. Signed-in production editor tests
+observed the separate number, upper-prefix and lower-suffix inputs: Turns 4
+sets only the upper label, 4 tahun and 4 years old set only the lower label.
+The actual rendered draft and source controls were visually inspected. The new
+layout remains an unconfirmed draft: operator typography/position approval and
+fresh naturally confirmed order delivery remain separate acceptance steps.
+No existing customer wording or canonical AutoBrief worker was modified.
