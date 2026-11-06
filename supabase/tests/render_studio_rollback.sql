@@ -2,6 +2,8 @@ begin;
 do $$
 declare t public.render_templates; d jsonb; payload jsonb; j jsonb; k jsonb; v jsonb; before_events int;
 begin
+ perform public.icetak_render_studio('list');
+ perform public.icetak_render_studio('fonts');
  select * into strict t from public.render_templates where sku='YS0315';
  if exists(select 1 from render_studio.drafts where sku=t.sku) then raise exception 'QA expects no existing selected draft';end if;
  select count(*) into before_events from public.render_template_events where sku=t.sku;
