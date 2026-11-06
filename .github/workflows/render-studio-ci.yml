@@ -20,6 +20,7 @@ jobs:
         run: |
           node --experimental-strip-types scripts/check-render-studio.mjs
           node --experimental-strip-types scripts/check-autobrief-render.mjs
+          node scripts/check-render-age.mjs
           npx tsc --noEmit --project icetak-admin/tsconfig.app.json
           npm run check:admin-v2
       - run: npm run build

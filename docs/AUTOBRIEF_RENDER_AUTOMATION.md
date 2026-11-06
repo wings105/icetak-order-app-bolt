@@ -90,3 +90,19 @@ The intentional service-only RLS tables have no user policies (deny by default).
 Queue status and retry receipts are visible through Refresh log render. Unsupported
 templates/details stay in review/skipped with a bounded reason; they are not claimed
 as automatically supported.
+
+## Separate age number and conditional labels
+
+The native bridge reads the current confirmed AutoBrief wording and ClickUp wording
+again, then extracts exact name/age spans. A terminal numeric age with a recognized
+unit, TURN/TURNS plus number, or labelled name/age can be mapped without a model.
+Multiple names/ages, instructions and unknown age forms remain review-only.
+Existing `age` preserves the full age phrase. New sources `age_number`,
+`age_prefix` and `age_suffix` select the exact numeral, preceding TURN/TURNS,
+and following TAHUN/YEARS OLD respectively. Empty label fields paint nothing.
+The template owns each label layer font, position, rotation and size; no SKU
+positions or translations are hardcoded. Unsupported split forms cannot silently
+drop an age. Original wording is never edited to make the parser pass.
+
+Editor tests include Turns 4, 4 tahun and 4 years old. New layout drafts must
+be reviewed and confirmed before the production renderer uses them.

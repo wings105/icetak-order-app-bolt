@@ -28,7 +28,7 @@ export function aiDraft(result,fonts,width,height){
  const unresolved=[],values=Object.create(null),inputs=Object.create(null),labels=new Map();
  const layers=result.layers.map((l,i)=>{
   if(!/^[a-zA-Z][a-zA-Z0-9_]{0,39}$/.test(l.field)||['sku','constructor','prototype','__proto__','version','expires','sig'].includes(l.field))throw Error('AI_FIELD_INVALID');
-  if(!['greeting','name','age','name_age','wording','date','literal'].includes(l.source)||typeof l.required!=='boolean'||typeof l.default!=='string'||l.default.length>200)throw Error('AI_MAPPING_INVALID');
+  if(!['greeting','name','age','age_number','age_prefix','age_suffix','name_age','wording','date','literal'].includes(l.source)||typeof l.required!=='boolean'||typeof l.default!=='string'||l.default.length>200)throw Error('AI_MAPPING_INVALID');
   if(typeof l.label!=='string'||!l.label.trim()||l.label.length>60||typeof l.example!=='string'||l.example.length>200)throw Error('AI_LABEL_INVALID');
   const rule={source:l.source,required:l.required,default:['greeting','literal'].includes(l.source)?l.default:''};
   if(inputs[l.field]&&(JSON.stringify(inputs[l.field])!==JSON.stringify(rule)||labels.get(l.field)!==l.label.trim()||values[l.field]!==l.example))throw Error('AI_FIELD_CONFLICT');

@@ -40,7 +40,7 @@ export function validateAutomation(config){
  if(!a||typeof a.enabled!=='boolean'||!a.inputs||typeof a.inputs!=='object'||Array.isArray(a.inputs))throw new Error('Mapping automation tidak sah');
  const known=new Set(getInputFields(config).map(f=>f.key));
  for(const [key,r] of Object.entries(a.inputs)){
-  if(!known.has(key)||!r||!['greeting','name','age','name_age','wording','date','literal'].includes(r.source)||typeof r.required!=='boolean'||typeof r.default!=='string'||r.default.length>200||/[\r\n]/.test(r.default))throw new Error('Mapping field tidak sah');
+  if(!known.has(key)||!r||!['greeting','name','age','age_number','age_prefix','age_suffix','name_age','wording','date','literal'].includes(r.source)||typeof r.required!=='boolean'||typeof r.default!=='string'||r.default.length>200||/[\r\n]/.test(r.default))throw new Error('Mapping field tidak sah');
   if(r.default&&!['greeting','literal'].includes(r.source))throw new Error('Default hanya untuk ucapan / teks tetap');
  }
  if(a.enabled&&[...known].some(k=>!a.inputs[k]))throw new Error('Lengkapkan mapping setiap field');
