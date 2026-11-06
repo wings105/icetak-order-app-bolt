@@ -111,7 +111,8 @@ access and deactivate subscriptions before removing gateway/function infrastruct
 ## 7 November — OAuth consent form origin handling
 
 Consent GET now issues a ten-minute HMAC-signed double-submit token in a Secure,
-HttpOnly, SameSite=Lax host-only cookie and hidden form field. The signature binds
+HttpOnly host-only cookie and hidden form field (initially SameSite=Lax; see the
+popup correction below). The signature binds
 client, exact redirect, PKCE challenge/method, response type, state, scope and resource.
 POST verifies this binding before contacting Supabase Auth. Canonical, absent or opaque
 `Origin` is supported only with the valid browser-bound token; explicit untrusted origins,
@@ -130,3 +131,32 @@ Regression evidence: in connected Chrome, open form A, then form B, then submit 
 with deliberately invalid QA credentials. Before v5 it returned consent_expired;
 after v5 both A and B independently reach OWNER_LOGIN_FAILED as expected. No owner
 credentials were read or submitted. Restart pre-v5 forms once to obtain the new cookie.
+
+
+## Opaque-origin popup cookie handling — 7 November
+
+A normal-tab test did not establish that the real owner Connect popup worked.
+The repeated owner failure remained unresolved after v5. A temporary QA launcher
+with CSP `sandbox allow-forms allow-popups` reproduces an opaque-origin popup
+against the actual deployed consent endpoint. Using only deliberately invalid QA
+credentials, v5 reproduces `consent_expired`; v6 diagnostics identify `cookie_missing`.
+This establishes a controlled reproduction, not proof of ChatGPT's internal popup implementation.
+
+Edge Function v7 sets each short-lived host-only consent cookie to
+`Secure; HttpOnly; SameSite=None`. An opaque-origin form POST is cross-site for
+cookie purposes; Lax does not accompany it. The signed hidden field, exact per-form
+cookie equality, HMAC, request binding, expiry and explicit foreign-Origin rejection
+remain mandatory. No cookie-free fallback, password storage or auth bypass is added.
+
+The same connected-Chrome sandbox popup now reaches `OWNER_LOGIN_FAILED` using
+invalid QA credentials; a normal Chrome tab also reaches that expected credential
+rejection. This proves the reproduced consent gate passes, not successful owner
+authentication. Fifteen actual-handler/consent/gateway regressions pass. Error JSON
+now returns only a safe reason (`cookie_missing`, `expired`, `request_changed`, etc.)
+and revision `popup-cookie-1`, never credentials, cookies or signed form tokens.
+
+The owner must start one fresh Connect attempt to receive the new cookie attributes.
+Do not reuse or refresh an old failed POST. If it still fails, retain its new reason
+and revision; browser cookie blocking can still prevent storage/sending. Owner login,
+ChatGPT linking and closed-browser ClickUp delivery remain pending acceptance.
+The temporary QA launcher is removed after verification.

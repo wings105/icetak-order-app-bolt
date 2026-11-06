@@ -1,4 +1,4 @@
-import {createConsent,validConsent,consentCookie} from './consent.ts';
+import {createConsent,checkConsent,consentCookie,CONSENT_REVISION} from './consent.ts';
 import {request as httpsRequest} from 'node:https';
 import {lookup as dnsLookup} from 'node:dns';
 import {VERSION,ORIGIN,SCOPES,EVENT,tools,eventDefinition,sha,random,exactReference,exactId,redirectAllowed,callbackAllowed,publicAddress,signedHeaders,validateObject} from './protocol.ts';
@@ -42,7 +42,8 @@ async function authorize(req:Request,url:URL){
  }
  const origin=req.headers.get('origin');
  if(origin&&origin!=='null'&&origin!==ORIGIN)return json({error:'invalid_origin'},403);
- if(!await validConsent(q,req.headers.get('cookie')||'',KEY))return json({error:'consent_expired',message:'Buka semula Connect iCetak dalam ChatGPT untuk memulakan login baharu.'},403);
+ const consent=await checkConsent(q,req.headers.get('cookie')||'',KEY);
+ if(!consent.ok)return json({error:'consent_expired',reason:consent.reason,revision:CONSENT_REVISION,message:'Sesi borang login tidak sah. Buka semula Connect iCetak dalam ChatGPT.'},403);
  const login=await fetch(BASE+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({email:q.get('email'),password:q.get('password')}),signal:AbortSignal.timeout(15000)});
  if(!login.ok)return json({error:'OWNER_LOGIN_FAILED',message:'Semak email/kata laluan owner dan cuba semula.'},401);
  const signed=await login.json();

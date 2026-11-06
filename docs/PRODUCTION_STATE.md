@@ -1,3 +1,13 @@
+# 2026-11-07 — Opaque-origin MCP consent popup
+
+MCP v7 is active. Controlled connected-Chrome testing reproduces the reported
+consent error in an opaque-origin popup; v6 diagnostics identify `cookie_missing`.
+With short-lived Secure/HttpOnly/SameSite=None consent cookies, the same popup
+and a normal tab reach expected invalid-credential rejection. Signed per-form
+CSRF/request/expiry and foreign-Origin checks remain required. Fifteen regressions
+pass. This is a controlled reproduction; real owner ChatGPT linking and downstream
+ClickUp acceptance are still pending. See [contract](ICETAK_MCP.md#opaque-origin-popup-cookie-handling--7-november).
+
 # 2026-11-07 — Independent MCP consent cookies
 
 MCP v5 is active. Each signed form has an independent nonce-derived host cookie;

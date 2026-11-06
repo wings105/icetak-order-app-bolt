@@ -53,7 +53,7 @@ test('consent POST accepts null/missing Origin only with a signed matching brows
  try{
   for(const origin of ['null',null,p.ORIGIN]){const r=await handle(new Request(p.ORIGIN+'/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',cookie,...(origin?{origin}:{})},body:params.toString()}));assert.equal((await r.json()).error,'OWNER_LOGIN_FAILED');}
   assert.equal(authCalls,3);
-  let r=await handle(new Request(p.ORIGIN+'/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',origin:'null'},body:params.toString()}));assert.equal((await r.json()).error,'consent_expired');
+  let r=await handle(new Request(p.ORIGIN+'/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',origin:'null'},body:params.toString()}));const failure=await r.json();assert.equal(failure.error,'consent_expired');assert.equal(failure.reason,'cookie_missing');assert.equal(failure.revision,'popup-cookie-1');assert.ok(!JSON.stringify(failure).includes(token));
   r=await handle(new Request(p.ORIGIN+'/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',cookie,origin:'https://attacker.example'},body:params.toString()}));assert.equal((await r.json()).error,'invalid_origin');assert.equal(authCalls,3);
  }finally{globalThis.fetch=original;}
 });
