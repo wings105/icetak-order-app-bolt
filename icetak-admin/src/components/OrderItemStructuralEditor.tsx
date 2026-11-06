@@ -46,6 +46,7 @@ export type StructuralOrderItem = {
   k?: string;
   title?: string;
   productId?: string | null;
+  sku?: string;
   catalogSlug?: string;
   catalogClickupTaskId?: string;
   process?: string;
@@ -314,7 +315,7 @@ export default function OrderItemStructuralEditor({ orderDbId, items: sourceItem
         <div className="struct-item-title">
           <div className="struct-item-heading">
             {draft.previewUrl && <a className="struct-preview" href={draft.previewUrl} target="_blank" rel="noreferrer" title="Open design image"><img src={draft.previewUrl} alt="Design preview" onError={(e) => { e.currentTarget.style.display = 'none'; }} /></a>}
-            <div><b>{index + 1}. {draft.title || cfg.label}</b><div className="struct-tags">{draft.isNew && <span className="erp-status-pill info">NEW</span>}{linked > 0 && <span className="erp-status-pill success">{linked} CLICKUP LINKED</span>}{legacy && !draft.isNew && <span className="erp-status-pill neutral">LEGACY ITEM</span>}</div></div>
+            <div><b>{index + 1}. {draft.title || cfg.label}</b>{draft.sku && <div className="cell-sub">SKU: <strong>{draft.sku}</strong></div>}<div className="struct-tags">{draft.isNew && <span className="erp-status-pill info">NEW</span>}{linked > 0 && <span className="erp-status-pill success">{linked} CLICKUP LINKED</span>}{legacy && !draft.isNew && <span className="erp-status-pill neutral">LEGACY ITEM</span>}</div></div>
           </div>
           {canEdit && !structuralLocked && <button className="btn btn-danger btn-sm" disabled={Boolean(linked)} title={linked ? 'Linked ClickUp task prevents delete' : ''} onClick={() => removeItem(draft)}>Delete</button>}
         </div>

@@ -1,3 +1,20 @@
+## Catalogue topper SKU — 6 November 2026
+
+For the canonical initial status `design editing -topper`, the queue projects the
+purchased variant SKU, then parent SKU, with a catalog parent fallback for older
+items. Task name is `<quantity> x <SKU>` and custom field
+`34c62cbb-c174-42e8-9c50-8301f68269a8` receives that SKU. Other initial statuses
+retain their existing names/fields. Admin order detail exposes `sku` and the
+item editor displays it read-only; customer storefront presentation is unchanged.
+
+The live native outbox v48 includes `create-body.ts`; the production repository's
+older GET runner does not yet contain the native runner. This patch preserves
+that runner rather than replacing unrelated integration behavior. Do not deploy
+the repository index over the native runtime without reconciling that difference.
+Live selected-task name/CF readback and controlled naming/excluded-status checks
+passed. The admin UI build is checked separately; signed-in hosted SKU rendering
+and fresh autonomous checkout delivery are still unverified.
+
 ## Current TaskMagic mapping — 16 October 2026
 
 The owner's active flow polls one component per claim each minute, creates the task with Webapp Order/Component IDs and uses the existing ClickUp task-created webhook to return linkage. A separate acknowledgement step is not required in this exported flow. Do not reintroduce the historical multi-component runner loop below. Backend v40 now projects item/task prices and sets; the TaskMagic canvas mapping is still an owner action. Follow [taskmagic-production-price-set.md](taskmagic-production-price-set.md) and use [the tested adapter](../scripts/taskmagic-production-map.mjs). Single commercial item: no set custom field, even for multiple units. Multiple items: persisted per-component set indices, not polling position. Backend production preview is verified; downstream RM/set writes await the canvas mapping.

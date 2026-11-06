@@ -97,7 +97,7 @@ type PickupAutoSettings = { auto_send_enabled?: boolean; delay_minutes?: number;
 type CustomerProfile = { customer_id?: string | null; customer_master_id?: string | null; name?: string; phone?: string; locked?: boolean; admin_name_override?: string | null; admin_name_updated_at?: string | null; admin_name_updated_by?: string | null; master_display_name?: string | null; source?: string | null };
 
 type OrderItem = {
-  id: string; k?: string; title?: string; qty?: number; price?: number; size?: string; style?: string;
+  id: string; k?: string; title?: string; sku?: string; qty?: number; price?: number; size?: string; style?: string;
   customText?: string; workflow?: string; reviewRequired?: boolean; previewUrl?: string;
   components?: Array<{ id: string; label?: string; workflow?: string; customerLabel?: string; reviewStatus?: string; previewUrl?: string; progressPercent?: number; clickupTaskId?: string; clickupStatus?: string }>;
 };
