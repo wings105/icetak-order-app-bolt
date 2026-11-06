@@ -45,3 +45,15 @@ test('revoking an active OAuth grant deactivates that owner/client subscriptions
  globalThis.fetch=async(input,init={})=>{const u=new URL(String(input));if(u.pathname.endsWith('/icetak_mcp_tokens')&&init.method==='PATCH'){assert.equal(u.searchParams.get('revoked_at'),'is.null');return j([{owner_id:owner}]);}if(u.pathname.endsWith('/icetak_mcp_subscriptions')&&init.method==='PATCH'){assert.equal(u.searchParams.get('owner_id'),'eq.'+owner);assert.equal(u.searchParams.get('client_id'),'eq.client');stopped=JSON.parse(init.body).active===false;return j([]);}return original(input,init);};
  try{const r=await handle(new Request(p.ORIGIN+'/revoke',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'client_id=client&token=fixture'}));assert.equal(r.status,200);assert.equal(stopped,true);}finally{globalThis.fetch=original;}
 });
+test('consent POST accepts null/missing Origin only with a signed matching browser cookie',async()=>{
+ const params=new URLSearchParams({client_id:'client',redirect_uri:'https://chatgpt.com/connector/oauth/qa',response_type:'code',code_challenge:'a'.repeat(43),code_challenge_method:'S256',state:'origin-test'});
+ const page=await handle(new Request(p.ORIGIN+'/authorize?'+params)),html=await page.text(),token=html.match(/name="_csrf" value="([^"]+)"/)[1],cookie=page.headers.get('set-cookie').split(';')[0];params.set('_csrf',token);
+ const original=globalThis.fetch;let authCalls=0;
+ globalThis.fetch=async(input,init)=>{if(String(input).includes('/auth/v1/token')){authCalls++;return Response.json({error:'invalid_grant'},{status:400});}return original(input,init);};
+ try{
+  for(const origin of ['null',null,p.ORIGIN]){const r=await handle(new Request(p.ORIGIN+'/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',cookie,...(origin?{origin}:{})},body:params.toString()}));assert.equal((await r.json()).error,'OWNER_LOGIN_FAILED');}
+  assert.equal(authCalls,3);
+  let r=await handle(new Request(p.ORIGIN+'/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',origin:'null'},body:params.toString()}));assert.equal((await r.json()).error,'consent_expired');
+  r=await handle(new Request(p.ORIGIN+'/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',cookie,origin:'https://attacker.example'},body:params.toString()}));assert.equal((await r.json()).error,'invalid_origin');assert.equal(authCalls,3);
+ }finally{globalThis.fetch=original;}
+});
