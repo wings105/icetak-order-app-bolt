@@ -480,6 +480,43 @@ function completeMultilineNoteRule(input:Obj):Obj{
 // Conservative: no heterogeneous item types, conflicting words, item-specific
 // instructions, missing SKU/task mapping or unverified chat context.
 // Explicit labelled source values and all-item scope, separate from print wording.
+// Custom-topper customers need not repeat a field label in ordinary chat.
+function bareCustomerNameRule(input:Obj):Obj{
+ const no=(reason:string)=>({eligible:false,reason});
+ const {items,sku,messages,context,note,existingWord,siblingTasks}=input;
+ if(context.ambiguous||context.truncated||context.unavailable)return no("CHAT_CONTEXT_UNVERIFIED");
+ if(note)return no("BUYER_NOTE_PRESENT");
+ const refs=productReferences(items);
+ if(refs.length!==1||refs[0].quantity!==1||normalized(refs[0].sku)!==normalized(sku)||! /^(CN|YS)\d{3,6}$/i.test(sku)||!/^\d{1,20}$/.test(refs[0].product_id)||! /custom\s*name/i.test(refs[0].title))return no("SINGLE_CUSTOM_TOPPER_REQUIRED");
+ if(siblingTasks.length!==1||!new RegExp("(?:^|[^A-Z0-9])"+sku+"(?:$|[^A-Z0-9])","i").test(siblingTasks[0].task_name||""))return no("SINGLE_TASK_REQUIRED");
+ const names=new Map<string,string>(),ages=new Set<number>(),proof:Obj[]=[];
+ let lastName:Obj|null=null;
+ for(const m of messages){
+  if(m.direction!=="inbound"||m.is_history)continue;
+  const raw=string(m.text_content||m.caption,1000);
+  if(/^\[Shopee (?:item|order):/i.test(raw))continue;
+  if(m.message_type&&m.message_type!=="text")return no("NON_TEXT_REQUIRES_REVIEW");
+  const lines=raw.replace(/\\n/g,"\n").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  for(const value of lines){
+   if(isUnimportant(value)||/^(salam|assalamualaikum|hi|hello)[!.\s]*$/i.test(value))continue;
+   const numeric=value.match(/^(?:(?:umur|age|turns?|turning)\s*[:=]?\s*)?(\d{1,3})(?:\s*(?:tahun|years?(?: old)?))?$/i);
+   if(numeric){
+    const age=Number(numeric[1]),gap=lastName?Date.parse(m.created_at)-Date.parse(lastName.created_at):NaN;
+    if(!lastName||!m.conversation_id||m.conversation_id!==lastName.conversation_id||!Number.isFinite(gap)||gap<0||gap>15*60*1000||age<1||age>120)return no("AGE_NOT_LINKED_TO_NAME");
+    ages.add(age);proof.push(m);continue;
+   }
+   if(!/^[\p{L}][\p{L}\p{M} .’'&-]{0,84}$/u.test(value)||value.split(/\s+/).length>6||
+    /\b(?:saya|sy|aku|nak|mahu|boleh|tolong|minta|order|postage|shipping|harga|rm|gambar|warna|font|saiz|size|tukar|ubah|jangan|cancel|salah|silap|latest|terkini|please|want|need|can|could|send|delivery|today|tomorrow|pickup|alamat|payment|bayar|sudah|belum|happy|birthday|nama|name|umur|age|tahun)\b/i.test(value)||
+    isNonDesignWording(value)||(" "+normalized(refs[0].title)+" ").includes(" "+normalized(value)+" "))return no("UNPARSED_CUSTOMER_DETAIL");
+   names.set(normalized(value),value);lastName=m;proof.push(m);
+  }
+ }
+ if(names.size!==1||ages.size>1)return no("CONFLICTING_OR_MISSING_NAME_AGE");
+ const name=[...names.values()][0],age=[...ages][0]??null,wording=name+(age!==null?" "+age:"");
+ if(existingWord&&normalized(existingWord)!==normalized(wording))return no("STAFF_WORDING_PROTECTED");
+ return {eligible:true,reason:"BARE_CUSTOMER_NAME_AGE",name,age,wording,confidence:90,source:"Chat customer",instruction:"Nama customer untuk custom topper"+(age!==null?"; umur "+age:".")+".",proof};
+}
+
 function sharedNameAgeNoteRule(input:Obj):Obj{
  const no=(reason:string)=>({eligible:false,reason});
  const {note,existingWord,items,siblingTasks,messages,context,sku}=input;
@@ -513,7 +550,7 @@ function readingSummary(input:Obj):Obj{
   lines.push("Nama: "+rule.name+" | Umur: "+rule.age,
    "Arahan difahami: "+rule.instruction,
    "Wording cetak: "+rule.wording,
-   "Keputusan: "+(verified?"Disahkan; nota berlabel dan arahan semua item sepadan.":"Perlu semak; masih ada syarat pengesahan belum lengkap."));
+   "Keputusan: "+(verified?rule.reason==="BARE_CUSTOMER_NAME_AGE"?"Disahkan; nama dan umur dalam chat order sepadan.":"Disahkan; nota berlabel dan arahan semua item sepadan.":"Perlu semak; masih ada syarat pengesahan belum lengkap."));
  }else lines.push("Wording dibaca: "+(decision.wording||"Belum pasti"),"Keputusan: "+(verified?"Disahkan berdasarkan bukti sumber.":"Perlu semak sebelum disahkan."));
  // Only include a model summary when its input signature was checked this run.
  if(aiCandidate&&aiAnalysis?.ok){
@@ -909,7 +946,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     providerContext=await followupRequest({action:"inspect",shop_id:string(orderFacts.shop_id),order_sn:string(orderFacts.order_sn),buyer_user_id:buyerId},bridge);
     if(providerContext.available&&providerContext.order_sn===s.order_reference&&providerContext.buyer_user_id===buyerId){
      const inbound=(providerContext.messages||[]).filter((m:Obj)=>m.direction==="inbound");
-     context.messages=[...new Map([...(context.messages||[]),...inbound,...(context.messages||[]).filter((m:Obj)=>!!productCardId(m))].map((m:Obj)=>[String(m.id),m])).values()];
+     context.messages=[...new Map([...(context.messages||[]),...inbound,...(context.messages||[]).filter((m:Obj)=>/^\[Shopee (?:item|order):/i.test(string(m.text_content||m.caption)))].map((m:Obj)=>[String(m.id),m])).values()];
      context.bindings=[...(context.bindings||[]),...inbound.map((m:Obj)=>({id:m.conversation_id,usable:true}))];
      note=string(providerContext.buyer_note,1200);
      orderUnpaid=providerContext.order_status==="UNPAID";
@@ -959,6 +996,11 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   }
   const sharedNameRule=sharedNameAgeNoteRule({note,existingWord,items:orderItems,siblingTasks,messages:chronological,context,sku:productSku});
   if(sharedNameRule.eligible)decision={...decision,wording:sharedNameRule.wording,instruction:sharedNameRule.instruction,confidence:sharedNameRule.confidence,age:sharedNameRule.age,note_evidence:true,name_conflict:false,age_conflict:false};
+  const bareNameRule=bareCustomerNameRule({note,existingWord,items:orderItems,siblingTasks,messages:chronological,context,sku:productSku});
+  if(bareNameRule.eligible){
+   decision={...decision,wording:bareNameRule.wording,instruction:bareNameRule.instruction,confidence:bareNameRule.confidence,age:bareNameRule.age,chat_evidence:true,name_conflict:false,age_conflict:false};
+   proof=bareNameRule.proof;
+  }
   const completeNoteRule=completeMultilineNoteRule({note,existingWord,items:orderItems,siblingTasks,provider:providerContext,context,decision,sku:productSku,task_id:id,multi,messages:chronological});
   if(completeNoteRule.eligible)decision={...decision,wording:completeNoteRule.wording,confidence:completeNoteRule.confidence,note_evidence:true};
   const missing=Array.isArray(detail.missing)?detail.missing:[];
@@ -1097,7 +1139,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     (string(aiAnalysis.instruction,250)?"\nAI instruction: "+string(aiAnalysis.instruction,250):"")+
     (string(aiAnalysis.image_description,250)?"\nAI image: "+string(aiAnalysis.image_description,250):"");
   }
-  const interpretation=readingSummary({rule:sharedNameRule,note,messages:chronological,items:orderItems,decision,verified,aiAnalysis,aiCandidate});
+  const interpretation=readingSummary({rule:bareNameRule.eligible?bareNameRule:sharedNameRule,note,messages:chronological,items:orderItems,decision,verified,aiAnalysis,aiCandidate});
   text+="\n\n"+interpretation.text;
   const hash=await digest("rich-code-v1\n"+text);
   const comments=await clickup(clickupToken,"task/"+encodeURIComponent(id)+"/comment");
@@ -1191,7 +1233,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status,product_title:product.title||"",product_id:product.product_id||"",
-   direct_session:directScope?{order_id:directScope.order_id,order_no:directScope.order_no,session_id:directScope.session_id,draft_id:directScope.draft_id,target_item_id:directScope.target_item_id,start_at:context.scope_start,end_at:context.scope_end,evidence_source:context.evidence_source,later_request_excluded:context.later_request_excluded===true,reason:context.reason}:null,order_products:productReferences(orderItems),complete_note_rule:completeNoteRule,labelled_wording_rule:labelledRule,product_card_rule:cardRule,shared_name_age_rule:sharedNameRule,reading_summary:interpretation,followup,followup_remark:followupNote,
+   direct_session:directScope?{order_id:directScope.order_id,order_no:directScope.order_no,session_id:directScope.session_id,draft_id:directScope.draft_id,target_item_id:directScope.target_item_id,start_at:context.scope_start,end_at:context.scope_end,evidence_source:context.evidence_source,later_request_excluded:context.later_request_excluded===true,reason:context.reason}:null,order_products:productReferences(orderItems),complete_note_rule:completeNoteRule,labelled_wording_rule:labelledRule,product_card_rule:cardRule,shared_name_age_rule:sharedNameRule,bare_name_rule:bareNameRule,reading_summary:interpretation,followup,followup_remark:followupNote,
    shared_wording_rule:sharedRule,ai_analysis:aiAnalysis?.input_hash?aiAnalysis:null,ai_mode:"advisory"};
   state=holdForReview?"review":verified?"completed":"review";
  }catch(e){
