@@ -1,3 +1,12 @@
+# 2026-11-06 — Unlabelled custom-name AutoBrief
+
+Order worker v73 accepts a plain name with optional separate age for one verified
+custom glossy topper; identical repetitions do not create conflicts. Scoped
+negative/actual-worker/replay checks pass on baseline/live source. Real selected
+task readback verifies clean wording90%, Ai Check, Confirmed and original proof
+comment/summary. No sends; acrylic/lifecycle modules preserved. See
+[contract](AUTOBRIEF_PRODUCT_CONTEXT.md#unlabelled-custom-name-chat--6-november-2026).
+
 # 2026-11-06 — Owner MCP backend provisioned
 
 `icetak-mcp` v3 and its credential-free Workers gateway are ACTIVE. OAuth discovery,

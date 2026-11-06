@@ -131,3 +131,26 @@ and acrylic modules. Exact selected two-task canaries complete without errors;
 direct ClickUp reads verify clean shared wording, 95%, Ai Check, Confirmed and
 unchanged comment IDs. Both comments contain the source/understanding summary
 and current-input AI interpretation at 98%. No customer-send receipts created.
+
+
+## Unlabelled custom-name chat — 6 November 2026
+
+For one verified CUSTOM NAME glossy topper and one matching task, a plain
+customer name is printable custom text without a Nama/Custom Name label. An
+optional separate numeric age must follow the name in the same conversation
+within 15 minutes. Real/escaped multiline messages and identical repeated names
+and ages are accepted; distinct names/ages, logistics/instructions, unsupported
+media, unverified scope, staff differences or multiple items remain in review.
+Current-session, payment, initial-status and confirmed-task lifecycle guards stay.
+The deterministic source rule scores90; no model-confidence promotion is needed.
+An original Shopee order-card marker is preserved across provider merges so it
+is not mistaken for an unnamed image. Name/age proof and the source understanding
+summary are retained in the existing original AutoBrief comment and private job.
+
+Actual worker tests: `node scripts/check-autobrief-bare-name.mjs` exercises name
+only, separate age, lowercase, multiline, duplicate/conflict, session/media/staff,
+logistics/scope, exact CF/comment outcome, no sends and baseline replay. The same
+suite passes against live lifecycle source; existing card/shared-note/explicit
+wording/product-context suites pass. Deployed v73 exact selected-task recovery
+and ClickUp readback verify clean wording90%, Ai Check, Confirmed and original
+comment identity with reading summary. Other live modules remain byte-identical.
