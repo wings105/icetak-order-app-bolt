@@ -154,3 +154,41 @@ suite passes against live lifecycle source; existing card/shared-note/explicit
 wording/product-context suites pass. Deployed v73 exact selected-task recovery
 and ClickUp readback verify clean wording90%, Ai Check, Confirmed and original
 comment identity with reading summary. Other live modules remain byte-identical.
+
+
+## One name defaults across two custom sets — 7 November 2026
+
+Owner policy: when a two-unit glossy order supplies one unambiguous name in Buyer
+Note or exact-session chat, use it for both CUSTOM NAME sets unless another
+instruction distinguishes the items. No explicit same-name sentence is needed.
+One SKU with quantity two and two distinct custom SKUs are supported. An order
+with one custom and one ready-stock item applies the text only to the custom
+item; a ready-stock target cannot enter this path. Product IDs, standard glossy
+SKUs, quantities, unique custom task mapping and current context are mandatory.
+
+Buyer Note labels are decoded and cleaned for interpretation; source chat proof
+retains its original text. A shared optional age is accepted, including `6y`.
+Different names/ages, item-specific instructions, additional unsupported detail,
+media, staff differences, unknown scope or missing mappings do not use the
+assumption. Existing catalogue-specific matching remains authoritative. Current
+payment, initial-status, confirmation lock and unresolved-detail guards remain.
+
+The bounded rule scores92 and stores `two_custom_name_rule`; its instruction and
+reading summary explicitly state the default assumption and its custom-item
+scope. AI confidence is not used to override conflicting customer evidence.
+
+Run `node scripts/check-autobrief-two-custom-name.mjs`: actual worker tests cover
+both custom task outcomes, note/chat/labels, quantity-two, ready-stock exclusion,
+conflicts/instructions/staff/context, no sends and baseline replay. The same
+suite passes on live lifecycle source; prior relevant regressions also pass.
+
+Production verification: live v74 exact-task canary recovered the only current
+eligible blocked two-unit order (one custom plus one ready-stock product).
+Direct ClickUp readback confirms the custom task's correct name/age92%, Ai Check,
+Confirmed and stable original comment with scope summary; ready stock remains
+unchanged and no customer send occurs. v75 additionally deduplicates multiline
+proof by message ID; actual baseline/live tests and exact native comment cleanup
+readback verify one source proof while preserving rich formatting. Two-custom
+set association is proven by controlled actual-worker tests for both task paths;
+no current unconfirmed two-custom order was available for a live two-task run.
+Concurrent lifecycle/acrylic modules are preserved unchanged.
