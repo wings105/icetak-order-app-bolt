@@ -269,3 +269,10 @@ unknown input stays review. Fresh canonical/task/version checks precede upload;
 leased deterministic filenames and uncertain-result reconciliation prevent blind
 resends. Existing confirmed tasks are not backfilled; no customer sends/status edits.
 See [native render contract](AUTOBRIEF_RENDER_AUTOMATION.md).
+
+### Render Studio
+
+Order System owns private draft/font/vision-job/event records. Authenticated
+Render Templates edits a draft; explicit confirmation publishes through the
+existing audited template save RPC. Only confirmed records feed public PNG
+rendering and the native five-minute AutoBrief worker. See [contract](RENDER_STUDIO.md).

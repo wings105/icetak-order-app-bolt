@@ -499,3 +499,12 @@ unknown input stays review. Fresh canonical/task/version checks precede upload;
 leased deterministic filenames and uncertain-result reconciliation prevent blind
 resends. Existing confirmed tasks are not backfilled; no customer sends/status edits.
 See [native render contract](AUTOBRIEF_RENDER_AUTOMATION.md).
+
+## 2026-11-06 — Template setup is draft-first
+
+Vision may propose field/font/layout metadata, but only an explicitly confirmed
+version enters the existing public renderer and native AutoBrief flow. Keep
+private drafts/fonts/jobs in Order System, preserve the last confirmed template
+during edits, and bind results to exact draft revisions. Reuse the existing
+server credential and native cron; never use a ChatGPT scheduler for this path.
+See [Render Studio](RENDER_STUDIO.md).

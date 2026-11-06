@@ -1,3 +1,11 @@
+# 2026-11-06 — Render Studio draft workflow
+
+`render-template` v9 and `render-template-ai` v1 are ACTIVE. Catalogue SKU selection,
+paired-image paste/upload, reusable fonts, queued vision setup and explicit
+confirmed-version publication are implemented. Private native rollback lifecycle
+and actual-handler regressions pass; hosted editor and real vision acceptance
+remain pending in PR #164. See [contract](RENDER_STUDIO.md).
+
 # 2026-11-06 — Native AutoBrief renderer
 
 `autobrief-render` deployment v2 and `render-template` v8 are ACTIVE. Private queue, confirmation

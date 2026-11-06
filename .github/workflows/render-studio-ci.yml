@@ -1,0 +1,25 @@
+name: Render Studio Checks
+on:
+  pull_request:
+    branches: [production]
+    paths: ['icetak-admin/**', 'public/render-test/**', 'supabase/functions/render-template*/**', 'supabase/migrations/*studio*', 'scripts/check-render-studio*', '.github/workflows/render-studio-ci.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  studio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Template and automation contracts
+        run: |
+          node --experimental-strip-types scripts/check-render-studio.mjs
+          node --experimental-strip-types scripts/check-autobrief-render.mjs
+          npx tsc --noEmit --project icetak-admin/tsconfig.app.json
+          npm run check:admin-v2
+      - run: npm run build
