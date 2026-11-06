@@ -1,3 +1,11 @@
+# 2026-11-07 — Independent MCP consent cookies
+
+MCP v5 is active. Each signed form has an independent nonce-derived host cookie;
+parallel Connect attempts no longer overwrite previous consent state. Connected
+Chrome reproduced the pre-fix expiry and verifies both forms reach credential
+validation after the fix using deliberately invalid QA credentials. Fourteen
+handler/consent regressions pass. Owner OAuth linking remains pending.
+
 # 2026-11-07 — MCP consent origin handling
 
 MCP Edge Function v4 adds signed browser/request-bound consent tokens before password

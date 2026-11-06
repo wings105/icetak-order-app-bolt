@@ -118,3 +118,15 @@ POST verifies this binding before contacting Supabase Auth. Canonical, absent or
 missing/mismatched cookies, tampering and expired or changed requests are rejected.
 Old forms must be restarted using Connect in ChatGPT; refreshing the failed POST does
 not acquire a new token. No owner credentials are used in live negative-path probes.
+
+## Independent consent cookies for parallel attempts
+
+MCP v5 gives each signed consent form a host-only cookie name derived from its
+random signed nonce. Opening another consent page no longer overwrites the first
+page's cookie. Validation and successful submission read/clear only that form's
+cookie; request/signature/expiry/Origin protections remain unchanged.
+
+Regression evidence: in connected Chrome, open form A, then form B, then submit A
+with deliberately invalid QA credentials. Before v5 it returned consent_expired;
+after v5 both A and B independently reach OWNER_LOGIN_FAILED as expected. No owner
+credentials were read or submitted. Restart pre-v5 forms once to obtain the new cookie.

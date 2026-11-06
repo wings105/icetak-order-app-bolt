@@ -52,7 +52,7 @@ async function authorize(req:Request,url:URL){
  if(!allowed)return json({error:'OWNER_REQUIRED'},403);
  const code=random();await db('icetak_mcp_codes',{code_hash:await sha(code),client_id,owner_id:signed.user.id,redirect_uri,challenge,scope,expires_at:new Date(Date.now()+180000).toISOString()});
  const dest=new URL(redirect_uri);dest.searchParams.set('code',code);dest.searchParams.set('state',state);dest.searchParams.set('iss',ORIGIN);
- return new Response(null,{status:302,headers:{location:dest.href,'cache-control':'no-store','referrer-policy':'no-referrer','set-cookie':consentCookie('')}});
+ return new Response(null,{status:302,headers:{location:dest.href,'cache-control':'no-store','referrer-policy':'no-referrer','set-cookie':consentCookie(q.get('_csrf')||'',true)}});
 }
 async function token(req:Request){
  const f=await req.formData(),client=String(f.get('client_id')||''),grant=f.get('grant_type');
