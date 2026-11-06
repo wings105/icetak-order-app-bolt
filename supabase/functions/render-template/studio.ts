@@ -18,7 +18,17 @@ export async function copyFont(sku:string,font:Obj){
 export async function studio(b:Obj,a:Obj,h:Obj){
  const rpc=(action:string,s='',data:Obj={},revision=0)=>h.rest('rpc/icetak_render_studio',{p_action:action,p_sku:s,p_actor:a.username,p_data:data,p_revision:revision});
  const action=b.action;
- if(action==='studio-list')return await rpc('list','',{q:String(b.q||'').slice(0,100),status:String(b.status||''),offset:Number(b.offset)||0});
+ if(action==='studio-products'){
+  const q=String(b.q||'').replace(/[,*()%]/g,' ').trim().slice(0,100);let filter='';
+  if(q){const variants=await h.rest('product_variants?select=product_id&sku=ilike.'+encodeURIComponent('*'+q+'*')+'&limit=40');const ids=[...new Set(variants.map((v:Obj)=>v.product_id))].filter((x:any)=>/^[a-f0-9-]{36}$/.test(x));const terms=['parent_sku.ilike.*'+q+'*','display_name.ilike.*'+q+'*',...(ids.length?['id.in.('+ids.join(',')+')']:[])];filter='&or='+encodeURIComponent('('+terms.join(',')+')');}
+  return {data:{rows:await h.rest('products?select=id,display_name,parent_sku,main_image_url&order=display_name&limit=40'+filter)}};
+ }
+ if(action==='studio-product'){
+  const pid=String(b.product_id||'');if(!/^[a-f0-9-]{36}$/.test(pid))throw Error('Pilih produk');
+  const [products,variants,images]=await Promise.all([h.rest('products?id=eq.'+pid+'&select=id,display_name,parent_sku,main_image_url&limit=1'),h.rest('product_variants?product_id=eq.'+pid+'&select=id,name,sku&order=name&limit=500'),h.rest('product_images?product_id=eq.'+pid+'&select=id,public_url,source_url&order=position&limit=100')]);
+  if(!products[0])throw Error('Produk tidak ditemui');return {data:{product:products[0],variants,images}};
+ }
+ if(action==='studio-list'){const result=await rpc('list','',{q:String(b.q||'').slice(0,100),status:String(b.status||''),offset:Number(b.offset)||0}),fonts=await rpc('fonts');for(const row of result.rows)row.font_names=[...new Set((row.config?.layers||[]).map((l:Obj)=>l.font_path?(fonts.find((f:Obj)=>f.path===l.font_path||l.font_path.includes('/'+f.id+'.'))?.name||'Font custom'):l.text.fontFamily))];return result;}
  if(action==='studio-fonts'){
   let fonts=await rpc('fonts');if(!fonts.length){
    const templates=await h.rest('render_templates?select=font_path,config&limit=200'),paths=[...new Set<string>(templates.flatMap((t:Obj)=>[t.font_path,...(t.config.layers||[]).map((l:Obj)=>l.font_path)]).filter(Boolean))].slice(0,20);
