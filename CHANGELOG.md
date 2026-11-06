@@ -6,7 +6,9 @@
   permanent-error rejection. Bound authorization calls, attempt session cleanup
   on failure and emit safe stage/request-ID diagnostics. Twenty handler regressions
   and live rollback idempotency/PKCE/replay tests pass. No real ChatGPT linking or
-  sustained provider-outage repair is claimed. See docs/ICETAK_MCP.md.
+  sustained provider-outage repair is claimed. Consent/gateway form CSP also
+  permits the two existing ChatGPT callback hosts; controlled Chrome proves
+  self-only 302 blocking and exact-host navigation recovery. See docs/ICETAK_MCP.md.
 
 ## 2026-11-07 — MCP popup consent cookies
 

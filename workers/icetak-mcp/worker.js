@@ -13,7 +13,7 @@ export default {
   // Restore only our own generated, escaped GET consent form on the stable issuer.
   if(incoming.pathname==='/authorize'&&request.method==='GET'&&response.status===200){
    out.set('Content-Type','text/html; charset=utf-8');
-   out.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
+   out.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https://chatgpt.com https://chat.openai.com; frame-ancestors 'none'; base-uri 'none'");
    out.set('Referrer-Policy','no-referrer');
   }
   return new Response(response.body,{status:response.status,headers:out});

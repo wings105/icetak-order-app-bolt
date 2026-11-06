@@ -193,3 +193,19 @@ wrong PKCE rejection and one-use consumption. No test client/grant is retained.
 The owner connection and genuine ChatGPT callback/token exchange remain acceptance
 work. A bounded retry improves transient recovery; it does not repair a sustained
 Supabase outage or prove final ChatGPT linking.
+
+
+## Callback navigation policy — 7 November
+
+After fixing code persistence, a separate review found consent CSP still restricted
+`form-action` to self. Connected Chrome control testing with two owned QA origins
+proves a same-origin POST's 302 to a second origin stays blocked under self-only
+policy and succeeds when that exact destination is allowed. No ChatGPT navigation
+or owner credentials were used in this test.
+
+Edge v9 and the stable gateway now allow only self, `https://chatgpt.com` and
+`https://chat.openai.com` for form navigation. The POST action remains same-origin;
+its 302 returns via GET to the exact registered HTTPS callback, after all existing
+consent/owner/PKCE checks. Other origins, scripts and framing remain blocked. The
+gateway must carry the same policy because it restores Supabase's HTML headers.
+This controlled navigation test does not establish real ChatGPT callback acceptance.

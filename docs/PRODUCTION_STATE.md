@@ -1,11 +1,13 @@
 # 2026-11-07 — MCP post-login database timeout
 
 Production logs confirm owner login succeeded, then OAuth code persistence failed
-with HTTP 500 / SQLSTATE57014 during a wider database timeout interval. MCP v8
+with HTTP 500 / SQLSTATE57014 during a wider database timeout interval. MCP v9
 adds a single idempotent retry of the same code hash, bounded authorization calls,
 cleanup on failure and safe stage/request-ID diagnostics. Twenty actual-handler
 regressions and live rollback idempotency/one-use/PKCE checks pass. Actual owner
 ChatGPT linking remains pending; this does not claim the provider outage is repaired.
+Consent/gateway CSP also allows only the two existing ChatGPT callback hosts;
+controlled Chrome redirect testing proves self-only blocking and exact-host recovery.
 See [contract](ICETAK_MCP.md#post-login-database-timeout-recovery--7-november).
 
 # 2026-11-07 — Opaque-origin MCP consent popup
