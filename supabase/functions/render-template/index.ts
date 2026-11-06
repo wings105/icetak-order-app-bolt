@@ -101,6 +101,7 @@ Deno.serve(async req=>{
    return out({ok:true,token,message:'Simpan key dalam AP. Key lama bagi admin ini dibatalkan.'});
   }
   if(b.action==='automation-revoke'){await rest('rpc/icetak_render_key_revoke',{p_actor:a.username});return out({ok:true});}
+  if(b.action==='qc-status')return out({ok:true,...await rest('rpc/icetak_ai_qc',{p_action:'status'})});
   if(b.action==='auto-status')return out({ok:true,...await rest('rpc/icetak_render_auto_status',{})});
   if(b.action==='list')return out({ok:true,templates:await rest('render_templates?select=sku,image_path,font_path,config,version,updated_at&order=sku&limit=200')});
   throw new Error(b.action==='save'?'Gunakan Save Draft dan Confirm Template dalam editor baharu.':'Action tidak sah');
