@@ -1,12 +1,13 @@
 # 2026-11-06 — Conditional age layout (controlled verification)
 
-Native renderer v3, gateway v13 and template vision v3 are ACTIVE. Sources
+Native renderer v4, gateway v13 and template vision v3 are ACTIVE. Sources
 `age_number`, `age_prefix` and `age_suffix` preserve exact age spans. Actual-worker
 controlled tests prove all three requested label layouts, task/source guards, one
 upload and receipt readback. Existing AutoBrief confirmations/wording are not
 modified. The current canonical AutoBrief worker is preserved (v72). New layout
-drafts require operator visual review and confirmation. Hosted editor acceptance
-and fresh future-order delivery are separate remaining verification surfaces.
+drafts require operator visual review and confirmation. Signed-in production
+editor tests and rendered preview verify all three conditional label inputs;
+fresh future-order delivery remains a separate verification surface.
 
 # 2026-11-06 — Render Studio draft workflow
 
