@@ -5,7 +5,8 @@ audit, native source/readiness checks and OpenAI vision are active for two pilot
 templates. A real selected output passed rules v3. Earlier calibration defects
 were safely held. Automatic printing release is disabled during pilot calibration.
 Controlled actual-worker tests verify native file/brief/readiness handoff and
-receipt reconciliation. Hosted log acceptance is pending publication. See
+receipt reconciliation. Signed-in hosted owner log displays the latest PASS, summary and template version.
+Native unauthorized calls return 401. SQL lease/ACL tests pass. See
 [AI QC contract](AI_QC_TOPPER.md).
 
 # 2026-11-06 — Conditional age layout (controlled verification)

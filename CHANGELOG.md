@@ -1,7 +1,7 @@
 ## 2026-11-06 — AI QC Topper pilot
 
 - [PRODUCTION] Private native QC queue and OpenAI vision compare rendered topper PNGs with scoped customer evidence, AutoBrief and template. An explicitly selected real pilot passed exact name/number/unit reading; source, byte-hash and version checks gate approval. Provider/lease failures remain bounded holds/retries.
-- [VERIFIED] Owner QC log builds in Render Templates. Controlled actual-worker tests prove native final-file/brief/readiness printing handoff and receipt reconciliation. Printing auto-release remains disabled during calibration; no claim of real unattended release or calibrated accuracy. See docs/AI_QC_TOPPER.md.
+- [PRODUCTION] Signed-in owner QC log in Render Templates displays the latest real PASS, summary, template version and explicit pilot mode. Controlled actual-worker tests prove native final-file/brief/readiness printing handoff and receipt reconciliation. Printing auto-release remains disabled during calibration; no claim of real unattended release or calibrated accuracy. See docs/AI_QC_TOPPER.md.
 
 ## 2026-11-06 — Conditional age label rendering
 

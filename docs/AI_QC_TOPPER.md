@@ -56,3 +56,12 @@ version checks remain. Source changes invalidate native brief readiness.
 - TypeScript, Admin source guard, native render regressions and full build pass.
 - Real native auto-release remains unverified/disabled; fresh rollout trigger and
   longer calibration remain operational acceptance rather than Completed/100%.
+
+## Hosted acceptance
+
+PR #169 is merged into production at `389137b`; Studio CI, guard and Workers
+Builds passed. Signed-in owner opened Render Templates → AI QC Topper, refreshed
+and observed the latest real PASS summary and template version. Pilot mode is
+explicit in the UI. Unauthenticated worker requests return 401. SQL tests also
+cover unknown run/audit IDs and stale leases. The native printing auto-release
+path remains disabled and has controlled rather than real-release evidence.
