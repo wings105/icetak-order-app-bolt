@@ -1,3 +1,13 @@
+## 2026-11-07 — MCP OAuth code-save timeout recovery
+
+- [VERIFIED controlled recovery; owner linking pending] Diagnose actual post-login
+  code persistence HTTP500/SQLSTATE57014 amid database timeouts. Retry the same
+  code hash once with conflict-ignore/minimal return, preserving one-use PKCE and
+  permanent-error rejection. Bound authorization calls, attempt session cleanup
+  on failure and emit safe stage/request-ID diagnostics. Twenty handler regressions
+  and live rollback idempotency/PKCE/replay tests pass. No real ChatGPT linking or
+  sustained provider-outage repair is claimed. See docs/ICETAK_MCP.md.
+
 ## 2026-11-07 — MCP popup consent cookies
 
 - [VERIFIED controlled popup; owner linking pending] Reproduce `consent_expired`

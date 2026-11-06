@@ -57,3 +57,72 @@ test('consent POST accepts null/missing Origin only with a signed matching brows
   r=await handle(new Request(p.ORIGIN+'/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',cookie,origin:'https://attacker.example'},body:params.toString()}));assert.equal((await r.json()).error,'invalid_origin');assert.equal(authCalls,3);
  }finally{globalThis.fetch=original;}
 });
+
+async function consentFixture(){
+ const params=new URLSearchParams({client_id:'client',redirect_uri:'https://chatgpt.com/connector/oauth/qa',response_type:'code',code_challenge:'a'.repeat(43),code_challenge_method:'S256',state:'success-state',scope:p.SCOPES.join(' '),resource:p.ORIGIN+'/mcp'});
+ const page=await handle(new Request(p.ORIGIN+'/authorize?'+params)),html=await page.text();
+ params.set('_csrf',html.match(/name="_csrf" value="([^"]+)"/)[1]);params.set('email','fixture@example.invalid');params.set('password','fixture-private-password');
+ return {params,cookie:page.headers.get('set-cookie').split(';')[0]};
+}
+const consentPost=f=>handle(new Request(p.ORIGIN+'/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',origin:'null',cookie:f.cookie},body:f.params.toString()}));
+
+test('successful consent retries a cancelled code save once with the same hash, then redirects with original state',async()=>{
+ const f=await consentFixture(),original=globalThis.fetch;let attempts=[],cleanups=0;
+ globalThis.fetch=async(input,init={})=>{
+  const u=new URL(String(input));
+  if(u.pathname==='/auth/v1/token')return j({user:{id:owner},access_token:'fixture-private-session'});
+  if(u.pathname==='/auth/v1/logout'){cleanups++;return new Response(null,{status:204});}
+  if(u.pathname.endsWith('/icetak_mcp_codes')){
+   assert.equal(u.searchParams.get('on_conflict'),'code_hash');assert.match(init.headers.prefer,/resolution=ignore-duplicates,return=minimal/);
+   attempts.push(JSON.parse(init.body));return attempts.length===1?Response.json({code:'57014',message:'canceling statement due to statement timeout'},{status:500}):new Response(null,{status:201});
+  }
+  return original(input,init);
+ };
+ try{
+  const response=await consentPost(f);assert.equal(response.status,302);const dest=new URL(response.headers.get('location'));
+  assert.equal(dest.origin,'https://chatgpt.com');assert.equal(dest.searchParams.get('state'),'success-state');assert.equal(dest.searchParams.get('iss'),p.ORIGIN);
+  assert.equal(await p.sha(dest.searchParams.get('code')),attempts[0].code_hash);assert.deepEqual(attempts[0],attempts[1]);assert.equal(cleanups,1);
+  assert.match(response.headers.get('set-cookie'),/Max-Age=0/);assert.equal(attempts[0].owner_id,owner);
+ }finally{globalThis.fetch=original;}
+});
+
+test('lost code-save reply is retried idempotently without a second code or grant',async()=>{
+ const f=await consentFixture(),original=globalThis.fetch,rows=new Map();let calls=0;
+ globalThis.fetch=async(input,init={})=>{
+  const u=new URL(String(input));if(u.pathname==='/auth/v1/token')return j({user:{id:owner},access_token:'fixture-private-session'});
+  if(u.pathname==='/auth/v1/logout')return new Response(null,{status:204});
+  if(u.pathname.endsWith('/icetak_mcp_codes')){calls++;const row=JSON.parse(init.body);if(!rows.has(row.code_hash))rows.set(row.code_hash,row);if(calls===1)throw new DOMException('secret provider detail','TimeoutError');return new Response(null,{status:201});}
+  return original(input,init);
+ };
+ try{const r=await consentPost(f);assert.equal(r.status,302);assert.equal(calls,2);assert.equal(rows.size,1);assert.ok(rows.has(await p.sha(new URL(r.headers.get('location')).searchParams.get('code'))));}finally{globalThis.fetch=original;}
+});
+
+test('persistent code-save timeout returns safe stage/code/request ID, cleans login and stops after two attempts',async()=>{
+ const f=await consentFixture(),original=globalThis.fetch,originalError=console.error,logs=[];let calls=0,cleanups=0;
+ console.error=x=>logs.push(x);
+ globalThis.fetch=async(input,init={})=>{
+  const u=new URL(String(input));if(u.pathname==='/auth/v1/token')return j({user:{id:owner},access_token:'fixture-private-session'});
+  if(u.pathname==='/auth/v1/logout'){cleanups++;return new Response(null,{status:204});}
+  if(u.pathname.endsWith('/icetak_mcp_codes')){calls++;return Response.json({code:'57014',details:'private provider SQL and customer values',message:'canceling statement'},{status:500});}
+  return original(input,init);
+ };
+ try{const r=await consentPost(f),body=await r.json();assert.equal(r.status,503);assert.equal(body.stage,'authorization_code_save');assert.equal(body.reason,'database_timeout');assert.equal(body.provider_code,'57014');assert.match(body.request_id,/^[a-f0-9-]{36}$/);assert.equal(body.request_id,JSON.parse(logs[0]).request_id);assert.equal(calls,2);assert.equal(cleanups,1);assert.equal(r.headers.get('retry-after'),'5');for(const secret of ['fixture-private-session','fixture-private-password',f.params.get('_csrf'),'private provider SQL']){assert.ok(!JSON.stringify(body).includes(secret));assert.ok(!logs.join('').includes(secret));}}finally{console.error=originalError;globalThis.fetch=original;}
+});
+
+test('authorization denies inactive owner, cleans the login on lookup failure and does not retry permanent save errors',async()=>{
+ const f=await consentFixture(),original=globalThis.fetch,originalError=console.error;let mode='denied',saves=0,cleanups=0;console.error=()=>{};
+ globalThis.fetch=async(input,init={})=>{
+  const u=new URL(String(input));if(u.pathname==='/auth/v1/token')return j({user:{id:owner},access_token:'fixture-private-session'});
+  if(u.pathname==='/auth/v1/logout'){cleanups++;return new Response(null,{status:204});}
+  if(u.pathname.endsWith('/admin_users')){if(mode==='denied')return j([]);if(mode==='lookup-failed')throw new TypeError('private network text');}
+  if(u.pathname.endsWith('/icetak_mcp_codes')){saves++;return Response.json({code:'23503',details:'private constraint detail'},{status:409});}
+  return original(input,init);
+ };
+ try{let r=await consentPost(f);assert.equal((await r.json()).error,'OWNER_REQUIRED');assert.equal(saves,0);mode='lookup-failed';r=await consentPost(f);assert.equal((await r.json()).stage,'owner_lookup');assert.equal(saves,0);mode='permanent';r=await consentPost(f);assert.equal(r.status,502);assert.equal((await r.json()).provider_code,'23503');assert.equal(saves,1);assert.equal(cleanups,3);}finally{console.error=originalError;globalThis.fetch=original;}
+});
+
+test('auth service timeout is reported as availability failure rather than an incorrect password',async()=>{
+ const f=await consentFixture(),original=globalThis.fetch,originalError=console.error;let calls=0;console.error=()=>{};
+ globalThis.fetch=async(input,init={})=>{if(String(input).includes('/auth/v1/token')){calls++;return Response.json({code:'request_timeout',message:'private service detail'},{status:504});}return original(input,init);};
+ try{const r=await consentPost(f),body=await r.json();assert.equal(r.status,503);assert.equal(body.error,'MCP_REQUEST_FAILED');assert.equal(body.stage,'owner_login');assert.equal(body.upstream_status,504);assert.equal(calls,1);assert.ok(!JSON.stringify(body).includes('private service detail'));}finally{console.error=originalError;globalThis.fetch=original;}
+});

@@ -6,13 +6,26 @@ type Obj=Record<string,any>;
 const BASE=Deno.env.get('SUPABASE_URL')||'',KEY=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const encoder=new TextEncoder();
 const json=(v:unknown,status=200,extra:Record<string,string>={})=>Response.json(v,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff','access-control-allow-origin':ORIGIN,...extra}});
+type FailureContext={request_id:string;stage:string};
+class UpstreamFailure extends Error {
+ reason:string;upstream_status:number;provider_code:string;
+ constructor(reason:string,upstream_status=0,provider_code=''){super(reason);this.reason=reason;this.upstream_status=upstream_status;this.provider_code=provider_code;}
+ get transient(){return this.reason==='upstream_timeout'||this.reason==='upstream_network'||[408,429,500,502,503,504].includes(this.upstream_status);}
+}
+async function upstream(input:string,init:RequestInit){
+ try{return await fetch(input,init);}catch(e){throw new UpstreamFailure(e instanceof Error&&['TimeoutError','AbortError'].includes(e.name)?'upstream_timeout':'upstream_network');}
+}
+async function providerFailure(r:Response){
+ let code='';try{const v=await r.json();if(typeof v.code==='string'&&/^[A-Za-z0-9_]{1,24}$/.test(v.code))code=v.code;}catch{}
+ return new UpstreamFailure(code==='57014'?'database_timeout':'upstream_http',r.status,code);
+}
 const esc=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
-async function db(path:string,body?:unknown,method=body===undefined?'GET':'POST',prefer='return=representation') {
- const r=await fetch(BASE+'/rest/v1/'+path,{method,headers:{apikey:KEY,authorization:'Bearer '+KEY,'Content-Type':'application/json',prefer},body:body===undefined?undefined:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(15000)});
- if(!r.ok)throw Error('DATABASE_'+r.status);const raw=await r.text();return raw?JSON.parse(raw):null;
+async function db(path:string,body?:unknown,method=body===undefined?'GET':'POST',prefer='return=representation',timeoutMs=15000) {
+ const r=await upstream(BASE+'/rest/v1/'+path,{method,headers:{apikey:KEY,authorization:'Bearer '+KEY,'Content-Type':'application/json',prefer},body:body===undefined?undefined:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(timeoutMs)});
+ if(!r.ok)throw await providerFailure(r);const raw=await r.text();return raw?JSON.parse(raw):null;
 }
 const setting=async(key:string)=>(await db('private_runtime_settings?setting_key=eq.'+encodeURIComponent(key)+'&select=setting_value&limit=1'))[0]?.setting_value||'';
-async function owner(id:string){return !!(await db('admin_users?auth_user_id=eq.'+encodeURIComponent(id)+'&role=eq.owner&is_active=eq.true&select=id&limit=1'))[0];}
+async function owner(id:string,timeoutMs=15000){return !!(await db('admin_users?auth_user_id=eq.'+encodeURIComponent(id)+'&role=eq.owner&is_active=eq.true&select=id&limit=1',undefined,'GET','return=representation',timeoutMs))[0];}
 async function principal(req:Request):Promise<Obj|null>{
  const value=req.headers.get('authorization')?.match(/^Bearer (\S+)$/i)?.[1];if(!value||value.length>4000)return null;
  const row=(await db('icetak_mcp_tokens?access_hash=eq.'+await sha(value)+'&revoked_at=is.null&expires_at=gt.'+encodeURIComponent(new Date().toISOString())+'&select=owner_id,client_id,scope&limit=1'))[0];
@@ -29,11 +42,13 @@ async function mint(owner_id:string,client_id:string,scope:string){
  return {access_token:access,token_type:'Bearer',expires_in:3600,refresh_token:refresh,scope};
 }
 function authorizationMetadata(){return {issuer:ORIGIN,authorization_endpoint:ORIGIN+'/authorize',token_endpoint:ORIGIN+'/token',registration_endpoint:ORIGIN+'/register',revocation_endpoint:ORIGIN+'/revoke',response_types_supported:['code'],grant_types_supported:['authorization_code','refresh_token'],token_endpoint_auth_methods_supported:['none'],code_challenge_methods_supported:['S256'],authorization_response_iss_parameter_supported:true,scopes_supported:SCOPES};}
-async function authorize(req:Request,url:URL){
+async function authorize(req:Request,url:URL,ctx:FailureContext){
+ ctx.stage='consent_form';
  const form=req.method==='POST'?await req.formData():null;
  const q=form?new URLSearchParams(Array.from(form.entries()).map(([k,v])=>[k,String(v)])):url.searchParams;
  const client_id=q.get('client_id')||'',redirect_uri=q.get('redirect_uri')||'',challenge=q.get('code_challenge')||'',scope=q.get('scope')||SCOPES.join(' '),state=q.get('state')||'';
- const c=(await db('icetak_mcp_clients?client_id=eq.'+encodeURIComponent(client_id)+'&select=redirect_uris&limit=1'))[0];
+ ctx.stage='client_lookup';
+ const c=(await db('icetak_mcp_clients?client_id=eq.'+encodeURIComponent(client_id)+'&select=redirect_uris&limit=1',undefined,'GET','return=representation',5000))[0];
  if(!c||!redirectAllowed(redirect_uri)||!c.redirect_uris.includes(redirect_uri)||q.get('response_type')!=='code'||q.get('code_challenge_method')!=='S256'||!/^[-_A-Za-z0-9]{43}$/.test(challenge)||state.length>2048||scope.split(' ').some(s=>!SCOPES.includes(s))||q.get('resource')&&q.get('resource')!==ORIGIN+'/mcp')return json({error:'invalid_request'},400);
  if(req.method==='GET'){
  const csrf=await createConsent(q,KEY);
@@ -44,14 +59,27 @@ async function authorize(req:Request,url:URL){
  if(origin&&origin!=='null'&&origin!==ORIGIN)return json({error:'invalid_origin'},403);
  const consent=await checkConsent(q,req.headers.get('cookie')||'',KEY);
  if(!consent.ok)return json({error:'consent_expired',reason:consent.reason,revision:CONSENT_REVISION,message:'Sesi borang login tidak sah. Buka semula Connect iCetak dalam ChatGPT.'},403);
- const login=await fetch(BASE+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({email:q.get('email'),password:q.get('password')}),signal:AbortSignal.timeout(15000)});
+ ctx.stage='owner_login';
+ const login=await upstream(BASE+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({email:q.get('email'),password:q.get('password')}),signal:AbortSignal.timeout(10000)});
+ if(login.status===429||login.status>=500)throw await providerFailure(login);
  if(!login.ok)return json({error:'OWNER_LOGIN_FAILED',message:'Semak email/kata laluan owner dan cuba semula.'},401);
  const signed=await login.json();
- const allowed=await owner(signed.user?.id||'');
- // Dispose of this one-shot Supabase login session; MCP uses separate scoped tokens.
- await fetch(BASE+'/auth/v1/logout?scope=local',{method:'POST',headers:{apikey:KEY,authorization:'Bearer '+signed.access_token},signal:AbortSignal.timeout(10000)}).catch(()=>null);
- if(!allowed)return json({error:'OWNER_REQUIRED'},403);
- const code=random();await db('icetak_mcp_codes',{code_hash:await sha(code),client_id,owner_id:signed.user.id,redirect_uri,challenge,scope,expires_at:new Date(Date.now()+180000).toISOString()});
+ const code=random();
+ try{
+  ctx.stage='owner_lookup';
+  if(!await owner(signed.user?.id||'',5000))return json({error:'OWNER_REQUIRED'},403);
+  ctx.stage='authorization_code_save';
+  const row={code_hash:await sha(code),client_id,owner_id:signed.user.id,redirect_uri,challenge,scope,expires_at:new Date(Date.now()+180000).toISOString()};
+  // One bounded retry of the SAME hash is idempotent even if the first reply was lost.
+  // Never retry token exchange, refresh consumption, comments or arbitrary writes.
+  for(let attempt=0;;attempt++){
+   try{await db('icetak_mcp_codes?on_conflict=code_hash',row,'POST','resolution=ignore-duplicates,return=minimal',10000);break;}
+   catch(e){if(attempt||!(e instanceof UpstreamFailure)||!e.transient)throw e;await new Promise(resolve=>setTimeout(resolve,300));}
+  }
+ }finally{
+  // Dispose of the one-shot session even when owner lookup or code persistence fails.
+  await fetch(BASE+'/auth/v1/logout?scope=local',{method:'POST',headers:{apikey:KEY,authorization:'Bearer '+signed.access_token},signal:AbortSignal.timeout(10000)}).catch(()=>null);
+ }
  const dest=new URL(redirect_uri);dest.searchParams.set('code',code);dest.searchParams.set('state',state);dest.searchParams.set('iss',ORIGIN);
  return new Response(null,{status:302,headers:{location:dest.href,'cache-control':'no-store','referrer-policy':'no-referrer','set-cookie':consentCookie(q.get('_csrf')||'',true)}});
 }
@@ -159,6 +187,7 @@ async function dispatch(){
  return {processed:results.length,results};
 }
 export async function handle(req:Request):Promise<Response>{
+ const ctx:FailureContext={request_id:crypto.randomUUID(),stage:'request'};
  const url=new URL(req.url),path=url.pathname.replace(/^\/(?:functions\/v1\/)?icetak-mcp(?=\/|$)/,'')||'/';
  try{
  if(req.method==='OPTIONS')return json({},200,{'access-control-allow-headers':'authorization,content-type,mcp-protocol-version','access-control-allow-methods':'GET,POST,DELETE,OPTIONS'});
@@ -170,7 +199,7 @@ export async function handle(req:Request):Promise<Response>{
  if((await db('icetak_mcp_clients?created_at=gt.'+encodeURIComponent(new Date(Date.now()-60000).toISOString())+'&select=client_id&limit=31')).length>=30)return json({error:'registration_rate_limited'},429);
  const client_id='icetak_'+random();await db('icetak_mcp_clients',{client_id,redirect_uris:input.redirect_uris});return json({client_id,redirect_uris:input.redirect_uris,token_endpoint_auth_method:'none',grant_types:['authorization_code','refresh_token'],response_types:['code']},201);
  }
- if(path==='/authorize'&&['GET','POST'].includes(req.method))return await authorize(req,url);
+ if(path==='/authorize'&&['GET','POST'].includes(req.method))return await authorize(req,url,ctx);
  if(path==='/token'&&req.method==='POST')return await token(req);
  if(path==='/revoke'&&req.method==='POST'){
  const f=await req.formData(),t=await sha(String(f.get('token')||'')),c=String(f.get('client_id')||'');
@@ -212,6 +241,12 @@ export async function handle(req:Request):Promise<Response>{
  }
  return json({jsonrpc:'2.0',id:rpc.id,error:{code:-32601,message:'Method not found'}});
  }catch(e){const message=e instanceof Error?e.message:'REQUEST_FAILED';return json({jsonrpc:'2.0',id:rpc.id,error:{code:message.includes('CALLBACK')?-32015:-32602,message}});}
- }catch{return json({error:'MCP_REQUEST_FAILED'},502);}
+ }catch(e){
+  const failure=e instanceof UpstreamFailure?e:null;
+  const details={request_id:ctx.request_id,stage:ctx.stage,reason:failure?.reason||'internal_error',upstream_status:failure?.upstream_status||undefined,provider_code:failure?.provider_code||undefined};
+  // Allowlisted metadata only: no request URL/query, form, credentials, tokens or raw errors.
+  console.error(JSON.stringify({event:'icetak_mcp_request_failed',...details}));
+  return json({error:'MCP_REQUEST_FAILED',...details,message:'Server iCetak tidak dapat melengkapkan sambungan. Sila cuba semula sebentar lagi.'},failure?.transient?503:502,{'retry-after':'5'});
+ }
 }
 if(import.meta.main)Deno.serve(handle);
