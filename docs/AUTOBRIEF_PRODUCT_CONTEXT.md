@@ -192,3 +192,38 @@ readback verify one source proof while preserving rich formatting. Two-custom
 set association is proven by controlled actual-worker tests for both task paths;
 no current unconfirmed two-custom order was available for a live two-task run.
 Concurrent lifecycle/acrylic modules are preserved unchanged.
+
+
+## AI confirmation grounded in customer evidence — 7 November 2026
+
+Owner-authorized AI confidence >=90 can promote a low-confidence initial glossy
+brief only when its input signature is checked against the current order/chat.
+The current active provider order must have one CUSTOM NAME product, quantity
+one and one matching task. AI needs_review must be false; target SKU must match,
+all cited IDs must belong to verified inbound session evidence, and the latest
+explicit customer wording message must be cited. Model wording must exactly
+match that source; printable punctuation and capitalization come from customer.
+
+Earlier punctuation-only variants do not create a semantic conflict. Different
+names/ages remain held unless an explicit latest correction already scopes the
+source; age conflicts, later changes, staff or buyer-note differences, unresolved
+details, ambiguous/truncated/unavailable context and multi-item targets are held.
+A model score alone never supplies missing authority. Payment, initial-status,
+confirmation locking and post-confirmation observation remain unchanged.
+
+The existing initial comment records AI confirmation, score, latest source time,
+full proof and reading summary. Layout reference requests and requested arrival
+dates are separate instructions, with arrival described as a customer request.
+`ai_confirmation_rule` records provenance and `ai_mode=evidence_confirm`; other
+model results remain advisory. Image links/backups and media warnings remain.
+
+Run `node scripts/check-autobrief-ai-confirm.mjs`. Actual baseline/live worker
+checks cover score/current-input/evidence/latest/SKU/name-age/staff/note/context/
+quantity/later-change guards, CF/comment/instruction outcome, no sends and replay.
+
+Production evidence: worker v76 matches the tested source and preserves all live
+acrylic/lifecycle modules. Exact selected-task canary completes in evidence_confirm
+mode at94%; direct ClickUp reads verify exact latest punctuation, Customize Name,
+Ai Check, Confirmed, original comment identity, both existing media references
+and separate layout/arrival-request instructions. No customer send receipts.
+This releases initial brief confirmation, not a promise of delivery or design QC.
