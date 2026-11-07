@@ -1,3 +1,13 @@
+# 2026-11-07 — Evidence-backed AI confirmation
+
+Order worker v76 allows AI>=90 to confirm the latest exact customer wording for
+one verified custom item, after current-signature, evidence-ID and conflict gates.
+Real selected-task recovery and ClickUp readback verify94%, correct punctuation,
+Ai Check, Confirmed and the original proof/summary comment with separate layout
+and arrival-request instructions. Actual baseline/live guard/replay tests and
+prior regressions pass. No sends; other runtime modules preserved. See
+[contract](AUTOBRIEF_PRODUCT_CONTEXT.md#ai-confirmation-grounded-in-customer-evidence--7-november-2026).
+
 # 2026-11-07 — MCP post-login database timeout
 
 Production logs confirm owner login succeeded, then OAuth code persistence failed

@@ -567,6 +567,39 @@ function sharedNameAgeNoteRule(input:Obj):Obj{
  return {eligible:true,reason:"EXPLICIT_SHARED_NAME_AGE_NOTE",name,age:Number(age),wording,confidence:95,item_count:refs.length,quantity:total,
   source:"Buyer Note",instruction:"Semua "+total+" topper guna nama dan umur yang sama.",scope_text:lines[2]};
 }
+// AI may confirm only wording grounded in the latest explicit customer text.
+function aiEvidenceConfirmation(input:Obj):Obj{
+ const no=(reason:string)=>({eligible:false,reason});
+ const {analysis,current,items,sku,messages,context,existingWord,note,decision,missing,provider,siblingTasks}=input;
+ if(!current||!analysis?.ok||analysis.needs_review!==false||!Number.isFinite(analysis.confidence)||analysis.confidence<90||analysis.confidence>100)return no("CURRENT_HIGH_CONFIDENCE_AI_REQUIRED");
+ if(normalized(analysis.item_sku)!==normalized(sku))return no("AI_TARGET_SKU_MISMATCH");
+ if(context.ambiguous||context.truncated||context.unavailable)return no("CHAT_CONTEXT_UNVERIFIED");
+ if(!provider?.available||!['READY_TO_SHIP','PROCESSED'].includes(provider.order_status))return no("CURRENT_ACTIVE_ORDER_REQUIRED");
+ const refs=productReferences(items);
+ if(refs.length!==1||refs[0].quantity!==1||normalized(refs[0].sku)!==normalized(sku)||! /^(CN|YS)\d{3,6}$/i.test(sku)||!/^\d{1,20}$/.test(refs[0].product_id)||!/custom\s*name/i.test(refs[0].title)||siblingTasks.length!==1)return no("SINGLE_VERIFIED_CUSTOM_ITEM_REQUIRED");
+ if(missing.length||decision.age_conflict)return no("UNRESOLVED_DETAIL_OR_AGE_CONFLICT");
+ const inbound=messages.filter((m:Obj)=>m.direction==="inbound"&&!m.is_history&&m.id&&Number.isFinite(Date.parse(m.created_at)));
+ const ids=new Set(inbound.map((m:Obj)=>String(m.id))),evidence=analysis.evidence_ids;
+ if(!Array.isArray(evidence)||!evidence.length||evidence.some((id:unknown)=>!ids.has(String(id))))return no("AI_EVIDENCE_NOT_IN_ORDER_CONTEXT");
+ const explicit=inbound.map((m:Obj)=>({message:m,value:explicitChatWording(string(m.text_content||m.caption,1400))})).filter((x:Obj)=>x.value).sort((a:Obj,b:Obj)=>Date.parse(a.message.created_at)-Date.parse(b.message.created_at));
+ const latest=explicit.at(-1);
+ if(!latest||!evidence.includes(String(latest.message.id)))return no("LATEST_CUSTOMER_WORDING_NOT_CITED");
+ if(normalized(analysis.wording)!==normalized(latest.value.wording))return no("AI_WORDING_DIFFERS_FROM_CUSTOMER");
+ const words=(v:string)=>normalized(v).replace(/[^\p{L}\p{N}]+/gu," ").trim().replace(/\s+/g," ");
+ const cutoff=latest.value.latest?Date.parse(latest.message.created_at):-Infinity;
+ // Formatting corrections may supersede earlier punctuation, never different names/ages.
+ if(explicit.some((x:Obj)=>Date.parse(x.message.created_at)>=cutoff&&words(x.value.wording)!==words(latest.value.wording)))return no("UNRESOLVED_CUSTOMER_WORDING_CONFLICT");
+ if(note&&normalized(noteWording(note))!==normalized(latest.value.wording))return no("BUYER_NOTE_CONFLICT");
+ if(existingWord&&normalized(existingWord)!==normalized(latest.value.wording))return no("STAFF_WORDING_PROTECTED");
+ const later=inbound.filter((m:Obj)=>Date.parse(m.created_at)>Date.parse(latest.message.created_at));
+ if(later.some((m:Obj)=>/\b(?:tukar|ubah|change|replace|instead|jangan|bukan|salah|silap|buang|remove|cancel|tambah|tmbh|add)\b/i.test(string(m.text_content||m.caption))))return no("LATER_CUSTOMER_CHANGE_REQUIRES_REVIEW");
+ const instructions:string[]=[];
+ if(inbound.some((m:Obj)=>/\b(?:gambar|gmbr|image|reference)\b/i.test(string(m.text_content||m.caption)))&&analysis.mode==="vision"&&Array.isArray(analysis.image_message_ids)&&analysis.image_message_ids.some((id:string)=>ids.has(id)))instructions.push("Gambar customer sebagai rujukan susunan design.");
+ for(const m of inbound){const text=string(m.text_content||m.caption,220);if(/\b(?:sebelum|before|sampai|receive)\b/i.test(text)&&/\d/.test(text))instructions.push("Permintaan customer: "+text);}
+ return {eligible:true,reason:"AI_90_WITH_EXACT_LATEST_CUSTOMER_EVIDENCE",wording:latest.value.wording,confidence:analysis.confidence,
+  instruction:instructions.join(" ").slice(0,400),evidence_ids:evidence,wording_message_id:latest.message.id,wording_at:latest.message.created_at,formatting_correction:explicit.length>1};
+}
+
 function readingSummary(input:Obj):Obj{
  const {rule,note,messages,items,decision,verified,aiAnalysis,aiCandidate}=input;
  const source=note?"Buyer Note":"chat customer";
@@ -1057,8 +1090,9 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   let aiAnalysis:Obj=job.brief?.ai_analysis||{};
   const aiCandidate=!followup.defaulted&&!sharedRule.eligible&&!labelledRule.eligible&&!cardRule.eligible&&!twoNameRule.eligible&&!orderUnpaid&&(confidence<80||multi)&&!context.ambiguous&&!context.truncated
    &&!context.unavailable&&(chronological.length>0||note.trim().length>0)&&!!productSku;
+  let analysisSignature="";
   if(aiCandidate){
-   const signature=await digest(JSON.stringify({
+   const signature=analysisSignature=await digest(JSON.stringify({
     revision:"product-context-v1",model:Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-6-luna",sku:productSku,note,
     items:productReferences(orderItems),
     messages:chronological.map((m:Obj)=>[m.id,m.text_content,m.caption,m.media_url])
@@ -1074,6 +1108,11 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    }
   }
 
+  const aiConfirmation=aiEvidenceConfirmation({analysis:aiAnalysis,current:!!analysisSignature&&aiAnalysis.input_hash===analysisSignature,items:orderItems,sku:productSku,messages:chronological,context,existingWord,note,decision,missing:unresolvedMissing,provider:providerContext,siblingTasks});
+  if(!verified&&!followup.defaulted&&aiConfirmation.eligible&&!orderUnpaid){
+   decision={...decision,wording:aiConfirmation.wording,instruction:[decision.instruction,aiConfirmation.instruction].filter(Boolean).join(" ").slice(0,400),confidence:aiConfirmation.confidence,chat_evidence:true,name_conflict:false};
+   confidence=aiConfirmation.confidence;verified=true;aiAnalysis.review_only=false;
+  }
   // Every verified inbound image in the order context is retained, not arbitrarily selected.
   const mediaCandidates=[...new Map(chronological.filter((m:Obj)=>m.message_type==="image"&&string(m.media_url))
    .map((m:Obj)=>[String(m.id),m])).values()];
@@ -1162,7 +1201,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    .replace("confirm: ✅",holdForReview?"confirm: ✅ (perubahan baharu perlu review)":verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")
    +(orderUnpaid?"\n⚠️ Order masih UNPAID — semak bayaran sebelum proses.":"")
    +(followupNote?"\n\nAutomation follow-up: "+followupNote:"");
-  if(aiCandidate&&aiAnalysis?.ok&&aiAnalysis?.needs_review!==false||aiCandidate&&aiAnalysis?.ok&&confidence<80){
+  if(!aiConfirmation.eligible&&(aiCandidate&&aiAnalysis?.ok&&aiAnalysis?.needs_review!==false||aiCandidate&&aiAnalysis?.ok&&confidence<80)){
    // One concise advisory block inside the existing AutoBrief, never a second comment.
    text+="\n\nAI cadangan (perlu semak, tidak auto-confirm): "+
     (string(aiAnalysis.wording,180)||"Tiada wording pasti")+
@@ -1170,6 +1209,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     (string(aiAnalysis.instruction,250)?"\nAI instruction: "+string(aiAnalysis.instruction,250):"")+
     (string(aiAnalysis.image_description,250)?"\nAI image: "+string(aiAnalysis.image_description,250):"");
   }
+  if(aiConfirmation.eligible)text+="\n\nAI pengesahan: "+confidence+"%; wording tepat daripada mesej customer terkini "+briefTimestamp(aiConfirmation.wording_at)+". Versi tanda baca terkini digunakan; bukti order/item disemak.";
   const interpretation=readingSummary({rule:twoNameRule.eligible?twoNameRule:bareNameRule.eligible?bareNameRule:sharedNameRule,note,messages:chronological,items:orderItems,decision,verified,aiAnalysis,aiCandidate});
   text+="\n\n"+interpretation.text;
   const hash=await digest("rich-code-v1\n"+text);
@@ -1265,7 +1305,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
    source_status:detail.info_status,product_title:product.title||"",product_id:product.product_id||"",
    direct_session:directScope?{order_id:directScope.order_id,order_no:directScope.order_no,session_id:directScope.session_id,draft_id:directScope.draft_id,target_item_id:directScope.target_item_id,start_at:context.scope_start,end_at:context.scope_end,evidence_source:context.evidence_source,later_request_excluded:context.later_request_excluded===true,reason:context.reason}:null,order_products:productReferences(orderItems),complete_note_rule:completeNoteRule,labelled_wording_rule:labelledRule,product_card_rule:cardRule,shared_name_age_rule:sharedNameRule,bare_name_rule:bareNameRule,two_custom_name_rule:twoNameRule,reading_summary:interpretation,followup,followup_remark:followupNote,
-   shared_wording_rule:sharedRule,ai_analysis:aiAnalysis?.input_hash?aiAnalysis:null,ai_mode:"advisory"};
+   shared_wording_rule:sharedRule,ai_analysis:aiAnalysis?.input_hash?aiAnalysis:null,ai_mode:aiConfirmation.eligible?"evidence_confirm":"advisory",ai_confirmation_rule:aiConfirmation};
   state=holdForReview?"review":verified?"completed":"review";
  }catch(e){
   error=String(e instanceof Error?e.message:e).slice(0,220);
