@@ -1,6 +1,7 @@
 export const STORAGE_BASE='https://buivecgahhmrhlmfujgt.supabase.co/storage/v1/object/public/render-templates/';
 export const API='https://buivecgahhmrhlmfujgt.supabase.co/functions/v1/render-template';
 export const DEFAULT_TEXT={x:50,y:40,boxWidth:60,boxHeight:12,fontFamily:'Impact',fontWeight:'900',fontSize:86,fill:'#ffe600',stroke:'#0645d8',strokeWidth:8,align:'center',letterCase:'upper',autoFit:true,curve:0,rotation:0,tracking:0,scaleX:100,scaleY:100};
+export const TEXT_WARPS=['flag','rise','wave','arc','arch'];
 const images=new Map(),fonts=new Map();
 export function loadImage(src){
  if(images.has(src))return images.get(src);
@@ -53,14 +54,25 @@ export function validateConfig(c){
   for(const [k,min,max] of [['x',0,100],['y',0,100],['boxWidth',1,100],['boxHeight',1,100],['fontSize',1,2000],['strokeWidth',0,100],['curve',-140,140],['rotation',-180,180],['tracking',-20,100],['scaleX',10,300],['scaleY',10,300]]){
    if(!Number.isFinite(t[k])||t[k]<min||t[k]>max)throw new Error(l.label+': tetapan '+k+' tidak sah');
   }
+  if(t.warp!=null&&(!TEXT_WARPS.includes(t.warp)||!Number.isFinite(t.bend)||Math.abs(t.bend)>100))throw new Error(l.label+': tetapan warp tidak sah');
   if(!['Impact','Arial','Arial Black','Georgia','Times New Roman','Verdana','Trebuchet MS','Courier New'].includes(t.fontFamily)||!['400','700','900'].includes(String(t.fontWeight))||!['left','center','right'].includes(t.align)||!['input','upper','lower'].includes(t.letterCase)||!/^#[a-f0-9]{6}$/i.test(t.fill)||!/^#[a-f0-9]{6}$/i.test(t.stroke))throw new Error(l.label+': gaya tulisan tidak sah');
   if(t.x-t.boxWidth/2<0||t.x+t.boxWidth/2>100||t.y-t.boxHeight/2<0||t.y+t.boxHeight/2>100)throw new Error(l.label+': kawasan tulisan mesti berada dalam gambar');
  }
  if(getFields(c).length>8)throw new Error('Maksimum 8 input field');
 }
 // Measure the actual transformed ink, including outline, rather than just text advance.
+function warpOffset(warp,u,amplitude){
+ switch(warp){
+  case 'flag': return -amplitude*Math.sin(Math.PI*u);
+  case 'wave': return -amplitude*Math.sin(2*Math.PI*u);
+  case 'rise': return -amplitude*u;
+  case 'arch': return -amplitude*(1-u*u);
+  default: return 0;
+ }
+}
 function layoutText(ctx,text,t,size){
- const angle=t.curve*Math.PI/180,rot=t.rotation*Math.PI/180,sx=t.scaleX/100,sy=t.scaleY/100;
+ const curve=t.warp?(t.warp==='arc'?t.bend*1.4:0):t.curve;
+ const angle=curve*Math.PI/180,rot=t.rotation*Math.PI/180,sx=t.scaleX/100,sy=t.scaleY/100;
  const parts=[];
  if(!angle&&!t.tracking)parts.push({text,x:0,y:0,angle:0});
  else{
@@ -69,6 +81,8 @@ function layoutText(ctx,text,t,size){
   const total=advances.reduce((a,b)=>a+b,0),radius=angle?total/Math.abs(angle):0;let cursor=-total/2;
   chars.forEach((ch,i)=>{const pos=cursor+widths[i]/2,theta=angle?pos/radius:0,sign=Math.sign(angle);parts.push({text:ch,x:angle?radius*Math.sin(theta):pos,y:angle?sign*radius*(1-Math.cos(theta)):0,angle:sign*theta});cursor+=advances[i];});
  }
+ const warp=t.warp&&t.warp!=='arc'&&t.bend?t.warp:null;
+ const cos=Math.cos(rot),sin=Math.sin(rot);
  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
  for(const p of parts){
   const m=ctx.measureText(p.text),pad=t.strokeWidth/2;
@@ -76,11 +90,51 @@ function layoutText(ctx,text,t,size){
   const left=Number.isFinite(m.actualBoundingBoxLeft)?m.actualBoundingBoxLeft:m.width/2,right=Number.isFinite(m.actualBoundingBoxRight)?m.actualBoundingBoxRight:m.width/2;
   for(const [x,y] of [[-left-pad,-a-pad],[right+pad,-a-pad],[-left-pad,d+pad],[right+pad,d+pad]]){
    const gx=(p.x+x*Math.cos(p.angle)-y*Math.sin(p.angle))*sx,gy=(p.y+x*Math.sin(p.angle)+y*Math.cos(p.angle))*sy;
-   const tx=gx*Math.cos(rot)-gy*Math.sin(rot),ty=gx*Math.sin(rot)+gy*Math.cos(rot);
+   const tx=warp?gx:gx*cos-gy*sin,ty=warp?gy:gx*sin+gy*cos;
    minX=Math.min(minX,tx);maxX=Math.max(maxX,tx);minY=Math.min(minY,ty);maxY=Math.max(maxY,ty);
   }
  }
- return {parts,minX,minY,maxX,maxY,width:maxX-minX,height:maxY-minY,rot,sx,sy};
+ let warped=null;
+ if(warp){
+  const left=Math.floor(minX),top=Math.floor(minY),width=Math.ceil(maxX)-left,height=Math.ceil(maxY)-top;
+  const amplitude=(maxY-minY)*t.bend/100;
+  const lo=Math.round(warp==='arch'?Math.min(0,-amplitude):-Math.abs(amplitude));
+  const hi=Math.round(warp==='arch'?Math.max(0,-amplitude):Math.abs(amplitude));
+  warped={warp,left,top,width,height,amplitude};
+  const corners=[[left,top+lo],[left+width,top+lo],[left,top+height+hi],[left+width,top+height+hi]];
+  const xs=corners.map(([x,y])=>x*cos-y*sin),ys=corners.map(([x,y])=>x*sin+y*cos);
+  minX=Math.min(...xs);maxX=Math.max(...xs);minY=Math.min(...ys);maxY=Math.max(...ys);
+ }
+ return {parts,minX,minY,maxX,maxY,width:maxX-minX,height:maxY-minY,rot,sx,sy,warped};
+}
+function paintText(ctx,m,t){
+ ctx.lineJoin='round';ctx.miterLimit=2;ctx.lineWidth=t.strokeWidth;ctx.strokeStyle=t.stroke;ctx.fillStyle=t.fill;
+ // Paint all outlines first so tightly spaced letters retain their fills.
+ for(const stroke of t.strokeWidth>0?[true,false]:[false])for(const p of m.parts){
+  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle);
+  if(stroke)ctx.strokeText(p.text,0,0);else ctx.fillText(p.text,0,0);
+  ctx.restore();
+ }
+}
+function paintWarp(ctx,m,t){
+ const {warp,left,top,width,height,amplitude}=m.warped;
+ const strip=document.createElement('canvas');
+ strip.width=width;strip.height=height;
+ const ink=strip.getContext('2d');
+ ink.font=ctx.font;ink.textAlign=ctx.textAlign;ink.textBaseline=ctx.textBaseline;
+ ink.translate(-left,-top);ink.scale(m.sx,m.sy);
+ paintText(ink,m,t);
+ // Move the whole painted column, keeping the fill and outline together.
+ let start=0,offset=Math.round(warpOffset(warp,-1,amplitude));
+ for(let x=1;x<=width;x++){
+  const next=Math.round(warpOffset(warp,2*x/Math.max(1,width-1)-1,amplitude));
+  if(x===width||next!==offset){
+   ctx.drawImage(strip,start,0,x-start,height,left+start,top+offset,x-start,height);
+   start=x;offset=next;
+  }
+ }
+ strip.width=0;
+
 }
 export async function prepareRender(template,wording,{guides=false,selectedLayer=null}={}){
  const c=normalizeConfig(template.config,template.font_path);validateConfig(c);
@@ -104,9 +158,9 @@ export async function prepareRender(template,wording,{guides=false,selectedLayer
    const m=measure(size);
    if(m.width>w+.01||m.height>h+.01)throw new Error(l.label+': tulisan melebihi ruang. Aktifkan auto-fit atau besarkan kawasan.');
    const tx=t.align==='left'?x-w/2-m.minX:t.align==='right'?x+w/2-m.maxX:x-(m.minX+m.maxX)/2,ty=y-(m.minY+m.maxY)/2;
-   ctx.save();ctx.translate(tx,ty);ctx.rotate(m.rot);ctx.scale(m.sx,m.sy);ctx.lineJoin='round';ctx.miterLimit=2;ctx.lineWidth=t.strokeWidth;ctx.strokeStyle=t.stroke;ctx.fillStyle=t.fill;
-   // All strokes precede fills so close-spaced letters do not erase neighbouring fills.
-   for(const stroke of t.strokeWidth>0?[true,false]:[false])for(const p of m.parts){ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle);if(stroke)ctx.strokeText(p.text,0,0);else ctx.fillText(p.text,0,0);ctx.restore();}
+   ctx.save();ctx.translate(tx,ty);ctx.rotate(m.rot);
+   if(m.warped)paintWarp(ctx,m,t);
+   else{ctx.scale(m.sx,m.sy);paintText(ctx,m,t);}
    ctx.restore();
   }
   results.push({id:l.id,label:l.label,text,fontSize:size});

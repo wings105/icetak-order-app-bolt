@@ -4,6 +4,10 @@ function textStyle(t:any){
  for(const [k,min,max,defaultValue] of [['x',0,100,null],['y',0,100,null],['boxWidth',1,100,null],['boxHeight',1,100,null],['fontSize',1,2000,null],['strokeWidth',0,100,null],['curve',-140,140,0],['rotation',-180,180,0],['tracking',-20,100,0],['scaleX',10,300,100],['scaleY',10,300,100]] as const){
   const n=Number(t[k]??defaultValue);if(!Number.isFinite(n)||n<min||n>max)throw new Error('Tetapan '+k+' tidak sah');style[k]=n;
  }
+ if(t.warp!=null){
+  if(!['flag','rise','wave','arc','arch'].includes(t.warp)||!Number.isFinite(t.bend)||Math.abs(t.bend)>100)throw new Error('Tetapan warp tidak sah');
+  style.warp=t.warp;style.bend=t.bend;
+ }
  for(const k of ['fill','stroke']){if(!/^#[a-f0-9]{6}$/i.test(t[k]||''))throw new Error('Warna tidak sah');style[k]=t[k];}
  if(!['Impact','Arial','Arial Black','Georgia','Times New Roman','Verdana','Trebuchet MS','Courier New'].includes(t.fontFamily))throw new Error('Font tidak sah');
  if(!['400','700','900'].includes(String(t.fontWeight)))throw new Error('Font weight tidak sah');

@@ -1,12 +1,13 @@
 import {useEffect,useRef,useState} from 'react';
 import type {ClipboardEvent} from 'react';
-import {DEFAULT_TEXT,STORAGE_BASE,displayRender,downloadCanvas,getFields,loadFont,normalizeConfig,prepareRender,readImageFile,validateConfig} from '../../../public/render-test/renderer.js';
-import type {AutomationInput,RenderConfig,RenderTemplate,TextConfig,TextLayer} from '../../../public/render-test/renderer.js';
+import {DEFAULT_TEXT,STORAGE_BASE,TEXT_WARPS,displayRender,downloadCanvas,getFields,loadFont,normalizeConfig,prepareRender,readImageFile,validateConfig} from '../../../public/render-test/renderer.js';
+import type {AutomationInput,RenderConfig,RenderTemplate,TextConfig,TextLayer,TextWarp} from '../../../public/render-test/renderer.js';
 import {patternKeys} from '../../../public/render-test/fields.js';
 import {renderRequest as request,catalogRequest} from '../lib/renderStudio';
 import RenderFontLibrary from '../components/RenderFontLibrary';
 import './RenderTemplates.css';
 const fresh=():RenderConfig=>({width:1447,height:2048,layers:[{id:'wording',field:'name',label:'Wording',font_path:null,text:{...DEFAULT_TEXT}}]});
+const warpLabels:Record<TextWarp,string>={flag:'Flag',rise:'Rise',wave:'Wave',arc:'Arc',arch:'Arch'};
 const fonts=['Impact','Arial','Arial Black','Georgia','Times New Roman','Verdana','Trebuchet MS','Courier New'];
 const message=(e:unknown)=>e instanceof Error?e.message:'Permintaan gagal';
 export default function RenderTemplateEditor({initialSku,productId='',variantId='',onBack}:{initialSku:string;productId?:string;variantId?:string;onBack:()=>void}){
@@ -21,6 +22,12 @@ export default function RenderTemplateEditor({initialSku,productId='',variantId=
  const template:RenderTemplate={sku,image_path:imagePath,font_path:null,config,version};
  function invalidate(){sequence.current++;setReady(false);setConfirmed(false);setOutputUrl('');}
  function change(update:(c:RenderConfig)=>RenderConfig){invalidate();setSaved(false);setConfig(c=>{const next=update(c);if(next.automation){const keys=new Set(getFields(next).map(f=>f.key));next.automation={enabled:false,inputs:Object.fromEntries(Object.entries(next.automation.inputs).filter(([k])=>keys.has(k)))};}return next;});}
+ function changeCurve(mode:string){
+  const {warp:_warp,bend,...base}=style;
+  const nextWarp=TEXT_WARPS.find(value=>value===mode);
+  const curve=mode==='straight'?0:(mode==='down'?-1:1)*(Math.abs(style.curve)||40);
+  patchLayer({text:nextWarp?{...base,curve:0,warp:nextWarp,bend:bend??30}:{...base,curve}});
+ }
  function autoInput(key:string,patch:Partial<AutomationInput>){change(c=>({...c,automation:{enabled:false,inputs:{...c.automation?.inputs,[key]:{source:'wording',required:true,default:'',...c.automation?.inputs[key],...patch,...(patch.source&&!['greeting','literal'].includes(patch.source)?{default:''}:{})}}}}));}
  function patchLayer(p:Partial<TextLayer>){change(c=>({...c,layers:c.layers.map(l=>l.id===layer.id?{...l,...p}:l)}));if(p.font_path!==undefined)setMeta((m:any)=>({...m,data:{...m.data,analysis:m.data?.analysis?{...m.data.analysis,unresolved_fonts:(m.data.analysis.unresolved_fonts||[]).filter((f:any)=>f.id!==layer.id)}:undefined}}));}
  function text<K extends keyof TextConfig>(key:K,value:TextConfig[K]){patchLayer({text:{...style,[key]:value}});}
@@ -76,8 +83,14 @@ export default function RenderTemplateEditor({initialSku,productId='',variantId=
     <label>Alignment<select aria-label="Alignment" value={style.align} onChange={e=>text('align',e.target.value as TextConfig['align'])}><option value="left">Kiri</option><option value="center">Tengah</option><option value="right">Kanan</option></select></label>
     <label>Huruf<select aria-label="Huruf" value={style.letterCase} onChange={e=>text('letterCase',e.target.value as TextConfig['letterCase'])}><option value="input">Ikut input</option><option value="upper">SEMUA BESAR</option><option value="lower">semua kecil</option></select></label>
    </div><label className="rt-check"><input type="checkbox" checked={style.autoFit} onChange={e=>text('autoFit',e.target.checked)}/>Auto-kecil tulisan supaya muat</label>
-   <h3>4. Curve & bentuk huruf</h3><label>Bentuk curve<select aria-label="Bentuk curve" value={style.curve===0?'straight':style.curve>0?'up':'down'} onChange={e=>text('curve',e.target.value==='straight'?0:(e.target.value==='up'?1:-1)*(Math.abs(style.curve)||40))}><option value="straight">Straight</option><option value="up">Lengkung atas ∩</option><option value="down">Lengkung bawah ∪</option></select></label>
-   <label>Kekuatan curve: {Math.abs(style.curve)}°<input aria-label="Kekuatan curve" type="range" min="1" max="140" disabled={style.curve===0} value={Math.abs(style.curve)||1} onChange={e=>text('curve',(style.curve<0?-1:1)*Number(e.target.value))}/></label>
+   <h3>4. Curve & bentuk huruf</h3>
+   <label>Bentuk curve<select aria-label="Bentuk curve" value={style.warp??(style.curve===0?'straight':style.curve>0?'up':'down')} onChange={e=>changeCurve(e.target.value)}>
+    <option value="straight">Straight</option><option value="up">Lengkung atas ∩</option><option value="down">Lengkung bawah ∪</option>
+    {TEXT_WARPS.map(warp=><option key={warp} value={warp}>{warpLabels[warp]}</option>)}
+   </select></label>
+   {style.warp
+    ?<label>Bend: {style.bend??0}%<input aria-label="Bend" type="range" min="-100" max="100" value={style.bend??0} onChange={e=>text('bend',Number(e.target.value))}/></label>
+    :<label>Kekuatan curve: {Math.abs(style.curve)}°<input aria-label="Kekuatan curve" type="range" min="1" max="140" disabled={style.curve===0} value={Math.abs(style.curve)||1} onChange={e=>text('curve',(style.curve<0?-1:1)*Number(e.target.value))}/></label>}
    <div className="rt-two">{number('rotation','Rotation (°)',-180,180,.1)}{number('tracking','Jarak huruf (px)',-20,100,.1)}{number('scaleX','Lebar huruf (%)',10,300)}{number('scaleY','Tinggi huruf (%)',10,300)}</div><small>100% = bentuk asal. Curve memusingkan huruf mengikut lengkungan. PNG dan preview menggunakan tetapan yang sama.</small>
    <h3>5. Kawasan tulisan</h3><small>Klik untuk pindah pusat atau drag layer aktif. Butang anak panah gerak 1 px pada gambar asal.</small>
    <div className="rt-two">{number('x','Posisi X (%)',0,100,.1)}{number('y','Posisi Y (%)',0,100,.1)}{number('boxWidth','Lebar kawasan (%)',1,100,.1)}{number('boxHeight','Tinggi kawasan (%)',1,100,.1)}</div>

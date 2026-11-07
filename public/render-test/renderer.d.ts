@@ -1,4 +1,6 @@
-export type TextConfig={x:number;y:number;boxWidth:number;boxHeight:number;fontFamily:string;fontWeight:string;fontSize:number;fill:string;stroke:string;strokeWidth:number;align:'left'|'center'|'right';letterCase:'input'|'upper'|'lower';autoFit:boolean;curve:number;rotation:number;tracking:number;scaleX:number;scaleY:number};
+export type TextWarp='flag'|'rise'|'wave'|'arc'|'arch';
+export const TEXT_WARPS:readonly TextWarp[];
+export type TextConfig={x:number;y:number;boxWidth:number;boxHeight:number;fontFamily:string;fontWeight:string;fontSize:number;fill:string;stroke:string;strokeWidth:number;align:'left'|'center'|'right';letterCase:'input'|'upper'|'lower';autoFit:boolean;curve:number;warp?:TextWarp;bend?:number;rotation:number;tracking:number;scaleX:number;scaleY:number};
 export type TextLayer={id:string;field:string;label:string;font_path:string|null;text:TextConfig;pattern?:string;field_labels?:Record<string,string>;legacy_full_wording?:boolean};
 export type AutomationInput={source:'greeting'|'name'|'age'|'age_number'|'age_prefix'|'age_suffix'|'name_age'|'wording'|'date'|'literal';required:boolean;default:string};
 export type RenderConfig={width:number;height:number;automation?:{enabled:boolean;inputs:Record<string,AutomationInput>};layers:TextLayer[];text?:TextConfig};
