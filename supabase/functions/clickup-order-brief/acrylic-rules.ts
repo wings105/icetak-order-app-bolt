@@ -1,7 +1,7 @@
 // Rules first: no provider calls, I/O or customer sends in this module.
 export type RecordData = Record<string, any>;
 export const ACRYLIC_VERSION = "acrylic-internal-v1";
-export const ACRYLIC_RULES_REVISION = "checkout-chat-phone-v4";
+export const ACRYLIC_RULES_REVISION = "checkout-chat-initials-v5";
 const text = (x: any) => String(x ?? "").replace(/\\n/g, "\n").trim();
 export const norm = (x: any) => text(x).toLowerCase().replace(/\s+/g, " ");
 const stamp = (m: RecordData) => Date.parse(m.sent_at || m.created_at || m.at || "");
@@ -190,14 +190,20 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
    add(["Best\nHusband dad"],m,"component_colours");conflicts.push("MULTI_COLOUR_REVIEW");continue;
   }
   const replacement=s.match(/^(?:tapi|tp|but)\s+(?:huruf\s+)?([\p{L}]{1,3}\s*&\s*[\p{L}]{1,3})[.!]?$/iu);
-  if(replacement&&quantity===1&&!mixed&&(scope.single_item_scope||items.length===1)&&current!=="other"){
-   const image=messages[messages.indexOf(m)-1];
-   if(image&&inbound(image)&&image.message_type==="image"&&image.media_url&&image.channel===m.channel&&
-    image.conversation_id===m.conversation_id&&stamp(m)-stamp(image)<=120_000){
-    candidates.push({words:[replacement[1]],m,source:"reference_wording",score:92,referenceId:image.id});
-    instructions.push("Ikut gaya gambar rujukan dengan wording "+replacement[1]+".");
+  const explicitInitials=s.match(/^(?:pastu\s+)?(?:nama(?:\s+tu)?\s+)?(?:nak|nk|mahu)\s+(?:tulis|letak)\s+([\p{L}]{1,3}\s*&\s*[\p{L}]{1,3})[.!]?$/iu);
+  const initialWording=replacement?.[1]||explicitInitials?.[1];
+  if(initialWording&&quantity===1&&!mixed&&(scope.single_item_scope||items.length===1)&&current!=="other"){
+   const position=messages.indexOf(m);
+   const neighbours=explicitInitials?[messages[position-1],...messages.slice(position+1,position+3)]:[messages[position-1]];
+   const images=neighbours.filter(image=>image&&inbound(image)&&!image.is_history&&image.message_type==="image"&&image.media_url&&
+    image.channel===m.channel&&image.conversation_id===m.conversation_id&&Math.abs(stamp(m)-stamp(image))<=120_000);
+   const image=images.length===1?images[0]:null;
+   if(image){
+    candidates.push({words:[initialWording],m,source:"reference_wording",score:92,referenceId:image.id});
+    instructions.push("Ikut gaya gambar rujukan dengan wording "+initialWording+".");
     current="acrylic";continue;
    }
+   add([initialWording],m,"chat");current="acrylic";continue;
   }
   const p=pair(s), askedInitial=/\b(?:initial|huruf|nama|wording|tulis)\b/i.test(previousQuestion);
   const position=messages.findIndex(x=>x.id===m.id);
@@ -257,7 +263,7 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
   colour,size,quantity,missing,conflicts:[...new Set(conflicts)],corrections,instruction:[...new Set(instructions)].join("\n").slice(0,2500),
   references:mappedImages.map(m=>({id:m.id,media_url:m.media_url,
    ...(linkedImages?{unit:assignments?.find(x=>x.imageId===m.id)?.unit}:{})})),unassigned_media_ids:unassigned.map(m=>m.id),
-  review_requested:reviewRequested,confidence,ready:!missing.length&&!conflicts.length&&!needsVision,
+  review_requested:reviewRequested||target.review_required===true,confidence,ready:!missing.length&&!conflicts.length&&!needsVision,
   needs_vision:needsVision,needs_fallback:eligibleFallback,evidence_ids:[...new Set(units.flatMap((u:RecordData)=>u.evidence_ids))],
   messages,excluded_later_count:input.length-bounded.length,excluded_contact_count:bounded.length-messages.length};
 }
