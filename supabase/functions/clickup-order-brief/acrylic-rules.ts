@@ -1,6 +1,7 @@
 // Rules first: no provider calls, I/O or customer sends in this module.
 export type RecordData = Record<string, any>;
 export const ACRYLIC_VERSION = "acrylic-internal-v1";
+export const ACRYLIC_RULES_REVISION = "checkout-units-v2";
 const text = (x: any) => String(x ?? "").replace(/\\n/g, "\n").trim();
 export const norm = (x: any) => text(x).toLowerCase().replace(/\s+/g, " ");
 const stamp = (m: RecordData) => Date.parse(m.sent_at || m.created_at || m.at || "");
@@ -10,6 +11,61 @@ const placeholder = (s: string) => !s || /^(?:custom\s*\d*\s*(?:inch|inci|kek)|p
 export function cleanWording(s: string): string {
  return text(s).replace(/^["“']|["”']$/g,'').replace(/^(?:tulis(?:an)?|huruf|initial|word(?:ing)?|nama\s*custom|custom\s*name|nama|name|ayat|text)\s*[:=,-]?\s*/i, "").replace(/\s*\bbelow\s*:\s*/i,'\n').trim();
 }
+
+const unitNumbers: Record<string, number> = {
+ first: 1, second: 2, third: 3, fourth: 4, fifth: 5,
+ pertama: 1, kedua: 2, ketiga: 3, keempat: 4, kelima: 5,
+};
+const ordinal = "\\d{1,2}(?:st|nd|rd|th)?|first|second|third|fourth|fifth|pertama|kedua|ketiga|keempat|kelima";
+const unitKind = "(?:topper|unit|piece|pc|keping)";
+const unitLabel = "(?:" + unitKind + "\\s+(?:ke[- ]?)?(?<suffix>" + ordinal + ")|(?:yang\\s+)?(?<leading>" + ordinal + ")(?:\\s+" + unitKind + ")?)\\b";
+const wordingLabel = "(?:name|text|wording|nama|tulisan|ayat)";
+const quotedWording = "(?:\"(?<double>[^\"\\n]+)\"|'(?<single>[^'\\n]+)'|“(?<curlyDouble>[^”\\n]+)”|‘(?<curlySingle>[^’\\n]+)’)";
+const wordingFirst = new RegExp("^(?:the\\s+)?" + wordingLabel + "\\s*[:=]?\\s*" + quotedWording + "\\s+(?:for|untuk|bagi|pada)\\s+(?:the\\s+)?" + unitLabel, "iu");
+const unitFirst = new RegExp("^" + unitLabel + "\\s*(?:[:=–-]\\s*|\\s+)(?:(?:the\\s+)?" + wordingLabel + "\\s*[:=]?\\s*)?" + quotedWording, "iu");
+
+export function isClearCheckoutWording(value: string): boolean {
+ return value.length > 0 && value.length <= 150 && !placeholder(value) &&
+  !/\b(?:ship|shipping|post|pos|urgent|please|tolong|contoh|sample|reference|gambar|photo|image|macam|mcm|ikut|tukar|ubah|change|replace|atau|or)\b|[?]/iu.test(value);
+}
+
+export function parseCheckoutUnits(note: string, quantity: number): string[] | null {
+ if (!Number.isInteger(quantity) || quantity < 2 || quantity > 99) return null;
+ const source = text(note);
+ const units = new Map<number, string>();
+ const add = (position: string, wording: string) => {
+  const key = position.toLowerCase();
+  const index = unitNumbers[key] ?? Number(key.replace(/(?:st|nd|rd|th)$/i, ""));
+  if (!Number.isInteger(index) || index < 1 || index > quantity || units.has(index) || !isClearCheckoutWording(wording)) return false;
+  units.set(index, wording);
+  return true;
+ };
+ const lines = source.split("\n").map(line => line.trim()).filter(Boolean);
+ const numbered = lines.map(line => line.match(/^(\d{1,2})[.)]\s+(.+)$/u));
+ if (numbered.every(Boolean) && numbered.length === quantity) {
+  for (const match of numbered) {
+   if (!match || !add(match[1], match[2].trim().replace(/^(?:"([^"]+)"|'([^']+)'|“([^”]+)”|‘([^’]+)’)$/u, "$1$2$3$4"))) return null;
+  }
+ } else {
+  const preamble = source.match(/^(?:(?:i am|i['’]m)\s+ordering|i\s+ordered|saya\s+(?:nak\s+)?(?:order|tempah|beli))\s+(\d{1,2}|two|three|four|five|dua|tiga|empat|lima)\s+(?:pieces?|pcs?|topper(?:s)?|unit|keping)\s*[,;:]\s*/iu);
+  const counts: Record<string,number> = {two:2,three:3,four:4,five:5,dua:2,tiga:3,empat:4,lima:5};
+  if (preamble && (counts[preamble[1].toLowerCase()] ?? Number(preamble[1])) !== quantity) return null;
+  let remaining = preamble ? source.slice(preamble[0].length) : source;
+  while (remaining) {
+   const match = wordingFirst.exec(remaining) || unitFirst.exec(remaining);
+   const fields = match?.groups;
+   if (!match || !fields || !add(fields.leading || fields.suffix, (fields.double || fields.single || fields.curlyDouble || fields.curlySingle).trim())) return null;
+   remaining = remaining.slice(match[0].length).trim();
+   if (!remaining || /^[.!]$/.test(remaining)) break;
+   const separator = remaining.match(/^(?:[,;]\s*(?:(?:and|dan)\s+)?|(?:and|dan)\s+)/iu);
+   if (!separator) return null;
+   remaining = remaining.slice(separator[0].length);
+   if (!remaining) return null;
+  }
+ }
+ return units.size === quantity ? Array.from({length:quantity}, (_, index) => units.get(index + 1)!) : null;
+}
+
 function pair(s: string) {
  const c = cleanWording(s);
  return /^[\p{L}][\p{L}\p{M} .'-]{0,65}\s*&\s*[\p{L}][\p{L}\p{M} .'-]{0,65}$/u.test(c) ? c : "";
@@ -54,7 +110,9 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
  };
  if(note && !placeholder(note) && (scope.single_item_scope || items.length===1)) {
   const p=pair(note), explicit=/^["“']?\s*(?:word(?:ing)?|tulis|nama|huruf|initial|text)\s*[:=]/i.test(note);
-  if(p || explicit || (/[❤♥]/.test(note)&&!/\b(?:ship|urgent|please)\b/i.test(note)) || /^(?:Happy|Selamat)\s+(?:Birthday|Engagement|Wedding)/i.test(note)) add([p||cleanWording(note)],{id:"buyer_note"},"buyer_note");
+  const checkoutUnits=scope.provider==="shopee" ? parseCheckoutUnits(note,quantity) : null;
+  if(checkoutUnits) add(checkoutUnits,{id:"buyer_note"},"buyer_note");
+  else if(p || explicit || (/[❤♥]/.test(note)&&!/\b(?:ship|urgent|please)\b/i.test(note)) || /^(?:Happy|Selamat)\s+(?:Birthday|Engagement|Wedding)/i.test(note)) add([p||cleanWording(note)],{id:"buyer_note"},"buyer_note");
  }
  // Canonical local item text is only a candidate; the chat can correct it.
  if(existing && !placeholder(existing) && !/\b(?:inch|inci|kek|gold|black|silver|yellow)\b/i.test(existing)) {
@@ -132,7 +190,7 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
  const reviewRequested=messages.some(m=>inbound(m)&&/(?:nak|nk|mahu|send|hantar|show|review)[\s\S]{0,50}(?:design\s*dulu|preview|sebelum\s*(?:potong|laser|print)|for\s*(?:review|approval))/i.test(value(m)));
  const confidence=missing.length?0:conflicts.length?65:needsVision?75:chosen?.score||0;
  const eligibleFallback=!scope.unavailable && !scope.ambiguous && !scope.truncated &&
-  (needsVision||conflicts.length>0||(messages.some(m=>inbound(m)&&(/[\p{L}\d]/u.test(value(m)))&&!/^hi(?: seller)?$|^hello$|^salam$/i.test(value(m)))&&missing.includes("wording")));
+  (needsVision||conflicts.length>0||(scope.provider==="shopee" && (scope.single_item_scope || items.length===1) && note && missing.includes("wording_each_unit"))||(messages.some(m=>inbound(m)&&(/[\p{L}\d]/u.test(value(m)))&&!/^hi(?: seller)?$|^hello$|^salam$/i.test(value(m)))&&missing.includes("wording")));
  return {profile:ACRYLIC_VERSION,units,parts,wording:units.map((u:RecordData)=>quantity>1?u.unit+". "+u.wording:u.wording).join("\n"),
   colour,size,quantity,missing,conflicts:[...new Set(conflicts)],corrections,instruction:[...new Set(instructions)].join("\n").slice(0,2500),
   references:mappedImages.map(m=>({id:m.id,media_url:m.media_url})),unassigned_media_ids:unassigned.map(m=>m.id),
