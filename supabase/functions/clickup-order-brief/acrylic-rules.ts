@@ -1,7 +1,7 @@
 // Rules first: no provider calls, I/O or customer sends in this module.
 export type RecordData = Record<string, any>;
 export const ACRYLIC_VERSION = "acrylic-internal-v1";
-export const ACRYLIC_RULES_REVISION = "checkout-units-v2";
+export const ACRYLIC_RULES_REVISION = "checkout-chat-units-v3";
 const text = (x: any) => String(x ?? "").replace(/\\n/g, "\n").trim();
 export const norm = (x: any) => text(x).toLowerCase().replace(/\s+/g, " ");
 const stamp = (m: RecordData) => Date.parse(m.sent_at || m.created_at || m.at || "");
@@ -96,6 +96,35 @@ export function boundMessages(messages: RecordData[], scope: RecordData): Record
  }
  return sorted.slice(0,end).map(m => ({...m,text_content:value(m)}));
 }
+
+type ChatUnitAssignment = {unit: number; wording: string; messageId: string; imageId: string};
+function assignChatUnitReferences(messages: RecordData[], quantity: number): ChatUnitAssignment[] | null {
+ const assignments = new Map<number, ChatUnitAssignment>();
+ const images = new Set<string>();
+ for (let index = 0; index < messages.length; index++) {
+  const message = messages[index];
+  if (!inbound(message) || message.is_history) continue;
+  const body = text(message.caption || message.text_content);
+  // A correction or cancellation requires the normal review path.
+  if (/\b(?:tukar|ubah|ganti|bukan|instead|cancel|abaikan|change|replace)\b/iu.test(body)) return null;
+  const explicit = body.match(/^(?:yg|yang|topper|unit)\s+(?<position>\d{1,2}|pertama|kedua|ketiga|keempat|kelima)\s+(?:nak|nk|mahu)\s+(?:tulisan|wording|nama|huruf)\s*[:=]?\s*(?<wording>.+?)\s+(?:mcm|macam|seperti)\s+(?:ni|ini)[.!]?$/iu);
+  const another = body.match(/^lagi\s+(?:1|satu)\s+(?:nak|nk|mahu)\s+(?:design|reka bentuk)\s+(?:mcm|macam|seperti)\s+(?:ni|ini)\s+(?:huruf|tulisan|wording|nama)\s*[:=]?\s*(?<wording>.+)$/iu);
+  if (!explicit && !another) continue;
+  const position = explicit?.groups?.position?.toLowerCase() || "";
+  const unit = explicit ? (unitNumbers[position] ?? Number(position)) : quantity === 2 && assignments.has(1) ? 2 : 0;
+  const wording = (explicit?.groups?.wording || another?.groups?.wording || "").trim();
+  if (!Number.isInteger(unit) || unit < 1 || unit > quantity || assignments.has(unit) || !isClearCheckoutWording(wording)) return null;
+  const image = message.message_type === "image" ? message : messages[index - 1];
+  if (!image || !inbound(image) || image.is_history || image.message_type !== "image" || !image.media_url ||
+   image.conversation_id !== message.conversation_id || image.channel !== message.channel ||
+   stamp(message) - stamp(image) > 120_000 || images.has(image.id)) return null;
+  images.add(image.id);
+  assignments.set(unit, {unit, wording, messageId:message.id, imageId:image.id});
+ }
+ if (assignments.size !== quantity) return null;
+ return [...assignments.values()].sort((a,b)=>a.unit-b.unit);
+}
+
 export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData {
  const target=scope.target||{}, items=scope.items||[], quantity=Number(target.quantity||target.qty)||1;
  const mixed=items.some((i:RecordData)=>i.kind && i.kind!=="acrylic");
@@ -163,9 +192,16 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
   }
   if(current==="acrylic" && /^\d{1,3}$/.test(s) && /number|nombor|angka/i.test(previousQuestion)) add([s],m,"chat");
  }
+ const chatAssignments=quantity>1&&!mixed&&(scope.single_item_scope||items.length===1)?assignChatUnitReferences(messages,quantity):null;
+ if(chatAssignments) candidates.push({words:chatAssignments.map(x=>x.wording),m:{id:chatAssignments[0].messageId},source:"chat_unit_references",score:92,chatAssignments});
  const explicit=candidates.filter(c=>c.source!=="order_item");
  const chosen=explicit.at(-1)||candidates.at(-1);
- const units=(chosen?.words||[]).map((wording:string,i:number)=>({unit:i+1,wording,colour,size,evidence_ids:[chosen?.m.id]}));
+ const units=(chosen?.words||[]).map((wording:string,i:number)=>{
+  const assignment=chosen.chatAssignments?.[i];
+  return {unit:i+1,wording,colour,size,
+   evidence_ids:assignment?[...new Set([assignment.messageId,assignment.imageId])]:[chosen.m.id],
+   ...(assignment?{reference_message_id:assignment.imageId}:{})};
+ });
  const prior=candidates.filter(c=>c!==chosen&&c.source!=="order_item");
  const differing=chosen&&prior.some(c=>JSON.stringify(c.words)!==JSON.stringify(chosen.words));
  if(differing&&!corrections.length) conflicts.push("CONFLICTING_WORDING");
@@ -180,7 +216,11 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
  }
  const mappedImages=references.filter(m=>m.topic==="acrylic"&&(!m.referenceSize||norm(size).includes(norm(m.referenceSize)))&&(!m.referenceColour||norm(colour)===norm(m.referenceColour)));
  const unassigned=references.filter(m=>m.topic==="unassigned");
- const needsVision=mappedImages.length>0;
+ const assignments=chosen?.chatAssignments as ChatUnitAssignment[]|undefined;
+ const linkedImages=assignments && references.length===quantity && mappedImages.length===quantity &&
+  mappedImages.every(image=>assignments.some(unit=>unit.imageId===image.id));
+ if(assignments&&!linkedImages) conflicts.push("UNIT_REFERENCE_UNVERIFIED");
+ const needsVision=mappedImages.length>0&&!linkedImages;
  if(mixed&&mappedImages.length>1)conflicts.push("MULTI_IMAGE_ITEM_REVIEW");
  if(unassigned.length&&mixed) conflicts.push("AMBIGUOUS_MEDIA_ITEM");
  const missing:string[]=[];
@@ -193,7 +233,8 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
   (needsVision||conflicts.length>0||(scope.provider==="shopee" && (scope.single_item_scope || items.length===1) && note && missing.includes("wording_each_unit"))||(messages.some(m=>inbound(m)&&(/[\p{L}\d]/u.test(value(m)))&&!/^hi(?: seller)?$|^hello$|^salam$/i.test(value(m)))&&missing.includes("wording")));
  return {profile:ACRYLIC_VERSION,units,parts,wording:units.map((u:RecordData)=>quantity>1?u.unit+". "+u.wording:u.wording).join("\n"),
   colour,size,quantity,missing,conflicts:[...new Set(conflicts)],corrections,instruction:[...new Set(instructions)].join("\n").slice(0,2500),
-  references:mappedImages.map(m=>({id:m.id,media_url:m.media_url})),unassigned_media_ids:unassigned.map(m=>m.id),
+  references:mappedImages.map(m=>({id:m.id,media_url:m.media_url,
+   ...(linkedImages?{unit:assignments?.find(x=>x.imageId===m.id)?.unit}:{})})),unassigned_media_ids:unassigned.map(m=>m.id),
   review_requested:reviewRequested,confidence,ready:!missing.length&&!conflicts.length&&!needsVision,
   needs_vision:needsVision,needs_fallback:eligibleFallback,evidence_ids:[...new Set(units.flatMap((u:RecordData)=>u.evidence_ids))],
   messages,excluded_later_count:input.length-messages.length};
