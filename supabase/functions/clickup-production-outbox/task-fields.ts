@@ -5,6 +5,14 @@ export const JOB_FIELD_ID = '83c94d47-6886-4c89-a55f-301f958b9879';
 const text = (value: unknown) => value == null ? '' : String(value).trim();
 const cents = (value: number) => Math.round((value + Number.EPSILON) * 100);
 
+export function edibleSizeSku(componentType: unknown, size: unknown) {
+  if (text(componentType).toLowerCase() !== 'edible') return '';
+  const purchasedSize = text(size);
+  const inches = purchasedSize.match(/^(\d+(?:\.\d+)?)\s*(?:in(?:ch(?:es)?)?|")$/i);
+  if (inches) return `${inches[1]}in`;
+  return /^a[0-9]$/i.test(purchasedSize) ? purchasedSize.toUpperCase() : purchasedSize;
+}
+
 const JOBS: Record<string, { label: string; id: string }[]> = {
   edible: [{ label: 'Edible Image', id: '7ce9cddf-c929-44fd-95a2-9769f1ed7ea3' }],
   wafer: [{ label: 'wafer paper', id: 'fd7d7117-aadb-49fe-ad83-5ca7b205a022' }],
@@ -76,7 +84,7 @@ export function taskFields(component: any, all: any[], manifest: any) {
   // first persisted component; the other task is included, never charged twice.
   const isPricePrimary = primary.id === component.id;
   const taskAmount = priceReady ? (isPricePrimary ? itemTotal : 0) : null;
-  const customFields: { id: string; value: number | string[] }[] = [];
+  const customFields: { id: string; value: number | string | string[] }[] = [];
   if (priceReady) customFields.push({ id: RM_FIELD_ID, value: taskAmount! });
   if (setRequired && setField && setOption) {
     customFields.push({ id: setField, value: [setOption] });

@@ -1,6 +1,7 @@
+import { topperSku, SKU_FIELD_ID } from './topper-sku.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.51.0';
 import { clickupCreateBody } from './create-body.ts';
-import { taskFields } from './task-fields.ts';
+import { edibleSizeSku, taskFields } from './task-fields.ts';
 
 const db = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -472,12 +473,22 @@ async function prepareEvent(candidate: any, settingsValue: any, preview = false)
     const process = itemProcess(item);
     const reference = spec.reference;
     const initialStatus = await canonicalInitialStatus(component, item);
+    // Use the purchased snapshot first; old catalog orders can fall back to catalog.
+    if (initialStatus.toLowerCase() === 'design editing -topper' && !topperSku(initialStatus, item) && item.product_id) {
+      const { data: product, error } = await db.from('products').select('parent_sku').eq('id', item.product_id).maybeSingle();
+      if (error) throw new Error('sku_lookup:' + error.message);
+      item.product_snapshot = { ...(item.product_snapshot || {}), parent_sku: product?.parent_sku || '' };
+    }
+    const sku = topperSku(initialStatus, item);
+    const fieldSku = edibleSizeSku(component.component_type, spec.size) || sku;
+    if (fieldSku) fields.custom_fields.push({ id: SKU_FIELD_ID, value: fieldSku });
 
     mapped.push({
       id: component.id,
       order_item_id: component.order_item_id,
       title: component.label || item.title || `Component ${pendingIndex + 1}`,
-      task_name:
+      sku: fieldSku || null,
+      task_name: sku ? `${Number(item.qty || 1)} x ${sku}` :
         `${orderNo} — ${fields.set_required ? `${fields.set_label}/${total} — ` : ''}${Number(item.qty || 1)}x ${
           text(item.title || component.label || `Component ${pendingIndex + 1}`)
         }${word ? ` — ${word}` : ''}`,

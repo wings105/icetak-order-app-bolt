@@ -1,3 +1,4 @@
+import { topperSku, SKU_FIELD_ID } from './topper-sku.ts';
 const mapCourier = async (inputs: any) => {
   const raw = String(inputs.delivery_method ?? "").trim();
   const value = raw
@@ -178,7 +179,7 @@ export async function clickupCreateBody(event: any) {
     clickup_order_customer: customer,
   });
   return {
-    name: `${c.quantity}x ${c.size} ${
+    name: topperSku(c.initial_clickup_status, c) ? `${c.quantity} x ${topperSku(c.initial_clickup_status, c)}` : `${c.quantity}x ${c.size} ${
       c.component_type === "mirror"
         ? "artpaper"
         : c.component_type === "acrylic"
@@ -192,6 +193,6 @@ export async function clickupCreateBody(event: any) {
     notify_all: false,
     description:
       `Order ${o.order_no} | Customer ${o.customer_name} | Phone ${o.customer_phone} | Product ${c.title} | Size ${c.size} | Style ${c.style} | Qty ${c.quantity}`,
-    custom_fields: fields.custom_fields,
+    custom_fields: topperSku(c.initial_clickup_status, c) ? [...fields.custom_fields.filter((f: any) => f.id !== SKU_FIELD_ID), { id: SKU_FIELD_ID, value: topperSku(c.initial_clickup_status, c) }] : fields.custom_fields,
   };
 }
