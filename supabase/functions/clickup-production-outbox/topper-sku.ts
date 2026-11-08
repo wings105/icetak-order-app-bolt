@@ -4,4 +4,3 @@ export function topperSku(status: unknown, item: any) {
   if (text(status).toLowerCase() !== 'design editing -topper') return '';
   return [item?.sku, item?.product_snapshot?.variant_sku, item?.customization?.variant_sku, item?.product_snapshot?.parent_sku].map(text).find(Boolean) || '';
 }
-

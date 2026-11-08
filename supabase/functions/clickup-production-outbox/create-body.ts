@@ -1,4 +1,7 @@
 import { topperSku, SKU_FIELD_ID } from './topper-sku.ts';
+
+const CONFIRMED_FIELD_ID = "afa87c64-3e48-4056-b720-cf8ea9b243e8";
+
 const mapCourier = async (inputs: any) => {
   const raw = String(inputs.delivery_method ?? "").trim();
   const value = raw
@@ -108,10 +111,6 @@ const mapFields = async (inputs: any) => {
       value: true,
     },
     {
-      id: "afa87c64-3e48-4056-b720-cf8ea9b243e8",
-      value: true,
-    },
-    {
       id: "55526fc6-8c57-4fc7-83b5-4c487c94c0c8",
       value: inputs.courier_option_id,
     },
@@ -119,6 +118,7 @@ const mapFields = async (inputs: any) => {
     // Harga dan set yang disediakan oleh queue iCetak.
     ...(Array.isArray(c.custom_fields) ? c.custom_fields : []),
   ].filter((field) =>
+    field.id !== CONFIRMED_FIELD_ID &&
     field.value !== null &&
     field.value !== undefined &&
     field.value !== ""

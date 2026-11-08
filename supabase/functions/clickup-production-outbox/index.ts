@@ -1,6 +1,7 @@
 import { topperSku, SKU_FIELD_ID } from './topper-sku.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { taskFields } from './task-fields.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2.51.0';
+import { clickupCreateBody } from './create-body.ts';
+import { edibleSizeSku, taskFields } from './task-fields.ts';
 
 const db = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -10,7 +11,7 @@ const db = createClient(
 const baseHeaders = {
   'content-type': 'application/json',
   'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET,OPTIONS',
+  'access-control-allow-methods': 'GET,POST,OPTIONS',
   'access-control-allow-headers': 'content-type,x-ap-secret',
   'access-control-expose-headers': 'x-request-id',
   'cache-control': 'no-store',
@@ -422,7 +423,8 @@ async function prepareEvent(candidate: any, settingsValue: any, preview = false)
     .select('*,order_items(*)')
     .eq('order_id', candidate.order_id)
     .order('set_index', { ascending: true, nullsFirst: false })
-    .order('created_at');
+    .order('created_at')
+    .order('id');
 
   if (componentsError) {
     throw new Error(`component_lookup:${componentsError.message}`);
@@ -478,13 +480,14 @@ async function prepareEvent(candidate: any, settingsValue: any, preview = false)
       item.product_snapshot = { ...(item.product_snapshot || {}), parent_sku: product?.parent_sku || '' };
     }
     const sku = topperSku(initialStatus, item);
-    if (sku) fields.custom_fields.push({ id: SKU_FIELD_ID, value: sku } as any);
+    const fieldSku = edibleSizeSku(component.component_type, spec.size) || sku;
+    if (fieldSku) fields.custom_fields.push({ id: SKU_FIELD_ID, value: fieldSku });
 
     mapped.push({
       id: component.id,
       order_item_id: component.order_item_id,
       title: component.label || item.title || `Component ${pendingIndex + 1}`,
-      sku: sku || null,
+      sku: fieldSku || null,
       task_name: sku ? `${Number(item.qty || 1)} x ${sku}` :
         `${orderNo} — ${fields.set_required ? `${fields.set_label}/${total} — ` : ''}${Number(item.qty || 1)}x ${
           text(item.title || component.label || `Component ${pendingIndex + 1}`)
@@ -587,6 +590,47 @@ async function prepareEvent(candidate: any, settingsValue: any, preview = false)
   };
 }
 
+// Recover a successful remote creation before any new dispatch, even when the
+// Activepieces callback or the native webhook was delayed or lost.
+async function reconcilePendingComponent(candidate: any) {
+  const { data: pending, error } = await db.from('production_components')
+    .select('id,order_id').eq('order_id', candidate.order_id)
+    .is('clickup_task_id', null)
+    .order('set_index', { ascending: true, nullsFirst: false })
+    .order('created_at').order('id').limit(1).maybeSingle();
+  if (error) throw error;
+  if (!pending) return;
+  const { data: credential, error: tokenError } = await db.from('private_runtime_settings')
+    .select('setting_value').eq('setting_key', 'clickup_designer_api_token').single();
+  if (tokenError || !credential?.setting_value) throw new Error('clickup_preflight_not_connected');
+  const matches = new Map<string, any>();
+  for (const list of ['18375902', '901612769752']) {
+    for (let page = 0; page < 10; page++) {
+      const params = new URLSearchParams({include_closed:'true',subtasks:'false',page:String(page),
+        custom_fields:JSON.stringify([{field_id:'1aa98168-cf59-4f52-a892-3acce4977e52',operator:'==',value:pending.id}])});
+      const response = await fetch('https://api.clickup.com/api/v2/list/'+list+'/task?'+params,
+        {headers:{authorization:credential.setting_value},redirect:'error',signal:AbortSignal.timeout(10000)});
+      if (!response.ok) throw new Error('clickup_preflight_http_'+response.status);
+      const result = await response.json();
+      if (!Array.isArray(result.tasks)) throw new Error('clickup_preflight_invalid_response');
+      for (const task of result.tasks) {
+        const fields = Array.isArray(task.custom_fields) ? task.custom_fields : [];
+        const component = fields.find((f:any)=>f.id==='1aa98168-cf59-4f52-a892-3acce4977e52')?.value;
+        const order = fields.find((f:any)=>f.id==='1bf24635-5405-47ec-9985-4b4d21f9c937')?.value;
+        if (component===pending.id && order===pending.order_id) matches.set(task.id,task);
+      }
+      if (result.last_page===true || result.tasks.length<100) break;
+      if (page===9) throw new Error('clickup_preflight_pagination_limit');
+    }
+  }
+  if (matches.size>1) throw new Error('duplicate_component_tasks_reconcile_required');
+  if (matches.size===1) {
+    const task = [...matches.values()][0];
+    const { error: linkError } = await db.rpc('icetak_accept_verified_clickup_snapshot',{p_task:task});
+    if (linkError) throw linkError;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   const requestId = crypto.randomUUID();
   const requestStarted = nowMs();
@@ -596,16 +640,21 @@ Deno.serve(async (req: Request) => {
       headers: { ...baseHeaders, 'x-request-id': requestId },
     });
   }
-  if (req.method !== 'GET') {
+  if (!['GET','POST'].includes(req.method)) {
     return json({ error: 'method_not_allowed', request_id: requestId }, 405, requestId);
   }
 
   try {
     const settingsValue = await settings();
-    const auth = await authState(
-      req,
-      text(settingsValue.clickup?.secret_sha256),
-    );
+    const {data:nativeSetting,error:nativeError}=await db.from('system_settings').select('value').eq('key','native_clickup_integration').maybeSingle();
+    if(nativeError) throw nativeError;
+    const native=req.method==='POST';
+    if(native){
+      const {data:authorized,error}=await db.rpc('clickup_order_gate_auto',{p_action:'worker_auth',p_secret:req.headers.get('x-gate-worker-key')||''});
+      if(error||!authorized?.ok)return json({error:'unauthorized'},401,requestId);
+    }
+    const nativeEnabled=nativeSetting?.value?.creation_enabled===true;
+    const auth = native ? {ok:true,hasHeader:true,rawLength:0,trimmedLength:0,fingerprint:null} : await authState(req,text(settingsValue.clickup?.secret_sha256));
 
     if (!auth.ok) {
       await audit({
@@ -661,6 +710,13 @@ Deno.serve(async (req: Request) => {
         payload_contract: 'task-price-set-v1',
       }, 200, requestId);
     }
+    if(!native && nativeEnabled) return json({ok:true,count:0,events:[],mode:'native',reason:'managed_by_icetak'},200,requestId);
+    if(native && !nativeEnabled) return json({ok:true,disabled:true,count:0},200,requestId);
+    // Reconcile uncertain creations before considering any new POST.
+    if(native){
+      const {data:recover}=await db.from('integration_outbox').select('id,order_id,event_type').eq('event_type','clickup.production.create').eq('provider','activepieces').in('status',['processing','failed']).order('created_at').limit(5);
+      for(const candidate of recover||[]){try{await reconcilePendingComponent(candidate);}catch(e){console.error('native_reconcile',String(e));}}
+    }
     const limit = Math.max(
       1,
       Math.min(Number(url.searchParams.get('limit') || 1), 10),
@@ -679,6 +735,9 @@ Deno.serve(async (req: Request) => {
       if (results.length >= limit) break;
 
       try {
+        await reconcilePendingComponent(candidate);
+        // Readiness can change after enqueue (cancelled/unpaid/approval revoked).
+        if(native){const {data:ready,error}=await db.rpc('icetak_native_clickup_ready',{p_order_id:candidate.order_id});if(error)throw error;if(!ready)continue;}
         const prepared = await prepareEvent(candidate, settingsValue);
 
         if (prepared.kind === 'already_processed') {
@@ -750,7 +809,38 @@ Deno.serve(async (req: Request) => {
           continue;
         }
 
-        results.push(prepared.result);
+        if (claimed.payload?.dispatched_component_id !== prepared.result.components[0]?.id) {
+          throw new Error('claimed_component_changed');
+        }
+        if(native){
+          const body=await clickupCreateBody(prepared.result);
+          const {data:credential,error}=await db.from('private_runtime_settings').select('setting_value').eq('setting_key','clickup_designer_api_token').single();
+          if(error||!credential?.setting_value)throw new Error('clickup_not_connected');
+          let response:Response;
+          try{response=await fetch('https://api.clickup.com/api/v2/list/18375902/task',{
+            method:'POST',headers:{authorization:credential.setting_value,'content-type':'application/json'},
+            body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(15000)});
+          }catch{throw new Error('creation_outcome_unknown_reconcile_required');}
+          const task=await response.json().catch(()=>null);
+          if(!response.ok){
+            // A rate-limit rejection did not create a task; safe to release for retry.
+            if(response.status===429) await db.rpc('icetak_native_clickup_rate_limited',{p_event_id:candidate.id,p_component_id:prepared.result.components[0].id});
+            throw new Error('clickup_create_http_'+response.status);
+          }
+          if(!task?.id)throw new Error('creation_outcome_unknown_invalid_response');
+          // Persist returned ID before API verification, preventing another create on verify failure.
+          const {error:linkError}=await db.rpc('link_clickup_production_task',{
+            p_order_reference:prepared.result.order.id,p_component_id:prepared.result.components[0].id,
+            p_clickup_task_id:task.id,p_clickup_list_id:'18375902',p_task_url:task.url||'https://app.clickup.com/t/'+task.id,p_status:task.status?.status||null});
+          if(linkError)throw new Error('created_but_link_failed:'+linkError.message);
+          const verified=await fetch('https://api.clickup.com/api/v2/task/'+encodeURIComponent(task.id),{headers:{authorization:credential.setting_value},redirect:'error',signal:AbortSignal.timeout(10000)});
+          if(!verified.ok)throw new Error('created_linked_verification_pending');
+          const snapshot=await verified.json();
+          const {data:accepted,error:acceptError}=await db.rpc('icetak_accept_verified_clickup_snapshot',{p_task:snapshot});
+          if(acceptError||!accepted?.accepted)throw new Error('created_linked_snapshot_pending');
+          await audit({request_id:requestId,stage:'native_created_verified',event_id:candidate.id,order_id:candidate.order_id,status_code:200,detail:{task_id:task.id,component_id:prepared.result.components[0].id}});
+          results.push({event_id:candidate.id,task_id:task.id,verified:true});
+        }else results.push(prepared.result);
       } catch (candidateError) {
         const message = candidateError instanceof Error
           ? candidateError.message
@@ -822,4 +912,3 @@ Deno.serve(async (req: Request) => {
     return json({ error: message, request_id: requestId }, 500, requestId);
   }
 });
-

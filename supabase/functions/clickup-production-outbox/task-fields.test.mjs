@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
-import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { taskFields, RM_FIELD_ID, JOB_FIELD_ID } from './task-fields.ts';
+import { clickupCreateBody } from './create-body.ts';
 import { code as mapTaskMagic } from '../../../scripts/taskmagic-production-map.mjs';
 
 const manifest = { field_id: 'set-field', options: { 1: 'option-1', 2: 'option-2', 3: 'option-3' } };
+const confirmedFieldId = 'afa87c64-3e48-4056-b720-cf8ea9b243e8';
+const paidFieldId = '3ec35543-1347-4412-9ab1-a00382420dce';
 const row = (id, index, itemId, price, qty = 1, linked = false) => ({
   id, set_index: index, set_label: `set${index}`, order_item_id: itemId,
   clickup_task_id: linked ? 'existing-task' : null,
@@ -133,14 +135,31 @@ test('TaskMagic mapper carries IDs/courier and merges typed RM/set only when pre
   assert.deepEqual(multi.custom_fields.find(f => f.id === 'set-field').value, ['option-2']);
 });
 
+test('native mapper drops a confirmed value inherited from the component', async () => {
+  const body = await clickupCreateBody({
+    order: { order_no: 'TEST-1', customer_confirmed: true },
+    components: [{ custom_fields: [
+      { id: confirmedFieldId, value: true },
+      { id: RM_FIELD_ID, value: 12 },
+    ] }],
+  });
+  assert.deepEqual(body.custom_fields, [
+    { id: 'a8996f77-fcf9-4804-84bb-89f97905473d', value: 'TEST-1' },
+    { id: paidFieldId, value: true },
+    { id: RM_FIELD_ID, value: 12 },
+  ]);
+});
+
 // Exercise the real HTTP handler with an in-memory Supabase adapter. No writes
 // reach production. In particular, preview must never claim or update a queue.
-test('HTTP handler preserves one-per-claim, auth, and read-only preview', async () => {
+test('HTTP handler preserves auth and preview, and creates one unchecked task per claim', async () => {
   const secret = 'fixture-only-secret';
   const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret)))].map(x => x.toString(16).padStart(2, '0')).join('');
   const all = [row('a', 1, 'item-a', 24, 1, true), row('b', 2, 'item-b', 10, 2), row('c', 3, 'item-c', 6)];
   const orderId = '11111111-1111-4111-8111-111111111111';
   const calls = [];
+  let nativeEnabled = false;
+  let createdBody;
   const db = {
     from(table) {
       const state = { table, operation: 'select' };
@@ -149,14 +168,20 @@ test('HTTP handler preserves one-per-claim, auth, and read-only preview', async 
           calls.push({ ...state });
           let data;
           if (table === 'clickup_integration_settings') data = { value: { secret_sha256: hash } };
-          else if (table === 'system_settings') data = { value: state.key === 'clickup_component_set_manifest' ? manifest : { base_url: 'https://shop.example.test' } };
+          else if (table === 'system_settings') {
+            if (state.key === 'native_clickup_integration') data = { value: { creation_enabled: nativeEnabled } };
+            else data = { value: state.key === 'clickup_component_set_manifest' ? manifest : { base_url: 'https://shop.example.test' } };
+          }
           else if (table === 'orders') data = { id: orderId, order_no: 'TEST-1', date_need: '2026-10-16', delivery_method: 'SPX', total: 50, delivery_name: 'Fixture' };
-          else if (table === 'production_components') data = all;
+          else if (table === 'production_components') data = state.pending ? { id: 'b', order_id: orderId } : all;
+          else if (table === 'integration_outbox') data = [];
+          else if (table === 'private_runtime_settings') data = { setting_value: 'fixture-clickup-token' };
           else data = null;
           return Promise.resolve({ data, error: null }).then(resolve, reject);
         };
         return (...args) => {
           if (name === 'eq' && args[0] === 'key') state.key = args[1];
+          if (name === 'is' && args[0] === 'clickup_task_id') state.pending = true;
           if (['insert', 'update'].includes(name)) state.operation = name;
           return chain;
         };
@@ -167,18 +192,33 @@ test('HTTP handler preserves one-per-claim, auth, and read-only preview', async 
       calls.push({ rpc: name, args });
       if (name === 'icetak_clickup_initial_status_v2') return { data: 'new custom', error: null };
       if (name === 'peek_clickup_production_outbox') return { data: [{ id: 'event-1', order_id: orderId, event_type: 'clickup.production.create' }], error: null };
-      if (name === 'claim_clickup_production_outbox_event') return { data: [{ id: 'event-1' }], error: null };
+      if (name === 'claim_clickup_production_outbox_event') return { data: [{ id: 'event-1', payload: { dispatched_component_id: 'b' } }], error: null };
+      if (name === 'clickup_order_gate_auto') return { data: { ok: args.p_secret === 'fixture-worker' }, error: null };
+      if (name === 'icetak_native_clickup_ready') return { data: true, error: null };
+      if (name === 'link_clickup_production_task') return { error: null };
+      if (name === 'icetak_accept_verified_clickup_snapshot') return { data: { accepted: true }, error: null };
       throw new Error(`Unexpected RPC ${name}`);
     },
   };
   const originalDeno = globalThis.Deno;
+  const originalFetch = globalThis.fetch;
   let handler;
   globalThis.Deno = { env: { get: () => 'fixture' }, serve: fn => { handler = fn; } };
+  globalThis.fetch = async (url, init) => {
+    const path = new URL(url).pathname;
+    if (init.method === 'POST' && path === '/api/v2/list/18375902/task') {
+      createdBody = JSON.parse(init.body);
+      return Response.json({ id: 'test-task' });
+    }
+    if (path === '/api/v2/task/test-task') return Response.json({ id: 'test-task' });
+    assert.match(path, /^\/api\/v2\/list\/\d+\/task$/);
+    return Response.json({ tasks: [] });
+  };
   globalThis.__outboxFixtureDb = db;
   try {
     let source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
     source = source.replace(/import \{ createClient \} from '[^']+';/, 'const createClient = () => globalThis.__outboxFixtureDb;');
-    source = source.replace("'./task-fields.ts'", JSON.stringify(pathToFileURL(new URL('./task-fields.ts', import.meta.url).pathname).href));
+    source = source.replace(/from '(\.\/[^']+)'/g, (_, path) => `from ${JSON.stringify(new URL(path, import.meta.url).href)}`);
     await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(source)).toString('base64')}`);
     const invoke = (suffix = '', authorized = true) => handler(new Request(`https://example.test/?${suffix}`, { headers: authorized ? { 'x-ap-secret': secret } : {} }));
     assert.equal((await invoke('', false)).status, 401);
@@ -198,8 +238,22 @@ test('HTTP handler preserves one-per-claim, auth, and read-only preview', async 
     assert.equal(normal.events[0].order.total_items, 3);
     assert.ok(calls.some(c => c.rpc === 'claim_clickup_production_outbox_event' && c.args.p_expected_missing_count === 2));
     assert.equal((await invoke('preview_order_id=invalid')).status, 400);
+
+    nativeEnabled = true;
+    const native = await (await handler(new Request('https://example.test/', {
+      method: 'POST',
+      headers: { 'x-gate-worker-key': 'fixture-worker' },
+    }))).json();
+    assert.deepEqual(native.events, [{ event_id: 'event-1', task_id: 'test-task', verified: true }]);
+    const values = Object.fromEntries(createdBody.custom_fields.map(f => [f.id, f.value]));
+    assert.equal(values[confirmedFieldId], undefined);
+    assert.equal(values[paidFieldId], true);
+    assert.equal(values[RM_FIELD_ID], 20);
+    assert.equal(values['1aa98168-cf59-4f52-a892-3acce4977e52'], 'b');
+    assert.deepEqual(values['set-field'], ['option-2']);
   } finally {
     globalThis.Deno = originalDeno;
+    globalThis.fetch = originalFetch;
     delete globalThis.__outboxFixtureDb;
   }
 });
