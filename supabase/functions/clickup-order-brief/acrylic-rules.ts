@@ -1,7 +1,7 @@
 // Rules first: no provider calls, I/O or customer sends in this module.
 export type RecordData = Record<string, any>;
 export const ACRYLIC_VERSION = "acrylic-internal-v1";
-export const ACRYLIC_RULES_REVISION = "checkout-chat-units-v3";
+export const ACRYLIC_RULES_REVISION = "checkout-chat-phone-v4";
 const text = (x: any) => String(x ?? "").replace(/\\n/g, "\n").trim();
 export const norm = (x: any) => text(x).toLowerCase().replace(/\s+/g, " ");
 const stamp = (m: RecordData) => Date.parse(m.sent_at || m.created_at || m.at || "");
@@ -64,6 +64,15 @@ export function parseCheckoutUnits(note: string, quantity: number): string[] | n
   }
  }
  return units.size === quantity ? Array.from({length:quantity}, (_, index) => units.get(index + 1)!) : null;
+}
+
+export function isContactOnly(value: string, orderPhone: string): boolean {
+ const candidate = text(value).replace(/^(?:no\.?\s*(?:tel(?:efon)?|phone|hp|whatsapp)|phone|whatsapp|wasap|tel(?:efon)?|hp)\s*[:=]?\s*/iu, "");
+ if (!/^\+?[\d\s().-]+$/u.test(candidate)) return false;
+ const normalizePhone = (input: string) => input.replace(/\D/g,"").replace(/^0060/,"60").replace(/^0/,"60");
+ const digits = normalizePhone(candidate);
+ const verified = normalizePhone(orderPhone || "");
+ return /^\d{9,15}$/.test(digits) && (digits===verified || /^601\d{8,9}$/.test(digits));
 }
 
 function pair(s: string) {
@@ -129,7 +138,8 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
  const target=scope.target||{}, items=scope.items||[], quantity=Number(target.quantity||target.qty)||1;
  const mixed=items.some((i:RecordData)=>i.kind && i.kind!=="acrylic");
  const acrylicItems=items.filter((i:RecordData)=>i.kind==="acrylic");
- const messages=boundMessages(input,scope);
+ const bounded=boundMessages(input,scope);
+ const messages=bounded.filter(message=>!inbound(message)||message.message_type!=="text"||!isContactOnly(value(message),scope.phone));
  const candidates: RecordData[]=[], references:RecordData[]=[], instructions:string[]=[], conflicts:string[]=[];
  let current="", previousQuestion="", referenceSize="", referenceColour="", colour=String(target.colour||target.style||"");
  let size=String(target.size||""), parts:RecordData[]=[], corrections:RecordData[]=[];
@@ -179,6 +189,16 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
    parts=[{wording:"Best",colour:"Gold"},{wording:"Husband dad",colour:"Black"}];
    add(["Best\nHusband dad"],m,"component_colours");conflicts.push("MULTI_COLOUR_REVIEW");continue;
   }
+  const replacement=s.match(/^(?:tapi|tp|but)\s+(?:huruf\s+)?([\p{L}]{1,3}\s*&\s*[\p{L}]{1,3})[.!]?$/iu);
+  if(replacement&&quantity===1&&!mixed&&(scope.single_item_scope||items.length===1)&&current!=="other"){
+   const image=messages[messages.indexOf(m)-1];
+   if(image&&inbound(image)&&image.message_type==="image"&&image.media_url&&image.channel===m.channel&&
+    image.conversation_id===m.conversation_id&&stamp(m)-stamp(image)<=120_000){
+    candidates.push({words:[replacement[1]],m,source:"reference_wording",score:92,referenceId:image.id});
+    instructions.push("Ikut gaya gambar rujukan dengan wording "+replacement[1]+".");
+    current="acrylic";continue;
+   }
+  }
   const p=pair(s), askedInitial=/\b(?:initial|huruf|nama|wording|tulis)\b/i.test(previousQuestion);
   const position=messages.findIndex(x=>x.id===m.id);
   const confirmsMaterial=messages.slice(position+1).filter(inbound).slice(0,2).some(x=>stamp(x)-stamp(m)<300000&&/^(?:acrylic|axrylic|akrilik)[.!\s]*$/i.test(value(x)));
@@ -199,8 +219,8 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
  const units=(chosen?.words||[]).map((wording:string,i:number)=>{
   const assignment=chosen.chatAssignments?.[i];
   return {unit:i+1,wording,colour,size,
-   evidence_ids:assignment?[...new Set([assignment.messageId,assignment.imageId])]:[chosen.m.id],
-   ...(assignment?{reference_message_id:assignment.imageId}:{})};
+   evidence_ids:chosen.referenceId?[chosen.m.id,chosen.referenceId]:assignment?[...new Set([assignment.messageId,assignment.imageId])]:[chosen.m.id],
+   ...(assignment||chosen.referenceId?{reference_message_id:assignment?.imageId||chosen.referenceId}:{})};
  });
  const prior=candidates.filter(c=>c!==chosen&&c.source!=="order_item");
  const differing=chosen&&prior.some(c=>JSON.stringify(c.words)!==JSON.stringify(chosen.words));
@@ -220,7 +240,9 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
  const linkedImages=assignments && references.length===quantity && mappedImages.length===quantity &&
   mappedImages.every(image=>assignments.some(unit=>unit.imageId===image.id));
  if(assignments&&!linkedImages) conflicts.push("UNIT_REFERENCE_UNVERIFIED");
- const needsVision=mappedImages.length>0&&!linkedImages;
+ const linkedReplacement=!!chosen?.referenceId&&references.length===1&&mappedImages.length===1&&mappedImages[0].id===chosen.referenceId;
+ if(chosen?.referenceId&&!linkedReplacement) conflicts.push("UNIT_REFERENCE_UNVERIFIED");
+ const needsVision=mappedImages.length>0&&!linkedImages&&!linkedReplacement;
  if(mixed&&mappedImages.length>1)conflicts.push("MULTI_IMAGE_ITEM_REVIEW");
  if(unassigned.length&&mixed) conflicts.push("AMBIGUOUS_MEDIA_ITEM");
  const missing:string[]=[];
@@ -237,6 +259,6 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
    ...(linkedImages?{unit:assignments?.find(x=>x.imageId===m.id)?.unit}:{})})),unassigned_media_ids:unassigned.map(m=>m.id),
   review_requested:reviewRequested,confidence,ready:!missing.length&&!conflicts.length&&!needsVision,
   needs_vision:needsVision,needs_fallback:eligibleFallback,evidence_ids:[...new Set(units.flatMap((u:RecordData)=>u.evidence_ids))],
-  messages,excluded_later_count:input.length-messages.length};
+  messages,excluded_later_count:input.length-bounded.length,excluded_contact_count:bounded.length-messages.length};
 }
 
