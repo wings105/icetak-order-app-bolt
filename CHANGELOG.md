@@ -1,3 +1,7 @@
+# 2026-11-09
+
+- [VERIFIED] Native ClickUp Queue task creation leaves the Confirmed checkbox unchecked, including when a component carries an old Confirmed value. A controlled worker run verifies the outbound task body and component linkage. AutoBrief can set Confirmed after its own checks.
+
 # 2026-11-07
 
 - [PRODUCTION] AutoBrief can confirm AI>=90 only when current-input analysis cites the latest exact customer wording for one verified custom item and context/staff/note/name-age/conflict gates pass. Worker v76 real-task ClickUp readback verifies94%, exact latest punctuation, Ai Check, Confirmed, original proof comment and separate image/arrival-request instructions. Actual baseline/live positive/negative/replay/no-send tests and existing regressions pass; other runtime modules preserved. See [contract](docs/AUTOBRIEF_PRODUCT_CONTEXT.md#ai-confirmation-grounded-in-customer-evidence--7-november-2026).
