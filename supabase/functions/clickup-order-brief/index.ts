@@ -808,7 +808,8 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   ]);
   const s=snap?.[0],detail=autom?.[0]?.data;
   const route=(await db("clickup_autobrief_routes?task_id=eq."+id+"&select=*&limit=1"))[0];
-  if(route&&!route.confirmed_at&&(job.comment_id||job.brief?.comment_id)){
+  if(route&&!route.confirmed_at&&(job.comment_id||job.brief?.comment_id)&&
+   (route.profile!=="acrylic"||job.brief?.ready===true)){
    const latestTask=await clickup(clickupToken,"task/"+id);
    if(fieldChecked(field(latestTask,"confirmed"))){
     const at=new Date().toISOString();
