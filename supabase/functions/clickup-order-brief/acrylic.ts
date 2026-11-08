@@ -1,5 +1,5 @@
 import {briefAction} from "./lifecycle.ts";
-import {acrylicRules,ACRYLIC_VERSION,norm,cleanWording,type RecordData as Obj} from "./acrylic-rules.ts";
+import {acrylicRules,ACRYLIC_VERSION,ACRYLIC_RULES_REVISION,norm,cleanWording,isClearCheckoutWording,type RecordData as Obj} from "./acrylic-rules.ts";
 export type AcrylicDeps = {db:(p:string,b?:unknown)=>Promise<any>;clickup:(token:string,p:string,m?:string,b?:unknown)=>Promise<any>;digest:(s:string)=>Promise<string>;safeDownload:(url:string,allow:boolean)=>Promise<any>;clock:(s:any)=>string;rich:(s:string)=>Obj[];inbox:string};
 const CF={name:"7c88d5cf-56e9-4108-86c5-b8e7baaf5bdc",review:"01cec4ef-a30b-443d-a43a-9ab09835b78c",ai:"d84d57b3-41f3-473d-b502-4e7bf45ace0c",confirmed:"afa87c64-3e48-4056-b720-cf8ea9b243e8"};
 const fields=(t:Obj)=>(t.custom_fields||[]).filter((f:Obj)=>Object.values(CF).includes(f.id)).map((f:Obj)=>({id:f.id,value:f.value}));
@@ -115,6 +115,7 @@ function commentText(id:string,scope:Obj,r:Obj,ctx:Obj,ai:Obj|null,state:string,
   "Warna bahan: "+r.colour+(r.parts.length?" · Komponen: "+r.parts.map((p:Obj)=>p.wording+" = "+p.colour).join("; "):""),
   "Saiz dibeli: "+r.size,"Tarikh diperlukan / due: "+(scope.due_at||"—"),"Status AutoBrief: "+state,
   "confirm: "+(r.ready?"✅ detail lengkap":"⏳ semakan diperlukan"),"keyakinan: "+r.confidence+"%",
+  ...(ctx.checkout_only&&r.ready?["Sumber confirm: Nota checkout buyer. Sesi chat belum dipadankan."]:[]),
   "review: "+(r.review_requested||scope.target.review_required?"Yes":"No"),
   "Analisis: "+(ai?.ok?"OpenAI "+ai.mode+" (fallback sahaja)":"Aturan dalaman"),
   "instruction: "+(r.instruction||"—"),"Kurang: "+(r.missing.join(", ")||"—"),"Konflik: "+(r.conflicts.join(", ")||ctx.reason||"—"),
@@ -123,6 +124,14 @@ function commentText(id:string,scope:Obj,r:Obj,ctx:Obj,ai:Obj|null,state:string,
   ...proof.map((m:Obj)=>d.clock(m.sent_at||m.created_at)+" ["+m.channel+"] "+short(m.text_content||m.caption||"(gambar)",600))
  ].join("\n").slice(0,14000);
 }
+export function checkoutCanConfirm(scope:Obj,rules:Obj,ctx:Obj):boolean {
+ return scope.provider==="shopee" && (scope.single_item_scope||scope.items?.length===1) &&
+  ctx.unavailable===true && ctx.reason==="EXACT_CONVERSATION_UNAVAILABLE" &&
+  !ctx.ambiguous && !ctx.truncated && !ctx.messages?.length &&
+  rules.ready===true && rules.confidence>=80 && rules.units.length===rules.quantity &&
+  rules.units.every((unit:Obj)=>unit.evidence_ids.includes("buyer_note")&&isClearCheckoutWording(unit.wording));
+}
+
 export async function processAcrylic(job:Obj,token:string,bridge:string,d:AcrylicDeps,preview=false):Promise<Obj>{
  const id=job.task_id,fp=job.source_fingerprint,previous=job.brief?.profile===ACRYLIC_VERSION?job.brief:{};
  let brief:Obj={},state="review",error="",commentId=previous.comment_id||null;
@@ -135,6 +144,7 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
   const task=await d.clickup(token,"task/"+id);
   // Shopee's existing checkout automation copies Note to Seller into Customize Name.
   // A missing database cache must not relabel this checkout source as a staff invention.
+  const storedNote=scope.note||"";
   const checkoutCopy=scope.provider==='shopee'?short(field(task,CF.name)?.value,1200):'';
   if(!scope.note&&checkoutCopy&&job.field_receipts?.wording!==checkoutCopy){scope.note=checkoutCopy;scope.note_source='checkout_automation_customize_name';}
   if(String(task.id)!==id||String(task.list?.id)!=="18375902"||norm(task.status?.status)!=="acrylic"||task.archived)throw Error("TASK_NO_LONGER_ACRYLIC");
@@ -144,9 +154,10 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
   const ctx=await context(scope,bridge,d);
   let rules=acrylicRules(scope,ctx.messages||[]);
   const currentWord=short(field(task,CF.name)?.value,1200),owned=job.field_receipts?.wording===currentWord;
+  const checkoutField=scope.provider==="shopee"&&!!currentWord&&!owned&&norm(currentWord)===norm(scope.note);
   // Staff-entered wording is a real source even when it is absent from the synced buyer chat.
   // Preserve provenance and require review; never pretend that the buyer confirmed it.
-  if(!rules.wording&&!rules.references.length&&rules.quantity===1&&currentWord&&!/^custom\s*\d*\s*(?:inch|inci|kek)/i.test(currentWord)){
+  if(!rules.wording&&!rules.references.length&&rules.quantity===1&&currentWord&&!checkoutField&&!owned&&!/^custom\s*\d*\s*(?:inch|inci|kek)/i.test(currentWord)){
    const candidate=currentWord.replace(/^(?:word|wording|text)\s*:\s*/i,'').replace(/\n\s*below\s*:\s*/i,'\n');
    rules.wording=candidate;rules.units=[{unit:1,wording:candidate,colour:rules.colour,size:rules.size,evidence_ids:['clickup_customize_name']}];
    rules.evidence_ids=['clickup_customize_name'];rules.staff_wording_source=currentWord;
@@ -155,11 +166,12 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
   }
   const detail=await d.db("task_detail_automation?task_id=eq."+id+"&select=data&limit=1");
   if(scope.target.material==="unknown"){rules.ready=false;rules.conflicts.push("MATERIAL_UNVERIFIED");}
-  const blocked=ctx.unavailable||ctx.ambiguous||ctx.truncated;
+  const checkoutOnly=checkoutCanConfirm(scope,rules,ctx);
+  const blocked=!checkoutOnly&&(ctx.unavailable||ctx.ambiguous||ctx.truncated);
   if(blocked){rules.ready=false;rules.confidence=0;rules.conflicts.push(ctx.reason||"CHAT_CONTEXT_UNVERIFIED");}
   if(detail[0]?.data?.production_started||scope.production_started){rules.ready=false;rules.conflicts.push("PRODUCTION_STARTED");}
   const cfg=(await d.db("clickup_order_brief_settings?singleton=eq.true&select=acrylic_ai_fallback&limit=1"))[0];
-  const aiKey=await d.digest(JSON.stringify({version:ACRYLIC_VERSION,artwork_policy:"black-artwork-v1",target:scope.target,note:scope.note,messages:rules.messages.map((m:Obj)=>({id:m.id,text:m.text_content,type:m.message_type,media:m.media_url,reply:m.reply_to_provider_message_id}))}));
+  const aiKey=await d.digest(JSON.stringify({version:ACRYLIC_VERSION,rules_revision:ACRYLIC_RULES_REVISION,artwork_policy:"black-artwork-v1",target:scope.target,note:scope.note,messages:rules.messages.map((m:Obj)=>({id:m.id,text:m.text_content,type:m.message_type,media:m.media_url,reply:m.reply_to_provider_message_id}))}));
   let ai:Obj|null=null,providerCalled=false;
   if(providerNeeded(rules,ctx)&&!rules.conflicts.includes("PRODUCTION_STARTED")&&cfg?.acrylic_ai_fallback){
    if(previous.ai_key===aiKey&&previous.ai&&(previous.ai.ok||Date.now()-Date.parse(previous.ai_at||"")<900000))ai=previous.ai;
@@ -167,7 +179,7 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
    if(ai)rules=mergeAI(rules,ai,scope);
   }
   const placeholder=/^custom\s*\d*\s*(?:inch|inci|kek)/i.test(currentWord);
-  if(currentWord && norm(currentWord)!==norm(rules.wording)&&!(scope.provider==='shopee'&&norm(cleanWording(currentWord))===norm(rules.wording))&&!owned&&!placeholder&&!rules.staff_wording_source) {
+  if(currentWord && !checkoutField && norm(currentWord)!==norm(rules.wording)&&!(scope.provider==='shopee'&&norm(cleanWording(currentWord))===norm(rules.wording))&&!owned&&!placeholder&&!rules.staff_wording_source) {
    rules.ready=false;rules.conflicts.push("STAFF_WORDING_CONFLICT");
   }
   const revision=previous.wording&&norm(previous.wording)!==norm(rules.wording);
@@ -178,30 +190,31 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
    ai&&!ai.ok&&rules.needs_vision?"MEDIA_OR_AI_UNAVAILABLE":rules.ready?"BRIEF_READY":
    rules.missing.length?"MISSING_DETAILS":"REVIEW_REQUIRED";
   await resolveReferenceLinks(rules,bridge,d);
-  brief={...rules,messages:undefined,profile:ACRYLIC_VERSION,state:status,confirmed:rules.ready,confidence:rules.confidence,
+  brief={...rules,messages:undefined,profile:ACRYLIC_VERSION,rules_revision:ACRYLIC_RULES_REVISION,state:status,
+   ...(checkoutOnly&&rules.ready?{confirmation_source:"checkout_note",chat_context_state:"unmatched"}:{}),confirmed:rules.ready,confidence:rules.confidence,
    material:scope.target.material,actual_buyer_note:scope.note,note_source:scope.note_source||'checkout_note',order_id:scope.order_id,target_item_id:scope.target_item_id,order_no:scope.order_no,
    ai,ai_key:aiKey,ai_at:providerCalled?new Date().toISOString():previous.ai_at||null,
    observed_message_ids:(ctx.messages||[]).map((m:Obj)=>m.id),checked_message_ids:rules.messages.map((m:Obj)=>m.id),proof:rules.messages.filter((m:Obj)=>rules.evidence_ids.includes(m.id)).map((m:Obj)=>({id:m.id,at:m.sent_at||m.created_at,channel:m.channel})),
    field_receipts:job.field_receipts||{},scope:{provider:scope.provider,conversation_id:ctx.conversation_id,cross_channel_exact_order:ctx.cross_channel_exact_order,whatsapp_scope_start:ctx.whatsapp_scope_start,start_at:ctx.scope_start,end_at:ctx.scope_end}};
-  const text=commentText(id,scope,rules,ctx,ai,status,d),hash=await d.digest(text);
+  const text=commentText(id,scope,rules,checkoutOnly?{...ctx,reason:"",checkout_only:true}:ctx,ai,status,d),hash=await d.digest(text);
   brief.comment_hash=hash;brief.content_changed_at=previous.comment_hash===hash?previous.content_changed_at:new Date().toISOString();
   if(preview)return {task_id:id,eligible:true,provider_called:providerCalled,ai_cached:!!ai&&!providerCalled,brief,comment:text,message_count:rules.messages.length};
   const freshScope=await d.db("rpc/icetak_acrylic_brief_scope",{p_task_id:id});
-  if(!freshScope.eligible||freshScope.target_item_id!==scope.target_item_id||JSON.stringify(freshScope.target)!==JSON.stringify(scope.target))throw Error("ORDER_CHANGED_BEFORE_WRITE");
+  if(!freshScope.eligible||(freshScope.note||"")!==storedNote||freshScope.target_item_id!==scope.target_item_id||JSON.stringify(freshScope.target)!==JSON.stringify(scope.target))throw Error("ORDER_CHANGED_BEFORE_WRITE");
   freshScope.phone=scope.phone;
   const freshContext=await context(freshScope,bridge,d);
-  const messageSignature=(c:Obj)=>JSON.stringify((c.messages||[]).map((m:Obj)=>[m.id,m.text_content,m.caption,m.media_url]));
+  const messageSignature=(c:Obj)=>JSON.stringify([c.unavailable===true,c.ambiguous===true,c.truncated===true,c.reason||"",(c.messages||[]).map((m:Obj)=>[m.id,m.text_content,m.caption,m.media_url])]);
   if(messageSignature(freshContext)!==messageSignature(ctx))throw Error("CHAT_CHANGED_BEFORE_WRITE");
   const latest=await d.clickup(token,"task/"+id);
   if(norm(latest.status?.status)!=="acrylic"||JSON.stringify(fields(latest))!==JSON.stringify(fields(task)))throw Error("TASK_CHANGED_BEFORE_WRITE");
   if(rules.ready) {
    const selected=selection(task),allowed=!selected.id||selected.id===CF.ai||norm(selected.name)==="follow up1";
-   if(!rules.wording_transcription_unverified&&rules.wording&&rules.wording.length<=255&&norm(currentWord)!==norm(rules.wording)&&(!checked(field(task,CF.confirmed))||owned||placeholder||!currentWord)) {
+   if(!checkoutField&&!rules.wording_transcription_unverified&&rules.wording&&rules.wording.length<=255&&norm(currentWord)!==norm(rules.wording)&&(!checked(field(task,CF.confirmed))||owned||placeholder||!currentWord)) {
     await d.clickup(token,"task/"+id+"/field/"+CF.name,"POST",{value:rules.wording});brief.field_receipts.wording=rules.wording;
    }
    if(rules.wording_transcription_unverified&&owned&&currentWord){await d.clickup(token,"task/"+id+"/field/"+CF.name,"DELETE");delete brief.field_receipts.wording;}
    if(allowed&&selected.id!==CF.ai){await d.clickup(token,"task/"+id+"/field/"+CF.review,"POST",{value:CF.ai});brief.field_receipts.review="Ai Check";}
-   if(!checked(field(task,CF.confirmed))){await d.clickup(token,"task/"+id+"/field/"+CF.confirmed,"POST",{value:true});brief.field_receipts.confirmed=true;}
+
   }
   if(hash!==previous.comment_hash||!commentId) {
    const body={comment:d.rich(text).flatMap((part:Obj)=>{
@@ -216,7 +229,12 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
    if(commentId)await d.clickup(token,"comment/"+commentId,"PUT",body);
    else {const posted=await d.clickup(token,"task/"+id+"/comment","POST",body);if(!posted.id)throw Error("COMMENT_UNCERTAIN");commentId=String(posted.id);}
   }
-  brief.comment_id=commentId;state=rules.ready?"completed":"review";
+  brief.comment_id=commentId;
+  if(rules.ready&&!checked(field(task,CF.confirmed))){
+   await d.clickup(token,"task/"+id+"/field/"+CF.confirmed,"POST",{value:true});
+   brief.field_receipts.confirmed=true;
+  }
+  state=rules.ready?"completed":"review";
  }catch(e){error=short(e instanceof Error?e.message:e,160);state=/NO_LONGER|OUT_OF_SCOPE|CLOSED|PAYMENT|ORDER_NOT_FULFILLABLE/.test(error)?"review":"failed";brief=Object.keys(brief).length?brief:{...previous,profile:ACRYLIC_VERSION,state:"REVIEW_REQUIRED",error,confirmed:false};}
  if(!preview) {
   const saved=await d.db("rpc/icetak_record_order_brief",{p_task_id:id,p_fingerprint:fp,p_state:state,p_brief:brief,p_media:[],p_comment_id:commentId,p_error:error});
