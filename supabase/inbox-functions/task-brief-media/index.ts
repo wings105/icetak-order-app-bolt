@@ -4,7 +4,35 @@ const base=Deno.env.get('SUPABASE_URL')||'',key=Deno.env.get('SUPABASE_SERVICE_R
 const headers={apikey:key,authorization:`Bearer ${key}`,'content-type':'application/json'};
 const out=(data:unknown,status=200)=>Response.json(data,{status,headers:{'cache-control':'no-store'}});
 async function call(path:string,body?:unknown){const r=await fetch(base+path,{method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(10000)});const d=await r.json();if(!r.ok)throw Error('MEDIA_UNAVAILABLE');return d;}
+
+const imageMime=(mime:string)=>/^image\/(?:png|jpeg|webp|gif)$/i.test(mime);
+async function imageKey(secret:string){return crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign','verify']);}
+const imagePayload=(id:string)=>new TextEncoder().encode('icetak-brief-image-v1:'+id);
+async function imageToken(id:string,secret:string){
+ const bytes=await crypto.subtle.sign('HMAC',await imageKey(secret),imagePayload(id));
+ return Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function verifyImageToken(id:string,value:string,secret:string){
+ if(!/^[a-f0-9]{64}$/.test(value))return false;
+ return crypto.subtle.verify('HMAC',await imageKey(secret),new Uint8Array(value.match(/../g)!.map(x=>parseInt(x,16))),imagePayload(id));
+}
+async function openImage(req:Request){
+ const params=new URL(req.url).searchParams,id=params.get('image')||'',signature=params.get('token')||'';
+ if(!/^\d{1,40}$/.test(id))return out({ok:false,error:'INVALID_IMAGE'},400);
+ const rows=await call('/rest/v1/private_runtime_settings?setting_key=eq.admin_window_bridge_token&select=setting_value&limit=1');
+ const secret=rows[0]?.setting_value;
+ if(!secret||!await verifyImageToken(id,signature,secret))return out({ok:false,error:'INVALID_IMAGE_LINK'},403);
+ const cached=await call('/rest/v1/message_media?provider_media_id=eq.'+id+'&download_status=eq.ready&select=storage_path,mime_type&order=updated_at.desc&limit=1');
+ const file=cached[0];
+ if(!file?.storage_path||!imageMime(file.mime_type||''))return out({ok:false,error:'IMAGE_UNAVAILABLE'},404);
+ const path=String(file.storage_path).split('/').map(encodeURIComponent).join('/');
+ const response=await fetch(base+'/storage/v1/object/authenticated/whatsapp-media/'+path,{headers,redirect:'error',signal:AbortSignal.timeout(15000)});
+ if(!response.ok){await response.body?.cancel();return out({ok:false,error:'IMAGE_UNAVAILABLE'},404);}
+ return new Response(response.body,{headers:{'content-type':file.mime_type,'content-disposition':'inline; filename="icetak-'+id+'"','cache-control':'private, max-age=3600','x-content-type-options':'nosniff','referrer-policy':'no-referrer','x-robots-tag':'noindex, nofollow'}});
+}
+
 Deno.serve(async req=>{
+ if(req.method==='GET'){try{return await openImage(req);}catch{return out({ok:false,error:'IMAGE_UNAVAILABLE'},503);}}
  if(req.method!=='POST')return out({ok:false},405);
  try{
   const rows=await call('/rest/v1/private_runtime_settings?setting_key=eq.admin_window_bridge_token&select=setting_value&limit=1');
@@ -73,6 +101,12 @@ Deno.serve(async req=>{
      '&order=created_at.asc&limit=100');
    return out({ok:true,matched:true,match_method:linked[0].match_method,conversation_id:conversation,messages:items});
   }
+  if(input.action==='acrylic_context'){
+   return out({ok:true,context:await call('/rest/v1/rpc/icetak_acrylic_brief_context',{p_scope:input.scope})});
+  }
+  if(input.action==='print_shopee_context'){
+   return out({ok:true,context:await call('/rest/v1/rpc/icetak_print_brief_shopee_context',{p_scope:input.scope})});
+  }
   if(input.action==='direct_context'){
    if(!input.scope||input.scope.eligible!==true||!/^([0-9a-f-]{36})$/i.test(String(input.scope.order_id||'')))return out({ok:false,error:'INVALID_DIRECT_SCOPE'},400);
    return out({ok:true,context:await call('/rest/v1/rpc/icetak_autobrief_whatsapp_context',{p_scope:input.scope})});
@@ -100,7 +134,8 @@ Deno.serve(async req=>{
    }
    const file=cached[0];if(!file?.storage_path||!/^image\/(?:png|jpeg|webp|gif)$/i.test(file.mime_type||'')){media['wasapflow-media://'+id]={available:false};return;}
    const signed=await call('/storage/v1/object/sign/whatsapp-media/'+String(file.storage_path).split('/').map(encodeURIComponent).join('/'),{expiresIn:900});
-   media['wasapflow-media://'+id]={available:true,url:base+'/storage/v1'+signed.signedURL};
+   media['wasapflow-media://'+id]={available:true,url:base+'/storage/v1'+signed.signedURL,
+    open_url:base+'/functions/v1/task-brief-media?image='+id+'&token='+await imageToken(id,token)};
   }));
   return out({ok:true,media});
  }catch{return out({ok:false,error:'MEDIA_UNAVAILABLE'},503);}
