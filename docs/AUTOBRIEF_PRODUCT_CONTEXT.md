@@ -227,3 +227,30 @@ mode at94%; direct ClickUp reads verify exact latest punctuation, Customize Name
 Ai Check, Confirmed, original comment identity, both existing media references
 and separate layout/arrival-request instructions. No customer send receipts.
 This releases initial brief confirmation, not a promise of delivery or design QC.
+
+## Edible Image and Wafer Paper pilot
+
+The immutable Edible and Wafer creation routes share the print brief worker.
+Shopee resolves its linked ShopeeChat and a separately verified WhatsApp thread
+for the order day in MYT. WhatsApp requires exact inbound order evidence, with
+phone verification when the task supplies a phone. DecoCake and pickup use the
+canonical WhatsApp session, including messages from before order creation.
+
+The worker preserves the purchased variation and resolves the requested print
+size separately. Burn Away selection is bound to the catalogue layer mapping
+and the customer message for that component. Exact matching is required before
+publishing a source link or uploading the original image to ClickUp. The job
+reuses its comment and a deterministic attachment filename on retry.
+
+`print_preview` reads a single task without writing to ClickUp. `print_run`
+uses the existing claim and lease, with an optional exact task ID. Scheduled
+claims require a canonical order timestamp at or after the configured rollout.
+An older comment from a different brief profile is ineligible for this writer.
+The internal pilot leaves customer sends and auto-confirm off. AI output is an
+advisory text summary for unresolved evidence. Staff design and print approval
+remain separate.
+
+Production preview verified two separate Burn Away image links and bytes,
+a direct custom print size, and a missing-source case. A controlled ClickUp
+transport verified upload, clickable source links and replay deduplication.
+A fresh scheduled order and production ClickUp attachment readback are pending.
