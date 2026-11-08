@@ -11,7 +11,21 @@ export function providerNeeded(r:Obj,ctx:Obj){return r.needs_fallback===true && 
 async function context(scope:Obj,bridge:string,d:AcrylicDeps) {
  const r=await fetch(d.inbox+"/functions/v1/task-brief-media",{method:"POST",headers:{"content-type":"application/json","x-admin-window-token":bridge},body:JSON.stringify({action:"acrylic_context",scope}),signal:AbortSignal.timeout(20000)});
  const v=await r.json();if(!r.ok||!v.ok||!v.context||(v.context.order_id&&v.context.order_id!==scope.order_id))throw Error("ACRYLIC_CONTEXT_UNAVAILABLE");
- return v.context;
+ const ctx=v.context;
+ const product=String(ctx.preorder_product_id||"");
+ if(product&&product!==String(scope.target?.product_id||"")){
+  const rows=/^\d{1,24}$/.test(product)?await d.db("marketplace_order_items?provider_item_id=eq."+product+"&is_current=eq.true&select=item_sku,title&limit=5"):[];
+  const matchesMaterial=(item:Obj)=>{
+   const title=String(item.item_sku||"")+" "+String(item.title||"");
+   const isArtpaper=/artpaper|art paper|mirror-gold-artpaper/i.test(title);
+   return scope.target?.material==="artpaper_gold"?isArtpaper:scope.target?.material==="acrylic"&&!isArtpaper&&/\b(?:acrylic|akrilik)\b/i.test(title);
+  };
+  if(!rows.length||!rows.every(matchesMaterial)){
+   ctx.messages=(ctx.messages||[]).filter((m:Obj)=>m.channel!=="shopee"||Date.parse(m.created_at)>=Date.parse(ctx.order_session_start));
+   ctx.scope_start=ctx.order_session_start;
+  }
+ }
+ return ctx;
 }
 async function fallback(scope:Obj,rules:Obj,bridge:string,d:AcrylicDeps):Promise<Obj>{
  const model=Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-4.1-mini",key=Deno.env.get("OPENAI_API_KEY");
