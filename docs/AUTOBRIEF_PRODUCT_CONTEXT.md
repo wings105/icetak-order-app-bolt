@@ -264,3 +264,25 @@ boundary and its own exact order ID; a later worker run time cannot hide message
 already sent for the newer order. Images in the same WhatsApp conversation with
 the same provider timestamp may share the caption's order scope. If the group
 has multiple images, assigning the print artwork requires an explicit selection.
+
+
+## OpenAI confirmation for split name and age evidence — 9 November 2026
+
+When rules leave an active, verified single custom item below the confirmation
+threshold, OpenAI can confirm a labelled Buyer Note name with a separate age
+message in the order chat. The current analysis must score at least 90%, identify
+the correct SKU and cite the latest age evidence. If the customer repeats the
+name in chat, the model must also cite a matching name message. The model's name
+and age must agree with the sources. The printable text retains the customer's
+age unit, for example `12 Tahun`, and omits the field labels.
+
+Different names or ages, unresolved chat instructions, media, staff text that
+differs from the note or final wording, and unverified context keep the task
+in review. The original comment records the evidence and OpenAI confidence.
+
+Worker v88 confirmed the selected live order at 98%. ClickUp readback verified
+the wording, Ai Check, Confirmed and the updated original comment.
+`scripts/check-autobrief-ai-confirm.mjs` covers both evidence paths on the
+repository and deployed worker sources. Checkout-note and render-age checks
+pass. The existing WhatsApp-session fixture fails on both the baseline and
+the updated source because its mock lacks the route lookup.

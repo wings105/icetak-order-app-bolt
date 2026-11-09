@@ -31,8 +31,32 @@ for(const change of [
  {messages:messages.map(m=>m.id==='m1'?{...m,text_content:'Wording: Different Child Turns 8'}:m)},
  {messages:[...messages,{...messages[4],id:'last',created_at:'2026-10-01T00:01:00Z',text_content:'tukar nama kepada Other'}]}
 ])assert.equal(api.aiEvidenceConfirmation({...base,...change}).eligible,false,JSON.stringify(change));
-// Exercise real process with exact-task field/comment writes and replay.
-for(const [index,expected]of [[0,wording]]){
+const splitNote='NAME : SAMPLE CHILD';
+const splitWording='SAMPLE CHILD 12 Tahun';
+const splitMessages=['Sorry saya lupa letak umur..','12 Tahun','Nama : SAMPLE CHILD'].map((text,index)=>({
+ ...messages[index+1],id:'split'+index,text_content:text
+}));
+const splitAnalysis={...analysis,wording:'Name: SAMPLE CHILD; age: 12',confidence:98,evidence_ids:['split1','split2']};
+const splitCase={...base,note:splitNote,existingWord:splitNote,messages:splitMessages,analysis:splitAnalysis};
+assert.equal(api.aiEvidenceConfirmation(splitCase).wording,splitWording);
+for(const change of [
+ {analysis:{...splitAnalysis,wording:'Name: SAMPLE CHILD; age: 13'}},
+ {analysis:{...splitAnalysis,wording:'Name: OTHER CHILD; age: 12'}},
+ {analysis:{...splitAnalysis,evidence_ids:['split2']}},
+ {analysis:{...splitAnalysis,evidence_ids:['split1']}},
+ {existingWord:'Staff approved wording'},
+ {messages:[...splitMessages,{...splitMessages[1],id:'other',text_content:'13 Tahun'}]},
+ {messages:[...splitMessages,{...splitMessages[2],id:'other',text_content:'Nama : OTHER CHILD'}]},
+ {messages:[...splitMessages,{...splitMessages[2],id:'other',text_content:'Tukar nama kepada OTHER'}]}
+])assert.equal(api.aiEvidenceConfirmation({...splitCase,...change}).eligible,false,JSON.stringify(change));
+
+// Exercise both real worker paths with field/comment writes and replay.
+for(const fixture of [
+ {note,messages,expected:wording,analysis,comment:/AI pengesahan/},
+ {note:splitNote,messages:splitMessages,expected:splitWording,analysis:splitAnalysis,comment:/Pengesahan OpenAI/}
+]){
+ const index=0;
+ const {note,messages,expected,analysis,comment}=fixture;
  let stored,comments=[],posts=0,sends=0,fieldWrites=0;
  const id='synthetic-task',orderId='aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa';
  const fields=[{id:'sku',name:'SKU',value:items[index].item_sku},{id:'7c88d5cf-56e9-4108-86c5-b8e7baaf5bdc',name:'Customize Name',value:note},{id:'afa87c64-3e48-4056-b720-cf8ea9b243e8',name:'confirmed',value:false},{id:'01cec4ef-a30b-443d-a43a-9ab09835b78c',name:'Review customer',value:'',type_config:{options:[{id:'d84d57b3-41f3-473d-b502-4e7bf45ace0c',name:'Ai Check'}]}}];
@@ -50,7 +74,7 @@ for(const [index,expected]of [[0,wording]]){
    if(p.endsWith('/products'))return Response.json(catalogue.map(c=>({id:c.product_id,parent_sku:c.sku,name:c.title})));
    if(p.endsWith('/icetak_record_order_brief')){stored=b;return Response.json({ok:true});}
   }
-  if(u.hostname==='api.openai.com')return Response.json({model:'test-model',output:[{content:[{type:'output_text',text:JSON.stringify({item_sku:items[index].item_sku,wording,confidence:94,needs_review:false,evidence_ids:['m3'],summary:'Latest explicit wording with punctuation correction.',instruction:'Use the same name and age for the topper.'})}]}]});
+  if(u.hostname==='api.openai.com')return Response.json({model:'test-model',output:[{content:[{type:'output_text',text:JSON.stringify({item_sku:items[index].item_sku,wording:analysis.wording,confidence:analysis.confidence,needs_review:false,evidence_ids:analysis.evidence_ids,summary:'Verified customer wording.',instruction:'Use the same name and age for the topper.'})}]}]});
   if(u.hostname.endsWith('.supabase.co')){
    if(b.action==='buyer_note')return Response.json({ok:true,available:true,order_sn:'261001ABCDEFGH',shop_id:'123',buyer_note:note});
    if(b.action==='order_proof'||b.action==='context')return Response.json({ok:true,matched:true,conversation_id:'chat',messages});
@@ -67,10 +91,10 @@ for(const [index,expected]of [[0,wording]]){
  };
  const worker=load(transport),job={task_id:id,source_fingerprint:'synthetic',state:'processing'};
  const result=await worker.process(job,'test','test');assert.equal(result.state,'completed',JSON.stringify({result,brief:stored?.p_brief}));
- assert.equal(stored.p_brief.wording,wording);assert.equal(stored.p_brief.confidence,94);
- assert.equal(stored.p_brief.confirmed,true);assert.equal(fields[1].value,wording);assert.equal(fields[3].value,'d84d57b3-41f3-473d-b502-4e7bf45ace0c');
- assert.equal(stored.p_brief.ai_confirmation_rule.eligible,true);assert.match(JSON.stringify(comments),/Ringkasan bacaan/);assert.equal(stored.p_brief.ai_mode,'evidence_confirm');assert.match(JSON.stringify(comments),/AI pengesahan/);assert.equal(sends,0);
+ assert.equal(stored.p_brief.wording,expected);assert.equal(stored.p_brief.confidence,analysis.confidence);
+ assert.equal(stored.p_brief.confirmed,true);assert.equal(fields[1].value,expected);assert.equal(fields[3].value,'d84d57b3-41f3-473d-b502-4e7bf45ace0c');
+ assert.equal(stored.p_brief.ai_confirmation_rule.eligible,true);assert.match(JSON.stringify(comments),/Ringkasan bacaan/);assert.equal(stored.p_brief.ai_mode,'evidence_confirm');assert.match(JSON.stringify(comments),comment);assert.equal(sends,0);
  // Replay on repository baseline; live lifecycle separately locks confirmed routes.
  if(!lifecycle){const before=fieldWrites;await worker.process({...job,comment_id:'comment1',brief:stored.p_brief,checked_message_ids:stored.p_brief.checked_message_ids},'test','test');assert.equal(posts,1);assert.equal(fieldWrites,before);}
 }
-console.log('PASS AI>=90 current-input/exact-latest-wording evidence gate; stale/SKU/media-context/multi/staff/note/age/name/later-change guards; actual worker CF/comment/instruction, no sends and replay.');
+console.log('PASS AI>=90 current-input/explicit and split name-age evidence gates; stale/SKU/media-context/multi/staff/note/age/name/later-change guards; actual worker CF/comment/instruction, no sends and replay.');
