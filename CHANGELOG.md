@@ -1,5 +1,7 @@
 # 2026-11-09
 
+- [PRODUCTION] AutoBrief Render v5 and AI QC v4 preserve age units from verified checkout notes when the confirmed wording abbreviates the age. QC treats structured checkout labels as metadata and still checks each visible layer. A corrected YS0312 PNG passed live vision QC and ClickUp field sync in pilot mode. Native render, age mapping and QC checks passed.
+
 - [PRODUCTION] AutoBrief v83 confirms a verified single-item multiline checkout note when Customize Name contains a copy of the note. Mirrored text and the exact Shopee order card without artwork instructions no longer block confirmation. Live verification confirmed the clean wording, Ai Check, Confirmed and the original comment ID. Regression checks cover staff overrides, other cards, media and changed replies.
 
 - [VERIFIED] Native ClickUp Queue task creation leaves the Confirmed checkbox unchecked, including when a component carries an old Confirmed value. A controlled worker run verifies the outbound task body and component linkage. AutoBrief can set Confirmed after its own checks.
