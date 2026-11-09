@@ -466,17 +466,28 @@ function completeMultilineNoteRule(input:Obj):Obj{
  if(context.truncated||context.unavailable)return no("INCOMPLETE_CONTEXT");
  if(input.multi||items.length!==1||Number(items[0].quantity)!==1||siblingTasks.length!==1||String(siblingTasks[0].task_id)!==task_id)return no("SINGLE_PRODUCT_REQUIRED");
  if(!targetProduct(sku,items).product_id)return no("PRODUCT_NOT_VERIFIED");
- const lines=string(note,1200).replace(/\\r\\n|\\n|\\r/g,"\n").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+ const decode=(value:unknown)=>string(value,1200).replace(/\\r\\n|\\n|\\r/g,"\n");
+ const noteText=decode(note);
+ const lines=noteText.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
  if(lines.length<2||lines.length>5)return no("COMPLETE_MULTILINE_NOTE_REQUIRED");
  const ageLine=lines.pop()!,age=extractAge(ageLine);
  if(age===null||! /^(?:(?:turns?|turning|umur|usia|age)\s*[:=\-]?\s*\d{1,3}(?:\s*(?:tahun|years?(?: old)?))?|\d{1,3}\s*(?:tahun|years?(?: old)?))$/i.test(ageLine))return no("EXPLICIT_AGE_REQUIRED");
  const name=lines.join(" ").replace(/^(?:nama(?: custom)?|custom name|name)\s*[:=\-]?\s*/i,"").trim();
  if(!/^[\p{L}\p{M}][\p{L}\p{M} .’'\-]{1,120}$/u.test(name)||isNonDesignWording(name)||mayNeedChange(name))return no("EXPLICIT_NAME_REQUIRED");
  const wording=name+" "+(/^(?:umur|usia|age)\b/i.test(ageLine)?String(age):ageLine);
- if(existingWord&&normalized(existingWord)!==normalized(wording))return no("STAFF_WORDING_PROTECTED");
+ // ClickUp task creation can copy the checkout note into Customize Name.
+ const normalizedNote=normalized(noteText);
+ if(existingWord&&normalized(decode(existingWord))!==normalizedNote&&normalized(existingWord)!==normalized(wording))return no("STAFF_WORDING_PROTECTED");
  if(decision.name_conflict||decision.age_conflict)return no("DETAIL_CONFLICT");
  const messages=[...(provider.messages||[]),...(input.messages||[])].filter((m:Obj)=>m.direction!=="outbound");
- if(messages.some((m:Obj)=>(m.message_type&&m.message_type!=="text")||!isUnimportant(string(m.text_content||m.caption))))return no("CUSTOMER_REPLY_REQUIRES_REVIEW");
+ if(messages.some((m:Obj)=>{
+  const text=decode(m.text_content||m.caption);
+  // The exact Shopee order card identifies the order without adding artwork instructions.
+  if(m.channel==="shopee"&&m.message_type==="order"&&input.order_reference&&
+   m.order_sn===input.order_reference&&!text&&!m.media_url)return false;
+  if(m.message_type&&m.message_type!=="text")return true;
+  return normalized(text)!==normalizedNote&&!isUnimportant(text);
+ }))return no("CUSTOMER_REPLY_REQUIRES_REVIEW");
  return {eligible:true,reason:"COMPLETE_ORDER_BUYER_NOTE",wording,confidence:88};
 }
 // Single explicit buyer note may apply to all glossy toppers of one order.
@@ -1170,7 +1181,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    decision={...decision,wording:twoNameRule.wording,instruction:twoNameRule.instruction,confidence:twoNameRule.confidence,age:twoNameRule.age,note_evidence:!!note,chat_evidence:!note||chronological.length>0,name_conflict:false,age_conflict:false};
    proof=twoNameRule.proof;
   }
-  const completeNoteRule=completeMultilineNoteRule({note,existingWord,items:orderItems,siblingTasks,provider:providerContext,context,decision,sku:productSku,task_id:id,multi,messages:chronological});
+  const completeNoteRule=completeMultilineNoteRule({note,existingWord,items:orderItems,siblingTasks,provider:providerContext,context,decision,sku:productSku,task_id:id,order_reference:s.order_reference,multi,messages:chronological});
   if(completeNoteRule.eligible)decision={...decision,wording:completeNoteRule.wording,confidence:completeNoteRule.confidence,note_evidence:true};
   const missing=Array.isArray(detail.missing)?detail.missing:[];
   const unresolvedMissing=missing.filter((x:Obj)=>{
