@@ -1,5 +1,9 @@
 # 2026-11-09
 
+- [PRODUCTION] AutoBrief v88 can use OpenAI to confirm a verified single custom item when the Buyer Note supplies the name and the order chat supplies the age. The current analysis must cite the relevant evidence and agree with the source. Live readback verified 98%, the original age unit, Ai Check, Confirmed and the existing proof comment. See [AutoBrief product context](docs/AUTOBRIEF_PRODUCT_CONTEXT.md).
+
+# 2026-11-09
+
 - [PRODUCTION] AutoBrief Render v5 and AI QC v4 preserve age units from verified checkout notes when the confirmed wording abbreviates the age. QC treats structured checkout labels as metadata and still checks each visible layer. A corrected YS0312 PNG passed live vision QC and ClickUp field sync in pilot mode. Native render, age mapping and QC checks passed.
 
 - [PRODUCTION] AutoBrief v83 confirms a verified single-item multiline checkout note when Customize Name contains a copy of the note. Mirrored text and the exact Shopee order card without artwork instructions no longer block confirmation. Live verification confirmed the clean wording, Ai Check, Confirmed and the original comment ID. Regression checks cover staff overrides, other cards, media and changed replies.

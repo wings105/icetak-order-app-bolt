@@ -582,6 +582,44 @@ function sharedNameAgeNoteRule(input:Obj):Obj{
   source:"Buyer Note",instruction:"Semua "+total+" topper guna nama dan umur yang sama.",scope_text:lines[2]};
 }
 // AI may confirm only wording grounded in the latest explicit customer text.
+function aiSplitNameAgeEvidence(note:string, inbound:Obj[], evidence:string[], analysis:Obj, existingWord:string):Obj{
+ const no=(reason:string)=>({eligible:false,reason});
+ const nameLabel=/^(?:nama|name)\s*[:=]\s*([\p{L}][\p{L}\p{M} .’'&-]{0,84})$/iu;
+ const ageLabel=/^(?:umur|usia|age)\s*[:=]?\s*(\d{1,3})(?:\s*(tahun|thn|years?(?: old)?|yrs?|y))?$/i;
+ const ageWithUnit=/^(\d{1,3})\s*(tahun|thn|years?(?: old)?|yrs?|y)$/i;
+ const name=string(note,1200).match(nameLabel)?.[1]?.trim();
+ if(!name||isNonDesignWording(name))return no("LABELLED_BUYER_NAME_REQUIRED");
+ const ageSources:{id:string;at:string;age:number;wording:string}[]=[];
+ const nameIds:string[]=[];
+ for(const message of inbound){
+  const body=string(message.text_content||message.caption,600);
+  if(message.message_type&&message.message_type!=="text")return no("NON_TEXT_REQUIRES_REVIEW");
+  if(isUnimportant(body)||/^(?:(?:sorry|maaf)\s+)?(?:saya|sy|i)?\s*lupa\s*(?:letak|bagi|isi)\s*umur[.!\s]*$/i.test(body))continue;
+  const chatName=body.match(nameLabel)?.[1]?.trim();
+  if(chatName){
+   if(normalized(chatName)!==normalized(name))return no("BUYER_NOTE_NAME_CONFLICT");
+   nameIds.push(String(message.id));continue;
+  }
+  const age=body.match(ageLabel)||body.match(ageWithUnit);
+  if(!age||Number(age[1])<1||Number(age[1])>120)return no("UNRESOLVED_CUSTOMER_DETAIL");
+  ageSources.push({id:String(message.id),at:message.created_at,age:Number(age[1]),wording:[age[1],age[2]].filter(Boolean).join(" ")});
+ }
+ const latest=ageSources.sort((a,b)=>Date.parse(a.at)-Date.parse(b.at)).at(-1);
+ if(!latest||!evidence.includes(latest.id)||nameIds.length&&!nameIds.some(id=>evidence.includes(id)))return no("NAME_AGE_EVIDENCE_NOT_CITED");
+ if(ageSources.some(source=>source.age!==latest.age))return no("UNRESOLVED_CUSTOMER_AGE_CONFLICT");
+ const model=string(analysis.wording,255);
+ const modelFields=model.match(/^(?:nama|name)\s*[:=]\s*([^;\n]+)[;\n]\s*(?:umur|usia|age)\s*[:=]?\s*(\d{1,3})(?:\s*(?:tahun|thn|years?(?: old)?|yrs?|y))?$/i);
+ const wording=name+" "+latest.wording;
+ const modelMatches=modelFields
+  ? normalized(modelFields[1])===normalized(name)&&Number(modelFields[2])===latest.age
+  : [wording,name+" "+latest.age].some(value=>normalized(value)===normalized(model));
+ if(!modelMatches)return no("AI_NAME_AGE_DIFFERS_FROM_CUSTOMER");
+ if(existingWord&&![note,wording].some(value=>normalized(value)===normalized(existingWord)))return no("STAFF_WORDING_PROTECTED");
+ return {eligible:true,reason:"AI_90_WITH_SPLIT_NAME_AGE_EVIDENCE",name,age:latest.age,wording,confidence:analysis.confidence,
+  instruction:"Nama daripada Buyer Note disahkan dengan umur dalam chat customer.",evidence_ids:evidence,wording_message_id:latest.id,wording_at:latest.at};
+}
+
+
 function aiEvidenceConfirmation(input:Obj):Obj{
  const no=(reason:string)=>({eligible:false,reason});
  const {analysis,current,items,sku,messages,context,existingWord,note,decision,missing,provider,siblingTasks}=input;
@@ -597,7 +635,8 @@ function aiEvidenceConfirmation(input:Obj):Obj{
  if(!Array.isArray(evidence)||!evidence.length||evidence.some((id:unknown)=>!ids.has(String(id))))return no("AI_EVIDENCE_NOT_IN_ORDER_CONTEXT");
  const explicit=inbound.map((m:Obj)=>({message:m,value:explicitChatWording(string(m.text_content||m.caption,1400))})).filter((x:Obj)=>x.value).sort((a:Obj,b:Obj)=>Date.parse(a.message.created_at)-Date.parse(b.message.created_at));
  const latest=explicit.at(-1);
- if(!latest||!evidence.includes(String(latest.message.id)))return no("LATEST_CUSTOMER_WORDING_NOT_CITED");
+ if(!latest)return aiSplitNameAgeEvidence(note,inbound,evidence,analysis,existingWord);
+ if(!evidence.includes(String(latest.message.id)))return no("LATEST_CUSTOMER_WORDING_NOT_CITED");
  if(normalized(analysis.wording)!==normalized(latest.value.wording))return no("AI_WORDING_DIFFERS_FROM_CUSTOMER");
  const words=(v:string)=>normalized(v).replace(/[^\p{L}\p{N}]+/gu," ").trim().replace(/\s+/g," ");
  const cutoff=latest.value.latest?Date.parse(latest.message.created_at):-Infinity;
@@ -1325,7 +1364,9 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     (string(aiAnalysis.instruction,250)?"\nAI instruction: "+string(aiAnalysis.instruction,250):"")+
     (string(aiAnalysis.image_description,250)?"\nAI image: "+string(aiAnalysis.image_description,250):"");
   }
-  if(aiConfirmation.eligible)text+="\n\nAI pengesahan: "+confidence+"%; wording tepat daripada mesej customer terkini "+briefTimestamp(aiConfirmation.wording_at)+". Versi tanda baca terkini digunakan; bukti order/item disemak.";
+  if(aiConfirmation.eligible)text+=aiConfirmation.reason==="AI_90_WITH_SPLIT_NAME_AGE_EVIDENCE"
+   ?"\n\nPengesahan OpenAI "+confidence+"% berdasarkan nama dalam Buyer Note dan umur dalam chat "+briefTimestamp(aiConfirmation.wording_at)+"."
+   :"\n\nAI pengesahan: "+confidence+"%; wording tepat daripada mesej customer terkini "+briefTimestamp(aiConfirmation.wording_at)+". Versi tanda baca terkini digunakan; bukti order/item disemak.";
   const interpretation=readingSummary({rule:twoNameRule.eligible?twoNameRule:bareNameRule.eligible?bareNameRule:sharedNameRule,note,messages:chronological,items:orderItems,decision,verified,aiAnalysis,aiCandidate});
   text+="\n\n"+interpretation.text;
   const hash=await digest("rich-code-v1\n"+text);

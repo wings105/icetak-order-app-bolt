@@ -1,3 +1,11 @@
+# 2026-11-09 — OpenAI confirmation from Buyer Note and chat
+
+AutoBrief v88 can confirm a labelled Buyer Note name with an age supplied in
+verified order chat when current OpenAI analysis scores at least 90% and cites
+the source evidence. Live ClickUp readback verifies the selected task at 98%,
+including the original age unit, Ai Check, Confirmed and proof comment.
+See [AutoBrief product context](AUTOBRIEF_PRODUCT_CONTEXT.md).
+
 # 2026-11-07 — Evidence-backed AI confirmation
 
 Order worker v76 allows AI>=90 to confirm the latest exact customer wording for
