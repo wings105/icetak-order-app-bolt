@@ -1,7 +1,7 @@
 // Rules first: no provider calls, I/O or customer sends in this module.
 export type RecordData = Record<string, any>;
 export const ACRYLIC_VERSION = "acrylic-internal-v1";
-export const ACRYLIC_RULES_REVISION = "checkout-chat-initials-v5";
+export const ACRYLIC_RULES_REVISION = "checkout-quoted-wording-v6";
 const text = (x: any) => String(x ?? "").replace(/\\n/g, "\n").trim();
 export const norm = (x: any) => text(x).toLowerCase().replace(/\s+/g, " ");
 const stamp = (m: RecordData) => Date.parse(m.sent_at || m.created_at || m.at || "");
@@ -22,6 +22,7 @@ const unitLabel = "(?:" + unitKind + "\\s+(?:ke[- ]?)?(?<suffix>" + ordinal + ")
 const wordingLabel = "(?:name|text|wording|nama|tulisan|ayat)";
 const quotedWording = "(?:\"(?<double>[^\"\\n]+)\"|'(?<single>[^'\\n]+)'|“(?<curlyDouble>[^”\\n]+)”|‘(?<curlySingle>[^’\\n]+)’)";
 const wordingFirst = new RegExp("^(?:the\\s+)?" + wordingLabel + "\\s*[:=]?\\s*" + quotedWording + "\\s+(?:for|untuk|bagi|pada)\\s+(?:the\\s+)?" + unitLabel, "iu");
+const singleQuotedWording = new RegExp("^(?:word(?:ing)?|tulis(?:an)?|nama|huruf|initial|text)\\s*[:=]?\\s*" + quotedWording + "[.!]?$", "iu");
 const unitFirst = new RegExp("^" + unitLabel + "\\s*(?:[:=–-]\\s*|\\s+)(?:(?:the\\s+)?" + wordingLabel + "\\s*[:=]?\\s*)?" + quotedWording, "iu");
 
 export function isClearCheckoutWording(value: string): boolean {
@@ -150,7 +151,10 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
  if(note && !placeholder(note) && (scope.single_item_scope || items.length===1)) {
   const p=pair(note), explicit=/^["“']?\s*(?:word(?:ing)?|tulis|nama|huruf|initial|text)\s*[:=]/i.test(note);
   const checkoutUnits=scope.provider==="shopee" ? parseCheckoutUnits(note,quantity) : null;
+  const quoted=quantity===1&&scope.provider==="shopee" ? singleQuotedWording.exec(note)?.groups : undefined;
+  const quotedText=(quoted?.double||quoted?.single||quoted?.curlyDouble||quoted?.curlySingle||"").trim();
   if(checkoutUnits) add(checkoutUnits,{id:"buyer_note"},"buyer_note");
+  else if(isClearCheckoutWording(quotedText)) add([quotedText],{id:"buyer_note"},"buyer_note");
   else if(p || explicit || (/[❤♥]/.test(note)&&!/\b(?:ship|urgent|please)\b/i.test(note)) || /^(?:Happy|Selamat)\s+(?:Birthday|Engagement|Wedding)/i.test(note)) add([p||cleanWording(note)],{id:"buyer_note"},"buyer_note");
  }
  // Canonical local item text is only a candidate; the chat can correct it.
