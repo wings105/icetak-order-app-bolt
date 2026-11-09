@@ -119,12 +119,28 @@ async function resolveReferenceLinks(rules:Obj,bridge:string,d:AcrylicDeps){
  rules.references=rules.references.map((m:Obj)=>({...m,open_url:media[m.media_url]?.open_url||(/^https:\/\//i.test(m.media_url)?m.media_url:null)}));
 }
 
+export function defaultInitialsReference(scope:Obj,rules:Obj,task:Obj):Obj|null {
+ if(!rules.ready||rules.use_original_artwork||rules.references?.length||rules.unassigned_media_ids?.length||
+  scope.target?.customization?.reference_url||task.attachments?.length)return null;
+ const inbound=(rules.messages||[]).filter((m:Obj)=>m.direction==="inbound"&&!m.is_history);
+ if(inbound.some((m:Obj)=>m.message_type==="image"||m.media_url))return null;
+ const styleEvidence=[scope.note,rules.instruction,...inbound.map((m:Obj)=>m.text_content||m.caption||"")].join("\n");
+ if(/\b(?:font|cursive|script|straight|senget|condong|tebal|nipis|bold|italic|bersambung|separate|asing|stacked|side by side|atas|bawah|macam|mcm|seperti|contoh|sample|reference)\b/iu.test(styleEvidence))return null;
+ const units=(rules.units||[]).filter((u:Obj)=>/^(?:[A-Z]{2}|[A-Za-z](?:\s*&\s*|\.\s*|\s+)[A-Za-z]\.?)$/u.test(String(u.wording||"").trim())).map((u:Obj)=>u.unit);
+ if(!units.length)return null;
+ return {source:"icetak_default",kind:"two_initials_monogram",url:"https://buivecgahhmrhlmfujgt.supabase.co/storage/v1/object/public/render-templates/acrylic-references/two-initials-as-ad033bb7.png",units};
+}
+
 function commentText(id:string,scope:Obj,r:Obj,ctx:Obj,ai:Obj|null,state:string,d:AcrylicDeps){
  const proof=r.messages.filter((m:Obj)=>m.direction==="inbound"&&(r.evidence_ids.includes(m.id)||r.corrections.some((x:Obj)=>x.id===m.id)||r.references.some((x:Obj)=>x.id===m.id))).slice(-16);
  return ["[iCetak-AutoBrief-Acrylic:"+id+"]","Order ID: "+scope.order_no,
   "SKU product: "+(scope.target.sku||"—"),"Tajuk product: "+scope.target.title,
   "Category: "+(scope.target.material==="artpaper_gold"?"Artpaper Gold":"Acrylic")+" · Qty "+r.quantity,"wording: "+(r.wording||"Perlu detail"),
   "gambar link ("+((r.references||[]).some((x:Obj)=>String(x.media_url).startsWith("wasapflow-media://"))?"WhatsApp":scope.provider==="shopee"?"Shopee":"WhatsApp")+"): "+(r.references.map((x:Obj)=>(x.unit?"Unit "+x.unit+": ":"")+(x.open_url||(/^https:\/\//i.test(x.media_url)?x.media_url:"Gambar belum dapat dibuka — semak Unified Inbox"))).join("\n")||"—"),
+  ...(r.default_design_reference?[
+   "Rujukan gaya lalai iCetak (unit "+r.default_design_reference.units.join(", ")+"): "+r.default_design_reference.url,
+   "Gaya initial: huruf serif pertama di kiri atas, huruf kedua di kanan bawah, disambung dengan ampersand berlengkung. Guna huruf buyer dan sambungkan semua bahagian untuk laser cut."
+  ]:[]),
   ...(r.use_original_artwork?["Artwork: Artwork hitam siap customer — guna fail asal tanpa tukar wording/layout. Bacaan teks AI bukan sumber untuk reka semula."]:[]),
   "Warna bahan: "+r.colour+(r.parts.length?" · Komponen: "+r.parts.map((p:Obj)=>p.wording+" = "+p.colour).join("; "):""),
   "Saiz dibeli: "+r.size,"Tarikh diperlukan / due: "+(scope.due_at||"—"),"Status AutoBrief: "+state,
@@ -203,6 +219,8 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
    rules.corrections.length||rules.conflicts.includes("CHANGE_AFTER_CONFIRM")?"CHANGE_AFTER_CONFIRM":
    ai&&!ai.ok&&rules.needs_vision?"MEDIA_OR_AI_UNAVAILABLE":rules.ready?"BRIEF_READY":
    rules.missing.length?"MISSING_DETAILS":"REVIEW_REQUIRED";
+  const defaultReference=defaultInitialsReference(scope,rules,task);
+  if(defaultReference)rules.default_design_reference=defaultReference;
   await resolveReferenceLinks(rules,bridge,d);
   brief={...rules,messages:undefined,profile:ACRYLIC_VERSION,rules_revision:ACRYLIC_RULES_REVISION,state:status,
    ...(checkoutOnly&&rules.ready?{confirmation_source:"checkout_note",chat_context_state:"unmatched"}:{}),confirmed:rules.ready,confidence:rules.confidence,
