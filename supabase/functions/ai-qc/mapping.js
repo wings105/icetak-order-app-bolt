@@ -46,6 +46,17 @@ export function mapFields(template,brief,taskWording){
  if(brief.instruction||brief.media_count>0||brief.review_requested||brief.pending_change_ids?.length||brief.change_detected>0)return failure('BRIEF_NEEDS_REVIEW');
  const selected=clean(taskWording||brief.wording);let parsed=parseDetail(selected);
  if(!parsed.ok)return parsed;
+ if(parsed.inferred&&parsed.name&&/^\d{1,3}$/.test(parsed.age)&&
+  brief.confirmed===true&&brief.complete_note_rule?.eligible===true&&
+  brief.complete_note_rule.reason==='COMPLETE_ORDER_BUYER_NOTE'&&
+  compact(brief.complete_note_rule.wording)===compact(selected)){
+  // AutoBrief's verified name/age summary can omit a unit present in the checkout note.
+  const note=parseDetail(brief.actual_buyer_note);
+  if(note.ok&&note.kind==='labelled'&&!note.inferred&&note.name===parsed.name&&
+   !note.greeting&&!note.date&&note.age_number===parsed.age_number&&note.age_suffix){
+   parsed={...parsed,age:note.age,age_suffix:note.age_suffix};
+  }
+ }
  if(parsed.inferred&&fields.every(f=>['wording','literal','greeting'].includes(rules[f.key].source)))parsed={ok:true,kind:'verbatim',raw:parsed.raw,lines:parsed.raw.split(/\n+/).map(s=>s.trim()).filter(Boolean)};
  if(parsed.kind==='labelled'&&parsed.age&&fields.some(f=>['age_number','age_prefix','age_suffix'].includes(rules[f.key].source))&&!splitAge(parsed.age))return failure('AGE_LAYOUT_NEEDS_REVIEW');
  const values={};
