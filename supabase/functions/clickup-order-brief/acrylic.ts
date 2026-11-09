@@ -125,9 +125,12 @@ export function defaultInitialsReference(scope:Obj,rules:Obj,task:Obj):Obj|null 
  const inbound=(rules.messages||[]).filter((m:Obj)=>m.direction==="inbound"&&!m.is_history);
  if(inbound.some((m:Obj)=>m.message_type==="image"||m.media_url))return null;
  const styleEvidence=[scope.note,rules.instruction,...inbound.map((m:Obj)=>m.text_content||m.caption||"")].join("\n");
- if(/\b(?:font|cursive|script|straight|senget|condong|tebal|nipis|bold|italic|bersambung|separate|asing|stacked|side by side|atas|bawah|macam|mcm|seperti|contoh|sample|reference)\b/iu.test(styleEvidence))return null;
+ const fancy=/\bfancy\b/iu.test(styleEvidence)&&!/\b(?:tak|tidak|jangan|no|not|without|bukan)\s+(?:(?:nak|mahu|guna|font)\s+)*fancy\b/iu.test(styleEvidence);
+ const otherStyle=fancy?styleEvidence.replace(/\b(?:font\s+fancy|fancy\s+font|fancy)\b/giu,""):styleEvidence;
+ if(/\b(?:font|cursive|script|straight|senget|condong|tebal|nipis|bold|italic|bersambung|separate|asing|stacked|side by side|atas|bawah|macam|mcm|seperti|contoh|sample|reference)\b/iu.test(otherStyle))return null;
  const units=(rules.units||[]).filter((u:Obj)=>/^(?:[A-Z]{2}|[A-Za-z](?:\s*&\s*|\.\s*|\s+)[A-Za-z]\.?)$/u.test(String(u.wording||"").trim())).map((u:Obj)=>u.unit);
  if(!units.length)return null;
+ if(fancy)return {source:"icetak_default",kind:"two_initials_fancy_monogram",url:"https://buivecgahhmrhlmfujgt.supabase.co/storage/v1/object/public/render-templates/acrylic-references/two-initials-fancy-as-b55ad6be.png",units};
  return {source:"icetak_default",kind:"two_initials_monogram",url:"https://buivecgahhmrhlmfujgt.supabase.co/storage/v1/object/public/render-templates/acrylic-references/two-initials-as-ad033bb7.png",units};
 }
 
@@ -139,6 +142,8 @@ function commentText(id:string,scope:Obj,r:Obj,ctx:Obj,ai:Obj|null,state:string,
   "gambar link ("+((r.references||[]).some((x:Obj)=>String(x.media_url).startsWith("wasapflow-media://"))?"WhatsApp":scope.provider==="shopee"?"Shopee":"WhatsApp")+"): "+(r.references.map((x:Obj)=>(x.unit?"Unit "+x.unit+": ":"")+(x.open_url||(/^https:\/\//i.test(x.media_url)?x.media_url:"Gambar belum dapat dibuka — semak Unified Inbox"))).join("\n")||"—"),
   ...(r.default_design_reference?[
    "Rujukan gaya lalai iCetak (unit "+r.default_design_reference.units.join(", ")+"): "+r.default_design_reference.url,
+   r.default_design_reference.kind==="two_initials_fancy_monogram"?
+   "Gaya initial fancy: ikut kaligrafi pada gambar rujukan, initial pertama di kiri atas dan kedua di kanan bawah, disambung oleh ampersand. Guna huruf buyer dan sambungkan semua bahagian untuk laser cut.":
    "Gaya initial: huruf serif pertama di kiri atas, huruf kedua di kanan bawah, disambung dengan ampersand berlengkung. Guna huruf buyer dan sambungkan semua bahagian untuk laser cut."
   ]:[]),
   ...(r.use_original_artwork?["Artwork: Artwork hitam siap customer — guna fail asal tanpa tukar wording/layout. Bacaan teks AI bukan sumber untuk reka semula."]:[]),
