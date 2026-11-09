@@ -1,5 +1,6 @@
 import { supabase } from './supabase-client';
 import {customerProductTitle} from './catalog-display';
+import { mountVariantButtons } from './catalog-variant-buttons';
 
 type SizeOption = { value: string; label?: string; price: number; stock?: number; image?: string };
 type WordingOption = {
@@ -292,6 +293,7 @@ function bindEditor(container: HTMLElement, product: CatalogProduct, state: Edit
   container.querySelector<HTMLButtonElement>('[data-config-add]')!.onclick = () => commit(onSave);
   container.querySelector<HTMLButtonElement>('[data-config-buy]')?.addEventListener('click', () => commit(onBuy || onSave));
   paint();
+  mountVariantButtons(container, sizes);
 }
 function addCartItem(item: CartItem, buyNow: boolean) {
   const cart = readCart();
@@ -438,8 +440,8 @@ async function editCartItem(index: number) {
 function enhanceCheckout() {
   const items = readCart();
   document.querySelectorAll<HTMLElement>('.checkout-item').forEach((node, index) => {
+    if (!items[index]?.catalog_slug || node.dataset.catalogEnhanced) return;
     const item = items[index];
-    if (!item?.catalog_slug || node.dataset.catalogEnhanced) return;
     node.dataset.catalogEnhanced = '1';
     const image = node.querySelector<HTMLImageElement>('.checkout-thumb');
     const snapshotImage = String(item.product_snapshot?.image_url || '');
