@@ -25,3 +25,17 @@ console.log('PASS: exact name, number, conditional prefix/suffix, Malay/English/
 const verbatim={config:{layers:[{field:'wording'}],automation:{enabled:true,inputs:{wording:{source:'wording',required:true,default:''}}}}};
 assert.equal(mapFields(verbatim,{},'Lily 4 tahun').fields.wording,'Lily 4 tahun');
 assert.equal(mapFields(verbatim,{},'4 years old').fields.wording,'4 years old');
+
+// The verified single-item note retains its original age unit even when the brief is shorthand.
+const checkout={wording:'Lily 4',confirmed:true,
+ actual_buyer_note:'Nama : Lily\\nUmur : 4 Tahun',
+ complete_note_rule:{eligible:true,reason:'COMPLETE_ORDER_BUYER_NOTE',wording:'Lily 4'}};
+assert.deepEqual(Object.values(mapFields(template,checkout,'Lily 4').fields),['Lily','4','','Tahun']);
+assert.deepEqual(mapFields(full,checkout,'Lily 4').fields,{name:'Lily',age:'4 Tahun'});
+assert.equal(mapFields(verbatim,checkout,'Lily 4').fields.wording,'Lily 4');
+for(const brief of [
+ {...checkout,confirmed:false},
+ {...checkout,actual_buyer_note:'Nama: Lily\nUmur: 5 Tahun'},
+ {...checkout,actual_buyer_note:'Nama: Another Child\nUmur: 4 Tahun'},
+ {...checkout,complete_note_rule:{...checkout.complete_note_rule,wording:'Lily 5'}},
+])assert.deepEqual(Object.values(mapFields(template,brief,'Lily 4').fields),['Lily','4','','']);
