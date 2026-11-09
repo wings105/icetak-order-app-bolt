@@ -53,15 +53,17 @@ function layerFor(t:string) {
 const explicitSelection = /\b(?:guna|gna|pakai|use|print|cetak|yg ni|yang ni|this one|mcm ni|macam ni|ikut|nak)\b/i;
 const reference = /\b(?:contoh|sample|inspiration|mcm\s*ni|macam\s*ni|seperti\s*ini)\b/i;
 const wordingLabel = /(?:^|\n)\s*(?:tulis(?:kan)?|wording|custom(?:ize)? name|tulisan|wording atas)\s*[:\-]?\s*([^\n]+(?:\n[^\n]+){0,3})/i;
+const orderRefs = (m:Data) => mediaText(m).toUpperCase().match(/\b[0-9]{6}[A-Z0-9]{6,18}\b/g) || [];
 const calendar = /\b(?:calendar|calender|kalendar)\b/i;
 const month = /\b(?:january|february|march|april|may|june|july|august|september|october|november|december|januari|februari|mac|mei|jun|julai|ogos|oktober|disember)\b/i;
 
 export function printRules(scope:Data, ctx:Data):Data {
  const t=scope.target;
- const messages:Data[]=(ctx.messages||[]).filter((m:Data)=>m.direction==="inbound" && !m.is_history && exactId(m.id))
+ const messages:Data[]=(ctx.messages||[]).filter((m:Data)=>m.direction==="inbound" && !m.is_history && exactId(m.id) && mediaText(m)!=="[unsupported]")
   .sort((a:Data,b:Data)=>messageTime(a)-messageTime(b));
  const isImage=(m:Data)=>m.message_type==="image";
  const media=messages.filter(isImage), selected:Data[]=[], proof=new Set<string>();
+ let artworkChoiceRequired=false;
  let scoped = messages;
  if (t.layer) {
   let active="";
@@ -87,13 +89,28 @@ export function printRules(scope:Data, ctx:Data):Data {
   }
   scoped=messages.filter((m:Data)=>!isImage(m)&&assignments.get(m.id)===t.profile);
  } else if (scope.single_item_scope) {
-  const currentSelection=messages.findLast((m:Data)=>!isImage(m)&&explicitSelection.test(mediaText(m))&&!reference.test(mediaText(m)));
-  const explicitImage=currentSelection && media.findLast((m:Data)=> (currentSelection.reply_to_provider_message_id&&currentSelection.reply_to_provider_message_id===m.provider_message_id)
-   || (messages.indexOf(currentSelection)===messages.indexOf(m)+1&&messageTime(currentSelection)-messageTime(m)<=90000));
-  if(explicitImage && t.quantity===1) {
-   selected.push(explicitImage);proof.add(currentSelection.id);
-  } else if(media.length===1 && t.quantity===1) selected.push(media[0]);
-  else if(t.quantity>1&&media.length===t.quantity&&media.every((m:Data)=>!!mediaText(m)&&!/^\[image\]$/i.test(mediaText(m)))) selected.push(...media);
+  const orderNo=text(scope.order_no).toUpperCase();
+  const eligibleMedia=orderNo ? media.filter(m=>orderRefs(m).every(ref=>ref===orderNo)) : media;
+  const tagged=orderNo ? eligibleMedia.filter(m=>orderRefs(m).includes(orderNo)) : [];
+  // A caption can be on the last image in a WhatsApp batch. Scope the batch
+  // by conversation and the exact provider timestamp, independent of UUID order.
+  const orderMedia=tagged.length ? eligibleMedia.filter(m=>tagged.some(a=>a.id===m.id ||
+   a.channel==="whatsapp" && m.channel==="whatsapp" && !!a.conversation_id &&
+   a.conversation_id===m.conversation_id && messageTime(a)===messageTime(m))) : eligibleMedia;
+  const currentSelection=messages.findLast(m=>!isImage(m)&&explicitSelection.test(mediaText(m))&&!reference.test(mediaText(m)));
+  const explicitImage=currentSelection && orderMedia.findLast(m=>(currentSelection.reply_to_provider_message_id&&currentSelection.reply_to_provider_message_id===m.provider_message_id)
+   || (messages.indexOf(currentSelection)===messages.indexOf(m)+1&&messageTime(currentSelection)-messageTime(m)<=90000 &&
+       orderMedia.filter(a=>messageTime(a)===messageTime(m)&&a.conversation_id===m.conversation_id).length===1));
+  const staffImage=tagged.length&&orderMedia.find(m=>m.id===scope.staff_artwork_message_id);
+  if (t.quantity===1 && (staffImage||explicitImage)) {
+   const artwork=staffImage||explicitImage;
+   selected.push(artwork);
+   if(!staffImage&&currentSelection)proof.add(currentSelection.id);
+   if(staffImage)for(const m of tagged.filter(m=>m.id!==artwork.id))selected.push({...m,role:"Contoh hasil pada kek"});
+  } else if(orderMedia.length===1 && t.quantity===1) selected.push(orderMedia[0]);
+  else if(t.quantity===1&&tagged.length)artworkChoiceRequired=true;
+  else if(t.quantity>1&&orderMedia.length===t.quantity&&orderMedia.every(m=>!!mediaText(m)&&!/^\[image\]$/i.test(mediaText(m)))) selected.push(...orderMedia);
+  for(const m of tagged)proof.add(m.id);
  } else {
   const identity=new Set([...unitSize(t.purchased_size),...unitSize(t.wording)]);
   const unique = (m:Data) => {
@@ -123,10 +140,11 @@ export function printRules(scope:Data, ctx:Data):Data {
  const dimensionOnly=/^\s*\d+(?:\.\d+)?["″]?\s*[x×]\s*\d+(?:\.\d+)?["″]?\s*$/;
  const wording=foundWording || (orderText && !dimensionOnly.test(orderText) && !/\b(?:edible|wafer|saiz|size|logo)\b/i.test(orderText)?orderText:"");
  const missing:string[]=[], flags:string[]=[];
+ if(artworkChoiceRequired)flags.push("Lebih daripada satu gambar untuk order ini; pilih artwork untuk cetak");
  if(!printSize)missing.push("Saiz cetak sebenar");
  if(!selected.length&&!cal)missing.push("Artwork atau gambar rujukan yang dipadankan");
  if(cal&&(!monthEvidence||!(/\b20\d{2}\b/.test(calDate))||!(/\b(?:tarikh|date|hari)\s*\d{1,2}\b|\b(?:november|december|january|february|march|april|may|june|july|august|september|october)\s+\d{1,2}\b(?!\s*\d)/i.test(calDate))))missing.push("Bulan, tahun atau tarikh kalendar");
- if(selected.length>4||selected.length>t.quantity)flags.push("Padanan gambar kepada unit perlu semakan");
+ if(selected.length>4||selected.filter(m=>m.role!=="Contoh hasil pada kek").length>t.quantity)flags.push("Padanan gambar kepada unit perlu semakan");
  if(ctx.ambiguous||ctx.truncated)flags.push("Sempadan chat memerlukan semakan");
  if(dimensions && (/\bA4\b/i.test(t.purchased_size) && (Math.min(+dimensions[1],+dimensions[2])>7.5||Math.max(+dimensions[1],+dimensions[2])>11) ||
    /\bA5\b/i.test(t.purchased_size) && (Math.min(+dimensions[1],+dimensions[2])>5.5||Math.max(+dimensions[1],+dimensions[2])>7.5))) flags.push("Saiz cetak melebihi tier");
@@ -135,7 +153,8 @@ export function printRules(scope:Data, ctx:Data):Data {
  const review=t.review_required||requestedReview;
  for(const m of [...selected,monthEvidence,dateEvidence].filter((m):m is Data=>!!m))proof.add(m.id);
  return {mode,wording,wording_mode:wording?"exact":mode==="PRINT_AS_IS"?"embedded_in_artwork":"pending",print_size:printSize,review_requested:review,
-  instruction:cal?["Buat kalendar",calDate].filter(Boolean).join("\n"):text(orderText&&!wording&&!dimensionOnly.test(orderText)?orderText:""),
+  instruction:cal?["Buat kalendar",calDate].filter(Boolean).join("\n"):[text(orderText&&!wording&&!dimensionOnly.test(orderText)?orderText:""),
+   ...allText.filter(x=>/\b(?:boleh|tolong)\b.{0,40}\b(?:squeeze|stretch|compress|mampatkan)\b/i.test(x)).slice(-1)].filter(Boolean).join("\n"),
   missing,flags,selected:flags.length?[]:selected.slice(0,4).map(m=>({...m,role:m.role||(mode==="PRINT_AS_IS"?"Artwork untuk cetak":mode==="CREATE_FROM_REFERENCE"?"Contoh design":"Gambar pelanggan")})),
   proof:messages.filter((m:Data)=>proof.has(m.id)||scoped.includes(m)&&!isImage(m)&&!/^(?:tq|ok|ya|baik|terima kasih)$/i.test(mediaText(m))).slice(-15),
   source_unavailable:!!ctx.unavailable || Object.values(ctx.channels||{}).includes("identity_unavailable") || scope.note_unverified};
@@ -260,6 +279,11 @@ export async function processPrint(job:Data,s:Data,route:Data,token:string,bridg
   assertTask(task,id,route.initial_status);
   const scope=await loadScope(s,task,route.profile,d);
   if(!scope.target.purchased_size||!Number.isInteger(scope.target.quantity)||scope.target.quantity<1)throw Error("PRINT_SPEC_UNVERIFIED");
+  if(scope.provider==="shopee") {
+   scope.previous_whatsapp_closed_at=await d.db("rpc/icetak_print_previous_whatsapp_close",{p_order_id:scope.order_id});
+   scope.whatsapp_closed_at=previous.whatsapp_closed_at;
+   if(exactId(previous.staff_artwork_message_id))scope.staff_artwork_message_id=previous.staff_artwork_message_id;
+  }
   const ctx=await loadPrintContext(scope,bridge,d);
   const result=printRules(scope,ctx);
   let advisory=previous.advisory, advisoryAt=previous.advisory_at;
@@ -305,6 +329,8 @@ export async function processPrint(job:Data,s:Data,route:Data,token:string,bridg
   ].join("\n").slice(0,13000);
   const fields={...previous.field_receipts};
   brief={profile:version,order_no:scope.order_no,status,wording:result.wording,review_requested:result.review_requested,
+   whatsapp_closed_at:previous.whatsapp_closed_at||(status==="BRIEF_READY"&&scope.provider==="shopee"?ctx.whatsapp_last_at:null),
+   staff_artwork_message_id:scope.staff_artwork_message_id,
    specification:scope.target,print_size:result.print_size,mode:result.mode,missing:result.missing,flags:result.flags,
    source_channels:ctx.channels,advisory,advisory_at:advisoryAt,advisory_key:advisoryKey,field_receipts:fields,evidence:result.proof.map((m:Data)=>({id:m.id,channel:m.channel,at:m.created_at})),
    scope:{provider:scope.provider,order_id:scope.order_id,order_no:scope.order_no,session_id:scope.session_id,draft_id:scope.draft_id,

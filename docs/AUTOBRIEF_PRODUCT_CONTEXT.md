@@ -254,3 +254,13 @@ Production preview verified two separate Burn Away image links and bytes,
 a direct custom print size, and a missing-source case. A controlled ClickUp
 transport verified upload, clickable source links and replay deduplication.
 A fresh scheduled order and production ClickUp attachment readback are pending.
+
+### Separate WhatsApp sessions for multiple Shopee orders
+
+The next verified Shopee order ID closes the preceding WhatsApp evidence window,
+including when that ID is in an image caption. A ready brief records its last
+WhatsApp message time independently of fulfillment. The next order uses that
+boundary and its own exact order ID; a later worker run time cannot hide messages
+already sent for the newer order. Images in the same WhatsApp conversation with
+the same provider timestamp may share the caption's order scope. If the group
+has multiple images, assigning the print artwork requires an explicit selection.

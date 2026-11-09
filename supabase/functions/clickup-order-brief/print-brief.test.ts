@@ -81,6 +81,7 @@ const dependencies={
  db:async(path:string,body?:any)=>{
   if(path.startsWith('marketplace_orders?'))return [{id:orderId,provider:'shopee',order_sn:orderNo,placed_at:customer[0].created_at,current_status:'READY_TO_SHIP'}];
   if(path.startsWith('marketplace_order_items?'))return [pair];
+  if(path==='rpc/icetak_print_previous_whatsapp_close')return null;
   if(path==='rpc/icetak_record_order_brief'){saved=body;return true;}
   throw Error('Unexpected db call '+path);
  },
@@ -99,3 +100,20 @@ try{
  assert.equal(posted,1);
  console.log('PASS actual print worker attachment, clickable source link and retry deduplication with controlled ClickUp transport');
 }finally{globalThis.fetch=oldFetch;}
+
+const batchTime=make('image','[Image]',3).created_at;
+const foreign={...make('image','261109AAAAAA1',0),conversation_id:'wa'};
+const flat={...make('image','[Image]',1),conversation_id:'wa',created_at:batchTime};
+const cake={...make('image','Lagi satu .. 261109TESTIMG2',2),conversation_id:'wa',created_at:batchTime};
+const crop=make('text','Boleh je squeeze gambar',4);
+const batchScope={...print,order_no:'261109TESTIMG2'};
+const onlyTagged=printRules(batchScope,{messages:[foreign,cake,crop]});
+assert.equal(onlyTagged.selected[0].id,cake.id);
+const uncertain=printRules(batchScope,{messages:[foreign,flat,cake,crop]});
+assert.equal(uncertain.selected.length,0);
+assert.match(uncertain.flags.join(),/Lebih daripada satu gambar/);
+const resolved=printRules({...batchScope,staff_artwork_message_id:flat.id},{messages:[foreign,cake,flat,crop]});
+assert.deepEqual(resolved.selected.map((m:Record<string,unknown>)=>[m.id,m.role]),[[flat.id,'Artwork untuk cetak'],[cake.id,'Contoh hasil pada kek']]);
+assert.equal(resolved.instruction,'Boleh je squeeze gambar');
+assert.equal(printRules({...batchScope,staff_artwork_message_id:foreign.id},{messages:[foreign,flat,cake,crop]}).selected.length,0);
+console.log('PASS order-caption match, same-timestamp batch isolation, verified artwork selection and crop instruction');
