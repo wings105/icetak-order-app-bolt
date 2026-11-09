@@ -481,8 +481,11 @@ function completeMultilineNoteRule(input:Obj):Obj{
  if(decision.name_conflict||decision.age_conflict)return no("DETAIL_CONFLICT");
  const messages=[...(provider.messages||[]),...(input.messages||[])].filter((m:Obj)=>m.direction!=="outbound");
  if(messages.some((m:Obj)=>{
-  if(m.message_type&&m.message_type!=="text")return true;
   const text=decode(m.text_content||m.caption);
+  // The exact Shopee order card identifies the order without adding artwork instructions.
+  if(m.channel==="shopee"&&m.message_type==="order"&&input.order_reference&&
+   m.order_sn===input.order_reference&&!text&&!m.media_url)return false;
+  if(m.message_type&&m.message_type!=="text")return true;
   return normalized(text)!==normalizedNote&&!isUnimportant(text);
  }))return no("CUSTOMER_REPLY_REQUIRES_REVIEW");
  return {eligible:true,reason:"COMPLETE_ORDER_BUYER_NOTE",wording,confidence:88};
@@ -1178,7 +1181,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    decision={...decision,wording:twoNameRule.wording,instruction:twoNameRule.instruction,confidence:twoNameRule.confidence,age:twoNameRule.age,note_evidence:!!note,chat_evidence:!note||chronological.length>0,name_conflict:false,age_conflict:false};
    proof=twoNameRule.proof;
   }
-  const completeNoteRule=completeMultilineNoteRule({note,existingWord,items:orderItems,siblingTasks,provider:providerContext,context,decision,sku:productSku,task_id:id,multi,messages:chronological});
+  const completeNoteRule=completeMultilineNoteRule({note,existingWord,items:orderItems,siblingTasks,provider:providerContext,context,decision,sku:productSku,task_id:id,order_reference:s.order_reference,multi,messages:chronological});
   if(completeNoteRule.eligible)decision={...decision,wording:completeNoteRule.wording,confidence:completeNoteRule.confidence,note_evidence:true};
   const missing=Array.isArray(detail.missing)?detail.missing:[];
   const unresolvedMissing=missing.filter((x:Obj)=>{
