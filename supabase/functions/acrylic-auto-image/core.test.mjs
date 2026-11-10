@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';import {test} from 'node:test';import {CF,guard,initials,validatePlan,makeSpec,DEFAULTS} from './core.mjs';
+const task=()=>({list:{id:'18375902'},status:{status:'acrylic'},custom_fields:[{name:'confirmed',value:true},{id:CF.review,value:15,type_config:{options:[{id:CF.check,name:'✅Ai Check',orderindex:15},{id:CF.done,name:'✨Ai designed gpt',orderindex:16}]}}]});
+const unit=(wording,style='none',refs=[])=>({wording,style,reference_indices:refs,instruction:'',allow_stick:false,separate:false});
+const plan=units=>({needs_review:false,confidence:95,units});
+test('exact CF option/orderindex and confirmed',()=>{assert.equal(guard(task()),CF.check);const t=task();t.custom_fields[0].value=false;assert.throws(()=>guard(t),/CONFIRMED/)});
+test('reject non acrylic and modified field definition',()=>{const t=task();t.status.status='design';assert.throws(()=>guard(t));const t2=task();t2.custom_fields[1].type_config.options[0].name='other';assert.throws(()=>guard(t2))});
+test('done only allowed for reconciliation',()=>{const t=task();t.custom_fields[1].value=16;assert.throws(()=>guard(t));assert.equal(guard(t,true),CF.done)});
+test('initial forms preserve order',()=>{for(const x of ['B & L','B&L','B.L.','BL'])assert.deepEqual(initials(x),['B','L']);assert.equal(initials('Happy Birthday'),null)});
+test('default serif and fancy are visual references',()=>{assert.equal(makeSpec(plan([unit('BL')]),[]).references[0].url,DEFAULTS.serif);assert.equal(makeSpec(plan([unit('BL','fancy')]),[]).references[0].url,DEFAULTS.fancy)});
+test('customer reference wins over fancy default',()=>{const r=[{url:'https://example.com/a.png',unit:1,kind:'customer'}];assert.equal(makeSpec(plan([unit('BL','fancy',[0])]),r).references[0].url,r[0].url)});
+test('conflicting wording and unassigned ref block',()=>{const b={quantity:1,units:[{wording:'BL'}]};assert.throws(()=>validatePlan(plan([unit('XY')]),b,[]));assert.throws(()=>validatePlan(plan([unit('BL')]),b,[{kind:'customer',url:'x'}]))});
+test('unit-specific reference cannot migrate to another unit',()=>{const b={quantity:2,units:[{wording:'AB'},{wording:'CD'}]},p=plan([unit('AB','none',[0]),unit('CD')]);assert.throws(()=>validatePlan(p,b,[{url:'x',unit:2,kind:'customer'}]))});
+test('ordinary wording has no invented default image or text',()=>{const s=makeSpec(plan([unit('Zahra')]),[]);assert.equal(s.references.length,0);assert.ok(s.prompt.includes('Zahra'));assert.equal(s.units[0].allow_stick,false)});
+test('missing confidence cannot pass',()=>{assert.throws(()=>validatePlan({needs_review:false,units:[unit('BL')]},{quantity:1,units:[{wording:'BL'}]},[]))});
+test('line breaks cannot silently change',()=>{assert.throws(()=>validatePlan(plan([unit('Happy Birthday')]),{quantity:1,units:[{wording:'Happy\nBirthday'}]},[]))});
+test('explicit fancy overrides an internal serif default',()=>{const s=makeSpec(plan([unit('BL','fancy',[0])]),[{url:DEFAULTS.serif,kind:'default'}]);assert.equal(s.references[0].url,DEFAULTS.fancy)});
+test('explicit other font must not use internal default',()=>{const s=makeSpec(plan([unit('BL','other',[0])]),[{url:DEFAULTS.serif,kind:'default'}]);assert.equal(s.references.length,0)});
