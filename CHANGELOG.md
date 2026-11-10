@@ -1,3 +1,7 @@
+# 2026-11-10
+
+- [PRODUCTION] AutoBrief v91 confirms labelled custom items per SKU when OpenAI cites matching customer wording and every item is uniquely mapped. ClickUp readback verified both tasks at 98% and 95%. See [AutoBrief product context](docs/AUTOBRIEF_PRODUCT_CONTEXT.md).
+
 # 2026-11-09
 
 - [PRODUCTION] AutoBrief v88 can use OpenAI to confirm a verified single custom item when the Buyer Note supplies the name and the order chat supplies the age. The current analysis must cite the relevant evidence and agree with the source. Live readback verified 98%, the original age unit, Ai Check, Confirmed and the existing proof comment. See [AutoBrief product context](docs/AUTOBRIEF_PRODUCT_CONTEXT.md).

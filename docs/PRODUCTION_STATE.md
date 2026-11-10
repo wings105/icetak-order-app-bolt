@@ -1,3 +1,10 @@
+# 2026-11-10 — OpenAI confirmation by product label
+
+AutoBrief v91 confirms a SKU when the customer supplies a unique product
+label, name and age in order chat and current OpenAI evidence agrees.
+Live readback verified both items at 98% and 95%. See
+[AutoBrief product context](AUTOBRIEF_PRODUCT_CONTEXT.md).
+
 # 2026-11-09 — OpenAI confirmation from Buyer Note and chat
 
 AutoBrief v88 can confirm a labelled Buyer Note name with an age supplied in

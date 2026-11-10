@@ -620,6 +620,67 @@ function aiSplitNameAgeEvidence(note:string, inbound:Obj[], evidence:string[], a
 }
 
 
+function aiLabelledChatEvidence(refs:ReturnType<typeof productReferences>, sku:string, siblingTasks:Obj[], note:string, inbound:Obj[], analysis:Obj, existingWord:string):Obj{
+ const no=(reason:string)=>({eligible:false,reason});
+ const validProduct=(item:Obj)=>item.quantity===1&&/^(CN|YS)\d{3,6}$/i.test(item.sku)&&/^\d{1,20}$/.test(item.product_id)&&/custom\s*name/i.test(item.title);
+ if(note||refs.length>8||refs.some(item=>!validProduct(item))||
+  new Set(refs.map(item=>normalized(item.sku))).size!==refs.length||
+  !refs.some(item=>normalized(item.sku)===normalized(sku))||
+  siblingTasks.length!==refs.length||
+  refs.some(item=>siblingTasks.filter(task=>new RegExp("(?:^|[^A-Z0-9])"+item.sku+"(?:$|[^A-Z0-9])","i").test(task.task_name||"")).length!==1))
+  return no("MULTI_ITEM_MAPPING_UNVERIFIED");
+ const phrase=(value:string)=>normalized(value.normalize("NFKC")).replace(/[^\p{L}\p{N}]+/gu," ").trim();
+ const labelledItem=(label:string)=>{
+  const key=phrase(label);
+  const exact=refs.filter(item=>normalized(label)===normalized(item.sku)||label===item.product_id||
+   (key.length>=3&&(" "+phrase(item.title)+" ").includes(" "+key+" ")));
+  if(exact.length)return exact.length===1?exact[0]:undefined;
+  // Only a one-letter substitution in a substantial catalogue phrase is accepted.
+  const compact=key.replace(/ /g,"");
+  if(!/^[a-z]{8,40}$/.test(compact))return undefined;
+  const matches=refs.filter(item=>{
+   const words=phrase(item.title).split(" ");
+   return words.some((_,index)=>{
+    let candidate="";
+    for(let end=index;end<words.length&&candidate.length<compact.length;end++)candidate+=words[end];
+    return candidate.length===compact.length&&[...compact].filter((letter,i)=>letter!==candidate[i]).length===1;
+   });
+  });
+  return matches.length===1?matches[0]:undefined;
+ };
+ const ageNumber=(value:string)=>value.match(/^(?:(?:turns?|turning|age|umur|usia)\s*[:=]?\s*)?(\d{1,3})(?:\s*(?:tahun|thn|years?(?: old)?|yrs?|y))?$/i)?.[1];
+ const assignments=new Map<string,{name:string;age:string;wording:string;label:string;message:Obj}>();
+ for(const message of inbound){
+  const body=string(message.text_content||message.caption,1400);
+  if(message.message_type&&message.message_type!=="text")return no("MULTI_ITEM_NON_TEXT_REQUIRES_REVIEW");
+  if(isUnimportant(body)||/^(?:hai|hi|hello)(?:\s+cik|\s+boleh ke)?[?!.\s]*$/i.test(body)||
+   /^(?:sy|saya)\s+ada order\s+(?:nk|nak) letak nama (?:and|dan) (?:number|nombor|umur)(?: ya)?[.!]*$/i.test(body)||
+   /^(?:sbb|sebab)\s+(?:sy|saya)\s+(?:nk|nak) guna \d{1,2}\s*hb(?: ni)?[.!]*$/i.test(body))continue;
+  const labelled=body.match(/^([^\n:]{2,90}):\s*([\s\S]+)$/);
+  if(!labelled)return no("AMBIGUOUS_OR_CONFLICTING_CHAT_PRODUCT_LABEL");
+  const item=labelledItem(labelled[1].trim());
+  if(!item||assignments.has(normalized(item.sku)))return no("AMBIGUOUS_OR_CONFLICTING_CHAT_PRODUCT_LABEL");
+  const [name,ageText,...extra]=labelled[2].split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+  const age=ageNumber(ageText||"");
+  if(extra.length||!age||Number(age)<1||Number(age)>120||
+   !/^[\p{L}][\p{L}\p{M} .’'&-]{0,84}$/u.test(name||"")||isNonDesignWording(name))
+   return no("MULTI_ITEM_WORDING_NEEDS_REVIEW");
+  assignments.set(normalized(item.sku),{name,age,wording:name+" "+ageText,label:labelled[1].trim(),message});
+ }
+ const target=assignments.get(normalized(sku));
+ if(assignments.size!==refs.length||!target)return no("CHAT_PRODUCT_LABEL_COVERAGE_INCOMPLETE");
+ if(!analysis.evidence_ids.includes(String(target.message.id)))return no("TARGET_PRODUCT_MESSAGE_NOT_CITED");
+ const model=string(analysis.wording,255);
+ const modelFields=model.match(/^([^;\n,]+)[;\n,]\s*(.+)$/);
+ const equivalent=normalized(model)===normalized(target.wording)||
+  modelFields&&normalized(modelFields[1])===normalized(target.name)&&Number(ageNumber(modelFields[2].trim()))===Number(target.age);
+ if(!equivalent)return no("AI_WORDING_DIFFERS_FROM_CUSTOMER");
+ if(existingWord&&normalized(existingWord)!==normalized(target.wording))return no("STAFF_WORDING_PROTECTED");
+ return {eligible:true,reason:"AI_90_WITH_LABELLED_ITEM_CHAT_EVIDENCE",wording:target.wording,confidence:analysis.confidence,
+  instruction:"Padanan SKU disahkan melalui label produk dalam chat customer.",matched_label:target.label,
+  evidence_ids:analysis.evidence_ids,wording_message_id:target.message.id,wording_at:target.message.created_at};
+}
+
 function aiEvidenceConfirmation(input:Obj):Obj{
  const no=(reason:string)=>({eligible:false,reason});
  const {analysis,current,items,sku,messages,context,existingWord,note,decision,missing,provider,siblingTasks}=input;
@@ -628,11 +689,13 @@ function aiEvidenceConfirmation(input:Obj):Obj{
  if(context.ambiguous||context.truncated||context.unavailable)return no("CHAT_CONTEXT_UNVERIFIED");
  if(!provider?.available||!['READY_TO_SHIP','PROCESSED'].includes(provider.order_status))return no("CURRENT_ACTIVE_ORDER_REQUIRED");
  const refs=productReferences(items);
- if(refs.length!==1||refs[0].quantity!==1||normalized(refs[0].sku)!==normalized(sku)||! /^(CN|YS)\d{3,6}$/i.test(sku)||!/^\d{1,20}$/.test(refs[0].product_id)||!/custom\s*name/i.test(refs[0].title)||siblingTasks.length!==1)return no("SINGLE_VERIFIED_CUSTOM_ITEM_REQUIRED");
- if(missing.length||decision.age_conflict)return no("UNRESOLVED_DETAIL_OR_AGE_CONFLICT");
+ if(missing.length)return no("UNRESOLVED_DETAIL_OR_AGE_CONFLICT");
  const inbound=messages.filter((m:Obj)=>m.direction==="inbound"&&!m.is_history&&m.id&&Number.isFinite(Date.parse(m.created_at)));
  const ids=new Set(inbound.map((m:Obj)=>String(m.id))),evidence=analysis.evidence_ids;
  if(!Array.isArray(evidence)||!evidence.length||evidence.some((id:unknown)=>!ids.has(String(id))))return no("AI_EVIDENCE_NOT_IN_ORDER_CONTEXT");
+ if(refs.length>1)return aiLabelledChatEvidence(refs,sku,siblingTasks,note,inbound,analysis,existingWord);
+ if(refs.length!==1||refs[0].quantity!==1||normalized(refs[0].sku)!==normalized(sku)||! /^(CN|YS)\d{3,6}$/i.test(sku)||!/^\d{1,20}$/.test(refs[0].product_id)||!/custom\s*name/i.test(refs[0].title)||siblingTasks.length!==1)return no("SINGLE_VERIFIED_CUSTOM_ITEM_REQUIRED");
+ if(decision.age_conflict)return no("UNRESOLVED_DETAIL_OR_AGE_CONFLICT");
  const explicit=inbound.map((m:Obj)=>({message:m,value:explicitChatWording(string(m.text_content||m.caption,1400))})).filter((x:Obj)=>x.value).sort((a:Obj,b:Obj)=>Date.parse(a.message.created_at)-Date.parse(b.message.created_at));
  const latest=explicit.at(-1);
  if(!latest)return aiSplitNameAgeEvidence(note,inbound,evidence,analysis,existingWord);
@@ -1364,7 +1427,9 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     (string(aiAnalysis.instruction,250)?"\nAI instruction: "+string(aiAnalysis.instruction,250):"")+
     (string(aiAnalysis.image_description,250)?"\nAI image: "+string(aiAnalysis.image_description,250):"");
   }
-  if(aiConfirmation.eligible)text+=aiConfirmation.reason==="AI_90_WITH_SPLIT_NAME_AGE_EVIDENCE"
+  if(aiConfirmation.eligible)text+=aiConfirmation.reason==="AI_90_WITH_LABELLED_ITEM_CHAT_EVIDENCE"
+   ?"\n\nPengesahan OpenAI "+confidence+"% berdasarkan label "+aiConfirmation.matched_label+" untuk SKU "+productSku+" dalam chat "+briefTimestamp(aiConfirmation.wording_at)+"."
+   :aiConfirmation.reason==="AI_90_WITH_SPLIT_NAME_AGE_EVIDENCE"
    ?"\n\nPengesahan OpenAI "+confidence+"% berdasarkan nama dalam Buyer Note dan umur dalam chat "+briefTimestamp(aiConfirmation.wording_at)+"."
    :"\n\nAI pengesahan: "+confidence+"%; wording tepat daripada mesej customer terkini "+briefTimestamp(aiConfirmation.wording_at)+". Versi tanda baca terkini digunakan; bukti order/item disemak.";
   const interpretation=readingSummary({rule:twoNameRule.eligible?twoNameRule:bareNameRule.eligible?bareNameRule:sharedNameRule,note,messages:chronological,items:orderItems,decision,verified,aiAnalysis,aiCandidate});
