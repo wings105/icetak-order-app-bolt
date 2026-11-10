@@ -4,6 +4,7 @@ import MaterialCostSettings from './MaterialCostSettings';
 import AwbPreviewWebhookSettings from './AwbPreviewWebhookSettings';
 import ShopeeChatSettings from './ShopeeChatSettings';
 import {ClickUpConnection} from '../components/TaskClickUpControls';
+import AcrylicAutoSettings from '../components/AcrylicAutoSettings';
 
  type Props = { permissions?: string[]; isOwner?:boolean; onOpenAiLearning?: () => void };
 
@@ -118,6 +119,7 @@ export default function Settings({ permissions = [], isOwner=false, onOpenAiLear
     {error&&<div style={{marginBottom:12,padding:10,borderRadius:10,background:'#fef3f2',color:'#b42318'}}>{error}</div>}
     {notice&&<div style={{marginBottom:12,padding:10,borderRadius:10,background:'#ecfdf3',color:'#027a48'}}>{notice}</div>}
     <div className="grid-2" style={{alignItems:'start'}}>
+      <AcrylicAutoSettings />
       {canManageMonitor&&<ShopeeChatSettings/>}
       {(isOwner||canManageMonitor)&&<ClickUpConnection/>}
       {permissions.includes('view_finance')&&<MaterialCostSettings canManage={permissions.includes('manage_finance')}/>}
