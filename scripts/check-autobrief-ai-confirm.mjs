@@ -50,6 +50,32 @@ for(const change of [
  {messages:[...splitMessages,{...splitMessages[2],id:'other',text_content:'Tukar nama kepada OTHER'}]}
 ])assert.equal(api.aiEvidenceConfirmation({...splitCase,...change}).eligible,false,JSON.stringify(change));
 
+const multiItems=[
+ {...items[0],title:'Custom Name Alpha Heroes Cake Topper'},
+ {...items[0],item_sku:'CN1002',provider_item_id:'2222222222',title:'Custom Name Numberblocks Number Blocks Cake Topper'}
+];
+const multiMessages=[
+ 'Hai cik','Sy ada order nk letak nama and number ya',
+ 'Alpha Heroes :\nSample One\nTurn 2 years',
+ 'Nunber blocks :\nSample Two\nTurn 6 years',
+ 'Hello boleh ke?','Sbb sy nk guna 14hb ni'
+].map((text,i)=>({...messages[1],id:'multi'+i,text_content:text}));
+const multiCase={...base,items:multiItems,messages:multiMessages,decision:{age_conflict:true},
+ siblingTasks:multiItems.map(item=>({task_name:'1x '+item.item_sku})),
+ analysis:{...analysis,wording:'Sample One; Turn 2 years',evidence_ids:['multi2']}};
+assert.equal(api.aiEvidenceConfirmation(multiCase).wording,'Sample One Turn 2 years');
+const secondCase={...multiCase,sku:'CN1002',analysis:{...analysis,item_sku:'CN1002',wording:'Sample Two; 6 years',evidence_ids:['multi3']}};
+assert.equal(api.aiEvidenceConfirmation(secondCase).wording,'Sample Two Turn 6 years');
+for(const change of [
+ {analysis:{...secondCase.analysis,evidence_ids:['multi2']}},
+ {analysis:{...secondCase.analysis,wording:'Sample One; 6 years'}},
+ {analysis:{...secondCase.analysis,wording:'Sample Two; 7 years'}},
+ {messages:multiMessages.filter(m=>m.id!=='multi2')},
+ {messages:[...multiMessages,{...multiMessages[3],id:'conflict',text_content:'Numberblocks :\nOther Child\nTurn 7 years'}]},
+ {items:[{...multiItems[0],title:'Custom Name Numberblocks Alpha Heroes'},multiItems[1]]},
+ {existingWord:'Staff approved wording'}
+])assert.equal(api.aiEvidenceConfirmation({...secondCase,...change}).eligible,false,JSON.stringify(change));
+
 // Exercise both real worker paths with field/comment writes and replay.
 for(const fixture of [
  {note,messages,expected:wording,analysis,comment:/AI pengesahan/},

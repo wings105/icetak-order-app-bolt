@@ -286,3 +286,20 @@ the wording, Ai Check, Confirmed and the updated original comment.
 repository and deployed worker sources. Checkout-note and render-age checks
 pass. The existing WhatsApp-session fixture fails on both the baseline and
 the updated source because its mock lacks the route lookup.
+
+
+## OpenAI confirmation for labelled multi-item chat — 10 November 2026
+
+Worker v91 can confirm each SKU independently when the current OpenAI analysis
+scores at least 90% and cites the matching customer message. Every custom
+item must have one unique task and one labelled message with name and age.
+The label may match the SKU, product ID, catalogue phrase or a unique
+one-letter substitution in a substantial catalogue phrase. The validated
+wording uses the customer's spelling and age phrase. Duplicate labels,
+incomplete coverage, conflicting evidence, unresolved instructions and
+different staff wording remain in review.
+
+The two live tasks completed with 98% and 95%. Direct ClickUp readback
+verified the wording, Ai Check, Confirmed and original proof comments.
+The AI confirmation script tests both SKU matches and rejects cross-item
+citations, changed names or ages, duplicate labels and ambiguous products.
