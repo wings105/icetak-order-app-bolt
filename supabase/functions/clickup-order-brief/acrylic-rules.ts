@@ -1,7 +1,7 @@
 // Rules first: no provider calls, I/O or customer sends in this module.
 export type RecordData = Record<string, any>;
 export const ACRYLIC_VERSION = "acrylic-internal-v1";
-export const ACRYLIC_RULES_REVISION = "checkout-quoted-wording-v6";
+export const ACRYLIC_RULES_REVISION = "checkout-order-header-v7";
 const text = (x: any) => String(x ?? "").replace(/\\n/g, "\n").trim();
 export const norm = (x: any) => text(x).toLowerCase().replace(/\s+/g, " ");
 const stamp = (m: RecordData) => Date.parse(m.sent_at || m.created_at || m.at || "");
@@ -163,7 +163,10 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
   add([number?number[1]:cleanWording(existing)],{id:"order_item"},"order_item");
  }
  for(const m of messages) {
-  const s=value(m); if(!s || /^\[(?:Shopee|Image|Document|edit)/i.test(s)) {
+  const body=value(m);
+  const heading=body.match(/^(?:(?:order[ \t]+(?:id|no)|id)[ \t]*[:#][ \t]*)?([0-9]{6}[A-Z0-9]{6,18})[ \t]*\r?\n/iu);
+  const s=inbound(m)&&heading&&heading[1].toUpperCase()===String(scope.order_no||"").toUpperCase()?body.slice(heading[0].length).trim():body;
+  if(!s || /^\[(?:Shopee|Image|Document|edit)/i.test(s)) {
    if(inbound(m)&&m.message_type==="image"&&m.media_url) references.push({...m,referenceSize,referenceColour,topic:current|| (acrylicItems.length===1&&!mixed?"acrylic":"unassigned")});
    continue;
   }
