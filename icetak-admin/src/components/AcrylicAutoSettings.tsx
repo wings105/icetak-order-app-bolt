@@ -47,7 +47,7 @@ export default function AcrylicAutoSettings() {
   const held = (status?.counts.review || 0) + (status?.counts.uncertain || 0);
   return <section className="panel" aria-labelledby="acrylic-auto-title" style={{ gridColumn: '1 / -1' }}>
     <div className="panel-header" style={{ gap: 16, flexWrap: 'wrap' }}>
-      <div><div className="panel-title" id="acrylic-auto-title">Auto Generate Acrylic</div><div className="panel-subtitle">AutoBrief confirmed → tunggu 3 minit → queue → OpenAI → QC → attachment ClickUp</div></div>
+      <div><div className="panel-title" id="acrylic-auto-title">Auto Generate Acrylic</div><div className="panel-subtitle">AutoBrief confirmed → tunggu 3 minit → queue → OpenAI → attachment ClickUp → Ai designed gpt</div></div>
       <button type="button" className={status?.enabled ? 'btn btn-primary' : 'btn btn-outline'} role="switch" aria-label="Auto Generate Acrylic" aria-checked={status?.enabled ?? false} disabled={busy || !status?.can_manage || (!status.enabled && !status.ready)} onClick={() => void toggle()}>{busy ? 'Menyimpan...' : status ? (status.enabled ? 'ON · Matikan' : 'OFF · Hidupkan') : 'Memuatkan...'}</button>
     </div>
     <div style={{ padding: 20 }}>
@@ -57,11 +57,12 @@ export default function AcrylicAutoSettings() {
         {!status.ready && <p role="status"><b>OFF semasa pemasangan dan pengesahan.</b> Butang ON dibuka selepas worker disahkan tersedia.</p>}
         {!status.can_manage && <p className="cell-sub">Owner/admin sahaja boleh ubah tetapan ini.</p>}
         <div className="kv-list">
-          <div className="kv-row"><span className="k">Giliran</span><span className="v">{status.counts.queued || 0} menunggu · {held} perlu semakan · {status.counts.completed || 0} siap</span></div>
+          <div className="kv-row"><span className="k">Giliran</span><span className="v">{status.counts.queued || 0} menunggu · {held} perlu semakan · {status.counts.completed || 0} siap upload</span></div>
           <div className="kv-row"><span className="k">Had hari ini (Malaysia)</span><span className="v">{status.used_today} / {status.daily_limit} percubaan image</span></div>
           <div className="kv-row"><span className="k">Model</span><span className="v" style={{ overflowWrap: 'anywhere' }}>{status.model}</span></div>
         </div>
         <p>Hanya task <b>acrylic + Ai Check + confirmed</b>. Mula layak selepas {status.delay_seconds / 60} minit AutoBrief siap, ikut giliran. Maksimum satu task diproses pada satu masa.</p>
+        <p><b>QC visual manual oleh operator.</b> Selepas jana, gambar terus dimuat naik. Ai designed gpt bermaksud gambar sudah dijana dan dilampirkan, bukan lulus QC atau sedia dipotong.</p>
         <p className="cell-sub">OpenAI API dicaj berasingan daripada ChatGPT/ClickUp. Had mengira percubaan, bukan jumlah kos. OFF menghentikan langkah baru; request yang sudah dihantar mungkin tetap dicaj. Fail disahkan ada sebelum Review customer ditukar kepada Ai designed gpt.</p>
         {status.recent.length > 0 && <details><summary>Aktiviti terbaru</summary><ul style={{ paddingLeft: 20 }}>{status.recent.map(job => <li key={job.task_id} style={{ marginTop: 12, overflowWrap: 'anywhere' }}><a href={`https://app.clickup.com/t/${job.task_id}`} target="_blank" rel="noopener noreferrer">Buka task</a>: {job.state} / {job.stage}{job.last_error ? ` · ${job.last_error}` : ''}<div className="cell-sub">{new Date(job.updated_at).toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur' })}</div></li>)}</ul></details>}
       </>}
