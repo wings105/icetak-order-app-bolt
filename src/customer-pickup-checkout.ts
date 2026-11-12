@@ -1,7 +1,7 @@
 import { supabase } from './appdeploy-client';
 import './customer-pickup-checkout.css';
 
-const QR_URL='https://t3747262.p.clickup-attachments.com/t3747262/836016e0-e613-447b-b61a-291fddd3f83d_large.png';
+const QR_URL='/images/icetak-duitnow-qr-v1.png';
 type Item={id:string;title:string;qty:number;price:number;size?:string;style?:string;wording?:string;previewUrl?:string};
 type Order={id:string;orderNo:string;total:number;balance:number;paid:boolean;ready:boolean;collected:boolean;group:string;status:string;dateNeed?:string;items:Item[]};
 type Overview={customer:{name:string;phone?:string};orders:Order[]};

@@ -92,7 +92,7 @@ type Payment = {
 type ApiResponse<T> = { data: T; status: number };
 
 const WA = '60179860656';
-const QR_URL = 'https://t3747262.p.clickup-attachments.com/t3747262/836016e0-e613-447b-b61a-291fddd3f83d_large.png';
+const QR_URL = '/images/icetak-duitnow-qr-v1.png';
 const PRODUCT_IMAGES: Record<string, string> = {
   acrylic: 'https://cf.shopee.com.my/file/my-11134207-7qukw-ljwh8grpguaefa.jpg',
   edible: 'https://cf.shopee.com.my/file/sg-11134201-23010-92ucf0wnrrlv85.jpg',
