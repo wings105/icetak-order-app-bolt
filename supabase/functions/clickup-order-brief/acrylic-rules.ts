@@ -1,9 +1,16 @@
 // Rules first: no provider calls, I/O or customer sends in this module.
 export type RecordData = Record<string, any>;
 export const ACRYLIC_VERSION = "acrylic-internal-v1";
-export const ACRYLIC_RULES_REVISION = "checkout-order-header-v7";
+export const ACRYLIC_RULES_REVISION = "checkout-order-header-v8-proof";
 const text = (x: any) => String(x ?? "").replace(/\\n/g, "\n").trim();
 export const norm = (x: any) => text(x).toLowerCase().replace(/\s+/g, " ");
+export const ACRYLIC_EVIDENCE_POLICY = "text-vision-proof-v2";
+export function isDesignInstruction(s: string): boolean {
+ const v=norm(s);
+ return /\b(?:font|typeface|jenis\s+tulisan|gaya\s+tulisan|tulisan\s*(?:&|dan)\s*font)\b/i.test(v)
+  || /^(?:ini|ni|itu|tu|yang|yg)\s+(?:tulisan|contoh|rujukan|gambar|design)\b/i.test(v)
+  || /^(?:ikut|guna|pakai|rujuk|macam|mcm|contoh|sample)\s+(?:gambar|font|tulisan|design|yang|yg|ini|ni)\b/i.test(v);
+}
 const stamp = (m: RecordData) => Date.parse(m.sent_at || m.created_at || m.at || "");
 const inbound = (m: RecordData) => m.direction === "inbound";
 const value = (m: RecordData) => text(m.text_content || m.caption);
@@ -78,7 +85,18 @@ export function isContactOnly(value: string, orderPhone: string): boolean {
 
 function pair(s: string) {
  const c = cleanWording(s);
+ if(isDesignInstruction(s))return "";
  return /^[\p{L}][\p{L}\p{M} .'-]{0,65}\s*&\s*[\p{L}][\p{L}\p{M} .'-]{0,65}$/u.test(c) ? c : "";
+}
+function nameDateNote(s:string):string {
+ const lines=text(s).split("\n").map(x=>x.trim()).filter(Boolean);
+ if(lines.length!==2||!pair(lines[0]))return "";
+ const match=lines[1].match(/^(\d{1,2})([./-])(\d{1,2})\2(\d{4})$/);
+ if(!match)return "";
+ const day=Number(match[1]),month=Number(match[3]),year=Number(match[4]);
+ const date=new Date(Date.UTC(year,month-1,day));
+ if(year<2000||year>2100||date.getUTCFullYear()!==year||date.getUTCMonth()!==month-1||date.getUTCDate()!==day)return "";
+ return pair(lines[0])+"\n"+lines[1];
 }
 function topic(s: string, mixed: boolean): string {
  if (/\b(?:edible|icing|wafer|burn\s*away)\b/i.test(s)) return "other";
@@ -148,8 +166,8 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
  const add=(words:string[], m:RecordData, source:string) => {
   if(words.length && words.every(Boolean)) candidates.push({words,m,source,score:source==="buyer_note"?94:92});
  };
- if(note && !placeholder(note) && (scope.single_item_scope || items.length===1)) {
-  const p=pair(note), explicit=/^["“']?\s*(?:word(?:ing)?|tulis|nama|huruf|initial|text)\s*[:=]/i.test(note);
+ if(note && !placeholder(note) && !isDesignInstruction(note) && (scope.single_item_scope || items.length===1)) {
+  const p=nameDateNote(note)||pair(note), explicit=/^["“']?\s*(?:word(?:ing)?|tulis|nama|huruf|initial|text)\s*[:=]/i.test(note);
   const checkoutUnits=scope.provider==="shopee" ? parseCheckoutUnits(note,quantity) : null;
   const quoted=quantity===1&&scope.provider==="shopee" ? singleQuotedWording.exec(note)?.groups : undefined;
   const quotedText=(quoted?.double||quoted?.single||quoted?.curlyDouble||quoted?.curlySingle||"").trim();
@@ -158,7 +176,7 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
   else if(p || explicit || (/[❤♥]/.test(note)&&!/\b(?:ship|urgent|please)\b/i.test(note)) || /^(?:Happy|Selamat)\s+(?:Birthday|Engagement|Wedding)/i.test(note)) add([p||cleanWording(note)],{id:"buyer_note"},"buyer_note");
  }
  // Canonical local item text is only a candidate; the chat can correct it.
- if(existing && !placeholder(existing) && !/\b(?:inch|inci|kek|gold|black|silver|yellow)\b/i.test(existing)) {
+ if(existing && !placeholder(existing) && !isDesignInstruction(existing) && !/\b(?:inch|inci|kek|gold|black|silver|yellow)\b/i.test(existing)) {
   const number=existing.match(/^number\s*[:=]?\s*(\d+)$/i);
   add([number?number[1]:cleanWording(existing)],{id:"order_item"},"order_item");
  }
@@ -212,6 +230,7 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
    }
    add([initialWording],m,"chat");current="acrylic";continue;
   }
+  if(isDesignInstruction(s)){instructions.push(s.slice(0,450));continue;}
   const p=pair(s), askedInitial=/\b(?:initial|huruf|nama|wording|tulis)\b/i.test(previousQuestion);
   const position=messages.findIndex(x=>x.id===m.id);
   const confirmsMaterial=messages.slice(position+1).filter(inbound).slice(0,2).some(x=>stamp(x)-stamp(m)<300000&&/^(?:acrylic|axrylic|akrilik)[.!\s]*$/i.test(value(x)));
@@ -265,7 +284,7 @@ export function acrylicRules(scope: RecordData, input: RecordData[]): RecordData
  const reviewRequested=messages.some(m=>inbound(m)&&/(?:nak|nk|mahu|send|hantar|show|review)[\s\S]{0,50}(?:design\s*dulu|preview|sebelum\s*(?:potong|laser|print)|for\s*(?:review|approval))/i.test(value(m)));
  const confidence=missing.length?0:conflicts.length?65:needsVision?75:chosen?.score||0;
  const eligibleFallback=!scope.unavailable && !scope.ambiguous && !scope.truncated &&
-  (needsVision||conflicts.length>0||(scope.provider==="shopee" && (scope.single_item_scope || items.length===1) && note && missing.includes("wording_each_unit"))||(messages.some(m=>inbound(m)&&(/[\p{L}\d]/u.test(value(m)))&&!/^hi(?: seller)?$|^hello$|^salam$/i.test(value(m)))&&missing.includes("wording")));
+  (needsVision||conflicts.length>0||(!!note&&missing.includes("wording"))||(scope.provider==="shopee" && (scope.single_item_scope || items.length===1) && note && missing.includes("wording_each_unit"))||(messages.some(m=>inbound(m)&&(/[\p{L}\d]/u.test(value(m)))&&!/^hi(?: seller)?$|^hello$|^salam$/i.test(value(m)))&&missing.includes("wording")));
  return {profile:ACRYLIC_VERSION,units,parts,wording:units.map((u:RecordData)=>quantity>1?u.unit+". "+u.wording:u.wording).join("\n"),
   colour,size,quantity,missing,conflicts:[...new Set(conflicts)],corrections,instruction:[...new Set(instructions)].join("\n").slice(0,2500),
   references:mappedImages.map(m=>({id:m.id,media_url:m.media_url,
