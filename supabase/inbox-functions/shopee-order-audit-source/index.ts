@@ -1,6 +1,20 @@
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import {shopeeRequest,tokenExpired} from '../_shared/shopee-direct.ts';
 import {normalizeOrders} from './detail.ts';
+// Preserve the identity action already deployed in v4.
+function normalizeIdentities(raw:any,shop:string,ids:string[]){
+ if(!Array.isArray(raw)||raw.length!==ids.length)throw Error('ORDER_DETAIL_INCOMPLETE');
+ const seen=new Set<string>();
+ return raw.map((order:any)=>{
+  if(!ids.includes(order.order_sn)||seen.has(order.order_sn))throw Error('ORDER_DETAIL_INCOMPLETE');
+  seen.add(order.order_sn);
+  const value=order.buyer_user_id;
+  const buyerId=typeof value==='number'&&Number.isSafeInteger(value)&&value>0?String(value):typeof value==='string'&&/^[1-9][0-9]{0,15}$/.test(value)?value:null;
+  const username=typeof order.buyer_username==='string'?order.buyer_username.trim():'';
+  if(username.length>100||/[\x00-\x1f]/.test(username))throw Error('BUYER_USERNAME_INVALID');
+  return {order_sn:order.order_sn,shop_id:shop,buyer_user_id:buyerId,buyer_username:username||null};
+ });
+}
 const db=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false}});
 const json=(x:unknown,s=200)=>Response.json(x,{status:s,headers:{'cache-control':'no-store'}});
 const hash=async(s:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))),x=>x.toString(16).padStart(2,'0')).join('');
@@ -12,17 +26,17 @@ Deno.serve(async req=>{
   if(!s?.setting_value||await hash(key)!==await hash(s.setting_value))return json({ok:false},401);
   const bodyText=await req.text();if(bodyText.length>8000)return json({ok:false,error:'PAYLOAD_TOO_LARGE'},413);
   const body=bodyText.trim()?JSON.parse(bodyText):{};
-  if(body.action&&body.action!=='order_detail')return json({ok:false,error:'INVALID_ACTION'},400);
-  if(body.action==='order_detail'){
+  if(body.action&&!['order_detail','order_identity'].includes(body.action))return json({ok:false,error:'INVALID_ACTION'},400);
+  if(body.action==='order_detail'||body.action==='order_identity'){
    const shop=String(body.shop_id||''),ids=body.order_sn_list;
    if(!['188218638','1635364464'].includes(shop)||!Array.isArray(ids)||ids.length<1||ids.length>50||new Set(ids).size!==ids.length||ids.some((x:any)=>typeof x!=='string'||!/^[0-9]{6}[A-Z0-9]{6,12}$/.test(x)))return json({ok:false,error:'INVALID_ORDER_SELECTION'},400);
    const {data:c,error}=await db.rpc('icetak_shopee_chat_config',{p_action:'get',p_body:{shop_id:shop}});
    if(error||String(c?.shop_id)!==shop||!c?.enabled||!c?.partner_key||!c?.access_token)return json({ok:false,error:'SHOP_NOT_CONNECTED'},409);
    if(tokenExpired(c))return json({ok:false,error:'TOKEN_EXPIRED'},409);
-   const response=await shopeeRequest(c,'/api/v2/order/get_order_detail',{order_sn_list:ids.join(','),response_optional_fields:'item_list,order_status,currency'},'GET');
+   const response=await shopeeRequest(c,'/api/v2/order/get_order_detail',{order_sn_list:ids.join(','),response_optional_fields:body.action==='order_identity'?'buyer_user_id,buyer_username':'item_list,payment_method,buyer_username,pay_time'},'GET');
    const result=await response.json().catch(()=>({}));
    if(!response.ok||result.error)return json({ok:false,error:'SHOPEE_ORDER_READ_REJECTED'},502);
-   const orders=normalizeOrders(result.response?.order_list,shop,ids);
+   const orders=body.action==='order_identity'?normalizeIdentities(result.response?.order_list,shop,ids):normalizeOrders(result.response?.order_list,shop,ids);
    return json({ok:true,complete:true,checked_at:new Date().toISOString(),provider_reads:1,orders});
   }
   const now=Math.floor(Date.now()/1000),all:any[]=[];let reads=0;

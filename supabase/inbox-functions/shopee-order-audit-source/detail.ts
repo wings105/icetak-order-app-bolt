@@ -1,4 +1,4 @@
-// Read-only provider projection: no buyer, address, credentials or arbitrary API path.
+// Additive read-only provider projection. Unknown COD is never false.
 export function normalizeOrders(raw:any,shop:string,ids:string[]){
  if(!Array.isArray(raw)||raw.length!==ids.length)throw Error('ORDER_DETAIL_INCOMPLETE');
  const seen=new Set<string>();
@@ -10,8 +10,8 @@ export function normalizeOrders(raw:any,shop:string,ids:string[]){
    const quantity=Number(x.model_quantity_purchased);
    if(!Number.isSafeInteger(quantity)||quantity<1||quantity>100000||!/^[0-9]+$/.test(String(x.item_id))||!String(x.item_name||'').trim())throw Error('ITEM_DETAIL_INVALID');
    const price=(p:any)=>p===null||p===undefined?null:typeof p==='number'&&Number.isFinite(p)&&p>=0&&p<=1000000?p:(()=>{throw Error('ITEM_PRICE_INVALID')})();
-   return {item_id:String(x.item_id),model_id:x.model_id==null?null:String(x.model_id),sku:String(x.item_sku||''),model_sku:String(x.model_sku||''),model:String(x.model_name||''),title:String(x.item_name),quantity,unit_original_price:price(x.model_original_price),unit_discounted_price:price(x.model_discounted_price)};
+   return {item_id:String(x.item_id),model_id:x.model_id==null?null:String(x.model_id),sku:String(x.item_sku||''),model_sku:String(x.model_sku||''),model:String(x.model_name||''),title:String(x.item_name),quantity,unit_original_price:price(x.model_original_price),unit_discounted_price:price(x.model_discounted_price),image_url:typeof x.image_info?.image_url==='string'?x.image_info.image_url:null};
   });
-  return {order_sn:o.order_sn,shop_id:shop,currency,status:String(o.order_status||''),create_time:Number(o.create_time)||null,update_time:Number(o.update_time)||null,items};
+  return {order_sn:o.order_sn,shop_id:shop,currency,status:String(o.order_status||''),create_time:Number(o.create_time)||null,update_time:Number(o.update_time)||null,items,cod:typeof o.cod==='boolean'?o.cod:null,payment_method:typeof o.payment_method==='string'&&o.payment_method.trim()?o.payment_method.trim():null,buyer_username:typeof o.buyer_username==='string'?o.buyer_username:null,pay_time:Number(o.pay_time)||null};
  });
 }
