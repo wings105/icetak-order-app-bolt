@@ -2,13 +2,13 @@ name: Deploy Acrylic Proof v2
 on:
   push:
     branches: [production]
-    paths: [.github/workflows/deploy-acrylic-proof-v2.yml]
+    paths: [scripts/reconcile-acrylic-proof-v2.mjs, .github/workflows/deploy-acrylic-proof-v2.yml]
   workflow_dispatch:
 concurrency:
   group: acrylic-proof-production
   cancel-in-progress: false
 jobs:
-  reconcile-live:
+  reconcile-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -19,24 +19,44 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: production
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      - name: Download live source without deploying
+      - name: Download exact live source
         run: |
           test "$GITHUB_REF_NAME" = production
           test -n "$SUPABASE_ACCESS_TOKEN"
           mkdir -p "$RUNNER_TEMP/acrylic-live"
           cd "$RUNNER_TEMP/acrylic-live"
           supabase functions download clickup-order-brief --project-ref "$PROJECT_REF" --use-api
-      - name: Sync only live acrylic modules into production source
+      - name: Guard live reconciliation
         run: |
-          cp "$RUNNER_TEMP/acrylic-live/supabase/functions/clickup-order-brief/acrylic-rules.ts" supabase/functions/clickup-order-brief/acrylic-rules.ts
-          cp "$RUNNER_TEMP/acrylic-live/supabase/functions/clickup-order-brief/acrylic.ts" supabase/functions/clickup-order-brief/acrylic.ts
+          cmp supabase/functions/clickup-order-brief/acrylic-rules.ts "$RUNNER_TEMP/acrylic-live/supabase/functions/clickup-order-brief/acrylic-rules.ts"
+          cmp supabase/functions/clickup-order-brief/acrylic.ts "$RUNNER_TEMP/acrylic-live/supabase/functions/clickup-order-brief/acrylic.ts"
+      - name: Apply narrow patch and run regression
+        run: |
+          set +e
+          result=$(node --experimental-strip-types scripts/reconcile-acrylic-proof-v2.mjs 2>&1)
+          code=$?
+          printf '%s\n' "$result"
+          if [ "$code" -ne 0 ]; then echo "::error::$(printf '%s' "$result" | head -c 4000 | tr '\n' ' ')"; fi
+          exit "$code"
+      - name: Commit tested source
+        run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add supabase/functions/clickup-order-brief/acrylic-rules.ts supabase/functions/clickup-order-brief/acrylic.ts
-          if ! git diff --cached --quiet; then
-            git commit -m 'chore: preserve exact live acrylic source before proof fix'
-            git push origin HEAD:production
-          fi
+          git commit -m 'fix: acrylic v8 evidence-first text and vision confirmation'
+          git push origin HEAD:production
+      - name: Overlay tested acrylic modules only
+        run: |
+          cp supabase/functions/clickup-order-brief/acrylic-rules.ts "$RUNNER_TEMP/acrylic-live/supabase/functions/clickup-order-brief/acrylic-rules.ts"
+          cp supabase/functions/clickup-order-brief/acrylic.ts "$RUNNER_TEMP/acrylic-live/supabase/functions/clickup-order-brief/acrylic.ts"
+      - name: Deploy preserving all other live dependencies
+        run: |
+          cd "$RUNNER_TEMP/acrylic-live"
+          supabase functions deploy clickup-order-brief --project-ref "$PROJECT_REF" --no-verify-jwt --use-api
