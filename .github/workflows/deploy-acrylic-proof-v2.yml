@@ -58,8 +58,15 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/acrylic-live"
           set +e
-          result=$(supabase functions deploy clickup-order-brief --project-ref "$PROJECT_REF" --no-verify-jwt --use-api 2>&1)
+          result=$(supabase functions deploy clickup-order-brief --project-ref "$PROJECT_REF" --no-verify-jwt --use-api --yes 2>&1)
           code=$?
           printf '%s\n' "$result"
           if [ "$code" -ne 0 ]; then echo "::error::$(printf '%s' "$result" | head -c 4000 | tr '\n' ' ')"; fi
           exit "$code"
+      - name: Verify deployed modules match tested production byte for byte
+        run: |
+          mkdir -p "$RUNNER_TEMP/acrylic-verified"
+          cd "$RUNNER_TEMP/acrylic-verified"
+          supabase functions download clickup-order-brief --project-ref "$PROJECT_REF" --use-api
+          cmp "$GITHUB_WORKSPACE/supabase/functions/clickup-order-brief/acrylic-rules.ts" supabase/functions/clickup-order-brief/acrylic-rules.ts
+          cmp "$GITHUB_WORKSPACE/supabase/functions/clickup-order-brief/acrylic.ts" supabase/functions/clickup-order-brief/acrylic.ts
