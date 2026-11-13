@@ -1,0 +1,62 @@
+name: Deploy Acrylic Proof v2
+on:
+  push:
+    branches: [production]
+    paths:
+      - scripts/apply-acrylic-proof-v2.mjs
+      - .github/workflows/deploy-acrylic-proof-v2.yml
+  workflow_dispatch:
+concurrency:
+  group: acrylic-proof-production
+  cancel-in-progress: false
+jobs:
+  patch-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: buivecgahhmrhlmfujgt
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: production
+          fetch-depth: 1
+      - name: Guard production and credentials
+        run: |
+          test "$GITHUB_REF_NAME" = production
+          test -n "$SUPABASE_ACCESS_TOKEN"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Download exact live source, without deploying
+        run: |
+          mkdir -p "$RUNNER_TEMP/acrylic-live"
+          cd "$RUNNER_TEMP/acrylic-live"
+          supabase functions download clickup-order-brief --project-ref "$PROJECT_REF" --use-api
+      - name: Refuse unknown live acrylic source
+        run: node --experimental-strip-types scripts/apply-acrylic-proof-v2.mjs --check-live "$RUNNER_TEMP/acrylic-live"
+      - name: Apply exact source patch and run regression assertions
+        run: node --experimental-strip-types scripts/apply-acrylic-proof-v2.mjs
+      - name: Commit tested modules to production
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add supabase/functions/clickup-order-brief/acrylic-rules.ts supabase/functions/clickup-order-brief/acrylic.ts
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix: verify acrylic wording against checkout text and vision proof'
+            git push origin HEAD:production
+          fi
+      - name: Overlay only two tested modules on exact live dependencies
+        run: |
+          cp supabase/functions/clickup-order-brief/acrylic-rules.ts "$RUNNER_TEMP/acrylic-live/supabase/functions/clickup-order-brief/acrylic-rules.ts"
+          cp supabase/functions/clickup-order-brief/acrylic.ts "$RUNNER_TEMP/acrylic-live/supabase/functions/clickup-order-brief/acrylic.ts"
+      - name: Deploy AutoBrief only, preserving in-code token authentication
+        run: |
+          cd "$RUNNER_TEMP/acrylic-live"
+          supabase functions deploy clickup-order-brief --project-ref "$PROJECT_REF" --no-verify-jwt --use-api
+      - name: Deployment summary
+        run: echo 'Deployed acrylic text-vision-proof-v2. No shipping, inbox, intake or customer messaging modules were replaced.' >> "$GITHUB_STEP_SUMMARY"
