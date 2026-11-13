@@ -38,7 +38,16 @@ jobs:
           cd "$RUNNER_TEMP/acrylic-live"
           supabase functions download clickup-order-brief --project-ref "$PROJECT_REF" --use-api
       - name: Refuse unknown live acrylic source
-        run: node --experimental-strip-types scripts/apply-acrylic-proof-v2.mjs --check-live "$RUNNER_TEMP/acrylic-live"
+        run: |
+          set +e
+          result=$(node --experimental-strip-types scripts/apply-acrylic-proof-v2.mjs --check-live "$RUNNER_TEMP/acrylic-live" 2>&1)
+          code=$?
+          printf '%s\n' "$result"
+          if [ "$code" -ne 0 ]; then
+            message=$(printf '%s' "$result" | head -c 4000 | tr '\n' ' ')
+            echo "::error::$message"
+          fi
+          exit "$code"
       - name: Apply exact source patch and run regression assertions
         run: node --experimental-strip-types scripts/apply-acrylic-proof-v2.mjs
       - name: Commit tested modules to production
