@@ -28,21 +28,22 @@ r=once(r,'if(note && !placeholder(note) && (scope.single_item_scope || items.len
 r=once(r,'if(existing && !placeholder(existing) && !','if(existing && !placeholder(existing) && !isDesignInstruction(existing) && !');
 r=once(r,'  const p=pair(s), askedInitial=','  if(isDesignInstruction(s)){instructions.push(s.slice(0,450));continue;}\n  const p=pair(s), askedInitial=');
 r=once(r,'(needsVision||conflicts.length>0||','(needsVision||conflicts.length>0||(!!note&&missing.includes("wording"))||');
-a=once(a,'ACRYLIC_RULES_REVISION,norm,','ACRYLIC_RULES_REVISION,ACRYLIC_EVIDENCE_POLICY,isDesignInstruction,norm,');
+a=once(a,'ACRYLIC_RULES_REVISION,norm,','ACRYLIC_RULES_REVISION,ACRYLIC_EVIDENCE_POLICY,isDesignInstruction,parseCheckoutUnits,norm,');
 a=once(a,section(originals[ap],'export function mergeAI','async function resolveReferenceLinks'),section(patched[ap],'export function mergeAI','async function resolveReferenceLinks'));
 const extra=section(patched[ap],'A phrase such as Ini tulisan & font ya','Give a compact JSON result.');
 a=once(a,'Give a compact JSON result.',extra+'Give a compact JSON result.');
 a=once(a,'rules_revision:ACRYLIC_RULES_REVISION,artwork_policy:','rules_revision:ACRYLIC_RULES_REVISION,evidence_policy:ACRYLIC_EVIDENCE_POLICY,artwork_policy:');
 const proofline=patched[ap].split('\n').find(x=>x.includes('Sebab keputusan AI:'));
 a=once(a,'  "instruction: "+(r.instruction||"—"),',proofline+'\n  "instruction: "+(r.instruction||"—"),');
-// Preserve the established multi-unit checkout proof parser, not substring guesses.
-a=once(a,'isDesignInstruction,norm,','isDesignInstruction,parseCheckoutUnits,norm,');
-a=once(a,'if(id==="buyer_note")return !!scope.note&&exactText(scope.note,u.wording);','if(id==="buyer_note")return !!scope.note&&exactText(scope.note,u.wording);');
-// The replacement above occurs twice; handle both explicitly below in the final checked code.
+// Keep exact, position-specific evidence for established checkout multi-unit syntax.
+a=once(a,' const hasTextProof=', ' const checkoutUnits=parseCheckoutUnits(String(scope.note||""),r.quantity);\n const noteProof=(u:Obj)=>!!scope.note&&(exactText(scope.note,u.wording)||!!checkoutUnits&&norm(checkoutUnits[(ai.units||[]).indexOf(u)])===norm(u.wording));\n const hasTextProof=');
+const noteAnchor='if(id==="buyer_note")return !!scope.note&&exactText(scope.note,u.wording);';
+assert.equal(a.split(noteAnchor).length,3);
+a=a.split(noteAnchor).join('if(id==="buyer_note")return noteProof(u);');
 writeFileSync(rp,r);writeFileSync(ap,a);
-const testStart=oldScript.indexOf('const {acrylicRules}=await import');
-assert.ok(testStart>0);
+const testStart=oldScript.indexOf('const {acrylicRules}=await import');assert.ok(testStart>0);
 const testPath='scripts/.acrylic-proof-regression.mjs';
-writeFileSync(testPath,"import assert from 'node:assert/strict';\n"+oldScript.slice(testStart));
+const extraTests=`\nconst two={...scope,provider:'shopee',note:'1. A & B\\n2. C & D',target:{...scope.target,quantity:2}};\nconst rt=acrylicRules(two,[]);assert.equal(rt.units.length,2);assert.equal(rt.ready,true);\nconst at={...ai,artwork_kind:'none',image_message_ids:[],units:[{wording:'A & B',evidence_ids:['buyer_note']},{wording:'C & D',evidence_ids:['buyer_note']}]};\nassert.equal(mergeAI(rt,at,two).ready,true);\nassert.equal(mergeAI(rt,{...at,units:[at.units[1],at.units[0]]},two).ready,false);\nconsole.log('Live multi-unit preservation tests passed');\n`;
+writeFileSync(testPath,"import assert from 'node:assert/strict';\n"+oldScript.slice(testStart)+extraTests);
 try{execFileSync(process.execPath,['--experimental-strip-types',testPath],{stdio:'inherit'});}finally{unlinkSync(testPath);}
 console.log('Reconciled live modules patched and regression-tested');
