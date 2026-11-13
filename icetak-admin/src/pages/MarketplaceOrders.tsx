@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import './MarketplaceOrders.css';
 import OrderProfitDetail from '../components/OrderProfitDetail';
 import {profitMoney,profitRequest,profitStateLabel} from '../lib/orderProfit';
+import {codPresentation} from '../lib/codPresentation';
 import type {OrderProfitRow} from '../lib/orderProfit';
 
 type Item={title?:string;sku?:string;variation?:string;qty?:number;imageUrl?:string};
@@ -142,7 +143,7 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canVi
       {canViewFinance&&profitError&&<div className="op-alert error" role="alert">Finance: {profitError}</div>}
       {canViewDetails&&detailError?<div className="op-alert error" role="alert">Detail / session: {detailError} <button onClick={()=>{if(activeDetailFilter!=='all')void load(0,true);else setDetailVersion(v=>v+1);}}>Cuba semula</button></div>:null}
       <table className={'mp-table'+(canViewDetails?' mp-table-details':'')}>
-        <thead><tr><th>ORDER</th><th>PLACED / SHIP BY</th><th>BUYER</th><th>ITEMS</th>{canViewDetails?<><th>DETAIL ORDER</th><th>FOLLOW-UP / DEADLINE</th><th>CLICKUP / PRODUCTION</th></>:null}<th>PAID</th><th>COURIER / TRACKING</th><th>STATUS</th></tr></thead>
+        <thead><tr><th>ORDER</th><th>PLACED / SHIP BY</th><th>BUYER</th><th>ITEMS</th>{canViewDetails?<><th>DETAIL ORDER</th><th>FOLLOW-UP / DEADLINE</th><th>CLICKUP / PRODUCTION</th></>:null}<th>PAYMENT</th><th>COURIER / TRACKING</th><th>STATUS</th></tr></thead>
         <tbody>
           {loading&&<tr><td colSpan={canViewDetails?10:7} className="mp-empty">Loading marketplace orders...</td></tr>}
           {!loading&&rows.length===0&&<tr><td colSpan={canViewDetails?10:7} className="mp-empty">No marketplace orders found.</td></tr>}
@@ -161,7 +162,7 @@ export default function MarketplaceOrders({initialSearch='',onOpenCustomer,canVi
               {i.imageUrl&&<img src={i.imageUrl} alt="" />}<span><b>{i.qty||1}×</b> {i.title||i.sku||'Item'}<small>{i.variation||i.sku||''}</small></span>
             </div>)}{Number(r.itemCount||0)>2&&<small>+{Number(r.itemCount||0)-2} more</small>}</div></td>
             {canViewDetails?<><td><DetailSummary data={details[r.id]?.detail_collection} onOpen={()=>setDetailKey('shopee:'+r.id)}/></td><td><div>{details[r.id]?detailStage[details[r.id].detail_collection.stage]:'Menyemak…'}</div><small>Deadline detail: {detailDate(details[r.id]?.detail_collection.deadline)}</small>{details[r.id]?.detail_collection.followup.sent_at?<small>Follow-up: {detailDate(details[r.id].detail_collection.followup.sent_at)}</small>:null}<small>Session: {details[r.id]?.detail_collection.session_linked?'Linked':'Belum dipadankan'}</small></td><td>{details[r.id]?.production_tasks?.length?details[r.id].production_tasks.map((t:DetailData)=><div key={t.id}><a href={/^https:\/\//.test(t.url||'')?t.url:undefined} target="_blank" rel="noreferrer">{t.title||t.id}</a><small>{t.status}</small><small>{t.detail?.customize_name||''}</small></div>):<small>{details[r.id]?'Belum ada task dipadankan':'Menyemak…'}</small>}<small>Order dalaman: {details[r.id]?.internal_order_id?'Linked':'Belum linked'}</small></td></>:null}
-            <td><b>{money(r.buyerPaid,r.currency)}</b><small>{r.paymentMethod||r.paymentStatus||''}</small>{canViewFinance&&<div className="op-mp-finance"><button onClick={()=>setSelectedFinance(r.id)}>Nett {profitMoney(profits[r.id]?.nett,r.currency)}<br/><span className={(profits[r.id]?.profit??0)<0?'op-negative':''}>Untung {profitMoney(profits[r.id]?.profit,r.currency)}</span></button><small>{profits[r.id]?profitStateLabel(profits[r.id]):profitError?'Finance gagal dimuatkan':'Memuatkan finance…'}</small></div>}</td>
+            <td>{(()=>{const cod=codPresentation({paymentMethod:r.paymentMethod});return <><b>{money(r.buyerPaid,r.currency)}</b>{cod.isCod===true?<><span className="mp-cod-badge" aria-label="Cash on Delivery">COD</span><small className={cod.inconsistent?'mp-cod-conflict':'mp-cod-detail'}>{cod.inconsistent?'COD · data conflict':'Kutipan belum disahkan'}</small>{cod.paymentMethod&&<small>{cod.paymentMethod}</small>}</>:<small>{r.paymentMethod||r.paymentStatus||''}</small>}{canViewFinance&&<div className="op-mp-finance"><button onClick={()=>setSelectedFinance(r.id)}>Nett {profitMoney(profits[r.id]?.nett,r.currency)}<br/><span className={(profits[r.id]?.profit??0)<0?'op-negative':''}>Untung {profitMoney(profits[r.id]?.profit,r.currency)}</span></button><small>{profits[r.id]?profitStateLabel(profits[r.id]):profitError?'Finance gagal dimuatkan':'Memuatkan finance…'}</small></div>}</>})()}</td>
             <td><div>{r.courier||'-'}</div><small>{r.tracking||r.shipmentStatus||'-'}</small></td>
             <td><span className={'mp-status '+badgeClass(r.status)}>{statusLabel(r.status||'UNKNOWN')}</span></td>
           </tr>)}
