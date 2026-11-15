@@ -14,6 +14,7 @@ type Deps = {
 };
 
 const version = "edible-wafer-v1";
+const aiCheckOption = "d84d57b3-41f3-473d-b502-4e7bf45ace0c";
 const text = (v:unknown,n=1600) => typeof v==="string" ? v.trim().slice(0,n) : "";
 const norm = (v:unknown) => text(v).toLowerCase().replace(/[″“”"]/g," inch").replace(/\s+/g," ");
 const cf = (t:Data,name:string) => (t.custom_fields||[]).find((f:Data)=>norm(f.name)===norm(name));
@@ -366,6 +367,26 @@ export async function processPrint(job:Data,s:Data,route:Data,token:string,bridg
    }
   }
   brief={...brief,comment_id:commentId,comment_hash:hash,checked_message_ids:brief.evidence.map((m:Data)=>m.id)};
+  if(status==="BRIEF_READY") {
+   const latest=await d.clickup(token,"task/"+id);
+   assertTask(latest,id,route.initial_status);
+   const review=cf(latest,"Review customer"),confirmed=cf(latest,"confirmed");
+   if(!review?.id||!confirmed?.id)throw Error("PRINT_CONFIRM_FIELDS_UNAVAILABLE");
+   const value=review.value?.id??review.value;
+   const options=review.type_config?.options||[];
+   const selected=options.find((option:Data)=>String(option.id)===String(value)||String(option.orderindex)===String(value));
+   const isAiCheck=value===aiCheckOption||selected?.id===aiCheckOption;
+   if(!isAiCheck&&(value==null||value===""||norm(selected?.name||review.value?.name)==="follow up1")) {
+    await d.clickup(token,"task/"+id+"/field/"+review.id,"POST",{value:aiCheckOption});
+    fields.review="Ai Check";
+   }
+   if(!checked(confirmed.value)) {
+    await d.clickup(token,"task/"+id+"/field/"+confirmed.id,"POST",{value:true});
+    fields.confirmed=true;
+   }
+   brief.confirmed=true;
+   brief.confirmed_at=new Date().toISOString();
+  }
   state=status==="BRIEF_READY"?"completed":"review";
  } catch(e) {
   error=text((e as Error).message,150);

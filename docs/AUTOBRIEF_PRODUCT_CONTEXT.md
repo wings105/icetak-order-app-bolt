@@ -246,9 +246,11 @@ reuses its comment and a deterministic attachment filename on retry.
 uses the existing claim and lease, with an optional exact task ID. Scheduled
 claims require a canonical order timestamp at or after the configured rollout.
 An older comment from a different brief profile is ineligible for this writer.
-The internal pilot leaves customer sends and auto-confirm off. AI output is an
-advisory text summary for unresolved evidence. Staff design and print approval
-remain separate.
+After saving a `BRIEF_READY` comment and its required attachments, the worker
+sets Review Customer to Ai Check when blank or at follow up1, then ticks
+Confirmed. The saved confirmation starts the existing post-confirmation
+message observer. AI summaries of unresolved evidence remain advisory.
+Staff design and print approval use their existing workflow.
 
 Production preview verified two separate Burn Away image links and bytes,
 a direct custom print size, and a missing-source case. A controlled ClickUp
