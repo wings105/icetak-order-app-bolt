@@ -1,3 +1,7 @@
+# 2026-11-15
+
+- [PRODUCTION] Edible/Wafer AutoBrief uses order-scoped image counts, attaches disputed artwork for admin review, and rechecks Shopee and WhatsApp when a task's phone changes. Exact-task ClickUp readback verified two attachments, the existing brief comment, Ai Check and Confirmed. The live Inbox phone lookup and a rolled-back webhook dispatch test verified the phone path. See [AutoBrief product context](docs/AUTOBRIEF_PRODUCT_CONTEXT.md).
+
 # 2026-11-10
 
 - [PRODUCTION] AutoBrief v91 confirms labelled custom items per SKU when OpenAI cites matching customer wording and every item is uniquely mapped. ClickUp readback verified both tasks at 98% and 95%. See [AutoBrief product context](docs/AUTOBRIEF_PRODUCT_CONTEXT.md).

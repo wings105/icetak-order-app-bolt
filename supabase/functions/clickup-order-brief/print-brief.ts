@@ -55,6 +55,14 @@ const explicitSelection = /\b(?:guna|gna|pakai|use|print|cetak|yg ni|yang ni|thi
 const reference = /\b(?:contoh|sample|inspiration|mcm\s*ni|macam\s*ni|seperti\s*ini)\b/i;
 const wordingLabel = /(?:^|\n)\s*(?:tulis(?:kan)?|wording|custom(?:ize)? name|tulisan|wording atas)\s*[:\-]?\s*([^\n]+(?:\n[^\n]+){0,3})/i;
 const orderRefs = (m:Data) => mediaText(m).toUpperCase().match(/\b[0-9]{6}[A-Z0-9]{6,18}\b/g) || [];
+const repeatArtwork = (value:string) => {
+ const v=norm(value).replace(/\b(?:dua2|2[- ]?2)\b/g,"dua-dua");
+ if (/\?|\b(?:jangan|bukan|tidak|tak|not|berbeza|berlainan|different|lain)\b/.test(v)) return false;
+ return /\b(?:dua[ -]?dua|kedua[ -]?dua|both)\b.{0,32}\b(?:sama|same)\b/.test(v)
+  || /\b(?:2|dua|two)\s+(?:gambar|gmbr|image[s]?|design[s]?|keping|pcs|unit|cop(?:y|ies))\s+(?:yang\s+)?(?:sama|same)\b/.test(v)
+  || /\b(?:gambar|gmbr|design|image|artwork)\s+(?:yang\s+)?sama\b.{0,32}\b(?:2|dua|both)\b/.test(v)
+  || /\bsame\s+(?:image|design|artwork)\b.{0,32}\b(?:both|2|two)\b/.test(v);
+};
 const calendar = /\b(?:calendar|calender|kalendar)\b/i;
 const month = /\b(?:january|february|march|april|may|june|july|august|september|october|november|december|januari|februari|mac|mei|jun|julai|ogos|oktober|disember)\b/i;
 
@@ -64,7 +72,7 @@ export function printRules(scope:Data, ctx:Data):Data {
   .sort((a:Data,b:Data)=>messageTime(a)-messageTime(b));
  const isImage=(m:Data)=>m.message_type==="image";
  const media=messages.filter(isImage), selected:Data[]=[], proof=new Set<string>();
- let artworkChoiceRequired=false;
+ let copiesPerArtwork=1;
  let scoped = messages;
  if (t.layer) {
   let active="";
@@ -89,28 +97,37 @@ export function printRules(scope:Data, ctx:Data):Data {
    }
   }
   scoped=messages.filter((m:Data)=>!isImage(m)&&assignments.get(m.id)===t.profile);
- } else if (scope.single_item_scope) {
+ } else if (scope.single_item_scope || scope.print_line) {
   const orderNo=text(scope.order_no).toUpperCase();
   const eligibleMedia=orderNo ? media.filter(m=>orderRefs(m).every(ref=>ref===orderNo)) : media;
   const tagged=orderNo ? eligibleMedia.filter(m=>orderRefs(m).includes(orderNo)) : [];
   // A caption can be on the last image in a WhatsApp batch. Scope the batch
   // by conversation and the exact provider timestamp, independent of UUID order.
-  const orderMedia=tagged.length ? eligibleMedia.filter(m=>tagged.some(a=>a.id===m.id ||
-   a.channel==="whatsapp" && m.channel==="whatsapp" && !!a.conversation_id &&
-   a.conversation_id===m.conversation_id && messageTime(a)===messageTime(m))) : eligibleMedia;
-  const currentSelection=messages.findLast(m=>!isImage(m)&&explicitSelection.test(mediaText(m))&&!reference.test(mediaText(m)));
-  const explicitImage=currentSelection && orderMedia.findLast(m=>(currentSelection.reply_to_provider_message_id&&currentSelection.reply_to_provider_message_id===m.provider_message_id)
-   || (messages.indexOf(currentSelection)===messages.indexOf(m)+1&&messageTime(currentSelection)-messageTime(m)<=90000 &&
-       orderMedia.filter(a=>messageTime(a)===messageTime(m)&&a.conversation_id===m.conversation_id).length===1));
-  const staffImage=tagged.length&&orderMedia.find(m=>m.id===scope.staff_artwork_message_id);
-  if (t.quantity===1 && (staffImage||explicitImage)) {
-   const artwork=staffImage||explicitImage;
-   selected.push(artwork);
-   if(!staffImage&&currentSelection)proof.add(currentSelection.id);
-   if(staffImage)for(const m of tagged.filter(m=>m.id!==artwork.id))selected.push({...m,role:"Contoh hasil pada kek"});
-  } else if(orderMedia.length===1 && t.quantity===1) selected.push(orderMedia[0]);
-  else if(t.quantity===1&&tagged.length)artworkChoiceRequired=true;
-  else if(t.quantity>1&&orderMedia.length===t.quantity&&orderMedia.every(m=>!!mediaText(m)&&!/^\[image\]$/i.test(mediaText(m)))) selected.push(...orderMedia);
+  const taggedWhatsapp=tagged.filter(m=>m.channel==="whatsapp");
+  const competingWhatsappOrder=messages.some(m=>m.channel==="whatsapp"&&orderRefs(m).some(ref=>ref!==orderNo));
+  const orderMedia=competingWhatsappOrder?eligibleMedia.filter(m=>m.channel!=="whatsapp"||
+   taggedWhatsapp.some(a=>a.id===m.id||!!a.conversation_id&&a.conversation_id===m.conversation_id&&
+    messageTime(a)===messageTime(m))):eligibleMedia;
+  const distinctMedia=[...new Map(orderMedia.map(m=>[text(m.media_url)||m.id,m])).values()];
+  const staffImage=tagged.length&&distinctMedia.find(m=>m.id===scope.staff_artwork_message_id);
+  if(scope.print_line) {
+   const matchesSize=(m:Data)=>unitSize(mediaText(m)).some(
+    size=>scope.print_line.sizes.includes(size)&&!(scope.other_sizes||[]).includes(size));
+   scoped=messages.filter(matchesSize);
+   const labelled=distinctMedia.filter(matchesSize);
+   if(labelled.length) selected.push(...labelled);
+   else if(!distinctMedia.some(m=>unitSize(mediaText(m)).length)&&distinctMedia.length===scope.print_line.total)
+    selected.push(...distinctMedia.slice(scope.print_line.offset,scope.print_line.offset+t.quantity));
+  } else if (t.quantity===1&&staffImage) {
+   selected.push(staffImage,...distinctMedia.filter(m=>m.id!==staffImage.id).map(m=>({...m,role:"Contoh hasil pada kek"})));
+  } else {
+   selected.push(...distinctMedia);
+   const repeatEvidence=messages.findLast(m=>orderRefs(m).every(ref=>ref===orderNo)&&repeatArtwork(mediaText(m)));
+   if(t.quantity===2&&selected.length===1&&(repeatEvidence||repeatArtwork(text(scope.note)))) {
+    copiesPerArtwork=2;
+    if(repeatEvidence)proof.add(repeatEvidence.id);
+   }
+  }
   for(const m of tagged)proof.add(m.id);
  } else {
   const identity=new Set([...unitSize(t.purchased_size),...unitSize(t.wording)]);
@@ -136,16 +153,19 @@ export function printRules(scope:Data, ctx:Data):Data {
  const purchase=unitSize(t.purchased_size).map((s:string)=>Number(s)).find(Number.isFinite);
  const printSize=dimensions?dimensions[1]+" × "+dimensions[2]+" inci":smaller?smaller[1]+" inci":custom&&!/\bfull\s*a4\b/i.test(combined)?"":t.purchased_size;
  const mode=cal?"CREATE_FROM_REFERENCE":/print\s*only|no review/i.test(t.title)?"PRINT_AS_IS":
-  /edit\s*(?:&|and)\s*review/i.test(t.title)?"EDIT_ARTWORK": selected.some(m=>reference.test(mediaText(m)))||reference.test(combined)?"CREATE_FROM_REFERENCE":selected.length&&t.layer?"EDIT_ARTWORK":"REVIEW";
+  /edit\s*(?:&|and)\s*review/i.test(t.title)?"EDIT_ARTWORK": selected.some(m=>reference.test(mediaText(m)))||reference.test(combined)?"CREATE_FROM_REFERENCE":selected.length?"EDIT_ARTWORK":"REVIEW";
  const foundWording=[note,...allText].map(value=>value.match(wordingLabel)?.[1]?.trim().replace(/^\*|\*$/g,"")).filter(Boolean).at(-1)||"";
  const dimensionOnly=/^\s*\d+(?:\.\d+)?["″]?\s*[x×]\s*\d+(?:\.\d+)?["″]?\s*$/;
  const wording=foundWording || (orderText && !dimensionOnly.test(orderText) && !/\b(?:edible|wafer|saiz|size|logo)\b/i.test(orderText)?orderText:"");
  const missing:string[]=[], flags:string[]=[];
- if(artworkChoiceRequired)flags.push("Lebih daripada satu gambar untuk order ini; pilih artwork untuk cetak");
+ const artworkCount=selected.filter(m=>m.role!=="Contoh hasil pada kek").length;
+ const reviewArtworkCount=artworkCount>0&&artworkCount*copiesPerArtwork!==t.quantity;
+ if(reviewArtworkCount)flags.push(t.quantity===1?
+  "Lebih daripada satu gambar untuk 1 unit. Admin perlu pilih artwork.":
+  "Semak padanan "+artworkCount+" gambar untuk "+t.quantity+" unit.");
  if(!printSize)missing.push("Saiz cetak sebenar");
  if(!selected.length&&!cal)missing.push("Artwork atau gambar rujukan yang dipadankan");
  if(cal&&(!monthEvidence||!(/\b20\d{2}\b/.test(calDate))||!(/\b(?:tarikh|date|hari)\s*\d{1,2}\b|\b(?:november|december|january|february|march|april|may|june|july|august|september|october)\s+\d{1,2}\b(?!\s*\d)/i.test(calDate))))missing.push("Bulan, tahun atau tarikh kalendar");
- if(selected.length>4||selected.filter(m=>m.role!=="Contoh hasil pada kek").length>t.quantity)flags.push("Padanan gambar kepada unit perlu semakan");
  if(ctx.ambiguous||ctx.truncated)flags.push("Sempadan chat memerlukan semakan");
  if(dimensions && (/\bA4\b/i.test(t.purchased_size) && (Math.min(+dimensions[1],+dimensions[2])>7.5||Math.max(+dimensions[1],+dimensions[2])>11) ||
    /\bA5\b/i.test(t.purchased_size) && (Math.min(+dimensions[1],+dimensions[2])>5.5||Math.max(+dimensions[1],+dimensions[2])>7.5))) flags.push("Saiz cetak melebihi tier");
@@ -156,9 +176,13 @@ export function printRules(scope:Data, ctx:Data):Data {
  return {mode,wording,wording_mode:wording?"exact":mode==="PRINT_AS_IS"?"embedded_in_artwork":"pending",print_size:printSize,review_requested:review,
   instruction:cal?["Buat kalendar",calDate].filter(Boolean).join("\n"):[text(orderText&&!wording&&!dimensionOnly.test(orderText)?orderText:""),
    ...allText.filter(x=>/\b(?:boleh|tolong)\b.{0,40}\b(?:squeeze|stretch|compress|mampatkan)\b/i.test(x)).slice(-1)].filter(Boolean).join("\n"),
-  missing,flags,selected:flags.length?[]:selected.slice(0,4).map(m=>({...m,role:m.role||(mode==="PRINT_AS_IS"?"Artwork untuk cetak":mode==="CREATE_FROM_REFERENCE"?"Contoh design":"Gambar pelanggan")})),
+  missing,flags,selected:ctx.ambiguous||ctx.truncated?[]:selected.map((m,index)=>({...m,
+   role:m.role||(reviewArtworkCount?"Gambar untuk semakan "+(index+1):copiesPerArtwork>1?"Artwork yang sama untuk "+copiesPerArtwork+" unit":
+    artworkCount>1?"Artwork unit "+(index+1):mode==="PRINT_AS_IS"?"Artwork untuk cetak":mode==="CREATE_FROM_REFERENCE"?"Contoh design":"Gambar pelanggan")})),
   proof:messages.filter((m:Data)=>proof.has(m.id)||scoped.includes(m)&&!isImage(m)&&!/^(?:tq|ok|ya|baik|terima kasih)$/i.test(mediaText(m))).slice(-15),
-  source_unavailable:!!ctx.unavailable || Object.values(ctx.channels||{}).includes("identity_unavailable") || scope.note_unverified};
+  source_unavailable:scope.provider==="shopee"?!scope.phone&&!note&&!messages.some(m=>
+   isImage(m)||!!mediaText(m)&&!/^\[[^\]]+\]$/.test(mediaText(m))&&mediaText(m).toUpperCase()!==text(scope.order_no).toUpperCase()
+  ):!!ctx.unavailable};
 }
 
 async function bridgeRequest(d:Deps,bridge:string,body:Data,ms=18000) {
@@ -193,16 +217,35 @@ async function loadScope(s:Data,task:Data,profile:string,d:Deps):Promise<Data> {
  if(exactId(s.marketplace_order_id)) {
   const base=s.marketplace_order_id;
   const [orders,items]=await Promise.all([
-   d.db("marketplace_orders?id=eq."+base+"&select=id,provider,order_sn,placed_at,buyer_user_id,current_status,buyer_message,detail_complete&limit=1"),
-   d.db("marketplace_order_items?order_id=eq."+base+"&is_current=eq.true&select=title,quantity,variation_name,provider_item_id,provider_variation_id&limit=31")
+   d.db("marketplace_orders?id=eq."+base+"&select=id,provider,order_sn,placed_at,shop_id,buyer_user_id,current_status,buyer_message,detail_complete&limit=1"),
+   d.db("marketplace_order_items?order_id=eq."+base+"&is_current=eq.true&select=line_no,title,quantity,variation_name,provider_item_id,provider_variation_id&order=line_no.asc&limit=31")
   ]);
   const o=orders?.[0];
   if(o?.provider!=="shopee"||!["READY_TO_SHIP","PROCESSED","RETRY_SHIP"].includes(o.current_status))throw Error("ORDER_NOT_FULFILLABLE");
   if(o.order_sn!==s.order_reference || text(cf(task,"ORDER ID / customer name")?.value)!==o.order_sn)throw Error("ORDER_REFERENCE_MISMATCH");
   const row=items?.length<31?matchPrintItem(items,purchased,profile):null;
   if(!row)throw Error("EXACT_PRINT_VARIANT_REQUIRED");
+  const lineIndex=items.findIndex((item:Data)=>item.line_no===row.line_no);
+  const uniquePrintLines=items.length>1&&profile==="edible"&&items.every((item:Data)=>
+   Number.isInteger(item.line_no)&&Number.isInteger(Number(item.quantity))&&Number(item.quantity)>0&&
+   !!matchPrintItem(items,text(item.variation_name),"edible")&&item.title===row.title&&!/burn[ -]*away/i.test(item.title));
+  const printLine=uniquePrintLines&&lineIndex>=0?{
+   total:items.reduce((n:number,item:Data)=>n+Number(item.quantity),0),
+   offset:items.slice(0,lineIndex).reduce((n:number,item:Data)=>n+Number(item.quantity),0),
+   sizes:unitSize(row.variation_name)
+  }:null;
+  let allowWhatsappPhoneFallback=false;
+  if(phone&&o.shop_id&&o.buyer_user_id) {
+   const malaysiaDay=new Date(Date.parse(o.placed_at)+8*3600000).toISOString().slice(0,10);
+   const start=Date.parse(malaysiaDay+"T00:00:00+08:00");
+   const siblings=await d.db("marketplace_orders?provider=eq.shopee&shop_id=eq."+enc(o.shop_id)+
+    "&buyer_user_id=eq."+enc(o.buyer_user_id)+"&placed_at=gte."+enc(new Date(start).toISOString())+
+    "&placed_at=lt."+enc(new Date(start+86400000).toISOString())+"&select=id&limit=2");
+   allowWhatsappPhoneFallback=siblings?.length===1&&siblings[0].id===o.id;
+  }
   return {eligible:true,provider:"shopee",order_id:o.id,order_no:o.order_sn,placed_at:o.placed_at,buyer_user_id:o.buyer_user_id,
-   phone,note:text(o.buyer_message),note_unverified:!o.detail_complete,single_item_scope:items.length===1,
+   phone,allow_whatsapp_phone_fallback:allowWhatsappPhoneFallback,print_line:printLine,
+   note:text(o.buyer_message),note_unverified:!o.detail_complete,single_item_scope:items.length===1,
    other_sizes:items.filter((x:Data)=>x.provider_variation_id!==row.provider_variation_id).flatMap((x:Data)=>unitSize(x.variation_name)),
    target:{profile,purchased_size:row.variation_name,title:row.title,quantity:Number(row.quantity),layer:row.layer||null}};
  }
@@ -316,7 +359,7 @@ export async function processPrint(job:Data,s:Data,route:Data,token:string,bridg
    receipts.push(await deliverMedia(selected,task,token,bridge,d,preview));
   }
   const unavailable=receipts.some((m:Data)=>m.status!=="attached"&&m.status!=="verified_preview");
-  const status=result.flags.length?"REVIEW_REQUIRED":unavailable?"SOURCE_UNAVAILABLE":
+  const status=result.flags.length?"REVIEW_REQUIRED":unavailable?(scope.provider==="shopee"?"REVIEW_REQUIRED":"SOURCE_UNAVAILABLE"):
    result.missing.length?(result.source_unavailable?"SOURCE_UNAVAILABLE":"MISSING_DETAILS"):result.mode==="REVIEW"?"REVIEW_REQUIRED":"BRIEF_READY";
   const comment=[
    marker,"Order ID: "+scope.order_no,

@@ -233,14 +233,24 @@ This releases initial brief confirmation, not a promise of delivery or design QC
 The immutable Edible and Wafer creation routes share the print brief worker.
 Shopee resolves its linked ShopeeChat and a separately verified WhatsApp thread
 for the order day in MYT. WhatsApp requires exact inbound order evidence, with
-phone verification when the task supplies a phone. DecoCake and pickup use the
+phone verification when the task supplies a phone. If the order number is absent
+from WhatsApp chat, the phone field can match a unique verified WhatsApp
+conversation for a buyer with one Shopee order that day. Same-day competing
+orders require an exact order anchor. A ClickUp phone update requeues a pending
+Shopee print brief and requests an exact-task run. DecoCake and pickup use the
 canonical WhatsApp session, including messages from before order creation.
 
 The worker preserves the purchased variation and resolves the requested print
 size separately. Burn Away selection is bound to the catalogue layer mapping
-and the customer message for that component. Exact matching is required before
-publishing a source link or uploading the original image to ClickUp. The job
-reuses its comment and a deterministic attachment filename on retry.
+and the customer message for that component. Each distinct order-scoped image
+maps to one unit when the count matches. Unlabelled images for distinct lines of
+the same Edible listing follow the Shopee line order. For one unit with several
+images, the worker attaches all scoped images for admin review. For two units
+with one image, the worker attaches it and asks admin to review unless the
+customer explicitly requests the same artwork for both. A missing phone and
+no relevant customer evidence may produce SOURCE_UNAVAILABLE. A failed file
+download with a matched source needs review. The job reuses its comment and a
+deterministic attachment filename on retry.
 
 `print_preview` reads a single task without writing to ClickUp. `print_run`
 uses the existing claim and lease, with an optional exact task ID. Scheduled
@@ -268,7 +278,7 @@ WhatsApp message time independently of fulfillment. The next order uses that
 boundary and its own exact order ID; a later worker run time cannot hide messages
 already sent for the newer order. Images in the same WhatsApp conversation with
 the same provider timestamp may share the caption's order scope. If the group
-has multiple images, assigning the print artwork requires an explicit selection.
+has multiple images for one unit, staff review the attached material.
 
 
 ## OpenAI confirmation for split name and age evidence — 9 November 2026
