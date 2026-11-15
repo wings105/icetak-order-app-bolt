@@ -1,3 +1,13 @@
+# 2026-11-15 — Edible/Wafer AutoBrief artwork and phone updates
+
+Order AutoBrief v97 and its Order/Inbox migrations are live. An exact-task run
+matched two uncaptioned images to two print units, updated the existing ClickUp
+brief with both original attachments, and set Ai Check and Confirmed. A
+read-only Inbox check verified phone-bound images, and a rolled-back test of
+the deployed ClickUp trigger verified a valid phone change queues the exact
+task. A naturally occurring phone edit through the full hosted path still
+needs observation. See [AutoBrief product context](AUTOBRIEF_PRODUCT_CONTEXT.md).
+
 # 2026-11-10 — OpenAI confirmation by product label
 
 AutoBrief v91 confirms a SKU when the customer supplies a unique product
