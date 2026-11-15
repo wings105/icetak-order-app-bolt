@@ -250,6 +250,9 @@ After saving a `BRIEF_READY` comment and its required attachments, the worker
 sets Review Customer to Ai Check when blank or at follow up1, then ticks
 Confirmed. The saved confirmation starts the existing post-confirmation
 message observer. AI summaries of unresolved evidence remain advisory.
+The summary request includes the JSON instruction in the message input for
+OpenAI JSON mode. The job records a provider HTTP status or a short response
+error code when the summary fails.
 Staff design and print approval use their existing workflow.
 
 Production preview verified two separate Burn Away image links and bytes,

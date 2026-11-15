@@ -879,7 +879,8 @@ async function selectedMedia(detail:Obj,bridge:string) {
 async function summarize(detail:Obj,note:string,asset:Obj|undefined){
  const key=Deno.env.get("OPENAI_API_KEY")||"";
  if(!key)return {mode:"rules",summary:"",image_description:"",reason:"OPENAI_API_KEY_NOT_CONFIGURED"};
- const content:Obj[]=[{type:"input_text",text:JSON.stringify({task_type:"iCetak production brief",facts:detail.values||{},missing:detail.missing||[],warnings:detail.warnings||[],checkout_note:note.slice(0,1200)}).slice(0,9500)}];
+ const facts=JSON.stringify({task_type:"iCetak production brief",facts:detail.values||{},missing:detail.missing||[],warnings:detail.warnings||[],checkout_note:note.slice(0,1200)});
+ const content:Obj[]=[{type:"input_text",text:"Return a JSON object with the keys summary and image_description.\nOrder facts:\n"+facts.slice(0,9400)}];
  if(asset?.state==="ready"&&asset.bytes?.length<9000000){
   const b=asset.bytes as Uint8Array;let binary="";for(let i=0;i<b.length;i+=16384)binary+=String.fromCharCode(...b.slice(i,i+16384));
   content.push({type:"input_image",image_url:"data:"+asset.mime+";base64,"+btoa(binary),detail:"low"});
@@ -891,9 +892,16 @@ async function summarize(detail:Obj,note:string,asset:Obj|undefined){
     input:[{role:"user",content}],text:{format:{type:"json_object"}}}),
   signal:AbortSignal.timeout(22000)
  });
- if(!response.ok)throw Error("VISION_PROVIDER_"+response.status);
- const data=await response.json(),parts=(data.output||[]).flatMap((x:Obj)=>x.content||[]),txt=parts.filter((x:Obj)=>x.type==="output_text").map((x:Obj)=>x.text).join("");
- const parsed=JSON.parse(txt);
+ if(!response.ok)throw Error("OPENAI_PROVIDER_"+response.status);
+ const data=await response.json();
+ if(data.status==="incomplete"){
+  throw Error(data.incomplete_details?.reason==="max_output_tokens"?"OPENAI_OUTPUT_TOKEN_LIMIT":"OPENAI_INCOMPLETE_RESPONSE");
+ }
+ const parts=(data.output||[]).flatMap((x:Obj)=>x.content||[]);
+ const txt=parts.filter((x:Obj)=>x.type==="output_text").map((x:Obj)=>x.text).join("");
+ let parsed:Obj;
+ try{parsed=JSON.parse(txt);}catch{throw Error("OPENAI_INVALID_SUMMARY");}
+ if(typeof parsed?.summary!=="string"||typeof parsed?.image_description!=="string")throw Error("OPENAI_INVALID_SUMMARY");
  return {mode:asset?.state==="ready"?"vision":"text_ai",summary:string(parsed.summary,1000),image_description:string(parsed.image_description,600)};
 }
 
