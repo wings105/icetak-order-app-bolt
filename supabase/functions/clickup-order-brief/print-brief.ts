@@ -288,7 +288,7 @@ export async function processPrint(job:Data,s:Data,route:Data,token:string,bridg
   const ctx=await loadPrintContext(scope,bridge,d);
   const result=printRules(scope,ctx);
   let advisory=previous.advisory, advisoryAt=previous.advisory_at;
-  const advisoryKey=await d.digest(JSON.stringify([scope.target,scope.note,result.missing,result.flags,
+  const advisoryKey=await d.digest(JSON.stringify(["summary-json-input-v2",scope.target,scope.note,result.missing,result.flags,
    result.proof.map((m:Data)=>[m.id,mediaText(m)]),result.selected.map((m:Data)=>m.id)]));
   if(!preview&&!ctx.ambiguous&&!ctx.truncated&&result.proof.length&&
     (result.mode==="REVIEW"||result.missing.length||result.flags.length)&&
@@ -297,7 +297,11 @@ export async function processPrint(job:Data,s:Data,route:Data,token:string,bridg
    try {
     advisory=await d.summarize({values:{product:scope.target.profile,size:scope.target.purchased_size,
      customer_evidence:result.proof.map((m:Data)=>mediaText(m)).filter(Boolean)},missing:result.missing,warnings:result.flags},scope.note);
-   } catch { advisory={mode:"unavailable"}; }
+   } catch (e) {
+    const reason=e instanceof Error?e.message:"";
+    advisory={mode:"unavailable",reason:/^OPENAI_(PROVIDER_[1-5]\d{2}|OUTPUT_TOKEN_LIMIT|INCOMPLETE_RESPONSE|INVALID_SUMMARY)$/.test(reason)
+     ?reason:"OPENAI_REQUEST_FAILED"};
+   }
   }
   if(previous.advisory_key!==advisoryKey && (preview||(!result.missing.length&&!result.flags.length&&result.mode!=="REVIEW"))) advisory=null;
   const marker="[iCetak-AutoBrief-EdibleWafer:"+id+"]";
