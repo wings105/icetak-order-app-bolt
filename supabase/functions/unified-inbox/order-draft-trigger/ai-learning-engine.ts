@@ -241,33 +241,85 @@ const EXISTING_ORDER = /\b(?:order (?:lama|lepas|sebelum ini|semalam|tadi)|previ
 const ADD_TO_ORDER = /\b(?:tambah|add on|add to|combine|gabung|sekali dengan)\b/i;
 const ORDER_BREAK_MS = 2 * 60 * 60 * 1000;
 
-export function selectCurrentOrderEvidence(messages: JsonMap[]) {
+type OrderWindow = {
+  order_id: string;
+  order_no: string;
+  created_at: string;
+  terminal_at: string | null;
+};
+
+function messageTime(message: JsonMap) {
+  return Date.parse(message.sent_at || message.created_at || message.at);
+}
+
+export function selectCurrentOrderEvidence(
+  messages: JsonMap[],
+  orders: OrderWindow[] = [],
+  cutoff = Number.POSITIVE_INFINITY,
+  replyTargets: JsonMap[] = [],
+) {
+  const windows = orders.map((order) => ({
+    ...order,
+    start: Date.parse(order.created_at),
+    end: order.terminal_at ? Date.parse(order.terminal_at) : Number.POSITIVE_INFINITY,
+  })).filter((order) => order.start <= cutoff);
+  const active = windows.filter((order) => order.end > cutoff);
+  const targetById = new Map([...replyTargets, ...messages].map((message) => [
+    message.provider_message_id, message,
+  ]));
+  const belongsToOrder = (time: number) => windows.find((order) => time >= order.start && time < order.end);
+  const linked = new Map<string, OrderWindow>();
+  const selected = new Set<string>();
   let start = 0;
   let previousTime: number | undefined;
+  let request: 'separate' | 'add_on' | 'new' | null = null;
   for (let index = 0; index < messages.length; index++) {
     const message = messages[index];
-    const time = Date.parse(message.sent_at || message.created_at || message.at);
+    const time = messageTime(message);
     const body = text(message.text_content || message.caption || message.text);
-    const priorOrder = EXISTING_ORDER.test(body);
+    const mentioned = windows.find((order) => order.order_no && body.toLowerCase().includes(order.order_no.toLowerCase()));
+    const reply = message.reply_to_provider_message_id
+      ? targetById.get(message.reply_to_provider_message_id) : undefined;
+    const repliedOrder = reply && !selected.has(reply.id) && (linked.get(reply.id) || belongsToOrder(messageTime(reply)));
+    const currentOrder = belongsToOrder(time);
     const longGap = previousTime !== undefined && time - previousTime >= ORDER_BREAK_MS;
-    const newRequest = NEW_ORDER_INTENT.test(body) && productKinds(body).length > 0;
-    if (
-      message.direction === "inbound" && !priorOrder && !ADD_TO_ORDER.test(body)
-      && (SEPARATE_ORDER.test(body) || (longGap && newRequest))
-    ) {
-      start = index;
+    const product = productKinds(body).length > 0;
+    const incoming = message.direction === 'inbound';
+    const directNew = incoming && SEPARATE_ORDER.test(body);
+    const addOnTarget = mentioned || repliedOrder || currentOrder;
+    const addOn = incoming && product && ADD_TO_ORDER.test(body) && addOnTarget && addOnTarget.end > cutoff;
+    const oldReference = mentioned || repliedOrder || (EXISTING_ORDER.test(body) ? currentOrder ?? windows[0] : undefined);
+    const fresh = incoming && product && !ADD_TO_ORDER.test(body)
+      && (NEW_ORDER_INTENT.test(body) || /\b(?:harga|berapa|print|prnt)\b/i.test(body));
+    if (directNew || addOn || (fresh && !oldReference && !currentOrder && (windows.length > 0 || longGap))) {
+      if (directNew || addOn || !request || longGap) {
+        const preceding = messages[index - 1];
+        const precedingTime = preceding && messageTime(preceding);
+        const reference = preceding && preceding.direction === 'inbound'
+          && ['image', 'document'].includes(preceding.message_type || preceding.type)
+          && !linked.has(preceding.id) && time - precedingTime >= 0 && time - precedingTime <= 5 * 60 * 1000;
+        start = reference ? index - 1 : index;
+      }
+      request = directNew ? 'separate' : addOn ? 'add_on' : request ?? 'new';
+    } else if (oldReference || (currentOrder && !request)) {
+      const order = oldReference || currentOrder;
+      if (order) linked.set(message.id, order);
     }
+    if (request && !linked.has(message.id)) selected.add(message.id);
     if (Number.isFinite(time)) previousTime = time;
   }
 
-  const current = messages.slice(start);
+  const unassigned = messages.slice(start).filter((message) => !linked.has(message.id));
+  const counts = new Map<string, number>();
+  for (const order of linked.values()) counts.set(order.order_no, (counts.get(order.order_no) ?? 0) + 1);
   return {
-    messages: current.filter((message) => {
-      const body = text(message.text_content || message.caption || message.text);
-      return !EXISTING_ORDER.test(body) || SEPARATE_ORDER.test(body);
-    }),
-    startMessageId: start > 0 ? messages[start].id : null,
+    messages: unassigned,
+    startMessageId: request ? messages[start]?.id ?? null : null,
     excludedBeforeStart: start,
+    previousOrderMessages: [...counts].map(([order_no, count]) => ({ order_no, count })),
+    activeOrders: active.map(({ order_id, order_no }) => ({ order_id, order_no })),
+    needsOrderDecision: request === 'add_on',
+    followUpOnly: !request && windows.length > 0,
   };
 }
 
