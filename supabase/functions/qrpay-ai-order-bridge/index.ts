@@ -58,6 +58,16 @@ Deno.serve(async req=>{if(req.method==='OPTIONS')return new Response('ok',{heade
  if(b.action==='queue_match_review')return out({ok:true,...await queueMatchReview(b)});
  if(b.action==='claim'){const q=await db.rpc('claim_qrpay_ai_jobs',{p_limit:Math.max(1,Math.min(10,Number(b.batch_size||3)))});if(q.error)throw q.error;return out({ok:true,jobs:q.data||[]})}
  if(b.action==='learning_context'){const q=await db.rpc('icetak_qrpay_active_learning_context');if(q.error)throw q.error;return out({ok:true,rules:q.data||[]})}
+ if(b.action==='auto_draft_fulfillment_context'){
+   const q=await db.rpc('icetak_auto_draft_fulfillment_context',{
+     p_conversation_id:b.conversation_id||null,
+     p_customer_phone:digits(b.phone)||null,
+     p_customer_master_id:b.customer_master_id||null,
+     p_cutoff_at:b.cutoff_at,
+   });
+   if(q.error)throw q.error;
+   return out({ok:true,orders:q.data||[]});
+ }
  if(b.action==='order_session_context'){const q=await db.rpc('icetak_order_session_context',{p_conversation_id:b.conversation_id||null,p_customer_phone:digits(b.phone)||null});if(q.error)throw q.error;return out({ok:true,...(q.data||{})})}
  if(b.action==='order_session_status_batch'){if(!Array.isArray(b.conversations)||b.conversations.length>1000)return out({ok:false,error:'A maximum of 1000 conversations is allowed'},400);const seen=new Set<string>(),conversations:any[]=[];for(const row of b.conversations){const id=text(row?.conversation_id).toLowerCase();if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)||seen.has(id))continue;seen.add(id);conversations.push({conversation_id:id,phone:digits(row?.phone)||null})}const q=await db.rpc('icetak_order_session_status_batch',{p_conversations:conversations});if(q.error)throw q.error;return out({ok:true,sessions:q.data||{}})}
  if(b.action==='update_job'){const patch:any={};for(const[k,v]of Object.entries(b.patch||{}))if(allowed.has(k))patch[k]=k==='extraction'?canon(v):v;if('matched_phone'in patch)patch.matched_phone=digits(patch.matched_phone)||null;patch.updated_at=new Date().toISOString();const q=await db.from('qrpay_ai_jobs').update(patch).eq('id',b.job_id).select('*').maybeSingle();if(q.error)throw q.error;return out({ok:true,job:q.data})}
