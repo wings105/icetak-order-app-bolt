@@ -47,7 +47,7 @@ async function authorize(req:Request,url:URL,ctx:FailureContext){
  ctx.stage='consent_form';
  const form=req.method==='POST'?await req.formData():null;
  const q=form?new URLSearchParams(Array.from(form.entries()).map(([k,v])=>[k,String(v)])):url.searchParams;
- const client_id=q.get('client_id')||'',redirect_uri=q.get('redirect_uri')||'',challenge=q.get('code_challenge')||'',scope=q.get('scope')||SCOPES.join(' '),state=q.get('state')||'';
+ const client_id=q.get('client_id')||'',redirect_uri=q.get('redirect_uri')||'',challenge=q.get('code_challenge')||'',scope=q.get('scope')||SUPPORTED_SCOPES.join(' '),state=q.get('state')||'';
  ctx.stage='client_lookup';
  const c=(await db('icetak_mcp_clients?client_id=eq.'+encodeURIComponent(client_id)+'&select=redirect_uris&limit=1',undefined,'GET','return=representation',5000))[0];
  if(!c||!redirectAllowed(redirect_uri)||!c.redirect_uris.includes(redirect_uri)||q.get('response_type')!=='code'||q.get('code_challenge_method')!=='S256'||!/^[-_A-Za-z0-9]{43}$/.test(challenge)||state.length>2048||scope.split(' ').some(s=>!SUPPORTED_SCOPES.includes(s))||q.get('resource')&&q.get('resource')!==ORIGIN+'/mcp')return json({error:'invalid_request'},400);
