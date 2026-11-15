@@ -53,11 +53,15 @@ const orderNo='261106TESTIMG1';
 const taskId='syntheticTask1';
 const route={profile:'wafer',initial_status:'wafer paper',task_created_at:new Date(Date.now()-1_000_000).toISOString()};
 const snapshot={task_id:taskId,order_reference:orderNo,list_id:'18375902',marketplace_order_id:orderId,clickup_status:'wafer paper'};
+const reviewId='d84d57b3-41f3-473d-b502-4e7bf45ace0c';
 const task={id:taskId,list:{id:'18375902'},status:{status:'wafer paper'},attachments:[] as Array<Record<string,unknown>>,custom_fields:[
- {name:'SKU',id:'sku',value:'6 inch (bulat)'},{name:'ORDER ID / customer name',id:'order',value:orderNo}
-]};
+ {name:'SKU',id:'sku',value:'6 inch (bulat)'},{name:'ORDER ID / customer name',id:'order',value:orderNo},
+ {name:'Review customer',id:'review',value:null,type_config:{options:[{id:reviewId,name:'✅Ai Check',orderindex:15},{id:'followup',name:'follow up1',orderindex:12}]}},
+ {name:'confirmed',id:'confirmed',value:false}
+ ] as Array<Record<string,any>>};
 let saved:Record<string,any>={};
 let uploads=0,posted=0;
+const writes:string[]=[];
 const fake=async(path:string,method='GET',body?:any)=>{
  if(path==='task/'+taskId&&method==='GET')return task;
  if(path.endsWith('/attachment')&&method==='POST'){
@@ -70,6 +74,14 @@ const fake=async(path:string,method='GET',body?:any)=>{
   posted++;
   assert.ok(body.comment.some((part:any)=>part.attributes?.link==='https://img.susercontent.com/cal.png'));
   return {id:'comment1'};
+ }
+ if(path.includes('/field/')&&method==='POST'){
+  assert.ok(posted>0);
+  const field=task.custom_fields.find(f=>path.endsWith('/'+f.id));
+  assert.ok(field);
+  writes.push(field.id);
+  field.value=body.value;
+  return {};
  }
  throw Error('Unexpected ClickUp call '+method+' '+path);
 };
@@ -95,10 +107,30 @@ try{
  assert.equal(outcome.status,'BRIEF_READY');
  assert.equal(outcome.attachments,1);
  assert.equal(saved.p_media[0].message_id,customer[2].id);
- await processPrint({...job,brief:saved.p_brief,comment_id:saved.p_comment_id,media_receipts:saved.p_media},snapshot,route,'synthetic','synthetic',dependencies);
+ assert.deepEqual(writes,['review','confirmed']);
+ assert.equal(task.custom_fields[2].value,reviewId);
+ assert.equal(task.custom_fields[3].value,true);
+ assert.equal(saved.p_brief.confirmed,true);
+ assert.ok(saved.p_brief.confirmed_at);
+ await processPrint({...job,brief:{...saved.p_brief,confirmed:false},comment_id:saved.p_comment_id,media_receipts:saved.p_media},snapshot,route,'synthetic','synthetic',dependencies);
  assert.equal(uploads,1);
  assert.equal(posted,1);
- console.log('PASS actual print worker attachment, clickable source link and retry deduplication with controlled ClickUp transport');
+ assert.deepEqual(writes,['review','confirmed']);
+
+ task.custom_fields[2].value=12;
+ task.custom_fields[3].value=false;
+ const preview=await processPrint(job,snapshot,route,'synthetic','synthetic',dependencies,true);
+ assert.equal(preview.brief.status,'BRIEF_READY');
+ assert.notEqual(preview.brief.confirmed,true);
+ assert.deepEqual(writes,['review','confirmed']);
+
+ const incomplete={...dependencies,safeDownload:async()=>{throw Error('MEDIA_UNAVAILABLE');}};
+ task.attachments=[];
+ const incompleteResult=await processPrint(job,snapshot,route,'synthetic','synthetic',incomplete);
+ assert.equal(incompleteResult.status,'SOURCE_UNAVAILABLE');
+ assert.notEqual(saved.p_brief.confirmed,true);
+ assert.deepEqual(writes,['review','confirmed']);
+ console.log('PASS print attachment, auto-confirm and AI Check after comment, retry, preview and unavailable-image guards');
 }finally{globalThis.fetch=oldFetch;}
 
 const batchTime=make('image','[Image]',3).created_at;
