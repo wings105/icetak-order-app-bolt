@@ -97,12 +97,24 @@
       .designs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
       figcaption { padding-inline: .65rem; }
     }
+    .ngantin { margin-top: 3.5rem; padding-top: 1.75rem; border-top: 1px solid #e9dfd4; }
+    .ngantin h2 { font-size: clamp(1.55rem, 4vw, 2.35rem); margin: 0 0 .4rem; }
+    .ngantin p { margin-bottom: .9rem; }
+    .ngantin-search { max-width: 32rem; margin-bottom: .85rem; }
+    .ngantin-filters { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .8rem; }
+    .ngantin-filters button { min-height: 2.5rem; font-size: .88rem; }
+    .ngantin-filters button[aria-pressed="true"] { background: #793819; color: #fff; }
+    .ngantin-preview { display: block; width: 100%; aspect-ratio: 640 / 448; padding: .75rem; object-fit: contain; }
+    .ngantin-pages { display: flex; align-items: center; justify-content: center; gap: .75rem; margin-top: 1.25rem; }
+    .ngantin-pages[hidden] { display: none; }
+    .ngantin-pages button:disabled { opacity: .55; cursor: default; }
   </style>
 </head>
 <body>
   <header>
     <nav class="container" aria-label="Navigasi kedai">
       <a class="brand" href="/">DecoCake.my</a>
+      <a href="#katalog-ngantin">Katalog NGANTIN</a>
       <a href="/#/product/acrylic-cake-topper">Lihat Acrylic Cake Topper</a>
     </nav>
   </header>
@@ -146,12 +158,28 @@
         </figcaption>
       </figure></li>
     </ul>
+    <section class="ngantin" id="katalog-ngantin" aria-labelledby="ngantin-title">
+      <h2 id="ngantin-title">Katalog Design NGANTIN</h2>
+      <p>Cari gaya topper, pilih design dan isi wording untuk tempahan anda.</p>
+      <div class="ngantin-search">
+        <label for="ngantin-search">Cari design atau kod</label>
+        <input id="ngantin-search" type="search" placeholder="Contoh NG-012 atau pengantin">
+      </div>
+      <div id="ngantin-filters" class="ngantin-filters" aria-label="Tema design"></div>
+      <p id="ngantin-status" role="status">Memuatkan katalog…</p>
+      <ul id="ngantin-designs" class="designs" aria-label="Design NGANTIN"></ul>
+      <nav id="ngantin-pages" class="ngantin-pages" aria-label="Halaman katalog NGANTIN" hidden>
+        <button type="button" id="ngantin-prev">Sebelum</button>
+        <span id="ngantin-page"></span>
+        <button type="button" id="ngantin-next">Seterusnya</button>
+      </nav>
+    </section>
   </main>
   <dialog id="pick-design" aria-labelledby="pick-title">
     <form>
       <h2 id="pick-title">Pilih design</h2>
       <p id="pick-summary"></p>
-      <label for="initials">Initial yang anda mahu</label>
+      <label id="wording-label" for="initials">Initial yang anda mahu</label>
       <input id="initials" name="initials" placeholder="Contoh H &amp; N" maxlength="40" pattern=".*\S.*" required autofocus>
       <div class="dialog-actions">
         <button type="button" id="cancel-pick">Batal</button>
@@ -167,13 +195,21 @@
     const summary = document.querySelector('#pick-summary');
     let selection;
 
-    document.querySelectorAll('[data-design]').forEach(button => {
-      button.addEventListener('click', () => {
-        selection = { code: button.dataset.design, sample: button.dataset.sample };
-        summary.textContent = selection.code + ' · Contoh ' + selection.sample;
-        form.reset();
-        dialog.showModal();
-      });
+    document.querySelector('main').addEventListener('click', event => {
+      const button = event.target.closest('button[data-design]');
+      if (!button) return;
+      selection = {
+        code: button.dataset.design,
+        sample: button.dataset.sample,
+        isNgantin: button.dataset.design.startsWith('NG-')
+      };
+      summary.textContent = selection.code + ' · Contoh ' + selection.sample;
+      document.querySelector('#wording-label').textContent =
+        selection.isNgantin ? 'Nama atau wording yang anda mahu' : 'Initial yang anda mahu';
+      initials.placeholder = selection.isNgantin ? 'Contoh Aina & Hafiz' : 'Contoh H & N';
+      initials.maxLength = selection.isNgantin ? 160 : 40;
+      form.reset();
+      dialog.showModal();
     });
 
     document.querySelector('#cancel-pick').addEventListener('click', () => dialog.close());
@@ -182,10 +218,10 @@
       const preview = new URL('/galeri-initial/', location.origin);
       preview.hash = selection.code;
       const message = [
-        'Hi iCetak, saya nak tempah acrylic cake topper.',
+        selection.isNgantin ? 'Hi iCetak, saya nak tempah cake topper.' : 'Hi iCetak, saya nak tempah acrylic cake topper.',
         'Kod design: ' + selection.code,
         'Contoh: ' + selection.sample,
-        'Initial baru: ' + initials.value.trim(),
+        (selection.isNgantin ? 'Wording: ' : 'Initial baru: ') + initials.value.trim(),
         'Preview: ' + preview.href
       ].join('\n');
       const whatsapp = new URL('https://wa.me/' + shopWhatsapp);
@@ -194,5 +230,6 @@
       location.assign(whatsapp.href);
     });
   </script>
+  <script defer src="/galeri-initial/ngantin/catalog.js"></script>
 </body>
 </html>
