@@ -656,7 +656,8 @@ function aiLabelledChatEvidence(refs:ReturnType<typeof productReferences>, sku:s
   if(isUnimportant(body)||/^(?:hai|hi|hello)(?:\s+cik|\s+boleh ke)?[?!.\s]*$/i.test(body)||
    /^(?:sy|saya)\s+ada order\s+(?:nk|nak) letak nama (?:and|dan) (?:number|nombor|umur)(?: ya)?[.!]*$/i.test(body)||
    /^(?:sbb|sebab)\s+(?:sy|saya)\s+(?:nk|nak) guna \d{1,2}\s*hb(?: ni)?[.!]*$/i.test(body))continue;
-  const labelled=body.match(/^([^\n:]{2,90}):\s*([\s\S]+)$/);
+  const heading=body.match(/^yang\s+(?:utk|untuk)\s+([^\r\n:]{2,90}):?[ \t]*\r?\n([\s\S]+)$/i);
+  const labelled=heading||body.match(/^([^\n:]{2,90}):\s*([\s\S]+)$/);
   if(!labelled)return no("AMBIGUOUS_OR_CONFLICTING_CHAT_PRODUCT_LABEL");
   const item=labelledItem(labelled[1].trim());
   if(!item||assignments.has(normalized(item.sku)))return no("AMBIGUOUS_OR_CONFLICTING_CHAT_PRODUCT_LABEL");
@@ -665,7 +666,7 @@ function aiLabelledChatEvidence(refs:ReturnType<typeof productReferences>, sku:s
   if(extra.length||!age||Number(age)<1||Number(age)>120||
    !/^[\p{L}][\p{L}\p{M} .’'&-]{0,84}$/u.test(name||"")||isNonDesignWording(name))
    return no("MULTI_ITEM_WORDING_NEEDS_REVIEW");
-  assignments.set(normalized(item.sku),{name,age,wording:name+" "+ageText,label:labelled[1].trim(),message});
+  assignments.set(normalized(item.sku),{name,age,wording:name+(heading?"\n":" ")+ageText,label:labelled[1].trim(),message});
  }
  const target=assignments.get(normalized(sku));
  if(assignments.size!==refs.length||!target)return no("CHAT_PRODUCT_LABEL_COVERAGE_INCOMPLETE");
@@ -689,7 +690,9 @@ function aiEvidenceConfirmation(input:Obj):Obj{
  if(context.ambiguous||context.truncated||context.unavailable)return no("CHAT_CONTEXT_UNVERIFIED");
  if(!provider?.available||!['READY_TO_SHIP','PROCESSED'].includes(provider.order_status))return no("CURRENT_ACTIVE_ORDER_REQUIRED");
  const refs=productReferences(items);
- if(missing.length)return no("UNRESOLVED_DETAIL_OR_AGE_CONFLICT");
+ // Verified wording can supply fields the earlier detail extractor missed.
+ if(missing.some((entry:Obj)=>!["mode","wording","name"].includes(String(entry.key||"").toLowerCase())))
+  return no("UNRESOLVED_DETAIL_OR_AGE_CONFLICT");
  const inbound=messages.filter((m:Obj)=>m.direction==="inbound"&&!m.is_history&&m.id&&Number.isFinite(Date.parse(m.created_at)));
  const ids=new Set(inbound.map((m:Obj)=>String(m.id))),evidence=analysis.evidence_ids;
  if(!Array.isArray(evidence)||!evidence.length||evidence.some((id:unknown)=>!ids.has(String(id))))return no("AI_EVIDENCE_NOT_IN_ORDER_CONTEXT");
