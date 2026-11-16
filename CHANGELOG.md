@@ -1,3 +1,7 @@
+# 2026-11-16
+
+- [PRODUCTION] AutoBrief v99 gives matching OpenAI evidence priority when the initial cake-topper parser lacks wording or design mode. A product heading followed by multiline wording can confirm its own SKU. Production verification covered two items at 98% with exact wording, Ai Check, Confirmed and evidence in both ClickUp briefs. See [AutoBrief product context](docs/AUTOBRIEF_PRODUCT_CONTEXT.md).
+
 # 2026-11-15
 
 - [PRODUCTION] Edible/Wafer AutoBrief uses order-scoped image counts, attaches disputed artwork for admin review, and rechecks Shopee and WhatsApp when a task's phone changes. Exact-task ClickUp readback verified two attachments, the existing brief comment, Ai Check and Confirmed. The live Inbox phone lookup and a rolled-back webhook dispatch test verified the phone path. See [AutoBrief product context](docs/AUTOBRIEF_PRODUCT_CONTEXT.md).

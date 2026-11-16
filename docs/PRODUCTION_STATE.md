@@ -1,3 +1,11 @@
+# 2026-11-16 — OpenAI wording confirmation
+
+Order AutoBrief v99 is live. Verified OpenAI evidence at 90% or higher can
+resolve missing wording, name or design mode when the source supplies exact
+wording for the matched SKU. Two exact-task runs and direct ClickUp readback
+verified both items at 98%, with the original line breaks, Ai Check, Confirmed
+and the proof comments. See [AutoBrief product context](AUTOBRIEF_PRODUCT_CONTEXT.md).
+
 # 2026-11-15 — Edible/Wafer AutoBrief artwork and phone updates
 
 Order AutoBrief v97 and its Order/Inbox migrations are live. An exact-task run

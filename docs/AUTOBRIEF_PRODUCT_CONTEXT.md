@@ -318,3 +318,17 @@ The two live tasks completed with 98% and 95%. Direct ClickUp readback
 verified the wording, Ai Check, Confirmed and original proof comments.
 The AI confirmation script tests both SKU matches and rejects cross-item
 citations, changed names or ages, duplicate labels and ambiguous products.
+
+## OpenAI priority for exact labelled wording — 16 November 2026
+
+Worker v99 prioritizes current OpenAI evidence at 90% or higher when the
+initial parser flags missing wording, name or design mode. The model must
+agree with the exact customer wording in the evidence cited for that SKU.
+A heading like `Yang utk <product>` can identify the item, and the wording
+retains the greeting and age line break. Other missing requirements and genuine
+conflicts still go to review.
+
+Both tasks in a production order confirmed at 98%. ClickUp readback matched
+Customize Name, Ai Check, Confirmed and the proof comments on each. The
+AI confirmation check covers the heading and rejects a mismatched age or
+citation, a score below 90%, and missing size.

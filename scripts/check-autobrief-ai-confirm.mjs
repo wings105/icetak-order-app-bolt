@@ -76,6 +76,22 @@ for(const change of [
  {existingWord:'Staff approved wording'}
 ])assert.equal(api.aiEvidenceConfirmation({...secondCase,...change}).eligible,false,JSON.stringify(change));
 
+const missingWording=[{key:'mode'},{key:'wording'}];
+const headingCase={...secondCase,missing:missingWording,
+ messages:[
+  {...multiMessages[2],text_content:'Yang utk ALPHA HEROES\n\nHappy Birthday Sample One\n2 Tahun'},
+  {...multiMessages[3],text_content:'Yang utk NUMBERBLOCKS\n\nHappy Birthday Sample Two\n6 Tahun'}
+ ],
+ analysis:{...secondCase.analysis,wording:'Happy Birthday Sample Two\n6 Tahun'}
+};
+assert.equal(api.aiEvidenceConfirmation(headingCase).wording,'Happy Birthday Sample Two\n6 Tahun');
+for(const change of [
+ {missing:[...missingWording,{key:'size'}]},
+ {analysis:{...headingCase.analysis,confidence:89}},
+ {analysis:{...headingCase.analysis,evidence_ids:['multi2']}},
+ {analysis:{...headingCase.analysis,wording:'Happy Birthday Sample Two\n7 Tahun'}}
+])assert.equal(api.aiEvidenceConfirmation({...headingCase,...change}).eligible,false,JSON.stringify(change));
+
 // Exercise both real worker paths with field/comment writes and replay.
 for(const fixture of [
  {note,messages,expected:wording,analysis,comment:/AI pengesahan/},
