@@ -54,6 +54,43 @@
     figcaption { padding: .8rem 1rem; border-top: 1px solid #f0e8e0; }
     figcaption strong { display: block; }
     figcaption span { color: #625149; font-size: .9rem; }
+    figure:target { outline: 2px solid #914524; outline-offset: 3px; }
+    .design-code { margin-bottom: .15rem; font-variant-numeric: tabular-nums; }
+    button {
+      min-height: 2.75rem;
+      padding: .5rem .85rem;
+      border: 1px solid #dfc5b7;
+      border-radius: .6rem;
+      background: #fff;
+      color: #793819;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    button:focus-visible, input:focus-visible { outline: 2px solid #914524; outline-offset: 3px; }
+    figcaption button { width: 100%; margin-top: .75rem; }
+    dialog {
+      width: min(100% - 2rem, 27rem);
+      max-height: calc(100% - 2rem);
+      padding: 1.25rem;
+      border: 1px solid #e9dfd4;
+      border-radius: 1rem;
+      color: inherit;
+    }
+    dialog::backdrop { background: rgb(43 33 29 / 55%); }
+    dialog h2 { margin: 0 0 .25rem; font-size: 1.35rem; }
+    dialog p { margin-bottom: 1rem; }
+    label { display: block; margin-bottom: .3rem; font-weight: 650; }
+    input {
+      width: 100%;
+      min-height: 2.75rem;
+      padding: .55rem .7rem;
+      border: 1px solid #b79f92;
+      border-radius: .5rem;
+      font: inherit;
+    }
+    .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; margin-top: 1rem; }
+    .send { background: #145c40; color: #fff; border-color: #145c40; }
     @media (min-width: 23rem) and (max-width: 39rem) {
       .designs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
       figcaption { padding-inline: .65rem; }
@@ -69,29 +106,96 @@
   </header>
   <main class="container">
     <h1>Galeri Initial Cake Topper</h1>
-    <p>Pilih gaya huruf untuk acrylic cake topper anda.</p>
+    <p>Pilih design, isi initial yang anda mahu dan hantar pilihan melalui WhatsApp.</p>
     <ul class="designs" aria-label="Contoh design initial">
-      <li><figure>
+      <li><figure id="IT-01">
         <img src="/galeri-initial/mh.webp" width="640" height="448" alt="M dan H bertingkat dengan simbol &amp; di tengah">
-        <figcaption><strong>M &amp; H</strong><span>Huruf klasik bertingkat</span></figcaption>
+        <figcaption>
+          <strong>M &amp; H</strong>
+          <span class="design-code">IT-01 · Huruf klasik bertingkat</span>
+          <button type="button" data-design="IT-01" data-sample="M &amp; H" aria-label="Pilih design IT-01">Pilih design</button>
+        </figcaption>
       </figure></li>
-      <li><figure>
+      <li><figure id="IT-02">
         <img src="/galeri-initial/as-hati.webp" width="640" height="448" alt="A dan S bersambung dengan bentuk hati">
-        <figcaption><strong>A ♥ S</strong><span>Tulisan bersambung dengan hati</span></figcaption>
+        <figcaption>
+          <strong>A ♥ S</strong>
+          <span class="design-code">IT-02 · Tulisan bersambung dengan hati</span>
+          <button type="button" data-design="IT-02" data-sample="A ♥ S" aria-label="Pilih design IT-02">Pilih design</button>
+        </figcaption>
       </figure></li>
-      <li><figure>
+      <li><figure id="IT-03">
         <img src="/galeri-initial/ar-hati.webp" width="640" height="448" alt="A dan R bersambung dengan bentuk hati">
-        <figcaption><strong>A ♥ R</strong><span>Tulisan bersambung dengan hati</span></figcaption>
+        <figcaption>
+          <strong>A ♥ R</strong>
+          <span class="design-code">IT-03 · Tulisan bersambung dengan hati</span>
+          <button type="button" data-design="IT-03" data-sample="A ♥ R" aria-label="Pilih design IT-03">Pilih design</button>
+        </figcaption>
       </figure></li>
-      <li><figure>
+      <li><figure id="IT-04">
         <img src="/galeri-initial/as-ampersand.webp" width="640" height="448" alt="A dan S dalam tulisan skrip dengan simbol &amp;">
-        <figcaption><strong>A &amp; S</strong><span>Tulisan skrip</span></figcaption>
+        <figcaption>
+          <strong>A &amp; S</strong>
+          <span class="design-code">IT-04 · Tulisan skrip</span>
+          <button type="button" data-design="IT-04" data-sample="A &amp; S" aria-label="Pilih design IT-04">Pilih design</button>
+        </figcaption>
       </figure></li>
-      <li><figure>
+      <li><figure id="IT-05">
         <img src="/galeri-initial/gk.webp" width="640" height="448" alt="G dan K disusun serong dengan simbol &amp; di tengah">
-        <figcaption><strong>G &amp; K</strong><span>Huruf tebal bersusun serong</span></figcaption>
+        <figcaption>
+          <strong>G &amp; K</strong>
+          <span class="design-code">IT-05 · Huruf tebal bersusun serong</span>
+          <button type="button" data-design="IT-05" data-sample="G &amp; K" aria-label="Pilih design IT-05">Pilih design</button>
+        </figcaption>
       </figure></li>
     </ul>
   </main>
+  <dialog id="pick-design" aria-labelledby="pick-title">
+    <form>
+      <h2 id="pick-title">Pilih design</h2>
+      <p id="pick-summary"></p>
+      <label for="initials">Initial yang anda mahu</label>
+      <input id="initials" name="initials" placeholder="Contoh H &amp; N" maxlength="40" pattern=".*\S.*" required autofocus>
+      <div class="dialog-actions">
+        <button type="button" id="cancel-pick">Batal</button>
+        <button class="send" type="submit">Buka WhatsApp</button>
+      </div>
+    </form>
+  </dialog>
+  <script>
+    const shopWhatsapp = '60179860656';
+    const dialog = document.querySelector('#pick-design');
+    const form = dialog.querySelector('form');
+    const initials = document.querySelector('#initials');
+    const summary = document.querySelector('#pick-summary');
+    let selection;
+
+    document.querySelectorAll('[data-design]').forEach(button => {
+      button.addEventListener('click', () => {
+        selection = { code: button.dataset.design, sample: button.dataset.sample };
+        summary.textContent = selection.code + ' · Contoh ' + selection.sample;
+        form.reset();
+        dialog.showModal();
+      });
+    });
+
+    document.querySelector('#cancel-pick').addEventListener('click', () => dialog.close());
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const preview = new URL('/galeri-initial/', location.origin);
+      preview.hash = selection.code;
+      const message = [
+        'Hi iCetak, saya nak tempah acrylic cake topper.',
+        'Kod design: ' + selection.code,
+        'Contoh: ' + selection.sample,
+        'Initial baru: ' + initials.value.trim(),
+        'Preview: ' + preview.href
+      ].join('\n');
+      const whatsapp = new URL('https://wa.me/' + shopWhatsapp);
+      whatsapp.searchParams.set('text', message);
+      dialog.close();
+      location.assign(whatsapp.href);
+    });
+  </script>
 </body>
 </html>
