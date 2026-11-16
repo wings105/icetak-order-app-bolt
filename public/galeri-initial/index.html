@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Lihat contoh design initial untuk acrylic cake topper DecoCake.my.">
+  <title>Galeri Initial Cake Topper | DecoCake.my</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #fbf8f4;
+      color: #2b211d;
+      font: 1rem/1.5 system-ui, sans-serif;
+    }
+    header { background: #fff; border-bottom: 1px solid #e9dfd4; }
+    .container { width: min(100% - 2rem, 66rem); margin-inline: auto; }
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: .5rem 1rem;
+      padding-block: .9rem;
+    }
+    a { color: #914524; text-underline-offset: .22em; }
+    a:focus-visible { outline: 2px solid #914524; outline-offset: 4px; }
+    .brand { color: #2b211d; font-weight: 750; text-decoration: none; }
+    main { padding-block: clamp(2rem, 6vw, 4rem); }
+    h1 {
+      margin: 0 0 .5rem;
+      font-size: clamp(1.95rem, 5.5vw, 3.3rem);
+      line-height: 1.12;
+      letter-spacing: -.035em;
+    }
+    p { margin: 0 0 1.75rem; color: #625149; }
+    .designs {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+      gap: 1rem;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+    figure {
+      height: 100%;
+      margin: 0;
+      background: #fff;
+      border: 1px solid #e9dfd4;
+      border-radius: 1rem;
+      overflow: hidden;
+    }
+    img { display: block; width: 100%; height: auto; }
+    figcaption { padding: .8rem 1rem; border-top: 1px solid #f0e8e0; }
+    figcaption strong { display: block; }
+    figcaption span { color: #625149; font-size: .9rem; }
+    @media (min-width: 23rem) and (max-width: 39rem) {
+      .designs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+      figcaption { padding-inline: .65rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav class="container" aria-label="Navigasi kedai">
+      <a class="brand" href="/">DecoCake.my</a>
+      <a href="/#/product/acrylic-cake-topper">Lihat Acrylic Cake Topper</a>
+    </nav>
+  </header>
+  <main class="container">
+    <h1>Galeri Initial Cake Topper</h1>
+    <p>Pilih gaya huruf untuk acrylic cake topper anda.</p>
+    <ul class="designs" aria-label="Contoh design initial">
+      <li><figure>
+        <img src="/galeri-initial/mh.webp" width="640" height="448" alt="M dan H bertingkat dengan simbol &amp; di tengah">
+        <figcaption><strong>M &amp; H</strong><span>Huruf klasik bertingkat</span></figcaption>
+      </figure></li>
+      <li><figure>
+        <img src="/galeri-initial/as-hati.webp" width="640" height="448" alt="A dan S bersambung dengan bentuk hati">
+        <figcaption><strong>A ♥ S</strong><span>Tulisan bersambung dengan hati</span></figcaption>
+      </figure></li>
+      <li><figure>
+        <img src="/galeri-initial/ar-hati.webp" width="640" height="448" alt="A dan R bersambung dengan bentuk hati">
+        <figcaption><strong>A ♥ R</strong><span>Tulisan bersambung dengan hati</span></figcaption>
+      </figure></li>
+      <li><figure>
+        <img src="/galeri-initial/as-ampersand.webp" width="640" height="448" alt="A dan S dalam tulisan skrip dengan simbol &amp;">
+        <figcaption><strong>A &amp; S</strong><span>Tulisan skrip</span></figcaption>
+      </figure></li>
+      <li><figure>
+        <img src="/galeri-initial/gk.webp" width="640" height="448" alt="G dan K disusun serong dengan simbol &amp; di tengah">
+        <figcaption><strong>G &amp; K</strong><span>Huruf tebal bersusun serong</span></figcaption>
+      </figure></li>
+    </ul>
+  </main>
+</body>
+</html>
