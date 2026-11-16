@@ -54,6 +54,8 @@
     figcaption { padding: .8rem 1rem; border-top: 1px solid #f0e8e0; }
     figcaption strong { display: block; }
     figcaption span { color: #625149; font-size: .9rem; }
+    .heart-previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; aspect-ratio: 640 / 448; }
+    .heart-previews img:target { outline: 2px solid #914524; outline-offset: -2px; }
     figure:target { outline: 2px solid #914524; outline-offset: 3px; }
     .design-code { margin-bottom: .15rem; font-variant-numeric: tabular-nums; }
     button {
@@ -117,19 +119,14 @@
         </figcaption>
       </figure></li>
       <li><figure id="IT-02">
-        <img src="/galeri-initial/as-hati.webp" width="640" height="448" alt="A dan S bersambung dengan bentuk hati">
+        <div class="heart-previews">
+          <img src="/galeri-initial/as-hati.webp" width="640" height="448" alt="A dan S bersambung dengan bentuk hati">
+          <img id="IT-03" src="/galeri-initial/ar-hati.webp" width="640" height="448" alt="A dan R bersambung dengan bentuk hati">
+        </div>
         <figcaption>
-          <strong>A ♥ S</strong>
+          <strong>A ♥ S / A ♥ R</strong>
           <span class="design-code">IT-02 · Tulisan bersambung dengan hati</span>
-          <button type="button" data-design="IT-02" data-sample="A ♥ S" aria-label="Pilih design IT-02">Pilih design</button>
-        </figcaption>
-      </figure></li>
-      <li><figure id="IT-03">
-        <img src="/galeri-initial/ar-hati.webp" width="640" height="448" alt="A dan R bersambung dengan bentuk hati">
-        <figcaption>
-          <strong>A ♥ R</strong>
-          <span class="design-code">IT-03 · Tulisan bersambung dengan hati</span>
-          <button type="button" data-design="IT-03" data-sample="A ♥ R" aria-label="Pilih design IT-03">Pilih design</button>
+          <button type="button" data-design="IT-02" data-sample="A ♥ S / A ♥ R" aria-label="Pilih design IT-02">Pilih design</button>
         </figcaption>
       </figure></li>
       <li><figure id="IT-04">
