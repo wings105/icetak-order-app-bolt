@@ -332,3 +332,13 @@ Both tasks in a production order confirmed at 98%. ClickUp readback matched
 Customize Name, Ai Check, Confirmed and the proof comments on each. The
 AI confirmation check covers the heading and rejects a mismatched age or
 citation, a score below 90%, and missing size.
+
+## OpenAI confirmation from unlabelled chat — 17 November 2026
+
+For one verified glossy custom item, a standalone customer message can be
+the exact print wording without a name or wording label. Current OpenAI
+analysis must score at least 90%, cite the message and match its text. The
+worker saves the original spelling, punctuation and line breaks. Competing
+details, media, conflicting staff wording and unresolved requirements still
+need review. The AI confirmation check covers two-line wording, mismatches,
+alternative wording and no-send behavior.

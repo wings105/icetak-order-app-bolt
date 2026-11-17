@@ -1,3 +1,10 @@
+# 2026-11-17 — Unlabelled glossy topper wording
+
+AutoBrief confirms complete unlabelled chat wording when current OpenAI analysis
+scores at least 90% and cites matching customer text for one verified glossy
+custom item. The worker saves the original text and line breaks in ClickUp.
+See [AutoBrief product context](AUTOBRIEF_PRODUCT_CONTEXT.md).
+
 # 2026-11-16 — OpenAI wording confirmation
 
 Order AutoBrief v99 is live. Verified OpenAI evidence at 90% or higher can
