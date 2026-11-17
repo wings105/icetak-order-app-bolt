@@ -3412,5 +3412,17 @@
     "name": "Monogram Huruf Kecil Berputar",
     "category": "Monogram",
     "image": "ngantin/ng-100-1852.webp"
+  },
+  {
+    "code": "NG-100-1853",
+    "name": "Monogram Dua A Serif Berlengkung",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1853.webp"
+  },
+  {
+    "code": "NG-100-1885",
+    "name": "Abah Kaligrafi Menegak",
+    "category": "Keluarga",
+    "image": "ngantin/ng-100-1885.webp"
   }
 ]
