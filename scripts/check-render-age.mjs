@@ -39,3 +39,11 @@ for(const brief of [
  {...checkout,actual_buyer_note:'Nama: Another Child\nUmur: 4 Tahun'},
  {...checkout,complete_note_rule:{...checkout.complete_note_rule,wording:'Lily 5'}},
 ])assert.deepEqual(Object.values(mapFields(template,brief,'Lily 4').fields),['Lily','4','','']);
+
+const deliveryOnly={confirmed:true,wording:'Lily 8 TAHUN',instruction:'urgent ( blh x smpai dalm jumaat ne )'};
+deliveryOnly.delivery_instruction=deliveryOnly.instruction;
+deliveryOnly.ai_confirmation_rule={reason:'AI_90_WITH_EXACT_BUYER_NOTE',delivery_instruction:deliveryOnly.instruction};
+assert.deepEqual(mapFields(full,deliveryOnly,'Lily 8 TAHUN').fields,{name:'Lily',age:'8 TAHUN'});
+assert.equal(mapFields(full,{...deliveryOnly,instruction:deliveryOnly.instruction+' Font merah.'},'Lily 8 TAHUN').reason,'BRIEF_NEEDS_REVIEW');
+assert.equal(mapFields(full,{...deliveryOnly,review_requested:true},'Lily 8 TAHUN').reason,'BRIEF_NEEDS_REVIEW');
+assert.equal(mapFields(full,deliveryOnly,'Lily 8 TAHUN urgent').reason,'INSTRUCTION_NEEDS_REVIEW');

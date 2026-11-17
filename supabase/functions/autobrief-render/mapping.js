@@ -43,7 +43,10 @@ export function mapFields(template,brief,taskWording){
  if(!auto?.enabled)return failure('TEMPLATE_AUTOMATION_NOT_READY');
  const fields=getInputFields(c),rules=auto.inputs||{};
  if(fields.some(f=>!rules[f.key]?.source))return failure('UNMAPPED_TEMPLATE_FIELD');
- if(brief.instruction||brief.media_count>0||brief.review_requested||brief.pending_change_ids?.length||brief.change_detected>0)return failure('BRIEF_NEEDS_REVIEW');
+ const deliveryOnly=brief.confirmed===true&&brief.ai_confirmation_rule?.reason==='AI_90_WITH_EXACT_BUYER_NOTE'&&
+  !!brief.delivery_instruction&&brief.instruction===brief.delivery_instruction&&
+  brief.delivery_instruction===brief.ai_confirmation_rule.delivery_instruction;
+ if((brief.instruction&&!deliveryOnly)||brief.media_count>0||brief.review_requested||brief.pending_change_ids?.length||brief.change_detected>0)return failure('BRIEF_NEEDS_REVIEW');
  const selected=clean(taskWording||brief.wording);let parsed=parseDetail(selected);
  if(!parsed.ok)return parsed;
  if(parsed.inferred&&parsed.name&&/^\d{1,3}$/.test(parsed.age)&&

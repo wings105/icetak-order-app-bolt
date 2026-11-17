@@ -1,3 +1,9 @@
+# 2026-11-18 — OpenAI wording and delivery-only notes
+
+AutoBrief v101 analyzes custom glossy topper wording before confirmation.
+Render v7 allows confirmed wording with an independently identified
+delivery-only Buyer Note. See [AutoBrief product context](AUTOBRIEF_PRODUCT_CONTEXT.md).
+
 # 2026-11-17 — Unlabelled glossy topper wording
 
 AutoBrief confirms complete unlabelled chat wording when current OpenAI analysis

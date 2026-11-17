@@ -1,3 +1,7 @@
+# 2026-11-18
+
+- [PRODUCTION] AutoBrief v101 asks OpenAI to read verified custom glossy topper details before saving Customize Name, including when the initial parser is confident. Render v7 accepts a verified delivery-only Buyer Note beside exact print wording. See [AutoBrief product context](docs/AUTOBRIEF_PRODUCT_CONTEXT.md).
+
 # 2026-11-17
 
 - [PRODUCTION] AutoBrief gives OpenAI priority when it cites complete unlabelled chat wording at 90% or higher for one verified glossy custom topper. Customize Name retains the original casing and line breaks. See [AutoBrief product context](docs/AUTOBRIEF_PRODUCT_CONTEXT.md).
