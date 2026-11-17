@@ -9,7 +9,18 @@
   const pageLabel = document.querySelector('#ngantin-page');
   const root = '/galeri-initial/';
   const pageSize = 24;
-  let designs = [];
+  const initialDesigns = Array.from(grid.children, item => {
+    const button = item.querySelector('button[data-design]');
+    return {
+      code: button.dataset.design,
+      name: button.dataset.sample,
+      description: item.querySelector('.design-code').textContent,
+      alias: item.dataset.alias,
+      category: 'Initial',
+      item
+    };
+  });
+  let designs = initialDesigns;
   let category = '';
   let page = 1;
 
@@ -43,13 +54,13 @@
   function render() {
     const terms = search.value.toLowerCase().trim().split(/\s+/);
     const matches = designs.filter(design => {
-      const text = [design.code, design.name, design.category].join(' ').toLowerCase();
+      const text = [design.code, design.alias, design.name, design.category, design.description].join(' ').toLowerCase();
       return (!category || design.category === category) && terms.every(term => text.includes(term));
     });
     const total = Math.max(1, Math.ceil(matches.length / pageSize));
     page = Math.min(page, total);
     const offset = (page - 1) * pageSize;
-    grid.replaceChildren(...matches.slice(offset, offset + pageSize).map(designCard));
+    grid.replaceChildren(...matches.slice(offset, offset + pageSize).map(design => design.item ?? designCard(design)));
     results.textContent = matches.length
       ? matches.length.toLocaleString('ms-MY') + ' design'
       : 'Tiada design sepadan.';
@@ -67,7 +78,7 @@
 
   function openLinkedDesign() {
     const code = location.hash.slice(1).toUpperCase();
-    if (!designs.some(design => design.code === code)) return;
+    if (!designs.some(design => design.code === code || design.alias === code)) return;
     category = '';
     for (const button of filters.children) {
       button.setAttribute('aria-pressed', String(button.dataset.category === ''));
@@ -89,7 +100,7 @@
       return response.json();
     })
     .then(data => {
-      designs = data;
+      designs = [...initialDesigns, ...data];
       for (const value of ['', ...new Set(designs.map(design => design.category))]) {
         const button = document.createElement('button');
         button.textContent = value || 'Semua';
@@ -109,5 +120,8 @@
       render();
       openLinkedDesign();
     })
-    .catch(() => { results.textContent = 'Katalog tidak dapat dimuatkan. Cuba muat semula halaman.'; });
+    .catch(() => {
+      openLinkedDesign();
+      results.textContent = 'Sebahagian design belum dapat dimuatkan. Cuba muat semula halaman.';
+    });
 })();

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Lihat contoh design initial untuk acrylic cake topper DecoCake.my.">
+  <meta name="description" content="Lihat dan cari reka bentuk cake topper daripada DecoCake.my.">
   <title>Galeri Initial Cake Topper | DecoCake.my</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
@@ -97,9 +97,7 @@
       .designs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
       figcaption { padding-inline: .65rem; }
     }
-    .ngantin { margin-top: 3.5rem; padding-top: 1.75rem; border-top: 1px solid #e9dfd4; }
-    .ngantin h2 { font-size: clamp(1.55rem, 4vw, 2.35rem); margin: 0 0 .4rem; }
-    .ngantin p { margin-bottom: .9rem; }
+    #ngantin-status { margin-bottom: .9rem; }
     .ngantin-search { max-width: 32rem; margin-bottom: .85rem; }
     .ngantin-filters { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .8rem; }
     .ngantin-filters button { min-height: 2.5rem; font-size: .88rem; }
@@ -114,61 +112,57 @@
   <header>
     <nav class="container" aria-label="Navigasi kedai">
       <a class="brand" href="/">DecoCake.my</a>
-      <a href="#katalog-ngantin">Katalog NGANTIN</a>
       <a href="/#/product/acrylic-cake-topper">Lihat Acrylic Cake Topper</a>
     </nav>
   </header>
   <main class="container">
-    <h1>Galeri Initial Cake Topper</h1>
-    <p>Pilih design, isi initial yang anda mahu dan hantar pilihan melalui WhatsApp.</p>
-    <ul class="designs" aria-label="Contoh design initial">
-      <li><figure id="IT-01">
-        <img src="/galeri-initial/mh.webp" width="640" height="448" alt="M dan H bertingkat dengan simbol &amp; di tengah">
-        <figcaption>
-          <strong>M &amp; H</strong>
-          <span class="design-code">IT-01 · Huruf klasik bertingkat</span>
-          <button type="button" data-design="IT-01" data-sample="M &amp; H" aria-label="Pilih design IT-01">Pilih design</button>
-        </figcaption>
-      </figure></li>
-      <li><figure id="IT-02">
-        <div class="heart-previews">
-          <img src="/galeri-initial/as-hati.webp" width="640" height="448" alt="A dan S bersambung dengan bentuk hati">
-          <img id="IT-03" src="/galeri-initial/ar-hati.webp" width="640" height="448" alt="A dan R bersambung dengan bentuk hati">
-        </div>
-        <figcaption>
-          <strong>A ♥ S / A ♥ R</strong>
-          <span class="design-code">IT-02 · Tulisan bersambung dengan hati</span>
-          <button type="button" data-design="IT-02" data-sample="A ♥ S / A ♥ R" aria-label="Pilih design IT-02">Pilih design</button>
-        </figcaption>
-      </figure></li>
-      <li><figure id="IT-04">
-        <img src="/galeri-initial/as-ampersand.webp" width="640" height="448" alt="A dan S dalam tulisan skrip dengan simbol &amp;">
-        <figcaption>
-          <strong>A &amp; S</strong>
-          <span class="design-code">IT-04 · Tulisan skrip</span>
-          <button type="button" data-design="IT-04" data-sample="A &amp; S" aria-label="Pilih design IT-04">Pilih design</button>
-        </figcaption>
-      </figure></li>
-      <li><figure id="IT-05">
-        <img src="/galeri-initial/gk.webp" width="640" height="448" alt="G dan K disusun serong dengan simbol &amp; di tengah">
-        <figcaption>
-          <strong>G &amp; K</strong>
-          <span class="design-code">IT-05 · Huruf tebal bersusun serong</span>
-          <button type="button" data-design="IT-05" data-sample="G &amp; K" aria-label="Pilih design IT-05">Pilih design</button>
-        </figcaption>
-      </figure></li>
-    </ul>
-    <section class="ngantin" id="katalog-ngantin" aria-labelledby="ngantin-title">
-      <h2 id="ngantin-title">Katalog Design NGANTIN</h2>
-      <p>Cari gaya topper, pilih design dan isi wording untuk tempahan anda.</p>
+    <h1 id="gallery-title">Galeri Initial Cake Topper</h1>
+    <p>Pilih design, isi initial, nama atau wording yang anda mahu dan hantar melalui WhatsApp.</p>
+    <section id="katalog-ngantin" aria-labelledby="gallery-title">
       <div class="ngantin-search">
         <label for="ngantin-search">Cari design atau kod</label>
-        <input id="ngantin-search" type="search" placeholder="Contoh NG-012 atau pengantin">
+        <input id="ngantin-search" type="search" placeholder="Contoh IT-01 atau pengantin">
       </div>
       <div id="ngantin-filters" class="ngantin-filters" aria-label="Tema design"></div>
-      <p id="ngantin-status" role="status">Memuatkan katalog…</p>
-      <ul id="ngantin-designs" class="designs" aria-label="Design NGANTIN"></ul>
-      <nav id="ngantin-pages" class="ngantin-pages" aria-label="Halaman katalog NGANTIN" hidden>
+      <p id="ngantin-status" role="status">Memuatkan galeri…</p>
+      <ul id="ngantin-designs" class="designs" aria-label="Design cake topper">
+        <li><figure id="IT-01">
+          <img src="/galeri-initial/mh.webp" width="640" height="448" alt="M dan H bertingkat dengan simbol &amp; di tengah">
+          <figcaption>
+            <strong>M &amp; H</strong>
+            <span class="design-code">IT-01 · Huruf klasik bertingkat</span>
+            <button type="button" data-design="IT-01" data-sample="M &amp; H" aria-label="Pilih design IT-01">Pilih design</button>
+          </figcaption>
+        </figure></li>
+        <li data-alias="IT-03"><figure id="IT-02">
+          <div class="heart-previews">
+            <img src="/galeri-initial/as-hati.webp" width="640" height="448" alt="A dan S bersambung dengan bentuk hati">
+            <img id="IT-03" src="/galeri-initial/ar-hati.webp" width="640" height="448" alt="A dan R bersambung dengan bentuk hati">
+          </div>
+          <figcaption>
+            <strong>A ♥ S / A ♥ R</strong>
+            <span class="design-code">IT-02 · Tulisan bersambung dengan hati</span>
+            <button type="button" data-design="IT-02" data-sample="A ♥ S / A ♥ R" aria-label="Pilih design IT-02">Pilih design</button>
+          </figcaption>
+        </figure></li>
+        <li><figure id="IT-04">
+          <img src="/galeri-initial/as-ampersand.webp" width="640" height="448" alt="A dan S dalam tulisan skrip dengan simbol &amp;">
+          <figcaption>
+            <strong>A &amp; S</strong>
+            <span class="design-code">IT-04 · Tulisan skrip</span>
+            <button type="button" data-design="IT-04" data-sample="A &amp; S" aria-label="Pilih design IT-04">Pilih design</button>
+          </figcaption>
+        </figure></li>
+        <li><figure id="IT-05">
+          <img src="/galeri-initial/gk.webp" width="640" height="448" alt="G dan K disusun serong dengan simbol &amp; di tengah">
+          <figcaption>
+            <strong>G &amp; K</strong>
+            <span class="design-code">IT-05 · Huruf tebal bersusun serong</span>
+            <button type="button" data-design="IT-05" data-sample="G &amp; K" aria-label="Pilih design IT-05">Pilih design</button>
+          </figcaption>
+        </figure></li>
+      </ul>
+      <nav id="ngantin-pages" class="ngantin-pages" aria-label="Halaman galeri" hidden>
         <button type="button" id="ngantin-prev">Sebelum</button>
         <span id="ngantin-page"></span>
         <button type="button" id="ngantin-next">Seterusnya</button>
