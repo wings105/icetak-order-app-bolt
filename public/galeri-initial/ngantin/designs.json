@@ -2962,5 +2962,77 @@
     "name": "Initial A & A dengan simbol berlingkar",
     "category": "Monogram",
     "image": "ngantin/ng-100-1611.webp"
+  },
+  {
+    "code": "NG-100-1617",
+    "name": "Initial A dan A dengan garisan pemisah",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1617.webp"
+  },
+  {
+    "code": "NG-100-1622",
+    "name": "Initial A & A gaya skrip serong",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1622.webp"
+  },
+  {
+    "code": "NG-100-1624",
+    "name": "Initial A & A bertingkat",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1624.webp"
+  },
+  {
+    "code": "NG-100-1632",
+    "name": "Happy Wedding dengan initial A A",
+    "category": "Pengantin",
+    "image": "ngantin/ng-100-1632.webp"
+  },
+  {
+    "code": "NG-100-1634",
+    "name": "Initial A dan B dengan hati",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1634.webp"
+  },
+  {
+    "code": "NG-100-1642",
+    "name": "Initial A & F gaya tulisan tangan",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1642.webp"
+  },
+  {
+    "code": "NG-100-1643",
+    "name": "Initial A & F sebaris gaya skrip",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1643.webp"
+  },
+  {
+    "code": "NG-100-1645",
+    "name": "Initial A & F bertingkat gaya serif",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1645.webp"
+  },
+  {
+    "code": "NG-100-1649",
+    "name": "Initial A & F sebaris gaya serif",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1649.webp"
+  },
+  {
+    "code": "NG-100-1651",
+    "name": "Initial A & F bertingkat gaya skrip",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1651.webp"
+  },
+  {
+    "code": "NG-100-1655",
+    "name": "Initial A dan F dengan anak panah hati",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1655.webp"
+  },
+  {
+    "code": "NG-100-1656",
+    "name": "Initial A dan F bertindih",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1656.webp"
   }
 ]
