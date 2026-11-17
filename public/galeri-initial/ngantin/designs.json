@@ -3310,5 +3310,107 @@
     "name": "Initial A & Q dengan ampersan melengkung",
     "category": "Monogram",
     "image": "ngantin/ng-100-1802.webp"
+  },
+  {
+    "code": "NG-100-1811",
+    "name": "Monogram Berkait A dan S",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1811.webp"
+  },
+  {
+    "code": "NG-100-1813",
+    "name": "Monogram Hati Kecil A dan S",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1813.webp"
+  },
+  {
+    "code": "NG-100-1817",
+    "name": "Monogram Kaligrafi Padat A dan S",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1817.webp"
+  },
+  {
+    "code": "NG-100-1820",
+    "name": "Monogram Serif dan Ampersan A dan S",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1820.webp"
+  },
+  {
+    "code": "NG-100-1822",
+    "name": "Monogram Hati Terbuka A dan S",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1822.webp"
+  },
+  {
+    "code": "NG-100-1824",
+    "name": "Monogram Lingkaran Bunga A dan S",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1824.webp"
+  },
+  {
+    "code": "NG-100-1825",
+    "name": "Monogram Serif Bertindih A dan S",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1825.webp"
+  },
+  {
+    "code": "NG-100-1826",
+    "name": "Monogram Kaligrafi Bertindih A dan S",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1826.webp"
+  },
+  {
+    "code": "NG-100-1829",
+    "name": "Monogram Skrip Menegak",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1829.webp"
+  },
+  {
+    "code": "NG-100-1830",
+    "name": "Monogram Garis Halus A dan T",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1830.webp"
+  },
+  {
+    "code": "NG-100-1833",
+    "name": "Monogram Hati Kaligrafi",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1833.webp"
+  },
+  {
+    "code": "NG-100-1834",
+    "name": "Monogram Berlengkung A dan Z",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1834.webp"
+  },
+  {
+    "code": "NG-100-1838",
+    "name": "Monogram Skrip Rapat A dan Z",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1838.webp"
+  },
+  {
+    "code": "NG-100-1840",
+    "name": "Monogram Serif Bertingkat A dan Z",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1840.webp"
+  },
+  {
+    "code": "NG-100-1842",
+    "name": "Monogram Tanda Tambah A dan F",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1842.webp"
+  },
+  {
+    "code": "NG-100-1851",
+    "name": "Monogram Dua A Kaligrafi",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1851.webp"
+  },
+  {
+    "code": "NG-100-1852",
+    "name": "Monogram Huruf Kecil Berputar",
+    "category": "Monogram",
+    "image": "ngantin/ng-100-1852.webp"
   }
 ]
