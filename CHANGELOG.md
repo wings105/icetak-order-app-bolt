@@ -1,3 +1,7 @@
+# 2026-11-17
+
+- [PRODUCTION] AutoBrief gives OpenAI priority when it cites complete unlabelled chat wording at 90% or higher for one verified glossy custom topper. Customize Name retains the original casing and line breaks. See [AutoBrief product context](docs/AUTOBRIEF_PRODUCT_CONTEXT.md).
+
 # 2026-11-16
 
 - [PRODUCTION] AutoBrief v99 gives matching OpenAI evidence priority when the initial cake-topper parser lacks wording or design mode. A product heading followed by multiline wording can confirm its own SKU. Production verification covered two items at 98% with exact wording, Ai Check, Confirmed and evidence in both ClickUp briefs. See [AutoBrief product context](docs/AUTOBRIEF_PRODUCT_CONTEXT.md).

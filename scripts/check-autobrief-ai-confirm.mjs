@@ -92,9 +92,25 @@ for(const change of [
  {analysis:{...headingCase.analysis,wording:'Happy Birthday Sample Two\n7 Tahun'}}
 ])assert.equal(api.aiEvidenceConfirmation({...headingCase,...change}).eligible,false,JSON.stringify(change));
 
-// Exercise both real worker paths with field/comment writes and replay.
+const directWording='Happy 21st Birthday\nSAMPLE CHILD';
+const directMessages=[{...messages[3],created_at:'2026-10-01T00:06:00Z',text_content:directWording}];
+const directAnalysis={...analysis,confidence:95,wording:directWording.replace('\n',' ')};
+const directCase={...base,messages:directMessages,analysis:directAnalysis,missing:missingWording};
+assert.equal(api.aiEvidenceConfirmation(directCase).wording,directWording);
+for(const change of [
+ {analysis:{...directAnalysis,confidence:89}},
+ {analysis:{...directAnalysis,wording:'Happy 12th Birthday SAMPLE CHILD'}},
+ {messages:[...directMessages,{...messages[4],text_content:'Happy 25th Birthday SAMPLE CHILD'}]},
+ {messages:[...directMessages,{...messages[4],text_content:'',message_type:'image'}]},
+ {messages:[{...messages[3],text_content:'Boleh hantar sebelum Sabtu'}],
+  analysis:{...directAnalysis,wording:'Boleh hantar sebelum Sabtu'}},
+ {existingWord:'Staff approved wording'}
+])assert.equal(api.aiEvidenceConfirmation({...directCase,...change}).eligible,false,JSON.stringify(change));
+
+// Exercise the worker paths with field/comment writes and replay.
 for(const fixture of [
  {note,messages,expected:wording,analysis,comment:/AI pengesahan/},
+ {note,messages:directMessages,expected:directWording,analysis:directAnalysis,comment:/AI pengesahan/},
  {note:splitNote,messages:splitMessages,expected:splitWording,analysis:splitAnalysis,comment:/Pengesahan OpenAI/}
 ]){
  const index=0;
@@ -120,8 +136,8 @@ for(const fixture of [
   if(u.hostname.endsWith('.supabase.co')){
    if(b.action==='buyer_note')return Response.json({ok:true,available:true,order_sn:'261001ABCDEFGH',shop_id:'123',buyer_note:note});
    if(b.action==='order_proof'||b.action==='context')return Response.json({ok:true,matched:true,conversation_id:'chat',messages});
-   if(b.action==='inspect')return Response.json({ok:true,available:true,enabled:true,order_sn:'261001ABCDEFGH',buyer_user_id:'123456',shop_id:'123',placed_at:'2026-10-01T00:05:00Z',order_status:'READY_TO_SHIP',buyer_note:note,deliveries:[],messages:messages.filter(m=>m.id==='m5').map(m=>({...m,text_content:'',message_type:'image'}))});
-   sends++;throw Error('No customer send expected');
+   if(b.action==='inspect')return Response.json({ok:true,available:true,enabled:true,order_sn:'261001ABCDEFGH',buyer_user_id:'123456',shop_id:'123',placed_at:'2026-10-01T00:05:00Z',order_status:'READY_TO_SHIP',buyer_note:note,deliveries:[],messages:messages===directMessages?directMessages:messages.filter(m=>m.id==='m5').map(m=>({...m,text_content:'',message_type:'image'}))});
+   sends++;throw Error('Unexpected bridge action '+b.action);
   }
   if(u.hostname==='api.clickup.com'){
    if(p.endsWith('/task/'+id))return Response.json(task);
@@ -135,7 +151,7 @@ for(const fixture of [
  const result=await worker.process(job,'test','test');assert.equal(result.state,'completed',JSON.stringify({result,brief:stored?.p_brief}));
  assert.equal(stored.p_brief.wording,expected);assert.equal(stored.p_brief.confidence,analysis.confidence);
  assert.equal(stored.p_brief.confirmed,true);assert.equal(fields[1].value,expected);assert.equal(fields[3].value,'d84d57b3-41f3-473d-b502-4e7bf45ace0c');
- assert.equal(stored.p_brief.ai_confirmation_rule.eligible,true);assert.match(JSON.stringify(comments),/Ringkasan bacaan/);assert.equal(stored.p_brief.ai_mode,'evidence_confirm');assert.match(JSON.stringify(comments),comment);assert.equal(sends,0);
+ assert.equal(stored.p_brief.ai_confirmation_rule.eligible,true);assert.match(JSON.stringify(comments),/Ringkasan bacaan/);assert.equal(stored.p_brief.ai_mode,'evidence_confirm');assert.match(JSON.stringify(comments),comment);assert.equal(sends,0,JSON.stringify({note,expected,followup:stored.p_brief.followup}));
  // Replay on repository baseline; live lifecycle separately locks confirmed routes.
  if(!lifecycle){const before=fieldWrites;await worker.process({...job,comment_id:'comment1',brief:stored.p_brief,checked_message_ids:stored.p_brief.checked_message_ids},'test','test');assert.equal(posts,1);assert.equal(fieldWrites,before);}
 }

@@ -700,7 +700,21 @@ function aiEvidenceConfirmation(input:Obj):Obj{
  if(refs.length!==1||refs[0].quantity!==1||normalized(refs[0].sku)!==normalized(sku)||! /^(CN|YS)\d{3,6}$/i.test(sku)||!/^\d{1,20}$/.test(refs[0].product_id)||!/custom\s*name/i.test(refs[0].title)||siblingTasks.length!==1)return no("SINGLE_VERIFIED_CUSTOM_ITEM_REQUIRED");
  if(decision.age_conflict)return no("UNRESOLVED_DETAIL_OR_AGE_CONFLICT");
  const explicit=inbound.map((m:Obj)=>({message:m,value:explicitChatWording(string(m.text_content||m.caption,1400))})).filter((x:Obj)=>x.value).sort((a:Obj,b:Obj)=>Date.parse(a.message.created_at)-Date.parse(b.message.created_at));
- const latest=explicit.at(-1);
+ const textMessages=inbound.filter((m:Obj)=>!isUnimportant(string(m.text_content||m.caption,1400)));
+ let direct:Obj|undefined;
+ if(!explicit.length&&!note&&textMessages.length){
+  // A complete, unlabelled message can be the wording for this single verified item.
+  // Require the model to cite the entire text and leave any competing detail in review.
+  const candidate=textMessages.reduce((a:Obj,b:Obj)=>Date.parse(a.created_at)>Date.parse(b.created_at)?a:b);
+  const wording=String(candidate.text_content||"").trim().replace(/\r\n?/g,"\n");
+  if(wording.length>=2&&wording.length<=180&&/\p{L}/u.test(wording)&&!isNonDesignWording(wording)&&
+   !/[?@:]/.test(wording)&&!/https?:|www\.|\b(?:shipping|postage|tracking|refund|delivery|hantar|sampai|pos|ambil|boleh|blh|tolong|nak|tukar|ubah|beli|gambar|design|warna|order|preview|size|saiz|RM\s*\d)\b/i.test(wording)&&
+   !/^\s*(?:hi|hai|hello|salam|assalamualaikum)\b/i.test(wording)&&!extractInstruction(wording)&&
+   textMessages.every((m:Obj)=>(!m.message_type||m.message_type==="text")&&normalized(m.text_content)===normalized(wording))){
+   direct={message:candidate,value:{wording,latest:false}};
+  }
+ }
+ const latest=explicit.at(-1)||direct;
  if(!latest)return aiSplitNameAgeEvidence(note,inbound,evidence,analysis,existingWord);
  if(!evidence.includes(String(latest.message.id)))return no("LATEST_CUSTOMER_WORDING_NOT_CITED");
  if(normalized(analysis.wording)!==normalized(latest.value.wording))return no("AI_WORDING_DIFFERS_FROM_CUSTOMER");
@@ -908,7 +922,7 @@ async function summarize(detail:Obj,note:string,asset:Obj|undefined){
  return {mode:asset?.state==="ready"?"vision":"text_ai",summary:string(parsed.summary,1000),image_description:string(parsed.image_description,600)};
 }
 
-// AI is an advisory second pass, never a direct authority for confirmed fields.
+// The second pass can confirm only after its cited evidence passes the order and wording checks.
 // Only exact-order-bound customer messages and SKU-bearing order rows are included.
 async function aiAnalyzeOrder(params:{
  note:string;sku:string;items:Obj[];messages:Obj[];
