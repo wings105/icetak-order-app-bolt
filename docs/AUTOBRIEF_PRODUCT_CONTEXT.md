@@ -342,3 +342,14 @@ worker saves the original spelling, punctuation and line breaks. Competing
 details, media, conflicting staff wording and unresolved requirements still
 need review. The AI confirmation check covers two-line wording, mismatches,
 alternative wording and no-send behavior.
+
+## OpenAI priority and delivery-only notes — 18 November 2026
+
+OpenAI analyzes verified glossy custom orders before confirmation, including
+orders the initial parser regards as clear. A single-item Buyer Note can
+confirm at 90% or higher if the model selects the exact source wording.
+For recognised delivery-only postscripts, Customize Name stores the print
+wording and the brief records the delivery instruction separately.
+Render v7 allows that verified instruction alongside the wording. Design
+instructions, preview requests and existing artwork controls still require
+review. Mixed output with suspected delivery prose is withheld until verified.

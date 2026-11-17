@@ -107,10 +107,25 @@ for(const change of [
  {existingWord:'Staff approved wording'}
 ])assert.equal(api.aiEvidenceConfirmation({...directCase,...change}).eligible,false,JSON.stringify(change));
 
+const deliveryWording='SAMPLE CHILD 8 TAHUN';
+const deliveryInstruction='urgent ( blh x smpai dalm jumaat ne )';
+const deliveryNote='CUSTOM NAME: SAMPLE CHILD\n    8 TAHUN\n\nPs : '+deliveryInstruction;
+const deliveryAnalysis={...analysis,wording:deliveryWording,confidence:96,instruction:deliveryInstruction,evidence_ids:[]};
+const deliveryCase={...base,note:deliveryNote,messages:[],analysis:deliveryAnalysis};
+assert.equal(api.aiEvidenceConfirmation(deliveryCase).wording,deliveryWording);
+assert.equal(api.aiEvidenceConfirmation(deliveryCase).delivery_instruction,deliveryInstruction);
+for(const change of [
+ {analysis:{...deliveryAnalysis,wording:'SAMPLE CHILD 9 TAHUN'}},
+ {analysis:{...deliveryAnalysis,confidence:89}},
+ {note:deliveryNote+'\nTukar warna merah'},
+ {existingWord:'Staff approved wording'}
+])assert.equal(api.aiEvidenceConfirmation({...deliveryCase,...change}).eligible,false,JSON.stringify(change));
+
 // Exercise the worker paths with field/comment writes and replay.
 for(const fixture of [
  {note,messages,expected:wording,analysis,comment:/AI pengesahan/},
  {note,messages:directMessages,expected:directWording,analysis:directAnalysis,comment:/AI pengesahan/},
+ {note:deliveryNote,messages:[],expected:deliveryWording,analysis:deliveryAnalysis,comment:/berdasarkan wording tepat dalam Buyer Note/},
  {note:splitNote,messages:splitMessages,expected:splitWording,analysis:splitAnalysis,comment:/Pengesahan OpenAI/}
 ]){
  const index=0;
@@ -148,7 +163,9 @@ for(const fixture of [
   throw Error('Unexpected '+method+' '+u.origin+p);
  };
  const worker=load(transport),job={task_id:id,source_fingerprint:'synthetic',state:'processing'};
- const result=await worker.process(job,'test','test');assert.equal(result.state,'completed',JSON.stringify({result,brief:stored?.p_brief}));
+ const result=await worker.process(job,'test','test');
+ if(note===deliveryNote)assert.equal(stored.p_brief.delivery_instruction,deliveryInstruction);
+ assert.equal(result.state,'completed',JSON.stringify({result,brief:stored?.p_brief}));
  assert.equal(stored.p_brief.wording,expected);assert.equal(stored.p_brief.confidence,analysis.confidence);
  assert.equal(stored.p_brief.confirmed,true);assert.equal(fields[1].value,expected);assert.equal(fields[3].value,'d84d57b3-41f3-473d-b502-4e7bf45ace0c');
  assert.equal(stored.p_brief.ai_confirmation_rule.eligible,true);assert.match(JSON.stringify(comments),/Ringkasan bacaan/);assert.equal(stored.p_brief.ai_mode,'evidence_confirm');assert.match(JSON.stringify(comments),comment);assert.equal(sends,0,JSON.stringify({note,expected,followup:stored.p_brief.followup}));
