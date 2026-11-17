@@ -2644,5 +2644,59 @@
     "name": "Monogram initial",
     "category": "Monogram",
     "image": "ngantin/ng-001-1424.webp"
+  },
+  {
+    "code": "NG-100-1498",
+    "name": "Angka pecahan ½",
+    "category": "Hari jadi",
+    "image": "ngantin/ng-100-1498.webp"
+  },
+  {
+    "code": "NG-100-1500",
+    "name": "Angka 1 serif",
+    "category": "Hari jadi",
+    "image": "ngantin/ng-100-1500.webp"
+  },
+  {
+    "code": "NG-100-1501",
+    "name": "100 Years Blessed",
+    "category": "Ulang tahun",
+    "image": "ngantin/ng-100-1501.webp"
+  },
+  {
+    "code": "NG-100-1504",
+    "name": "11th gaya skrip",
+    "category": "Hari jadi",
+    "image": "ngantin/ng-100-1504.webp"
+  },
+  {
+    "code": "NG-100-1505",
+    "name": "13 Official Teenager",
+    "category": "Hari jadi",
+    "image": "ngantin/ng-100-1505.webp"
+  },
+  {
+    "code": "NG-100-1507",
+    "name": "15th Anniversary",
+    "category": "Ulang tahun",
+    "image": "ngantin/ng-100-1507.webp"
+  },
+  {
+    "code": "NG-100-1508",
+    "name": "Happy 15th Anniversary",
+    "category": "Ulang tahun",
+    "image": "ngantin/ng-100-1508.webp"
+  },
+  {
+    "code": "NG-100-1512",
+    "name": "2 Cute & Curious",
+    "category": "Hari jadi",
+    "image": "ngantin/ng-100-1512.webp"
+  },
+  {
+    "code": "NG-100-1513",
+    "name": "Angka 2 serif",
+    "category": "Hari jadi",
+    "image": "ngantin/ng-100-1513.webp"
   }
 ]
