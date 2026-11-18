@@ -5,7 +5,7 @@ import {dirname} from 'node:path';
 const path=process.argv[2]||'supabase/functions/clickup-order-brief/index.ts';
 const source=readFileSync(path,'utf8').replace(/^import .*;\n/gm,'');
 const lifecycle=existsSync(dirname(path)+'/lifecycle.ts')?readFileSync(dirname(path)+'/lifecycle.ts','utf8').replaceAll('export ',''):'';
-const load=fetcher=>new Function('Deno','fetch',stripTypeScriptTypes(lifecycle+'\n'+source)+';return {aiEvidenceConfirmation,readingSummary,process};')({env:{get:k=>({SUPABASE_URL:'https://order.test',SUPABASE_SERVICE_ROLE_KEY:'test',OPENAI_API_KEY:'synthetic'})[k]||''},serve:()=>{}},fetcher);
+const load=fetcher=>new Function('Deno','fetch',stripTypeScriptTypes(lifecycle+'\n'+source)+';return {aiEvidenceConfirmation,openAiGlossyDecision,readingSummary,process};')({env:{get:k=>({SUPABASE_URL:'https://order.test',SUPABASE_SERVICE_ROLE_KEY:'test',OPENAI_API_KEY:'synthetic'})[k]||''},serve:()=>{}},fetcher);
 const items=[{item_sku:'CN1001',title:'Custom Name Alpha Hero Topper',provider_item_id:'1111111111',quantity:1},{item_sku:'CN1002',title:'Custom Name Beta United Topper',provider_item_id:'2222222222',quantity:1}];
 const catalogue=items.map((i,n)=>({item_id:i.provider_item_id,product_id:`00000000-0000-4000-8000-00000000000${n}`,sku:i.item_sku,title:i.title}));
 items.splice(1);
@@ -121,15 +121,29 @@ for(const change of [
  {existingWord:'Staff approved wording'}
 ])assert.equal(api.aiEvidenceConfirmation({...deliveryCase,...change}).eligible,false,JSON.stringify(change));
 
-// Exercise the worker paths with field/comment writes and replay.
+const originalPrint='Happy 15th Brithday Sample Child';
+const correctedPrint='Happy 15th Birthday Sample Child';
+const chineseNote='请帮我写'+originalPrint;
+const chineseAnalysis={...analysis,wording:correctedPrint,confidence:95,evidence_ids:[],wording_sources:[{id:'buyer_note',text:originalPrint}]};
+const chineseCase={...base,product:{sku:'CN1001',product_id:'1111111111'},note:chineseNote,messages:[],existingWord:chineseNote,analysis:chineseAnalysis};
+assert.equal(api.openAiGlossyDecision(chineseCase).wording,correctedPrint);
+for(const wording of ['Selamat Hari Lahir Sample Child','Happy 16th Birthday Sample Child','Happy 15th Birthday Different Child']){
+ assert.equal(api.openAiGlossyDecision({...chineseCase,analysis:{...chineseAnalysis,wording}}).eligible,false);
+}
+assert.equal(api.openAiGlossyDecision({...chineseCase,analysis:{...chineseAnalysis,wording_sources:[{id:'unrelated',text:originalPrint}]}}).eligible,false);
+assert.equal(api.openAiGlossyDecision({...chineseCase,analysis:{...chineseAnalysis,wording:'Sam',wording_sources:[{id:'buyer_note',text:'Sam'}]}}).eligible,false);
+
+// Exercise the worker paths with actual field/comment writes and an unavailable model.
 for(const fixture of [
- {note,messages,expected:wording,analysis,comment:/AI pengesahan/},
- {note,messages:directMessages,expected:directWording,analysis:directAnalysis,comment:/AI pengesahan/},
- {note:deliveryNote,messages:[],expected:deliveryWording,analysis:deliveryAnalysis,comment:/berdasarkan wording tepat dalam Buyer Note/},
- {note:splitNote,messages:splitMessages,expected:splitWording,analysis:splitAnalysis,comment:/Pengesahan OpenAI/}
+ {note,messages,expected:wording,analysis:{...analysis,wording_sources:[{id:'m3',text:wording}]}},
+ {note,messages:directMessages,expected:directWording,analysis:{...directAnalysis,wording:directWording,wording_sources:[{id:'m3',text:directWording}]}},
+ {note:deliveryNote,messages:[],expected:deliveryWording,analysis:{...deliveryAnalysis,wording_sources:[{id:'buyer_note',text:deliveryWording}]}},
+ {note:splitNote,messages:splitMessages,expected:splitWording,analysis:{...splitAnalysis,wording:splitWording,wording_sources:[{id:'buyer_note',text:'SAMPLE CHILD'},{id:'split1',text:'12 Tahun'}]}},
+ {note:chineseNote,messages:[],expected:correctedPrint,analysis:chineseAnalysis},
+ {note:chineseNote,messages:[],expected:'',analysis:null}
 ]){
  const index=0;
- const {note,messages,expected,analysis,comment}=fixture;
+ const {note,messages,expected,analysis}=fixture;
  let stored,comments=[],posts=0,sends=0,fieldWrites=0;
  const id='synthetic-task',orderId='aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa';
  const fields=[{id:'sku',name:'SKU',value:items[index].item_sku},{id:'7c88d5cf-56e9-4108-86c5-b8e7baaf5bdc',name:'Customize Name',value:note},{id:'afa87c64-3e48-4056-b720-cf8ea9b243e8',name:'confirmed',value:false},{id:'01cec4ef-a30b-443d-a43a-9ab09835b78c',name:'Review customer',value:'',type_config:{options:[{id:'d84d57b3-41f3-473d-b502-4e7bf45ace0c',name:'Ai Check'}]}}];
@@ -147,7 +161,10 @@ for(const fixture of [
    if(p.endsWith('/products'))return Response.json(catalogue.map(c=>({id:c.product_id,parent_sku:c.sku,name:c.title})));
    if(p.endsWith('/icetak_record_order_brief')){stored=b;return Response.json({ok:true});}
   }
-  if(u.hostname==='api.openai.com')return Response.json({model:'test-model',output:[{content:[{type:'output_text',text:JSON.stringify({item_sku:items[index].item_sku,wording:analysis.wording,confidence:analysis.confidence,needs_review:false,evidence_ids:analysis.evidence_ids,summary:'Verified customer wording.',instruction:'Use the same name and age for the topper.'})}]}]});
+  if(u.hostname==='api.openai.com'){
+   if(!analysis)return Response.json({error:{code:'test_unavailable'}},{status:503});
+   return Response.json({model:'test-model',output:[{content:[{type:'output_text',text:JSON.stringify({...analysis,summary:'Verified customer wording.'})}]}]});
+  }
   if(u.hostname.endsWith('.supabase.co')){
    if(b.action==='buyer_note')return Response.json({ok:true,available:true,order_sn:'261001ABCDEFGH',shop_id:'123',buyer_note:note});
    if(b.action==='order_proof'||b.action==='context')return Response.json({ok:true,matched:true,conversation_id:'chat',messages});
@@ -164,11 +181,20 @@ for(const fixture of [
  };
  const worker=load(transport),job={task_id:id,source_fingerprint:'synthetic',state:'processing'};
  const result=await worker.process(job,'test','test');
+ if(!analysis){
+  assert.equal(result.state,'review');
+  assert.equal(stored.p_brief.wording,'');
+  assert.equal(fields[1].value,note);
+  assert.equal(fields[2].value,false);
+  assert.equal(fieldWrites,0);
+  assert.equal(sends,0);
+  continue;
+ }
  if(note===deliveryNote)assert.equal(stored.p_brief.delivery_instruction,deliveryInstruction);
  assert.equal(result.state,'completed',JSON.stringify({result,brief:stored?.p_brief}));
  assert.equal(stored.p_brief.wording,expected);assert.equal(stored.p_brief.confidence,analysis.confidence);
  assert.equal(stored.p_brief.confirmed,true);assert.equal(fields[1].value,expected);assert.equal(fields[3].value,'d84d57b3-41f3-473d-b502-4e7bf45ace0c');
- assert.equal(stored.p_brief.ai_confirmation_rule.eligible,true);assert.match(JSON.stringify(comments),/Ringkasan bacaan/);assert.equal(stored.p_brief.ai_mode,'evidence_confirm');assert.match(JSON.stringify(comments),comment);assert.equal(sends,0,JSON.stringify({note,expected,followup:stored.p_brief.followup}));
+ assert.equal(stored.p_brief.ai_confirmation_rule.eligible,true);assert.match(JSON.stringify(comments),/Ringkasan bacaan/);assert.equal(stored.p_brief.ai_mode,'evidence_confirm');assert.match(JSON.stringify(comments),/Pengesahan OpenAI/);assert.equal(sends,0,JSON.stringify({note,expected,followup:stored.p_brief.followup}));
  // Replay on repository baseline; live lifecycle separately locks confirmed routes.
  if(!lifecycle){const before=fieldWrites;await worker.process({...job,comment_id:'comment1',brief:stored.p_brief,checked_message_ids:stored.p_brief.checked_message_ids},'test','test');assert.equal(posts,1);assert.equal(fieldWrites,before);}
 }

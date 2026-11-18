@@ -1,3 +1,7 @@
+# 2026-11-18 — OpenAI decides glossy wording
+
+AutoBrief v102 verifies OpenAI wording against quoted Buyer Note or order chat evidence. The glossy worker no longer uses the parser as a wording fallback.
+
 # 2026-11-18 — OpenAI wording and delivery-only notes
 
 AutoBrief v101 analyzes custom glossy topper wording before confirmation.
