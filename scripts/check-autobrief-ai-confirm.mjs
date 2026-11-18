@@ -124,9 +124,10 @@ for(const change of [
 const originalPrint='Happy 15th Brithday Sample Child';
 const correctedPrint='Happy 15th Birthday Sample Child';
 const chineseNote='请帮我写'+originalPrint;
-const chineseAnalysis={...analysis,wording:correctedPrint,confidence:95,evidence_ids:[],wording_sources:[{id:'buyer_note',text:originalPrint}]};
+const chineseAnalysis={...analysis,wording:correctedPrint,confidence:95,instruction:'请帮我写',evidence_ids:[],wording_sources:[{id:'buyer_note',text:originalPrint}]};
 const chineseCase={...base,product:{sku:'CN1001',product_id:'1111111111'},note:chineseNote,messages:[],existingWord:chineseNote,analysis:chineseAnalysis};
 assert.equal(api.openAiGlossyDecision(chineseCase).wording,correctedPrint);
+assert.equal(api.openAiGlossyDecision(chineseCase).instruction,"");
 for(const wording of ['Selamat Hari Lahir Sample Child','Happy 16th Birthday Sample Child','Happy 15th Birthday Different Child']){
  assert.equal(api.openAiGlossyDecision({...chineseCase,analysis:{...chineseAnalysis,wording}}).eligible,false);
 }
