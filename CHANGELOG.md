@@ -1,3 +1,7 @@
+# 2026-11-18 — Glossy AutoBrief decisions
+
+- [PRODUCTION] AutoBrief v102 uses OpenAI as the sole source of glossy print wording. The worker verifies submitted evidence and permits narrowly validated ordinary-word typo corrections without changing the customer language, name or age. Unverified model output stays in review.
+
 # 2026-11-18
 
 - [PRODUCTION] AutoBrief v101 asks OpenAI to read verified custom glossy topper details before saving Customize Name, including when the initial parser is confident. Render v7 accepts a verified delivery-only Buyer Note beside exact print wording. See [AutoBrief product context](docs/AUTOBRIEF_PRODUCT_CONTEXT.md).

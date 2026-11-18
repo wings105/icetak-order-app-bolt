@@ -353,3 +353,7 @@ wording and the brief records the delivery instruction separately.
 Render v7 allows that verified instruction alongside the wording. Design
 instructions, preview requests and existing artwork controls still require
 review. Mixed output with suspected delivery prose is withheld until verified.
+
+## OpenAI decides glossy wording — 18 November 2026
+
+The glossy worker accepts current OpenAI decisions at 90% or higher with verified source quotes and SKU. It preserves the requested language and keeps names, ages and punctuation. The model may correct proven ordinary-word typos. Unsupported changes, failed requests and uncertain decisions stay in review. The no-details shipment default remains an operational policy.
