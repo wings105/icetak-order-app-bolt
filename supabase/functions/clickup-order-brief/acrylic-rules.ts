@@ -1,10 +1,10 @@
 // Rules first: no provider calls, I/O or customer sends in this module.
 export type RecordData = Record<string, any>;
 export const ACRYLIC_VERSION = "acrylic-internal-v1";
-export const ACRYLIC_RULES_REVISION = "checkout-order-header-v8-proof";
+export const ACRYLIC_RULES_REVISION = "openai-primary-v1";
 const text = (x: any) => String(x ?? "").replace(/\\n/g, "\n").trim();
 export const norm = (x: any) => text(x).toLowerCase().replace(/\s+/g, " ");
-export const ACRYLIC_EVIDENCE_POLICY = "text-vision-proof-v2";
+export const ACRYLIC_EVIDENCE_POLICY = "openai-primary-evidence-v1";
 export function isDesignInstruction(s: string): boolean {
  const v=norm(s);
  return /\b(?:font|typeface|jenis\s+tulisan|gaya\s+tulisan|tulisan\s*(?:&|dan)\s*font)\b/i.test(v)
