@@ -1,3 +1,7 @@
+# 2026-11-19 — Buyer Note isolation
+
+- [PRODUCTION] AutoBrief v106 allows OpenAI to confirm an exact-order Buyer Note when multiple active orders make shared chat ambiguous. The worker sends only the selected order note to the model in this path and records the source limitation in the brief.
+
 # 2026-11-18 — Glossy AutoBrief decisions
 
 - [PRODUCTION] AutoBrief v102 uses OpenAI as the sole source of glossy print wording. The worker verifies submitted evidence and permits narrowly validated ordinary-word typo corrections without changing the customer language, name or age. Unverified model output stays in review.

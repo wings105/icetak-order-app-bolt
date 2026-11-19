@@ -1,3 +1,9 @@
+# 2026-11-19 — Multiple active orders
+
+AutoBrief v106 isolates an exact-order Buyer Note for OpenAI when shared
+chat is ambiguous and no order-bound messages are available. Chat ambiguity
+remains recorded separately from the verified wording decision.
+
 # 2026-11-18 — OpenAI decides glossy wording
 
 AutoBrief v102 verifies OpenAI wording against quoted Buyer Note or order chat evidence. The glossy worker no longer uses the parser as a wording fallback.
