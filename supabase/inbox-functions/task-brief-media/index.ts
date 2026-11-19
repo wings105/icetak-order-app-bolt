@@ -111,6 +111,54 @@ Deno.serve(async req=>{
    if(!input.scope||input.scope.eligible!==true||!/^([0-9a-f-]{36})$/i.test(String(input.scope.order_id||'')))return out({ok:false,error:'INVALID_DIRECT_SCOPE'},400);
    return out({ok:true,context:await call('/rest/v1/rpc/icetak_autobrief_whatsapp_context',{p_scope:input.scope})});
   }
+
+  if(input.action==='group_context'){
+   const reference=String(input.order_no||'').trim();
+   if(!/^[A-Za-z0-9-]{8,32}$/.test(reference))return out({ok:false,error:'INVALID_GROUP_ORDER'},400);
+   const current=await call('/rest/v1/external_order_summaries?order_no=eq.'+encodeURIComponent(reference)+
+    '&select=order_no,shop_id,shopee_buyer_id,customer_phone_normalized,placed_at&limit=2');
+   if(current.length!==1)return out({ok:true,available:false,reason:'GROUP_ORDER_IDENTITY_UNAVAILABLE'});
+   const root=current[0],identity=[];
+   if(/^\d{3,20}$/.test(String(root.shopee_buyer_id||''))&&/^\d{1,20}$/.test(String(root.shop_id||'')))
+    identity.push('and(shopee_buyer_id.eq.'+root.shopee_buyer_id+',shop_id.eq.'+root.shop_id+')');
+   if(/^60\d{8,11}$/.test(String(root.customer_phone_normalized||'')))
+    identity.push('customer_phone_normalized.eq.'+root.customer_phone_normalized);
+   if(!identity.length)return out({ok:true,available:false,reason:'GROUP_IDENTITY_UNAVAILABLE'});
+   const orders=await call('/rest/v1/external_order_summaries?active_order=eq.true&or=('+identity.join(',')+
+    ')&select=order_no,placed_at,items&order=placed_at.asc&limit=13');
+   if(orders.length>12)return out({ok:true,available:false,reason:'GROUP_TOO_LARGE'});
+   if(!orders.some((o:any)=>o.order_no===reference))return out({ok:true,available:false,reason:'GROUP_ORDER_INACTIVE'});
+   const refs=orders.map((o:any)=>String(o.order_no));
+   if(refs.some((v:string)=>!/^[A-Za-z0-9-]{8,32}$/.test(v)))throw Error('INVALID_GROUP_REFERENCE');
+   const links=await call('/rest/v1/conversation_order_links?unlinked_at=is.null&order_no=in.('+refs.join(',')+
+    ')&select=conversation_id&limit=30');
+   const conversations=new Set<string>(links.map((x:any)=>String(x.conversation_id)));
+   if(root.shopee_buyer_id){
+    const chats=await call('/rest/v1/conversations?channel=eq.shopee&external_customer_id=eq.'+
+     encodeURIComponent(root.shopee_buyer_id)+'&select=id&limit=5');
+    for(const chat of chats)conversations.add(chat.id);
+   }
+   if(root.customer_phone_normalized){
+    const identities=await call('/rest/v1/customer_identities?normalized_phone=eq.'+root.customer_phone_normalized+
+     '&select=customer_id&limit=3');
+    const customers=[...new Set(identities.map((x:any)=>x.customer_id))];
+    if(customers.length===1){
+     const chats=await call('/rest/v1/conversations?customer_id=eq.'+customers[0]+
+      '&channel=eq.whatsapp&select=id&limit=6');
+     for(const chat of chats)conversations.add(chat.id);
+    }else if(customers.length>1)return out({ok:true,available:false,reason:'GROUP_PHONE_IDENTITY_AMBIGUOUS'});
+   }
+   if(conversations.size>20)return out({ok:true,available:false,reason:'GROUP_CHAT_TOO_LARGE'});
+   const earliest=Math.min(...orders.map((o:any)=>Date.parse(o.placed_at)));
+   if(!Number.isFinite(earliest))throw Error('GROUP_TIME_UNAVAILABLE');
+   const from=new Date(earliest-3600000).toISOString(),to=new Date().toISOString();
+   const messages=conversations.size?await call('/rest/v1/messages?conversation_id=in.('+[...conversations].join(',')+
+    ')&is_history=eq.false&created_at=gte.'+encodeURIComponent(from)+'&created_at=lte.'+encodeURIComponent(to)+
+    '&select=id,conversation_id,channel,direction,text_content,caption,created_at,message_type,media_url,is_history,reply_to_provider_message_id'+
+    '&order=created_at.asc&limit=151'):[];
+   return out({ok:true,available:true,order_no:reference,orders,messages,truncated:messages.length>150,scope_start:from,scope_end:to});
+  }
+
   if(input.action==='context'){
    if(!Array.isArray(input.orders)||!input.orders.length||input.orders.length>50)return out({ok:false},400);
    return out({ok:true,contexts:await call('/rest/v1/rpc/icetak_task_automation_context',{p_orders:input.orders})});

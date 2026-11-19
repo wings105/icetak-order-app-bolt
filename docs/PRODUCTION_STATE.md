@@ -1,3 +1,10 @@
+# 2026-11-19 — OpenAI mixed order context
+
+AutoBrief v110 and Inbox task-brief-media v12 are active. OpenAI selects
+customer evidence for each task from the bounded active-order group.
+Controlled checks cover shared messages, exact note quotes, artwork, cache
+reuse, unavailable providers, and edible/acrylic category previews.
+
 # 2026-11-19 — Multiple active orders
 
 AutoBrief v106 isolates an exact-order Buyer Note for OpenAI when shared

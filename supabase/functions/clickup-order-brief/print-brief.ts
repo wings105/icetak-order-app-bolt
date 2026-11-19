@@ -2,6 +2,7 @@ import {briefAction} from "./lifecycle.ts";
 
 type Data = Record<string, any>;
 type Deps = {
+ resolveGroup?: (input:Data,bridge:string)=>Promise<Data>;
  db: (path:string, body?:unknown) => Promise<any>;
  clickup: (token:string, path:string, method?:string, body?:unknown, multipart?:boolean) => Promise<any>;
  digest: (value:string) => Promise<string>;
@@ -328,8 +329,33 @@ export async function processPrint(job:Data,s:Data,route:Data,token:string,bridg
    scope.whatsapp_closed_at=previous.whatsapp_closed_at;
    if(exactId(previous.staff_artwork_message_id))scope.staff_artwork_message_id=previous.staff_artwork_message_id;
   }
-  const ctx=await loadPrintContext(scope,bridge,d);
-  const result=printRules(scope,ctx);
+  let ctx=await loadPrintContext(scope,bridge,d);
+  const originalNote=scope.note;
+  const grouped=d.resolveGroup?await d.resolveGroup({task_id:id,profile:route.profile,scope,context:ctx,previous},bridge):{grouped:false};
+  if(grouped.grouped){ctx=grouped.context;scope.note=grouped.note;}
+  let result=printRules(scope,ctx);
+  if(grouped.grouped){
+   const ai=grouped.analysis,detail=ai?.print;
+   const messages=(ctx.messages||[]).filter((m:Data)=>m.direction==="inbound");
+   const selected=Array.isArray(detail?.asset_ids)?detail.asset_ids.map((mid:string)=>messages.find((m:Data)=>m.id===mid&&m.message_type==="image")).filter(Boolean):[];
+   const valid=ai?.ok&&!ctx.ambiguous&&!ctx.truncated&&detail&&["PRINT_AS_IS","EDIT_ARTWORK","CREATE_FROM_REFERENCE","REVIEW"].includes(detail.mode)&&
+    Array.isArray(detail.missing)&&Array.isArray(detail.asset_ids)&&detail.asset_ids.length===selected.length;
+   if(valid){
+    const counts=new Set(selected.map((m:Data)=>m.id));
+    const countMatches=counts.size===scope.target.quantity||
+     (counts.size===1&&scope.target.quantity>1&&/\b(?:same|sama|repeat|ulang|copy)\b/i.test([scope.note,...messages.map(mediaText)].join(" ")));
+    const flags:string[]=[];
+    if(!countMatches&&selected.length)flags.push("Semak padanan artwork dengan kuantiti");
+    if(!selected.length&&detail.mode!=="CREATE_FROM_REFERENCE")flags.push("Artwork perlu dipadankan");
+    // The purchased physical size stays authoritative. A changed size needs staff review.
+    if(norm(detail.print_size)!==norm(scope.target.purchased_size))flags.push("Semak saiz cetak pilihan OpenAI");
+    result={mode:detail.mode,wording:text(detail.wording,255),wording_mode:detail.wording?"exact":"embedded_in_artwork",
+     print_size:text(detail.print_size)||scope.target.purchased_size,instruction:text(detail.instruction),
+     review_requested:detail.review_requested===true||scope.target.review_required===true,
+     missing:detail.missing,flags,selected:selected.map((m:Data,i:number)=>({...m,role:"Artwork pilihan OpenAI "+(i+1)})),
+     proof:messages,source_unavailable:false};
+   }else result={...result,mode:"REVIEW",flags:["Padanan OpenAI perlu semakan"],selected:[]};
+  }
   let advisory=previous.advisory, advisoryAt=previous.advisory_at;
   const advisoryKey=await d.digest(JSON.stringify(["summary-json-input-v2",scope.target,scope.note,result.missing,result.flags,
    result.proof.map((m:Data)=>[m.id,mediaText(m)]),result.selected.map((m:Data)=>m.id)]));
@@ -349,7 +375,7 @@ export async function processPrint(job:Data,s:Data,route:Data,token:string,bridg
   if(previous.advisory_key!==advisoryKey && (preview||(!result.missing.length&&!result.flags.length&&result.mode!=="REVIEW"))) advisory=null;
   const marker="[iCetak-AutoBrief-EdibleWafer:"+id+"]";
   const initialWord=text(cf(task,"Customize Name")?.value);
-  if(initialWord&&result.wording&&norm(initialWord)!==norm(result.wording)&&previous.field_receipts?.wording!==initialWord)result.flags.push("Customize Name sedia ada berbeza");
+  if(initialWord&&result.wording&&norm(initialWord)!==norm(result.wording)&&previous.field_receipts?.wording!==initialWord&&norm(initialWord)!==norm(originalNote))result.flags.push("Customize Name sedia ada berbeza");
   receipts=[];
   for (const selected of result.selected) {
    if(!preview&&Date.parse(job.lease_until)<Date.now()+45000) {
@@ -363,6 +389,7 @@ export async function processPrint(job:Data,s:Data,route:Data,token:string,bridg
    result.missing.length?(result.source_unavailable?"SOURCE_UNAVAILABLE":"MISSING_DETAILS"):result.mode==="REVIEW"?"REVIEW_REQUIRED":"BRIEF_READY";
   const comment=[
    marker,"Order ID: "+scope.order_no,
+   ...(grouped.grouped?["Padanan OpenAI merentas order/item: "+(grouped.analysis?.reason||ctx.group_error||"Perlu semak")]:[]),
    (route.profile==="wafer"?"Wafer Paper":"Edible Image")+" · "+scope.target.purchased_size+" · "+scope.target.quantity+" unit"+(scope.target.layer?" · Lapisan "+scope.target.layer:""),
    "Saiz cetak: "+(result.print_size||"Perlu semak"),"Mod kerja: "+result.mode,
    "Wording: "+(result.wording||(result.wording_mode==="embedded_in_artwork"?"Dalam artwork":"—")),
@@ -376,7 +403,7 @@ export async function processPrint(job:Data,s:Data,route:Data,token:string,bridg
    "Bukti mesej:",...result.proof.map((m:Data)=>d.clock(m.sent_at||m.created_at)+" ["+m.channel+"] "+mediaText(m))
   ].join("\n").slice(0,13000);
   const fields={...previous.field_receipts};
-  brief={profile:version,order_no:scope.order_no,status,wording:result.wording,review_requested:result.review_requested,
+  brief={decision_engine:grouped.grouped?"openai_group":"print_rules",confidence:grouped.analysis?.confidence||null,instruction:result.instruction,group_assignment:grouped.analysis||null,actual_buyer_note:originalNote,profile:version,order_no:scope.order_no,status,wording:result.wording,review_requested:result.review_requested,
    whatsapp_closed_at:previous.whatsapp_closed_at||(status==="BRIEF_READY"&&scope.provider==="shopee"?ctx.whatsapp_last_at:null),
    staff_artwork_message_id:scope.staff_artwork_message_id,
    specification:scope.target,print_size:result.print_size,mode:result.mode,missing:result.missing,flags:result.flags,
@@ -391,7 +418,7 @@ export async function processPrint(job:Data,s:Data,route:Data,token:string,bridg
    await d.clickup(token,"task/"+id+"/field/"+sku.id,"POST",{value:scope.target.purchased_size});
    fields.sku=scope.target.purchased_size;
   }
-  if(status==="BRIEF_READY"&&word?.id&&result.wording&&!checked(cf(fresh,"confirmed")?.value)&&!text(word.value)) {
+  if(status==="BRIEF_READY"&&word?.id&&result.wording&&!checked(cf(fresh,"confirmed")?.value)&&(!text(word.value)||norm(word.value)===norm(originalNote)||fields.wording===text(word.value))) {
    await d.clickup(token,"task/"+id+"/field/"+word.id,"POST",{value:result.wording});
    fields.wording=result.wording;
   }

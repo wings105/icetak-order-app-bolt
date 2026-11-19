@@ -366,3 +366,32 @@ and a complete context read. It sends the order note alone and records
 order_buyer_note evidence scope. Chat-only evidence and unavailable or
 truncated contexts retain their existing guards. Ambiguous follow-ups
 remain blocked.
+
+## Shared chat across mixed orders — 19 November 2026
+
+OpenAI can allocate messages and artwork across several active orders and
+mixed categories in one order. The authenticated Inbox group gateway resolves
+the current order identity from external order summaries, includes only active
+orders linked by the exact shop/buyer identity or normalized phone, and retrieves
+a bounded customer conversation window. A group with incomplete/truncated
+sources stays in review. The worker provides every active order item and task
+to OpenAI, validates selected source IDs and exact text excerpts, and passes
+only the target's selected evidence to its category worker.
+
+Glossy uses the assigned evidence in its wording decision. Acrylic uses it in
+the primary artwork/wording analysis. Edible and wafer use the assigned artwork,
+print mode, wording and size in the existing attachment/confirmation flow.
+The purchased size and item quantity remain checked before print readiness.
+When several different purchased sizes match a task equally, the task needs
+staff to identify its actual purchased variant before allocation can confirm it.
+
+The brief records group_assignment with the model, source IDs, reason,
+confidence, input hash and selected task ID. The group decision is reused only
+when the entire group input matches. The existing confirmation lifecycle
+continues to flag later customer changes for review.
+
+Run node scripts/check-autobrief-group-context.mjs and
+node scripts/check-autobrief-ai-confirm.mjs. The group regression exercises
+glossy/acrylic/edible assignment across mixed orders, source quote validation,
+media identity, cached replay and provider errors. Actual edible and acrylic
+preview entry points are also exercised with controlled transports.

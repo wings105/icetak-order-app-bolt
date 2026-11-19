@@ -5,7 +5,8 @@ import {dirname} from 'node:path';
 const path=process.argv[2]||'supabase/functions/clickup-order-brief/index.ts';
 const source=readFileSync(path,'utf8').replace(/^import .*;\n/gm,'');
 const lifecycle=existsSync(dirname(path)+'/lifecycle.ts')?readFileSync(dirname(path)+'/lifecycle.ts','utf8').replaceAll('export ',''):'';
-const load=fetcher=>new Function('Deno','fetch',stripTypeScriptTypes(lifecycle+'\n'+source)+';return {aiEvidenceConfirmation,openAiGlossyDecision,readingSummary,process};')({env:{get:k=>({SUPABASE_URL:'https://order.test',SUPABASE_SERVICE_ROLE_KEY:'test',OPENAI_API_KEY:'synthetic'})[k]||''},serve:()=>{}},fetcher);
+const group=existsSync(dirname(path)+'/group-context.ts')?readFileSync(dirname(path)+'/group-context.ts','utf8').replaceAll('export ',''):'';
+const load=fetcher=>new Function('Deno','fetch',stripTypeScriptTypes(lifecycle+'\n'+group+'\n'+source)+';return {aiEvidenceConfirmation,openAiGlossyDecision,readingSummary,process};')({env:{get:k=>({SUPABASE_URL:'https://order.test',SUPABASE_SERVICE_ROLE_KEY:'test',OPENAI_API_KEY:'synthetic'})[k]||''},serve:()=>{}},fetcher);
 const items=[{item_sku:'CN1001',title:'Custom Name Alpha Hero Topper',provider_item_id:'1111111111',quantity:1},{item_sku:'CN1002',title:'Custom Name Beta United Topper',provider_item_id:'2222222222',quantity:1}];
 const catalogue=items.map((i,n)=>({item_id:i.provider_item_id,product_id:`00000000-0000-4000-8000-00000000000${n}`,sku:i.item_sku,title:i.title}));
 items.splice(1);
@@ -170,6 +171,7 @@ for(const fixture of [
    return Response.json({model:'test-model',output:[{content:[{type:'output_text',text:JSON.stringify({...analysis,summary:'Verified customer wording.'})}]}]});
   }
   if(u.hostname.endsWith('.supabase.co')){
+   if(b.action==='group_context')return Response.json({ok:true,available:false,reason:'GROUP_ORDER_IDENTITY_UNAVAILABLE'});
    if(b.action==='buyer_note')return Response.json({ok:true,available:true,order_sn:'261001ABCDEFGH',shop_id:'123',buyer_note:note});
    if(b.action==='order_proof'&&fixture.ambiguous)return Response.json({ok:true,matched:false,reason:'MULTIPLE_LINKED_ORDERS'});
    if(b.action==='context'&&fixture.ambiguous)return Response.json({ok:true,contexts:{['shopee:'+orderId]:{messages:[],bindings:[],ambiguous:true}}});
