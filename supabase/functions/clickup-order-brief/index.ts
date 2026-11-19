@@ -1611,7 +1611,7 @@ Deno.serve(async(req:Request)=>{
   }
   if(["acrylic_status","acrylic_preview","acrylic_run"].includes(requestBody?.action)){
    const settings=(await db("clickup_order_brief_settings?singleton=eq.true&select=acrylic_enabled,acrylic_ai_fallback,acrylic_rollout_after&limit=1"))[0];
-   if(requestBody.action==="acrylic_status")return res({ok:true,...settings,profile:"acrylic-internal-v1",openai_configured:!!Deno.env.get("OPENAI_API_KEY"),ai_policy:"uncertain_only",customer_messages:false,model:Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-4.1-mini"});
+   if(requestBody.action==="acrylic_status")return res({ok:true,...settings,profile:"acrylic-internal-v1",openai_configured:!!Deno.env.get("OPENAI_API_KEY"),ai_policy:"openai_primary",customer_messages:false,model:Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-4.1-mini"});
    const id=string(requestBody.task_id,80);
    if(id&&!taskId(id))return res({ok:false,error:"INVALID_TASK"},400);
    const [token,bridge]=await Promise.all([setting("clickup_designer_api_token"),setting("admin_window_bridge_token")]);
