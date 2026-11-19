@@ -1,3 +1,4 @@
+import {resolveOrderGroup} from "./group-context.ts";
 import {processPrint,loadPrintContext,taskPhone} from "./print-brief.ts";
 import {briefAction,newCustomerMessages} from "./lifecycle.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -1156,9 +1157,10 @@ function followupRemark(f:Obj,hasDetail=false){
  if(f.blocked)parts.push((reasons[String(f.blocked)]||"Tindakan ditahan untuk semakan")+" ["+String(f.blocked).replace(/[\r\n]/g," ").slice(0,120)+"].");
  return parts.join(" ");
 }
-const printDeps={db,clickup,digest,safeDownload,allowedHost,summarize,clock:briefTimestamp,rich:briefComment,inbox:INBOX};
+const resolveGroup=(input:Obj,bridge:string)=>resolveOrderGroup(input,bridge,{db,digest,inbox:INBOX,safeDownload});
+const printDeps={resolveGroup,db,clickup,digest,safeDownload,allowedHost,summarize,clock:briefTimestamp,rich:briefComment,inbox:INBOX};
 const isPrintProfile=(p:unknown)=>p==="edible"||p==="wafer";
-const acrylicDeps={db,clickup,digest,safeDownload,clock:briefTimestamp,rich:briefComment,inbox:INBOX};
+const acrylicDeps={resolveGroup,db,clickup,digest,safeDownload,clock:briefTimestamp,rich:briefComment,inbox:INBOX};
 
 async function observeConfirmed(job:Obj,route:Obj,s:Obj,token:string,bridge:string){
  const id=String(job.task_id),previous=job.brief||{};
@@ -1313,7 +1315,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   if(!placedIso)throw Error("ORDER_TIME_UNAVAILABLE");
   if(Date.now()-placedMs<900000)throw Error("WAIT_15_MINUTES");
   const key=(s.marketplace_order_id?"shopee:":"icetak:")+(s.marketplace_order_id||s.order_id);
-  const context=directScope?await loadDirectChat(directScope,bridge):await loadChat(placedIso,buyerId,phone,key,String(s.order_reference||""),bridge);
+  let context=directScope?await loadDirectChat(directScope,bridge):await loadChat(placedIso,buyerId,phone,key,String(s.order_reference||""),bridge);
   if(followupEnabled&&uuid(s.marketplace_order_id)&&/^(?:CN|YS)\d{3,6}(?:\s+SG)?$/i.test(productSku)){
    const rivals=buyerId&&orderFacts.shop_id?await db("marketplace_orders?buyer_user_id=eq."+encodeURIComponent(buyerId)+
     "&shop_id=eq."+encodeURIComponent(orderFacts.shop_id)+"&id=neq."+s.marketplace_order_id+
@@ -1330,8 +1332,8 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     }else followup={enabled:true,blocked:string(providerContext.error||"PROVIDER_CONTEXT_UNAVAILABLE",150)};
    }
   }
-  const {chronological}=selectProof(context,placedMs);
-  const proof=selectProof(context,placedMs).proof;
+  let {chronological}=selectProof(context,placedMs);
+  let proof=selectProof(context,placedMs).proof;
   // A transient empty context must never erase previously confirmed proof.
   if(proof.length===0&&Array.isArray(job.brief?.proof)&&job.brief.proof.length>0)
    throw Error("PREVIOUS_PROOF_TEMPORARILY_UNAVAILABLE");
@@ -1339,6 +1341,14 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    await db("marketplace_order_items?order_id=eq."+s.marketplace_order_id+
     "&is_current=eq.true&select=item_sku,variation_sku,title,variation_name,quantity,provider_item_id,provider_variation_id&limit=30"):(directScope?.items||[]);
   const product=directScope?{...productReferences(orderItems.filter((x:Obj)=>x.local_item_id===directScope?.target_item_id))[0],source:"icetak"}:targetProduct(productSku,orderItems);
+  const originalNote=note;
+  const grouped=await resolveGroup({task_id:id,profile:"glossy",previous:job.brief,
+   scope:{order_no:s.order_reference,note,target:product},context},bridge);
+  if(grouped.grouped){
+   context=grouped.context;note=grouped.note;
+   chronological=selectProof(context,placedMs).chronological;
+   proof=selectProof(context,placedMs).proof;
+  }
   const missing=Array.isArray(detail.missing)?detail.missing:[];
   let decision:Obj={wording:"",instruction:"",confidence:0,note_evidence:false,chat_evidence:false};
   let confidence=0,verified=false;
@@ -1468,7 +1478,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const requiresReview=aiConfirmation.review_requested===true||reviewRequested(chronological)||Boolean(previous.review_requested);
   const followupNote=followupRemark(followup,!!primaryWording&&!followup.defaulted);
   let text=briefText(id,productSku,primaryWording,primaryInstruction,primaryImage,requiresReview,
-   holdForReview?true:(verified||existingConfirmed),primaryConfidence,note,proof,product,string(directScope?.order_no||s.order_reference))
+   holdForReview?true:(verified||existingConfirmed),primaryConfidence,originalNote,proof,product,string(directScope?.order_no||s.order_reference))
    .replace("confirm: ✅",holdForReview?"confirm: ✅ (perubahan baharu perlu review)":verified?"confirm: ✅":"confirm: ✅ (disahkan staf)")
    +(orderUnpaid?"\n⚠️ Order masih UNPAID — semak bayaran sebelum proses.":"")
    +(followupNote?"\n\nAutomation follow-up: "+followupNote:"");
@@ -1481,6 +1491,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     (string(aiAnalysis.image_description,250)?"\nAI image: "+string(aiAnalysis.image_description,250):"");
   }
   if(aiConfirmation.eligible)text+="\n\nPengesahan OpenAI "+confidence+"% berdasarkan "+(noteConfirmation?"Buyer Note":"chat customer")+".";
+  if(grouped.grouped)text+="\n\nPadanan OpenAI merentas order/item: "+(grouped.analysis.ok?grouped.analysis.reason:grouped.analysis.reason||"Perlu semak")+".";
   if(noteOnly)text+="\n\nBuyer Note order ini disemak oleh OpenAI. Chat bersama belum dapat dipadankan kerana beberapa order aktif.";
   else if(aiCandidate&&!aiConfirmation.eligible)text+="\n\nOpenAI belum dapat sahkan wording. ["+aiConfirmation.reason+"]";
   const interpretation=readingSummary({rule:{eligible:false},note,messages:chronological,items:orderItems,decision,verified,aiAnalysis,aiCandidate});
@@ -1572,7 +1583,7 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const pendingChangeIds=[...new Set([...previouslyFlagged,...changed.map(m=>String(m.id))])].slice(-120);
   const deferredChanges=new Set(changed.slice(8).map(m=>String(m.id)));
   const ids=[...new Set([...oldIds,...chronological.filter(m=>!deferredChanges.has(String(m.id))).map(m=>String(m.id))])].slice(-140);
-  brief={sku:productSku,wording:primaryWording,instruction:primaryInstruction,delivery_instruction:primaryInstruction===aiConfirmation.delivery_instruction?aiConfirmation.delivery_instruction:null,confidence:primaryConfidence,actual_buyer_note:note,proof:proof.map((m:Obj)=>({id:m.id,channel:m.channel,at:m.created_at})),
+  brief={sku:productSku,wording:primaryWording,instruction:primaryInstruction,delivery_instruction:primaryInstruction===aiConfirmation.delivery_instruction?aiConfirmation.delivery_instruction:null,confidence:primaryConfidence,actual_buyer_note:originalNote,group_assignment:grouped.analysis||null,assigned_buyer_note:note,proof:proof.map((m:Obj)=>({id:m.id,channel:m.channel,at:m.created_at})),
    image:primaryImage,image_backup:primaryBackup,media_count:mediaCandidates.length,media_warnings:uploadWarnings,review_requested:requiresReview,confirmed:verified||existingConfirmed,confirmed_at:confirmationAt||null,text_hash:hash,comment_format:"rich-code-v1",pending_change_ids:pendingChangeIds,
    checked_message_ids:ids,field_receipts:applied,change_detected:changed.length,
    context_state:context.ambiguous?"ambiguous":context.unavailable?"unavailable":"checked",
@@ -1798,6 +1809,26 @@ Deno.serve(async(req:Request)=>{
    return res({ok:sharedCases.every(x=>x.expected===x.actual)&&reviewCases.every(x=>x.expected===x.actual)&&naturalRegression.ok&&orderRegression.ok&&details.every(x=>x.expected===x.actual)&&passed&&multilineCases.every(x=>x.expected===x.actual&&(x.expected?x.score>=80:x.score===0))&&updatedCfCases.every(x=>x.actual===x.expected&&x.score>=x.min)&&postConfirmCases.every(x=>x.actual===x.expected),sharedCases,reviewCases,naturalRegression,orderRegression,multilineCases,updatedCfCases,postConfirmCases,tests,checks:details,
      matching_note_score:decide("anaqi rayyan","anaqi rayyan",[],{},false).confidence,
      cf_only_score:decide("","anaqi rayyan",[],{},false).confidence});
+  }
+  if(requestBody?.action==="group_preview"){
+   const id=string(requestBody.task_id,80);
+   if(!taskId(id))return res({ok:false,error:"INVALID_TASK"},400);
+   const snap=(await db("ai_clickup_work_snapshots?task_id=eq."+id+"&select=task_id,order_reference,list_id,marketplace_order_id,order_id,clickup_status&limit=1"))[0];
+   const route=(await db("clickup_autobrief_routes?task_id=eq."+id+"&select=profile&limit=1"))[0];
+   if(snap?.list_id!=="18375902"||!route)return res({ok:false,error:"TASK_SCOPE_UNVERIFIED"},400);
+   const [token,bridge]=await Promise.all([setting("clickup_designer_api_token"),setting("admin_window_bridge_token")]);
+   const task=await clickup(token,"task/"+id);
+   let scope:Obj={order_no:snap.order_reference,note:"",target:{sku:string(field(task,"SKU")?.value),title:task.name,profile:route.profile}};
+   if(uuid(snap.marketplace_order_id)){
+    const order=(await db("marketplace_orders?id=eq."+snap.marketplace_order_id+"&select=buyer_message&limit=1"))[0];
+    scope.note=string(order?.buyer_message,1200);
+   }else if(uuid(snap.order_id)){
+    scope=route.profile==="acrylic"?await db("rpc/icetak_acrylic_brief_scope",{p_task_id:id}):
+      await db("rpc/icetak_autobrief_direct_scope",{p_order_id:snap.order_id,p_task_id:id});
+    if(!scope?.eligible)return res({ok:false,error:"DIRECT_SCOPE_UNVERIFIED"},400);
+   }
+   const result=await resolveGroup({task_id:id,profile:route.profile,scope,context:{ambiguous:true,messages:[]},previous:{}},bridge);
+   return res({ok:result.analysis?.ok===true,task_id:id,analysis:result.analysis,note:result.note,messages:result.context?.messages?.map((m:Obj)=>({id:m.id,text:m.text_content,type:m.message_type}))});
   }
   if(requestBody?.action==="ai_preview"){
    const id=string(requestBody.task_id,80);

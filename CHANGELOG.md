@@ -1,3 +1,7 @@
+# 2026-11-19 — Mixed order chat allocation
+
+- [PRODUCTION] AutoBrief v110 adds OpenAI allocation of shared buyer chat across active orders and mixed glossy, acrylic, edible and wafer tasks. The authenticated Inbox gateway supplies the bounded group, and each category worker receives verified selected evidence. Allocation reasons and source IDs are saved in the brief.
+
 # 2026-11-19 — Buyer Note isolation
 
 - [PRODUCTION] AutoBrief v106 allows OpenAI to confirm an exact-order Buyer Note when multiple active orders make shared chat ambiguous. The worker sends only the selected order note to the model in this path and records the source limitation in the brief.
