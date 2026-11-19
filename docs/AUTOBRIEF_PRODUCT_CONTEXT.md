@@ -357,3 +357,12 @@ review. Mixed output with suspected delivery prose is withheld until verified.
 ## OpenAI decides glossy wording — 18 November 2026
 
 The glossy worker accepts current OpenAI decisions at 90% or higher with verified source quotes and SKU. It preserves the requested language and keeps names, ages and punctuation. The model may correct proven ordinary-word typos. Unsupported changes, failed requests and uncertain decisions stay in review. The no-details shipment default remains an operational policy.
+
+## Exact-order note with shared chat ambiguity — 19 November 2026
+
+An exact Shopee order note is available to OpenAI even if other active
+orders make shared chat ambiguous. This path requires no scoped messages
+and a complete context read. It sends the order note alone and records
+order_buyer_note evidence scope. Chat-only evidence and unavailable or
+truncated contexts retain their existing guards. Ambiguous follow-ups
+remain blocked.

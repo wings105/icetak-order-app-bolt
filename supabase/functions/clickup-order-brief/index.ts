@@ -1343,19 +1343,25 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   let decision:Obj={wording:"",instruction:"",confidence:0,note_evidence:false,chat_evidence:false};
   let confidence=0,verified=false;
   let aiAnalysis:Obj=job.brief?.ai_analysis||{};
-  const aiCandidate=!orderUnpaid&&!!product?.sku&&!context.ambiguous&&!context.truncated&&!context.unavailable&&
-   (chronological.length>0||!!note.trim())&&!!productSku;
+  // Checkout notes belong to an exact order even when shared buyer chat is ambiguous.
+  // Isolate that note so the model cannot borrow another order's conversation.
+  const noteOnly=!!note.trim()&&!!s.marketplace_order_id&&context.ambiguous===true&&
+   !context.truncated&&!context.unavailable&&chronological.length===0;
+  const decisionMessages=noteOnly?[]:chronological;
+  const decisionContext=noteOnly?{...context,ambiguous:false}:context;
+  const aiCandidate=!orderUnpaid&&!!product?.sku&&!decisionContext.ambiguous&&!decisionContext.truncated&&!decisionContext.unavailable&&
+   (decisionMessages.length>0||!!note.trim())&&!!productSku;
   let analysisSignature="";
   if(aiCandidate){
    analysisSignature=await digest(JSON.stringify({
-    revision:"openai-glossy-decision-v2",model:Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-6-luna",sku:productSku,note,
+    revision:"openai-glossy-decision-v3",scope:noteOnly?"order_buyer_note":"order_note_and_chat",model:Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-6-luna",sku:productSku,note,
     items:productReferences(orderItems),
-    messages:chronological.map((m:Obj)=>[m.id,m.text_content,m.caption,m.media_url])
+    messages:decisionMessages.map((m:Obj)=>[m.id,m.text_content,m.caption,m.media_url])
    }));
    const cached=aiAnalysis.input_hash===analysisSignature;
    const retry=(Date.now()-Date.parse(String(aiAnalysis.checked_at||"")))>5*60*1000;
    if(!cached||(!aiAnalysis.ok&&retry)){
-    aiAnalysis=await aiAnalyzeOrder({note,sku:productSku,items:orderItems,messages:chronological,vision:true});
+    aiAnalysis=await aiAnalyzeOrder({note,sku:productSku,items:orderItems,messages:decisionMessages,vision:!noteOnly});
     aiAnalysis.input_hash=analysisSignature;
     aiAnalysis.checked_at=new Date().toISOString();
     aiAnalysis.review_only=true;
@@ -1364,7 +1370,8 @@ async function process(job:Obj,clickupToken:string,bridge:string){
   const isDefault=providerContext?.deliveries?.some((d:Obj)=>d.phase==="deadline"&&d.state==="sent")&&normalized(existingWord)==="hb";
   const skuPlaceholder=!!directScope&&normalized(existingWord)===normalized(productSku);
   const aiConfirmation=openAiGlossyDecision({analysis:aiAnalysis,current:!!analysisSignature&&aiAnalysis.input_hash===analysisSignature,
-   product,sku:productSku,note,messages:chronological,context,existingWord:isDefault||skuPlaceholder?"":existingWord,missing});
+   product,sku:productSku,note,messages:decisionMessages,context:decisionContext,existingWord:isDefault||skuPlaceholder?"":existingWord,missing});
+  aiConfirmation.evidence_scope=noteOnly?"order_buyer_note":"order_note_and_chat";
   const noteConfirmation=aiConfirmation.reason==="AI_90_WITH_EXACT_BUYER_NOTE";
   if(aiConfirmation.eligible){
    decision={...aiConfirmation,note_evidence:noteConfirmation,chat_evidence:aiConfirmation.evidence_ids.length>0};
@@ -1474,7 +1481,8 @@ async function process(job:Obj,clickupToken:string,bridge:string){
     (string(aiAnalysis.image_description,250)?"\nAI image: "+string(aiAnalysis.image_description,250):"");
   }
   if(aiConfirmation.eligible)text+="\n\nPengesahan OpenAI "+confidence+"% berdasarkan "+(noteConfirmation?"Buyer Note":"chat customer")+".";
-  else if(aiCandidate)text+="\n\nOpenAI belum dapat sahkan wording. ["+aiConfirmation.reason+"]";
+  if(noteOnly)text+="\n\nBuyer Note order ini disemak oleh OpenAI. Chat bersama belum dapat dipadankan kerana beberapa order aktif.";
+  else if(aiCandidate&&!aiConfirmation.eligible)text+="\n\nOpenAI belum dapat sahkan wording. ["+aiConfirmation.reason+"]";
   const interpretation=readingSummary({rule:{eligible:false},note,messages:chronological,items:orderItems,decision,verified,aiAnalysis,aiCandidate});
   text+="\n\n"+interpretation.text;
   const hash=await digest("rich-code-v1\n"+text);

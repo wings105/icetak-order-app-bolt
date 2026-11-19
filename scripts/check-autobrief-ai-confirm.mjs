@@ -141,6 +141,8 @@ for(const fixture of [
  {note:deliveryNote,messages:[],expected:deliveryWording,analysis:{...deliveryAnalysis,wording_sources:[{id:'buyer_note',text:deliveryWording}]}},
  {note:splitNote,messages:splitMessages,expected:splitWording,analysis:{...splitAnalysis,wording:splitWording,wording_sources:[{id:'buyer_note',text:'SAMPLE CHILD'},{id:'split1',text:'12 Tahun'}]}},
  {note:chineseNote,messages:[],expected:correctedPrint,analysis:chineseAnalysis},
+ {note:chineseNote,messages:[],expected:correctedPrint,analysis:chineseAnalysis,ambiguous:true},
+ {note:'',messages:[],expected:'',analysis:null,ambiguous:true},
  {note:chineseNote,messages:[],expected:'',analysis:null}
 ]){
  const index=0;
@@ -163,11 +165,14 @@ for(const fixture of [
    if(p.endsWith('/icetak_record_order_brief')){stored=b;return Response.json({ok:true});}
   }
   if(u.hostname==='api.openai.com'){
+   if(fixture.ambiguous){const data=JSON.parse(b.input[0].content[0].text);assert.deepEqual(data.verified_customer_messages,[]);assert.equal(data.checkout_note,note);}
    if(!analysis)return Response.json({error:{code:'test_unavailable'}},{status:503});
    return Response.json({model:'test-model',output:[{content:[{type:'output_text',text:JSON.stringify({...analysis,summary:'Verified customer wording.'})}]}]});
   }
   if(u.hostname.endsWith('.supabase.co')){
    if(b.action==='buyer_note')return Response.json({ok:true,available:true,order_sn:'261001ABCDEFGH',shop_id:'123',buyer_note:note});
+   if(b.action==='order_proof'&&fixture.ambiguous)return Response.json({ok:true,matched:false,reason:'MULTIPLE_LINKED_ORDERS'});
+   if(b.action==='context'&&fixture.ambiguous)return Response.json({ok:true,contexts:{['shopee:'+orderId]:{messages:[],bindings:[],ambiguous:true}}});
    if(b.action==='order_proof'||b.action==='context')return Response.json({ok:true,matched:true,conversation_id:'chat',messages});
    if(b.action==='inspect')return Response.json({ok:true,available:true,enabled:true,order_sn:'261001ABCDEFGH',buyer_user_id:'123456',shop_id:'123',placed_at:'2026-10-01T00:05:00Z',order_status:'READY_TO_SHIP',buyer_note:note,deliveries:[],messages:messages===directMessages?directMessages:messages.filter(m=>m.id==='m5').map(m=>({...m,text_content:'',message_type:'image'}))});
    sends++;throw Error('Unexpected bridge action '+b.action);
@@ -191,6 +196,7 @@ for(const fixture of [
   assert.equal(sends,0);
   continue;
  }
+ if(fixture.ambiguous)assert.equal(stored.p_brief.ai_confirmation_rule.evidence_scope,'order_buyer_note');
  if(note===deliveryNote)assert.equal(stored.p_brief.delivery_instruction,deliveryInstruction);
  assert.equal(result.state,'completed',JSON.stringify({result,brief:stored?.p_brief}));
  assert.equal(stored.p_brief.wording,expected);assert.equal(stored.p_brief.confidence,analysis.confidence);
