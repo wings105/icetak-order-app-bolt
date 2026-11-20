@@ -188,6 +188,12 @@ function firstText(input:Obj,ctx:Obj){
  const item=ctx.product_items.find((x:Obj)=>x.product_id===s(input.target_product_id));
  const label=s(item?.title+' '+item?.sku).match(/artpaper|mirror.gold/i)?'mirror gold artpaper':'acrylic';
  const variation=s(item?.variation).replace(/[\r\n]/g,' ').slice(0,120);
+ if(label==='acrylic'){
+  const colour=variation.match(/\b(Gold|Silver|White|Black|Rose Gold|Red|Blue|Pink)\b/i)?.[0]||'';
+  const size=variation.match(/\bA[567]\b/i)?.[0]?.toUpperCase()||'';
+  const product=['acrylic',colour,size].filter(Boolean).join(' ');
+  return 'Hi, untuk topper '+product+' ini, nak letak tulisan apa ya?\n\nKalau ada contoh design/font, boleh hantar sekali. Terima kasih 😊\n\nBoleh bagi number untuk fast response 😊';
+ }
  return 'Hi, untuk order '+ctx.order_sn+' — cake topper '+label+(variation?' ('+variation+')':'')+
  ', boleh berikan tulisan/nama/initial yang nak diletakkan? Jika ada tarikh atau contoh design/font, boleh hantar sekali di sini. Terima kasih.';
 }
