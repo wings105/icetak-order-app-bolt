@@ -135,8 +135,23 @@ for(const wording of ['Selamat Hari Lahir Sample Child','Happy 16th Birthday Sam
 assert.equal(api.openAiGlossyDecision({...chineseCase,analysis:{...chineseAnalysis,wording_sources:[{id:'unrelated',text:originalPrint}]}}).eligible,false);
 assert.equal(api.openAiGlossyDecision({...chineseCase,analysis:{...chineseAnalysis,wording:'Sam',wording_sources:[{id:'buyer_note',text:'Sam'}]}}).eligible,false);
 
+const labelledMessages=[
+ {...messages[1],id:'label1',created_at:'2026-10-01T00:06:00Z',text_content:'Nama Sample Child'},
+ {...messages[2],id:'label2',created_at:'2026-10-01T00:06:59Z',text_content:'Turn 5'}
+];
+const labelledAnalysis={...analysis,wording:'Sample Child\nTurn 5',confidence:95,evidence_ids:['label1','label2'],instruction:'',
+ wording_sources:labelledMessages.map(message=>({id:message.id,text:message.text_content}))};
+const labelledCase={...chineseCase,note:'',existingWord:'',messages:labelledMessages,analysis:labelledAnalysis};
+assert.equal(api.openAiGlossyDecision(labelledCase).wording,labelledAnalysis.wording);
+for(const wording of ['Other Child\nTurn 5','Sample Child\nTurn 6','Happy Birthday Sample Child\nTurn 5'])
+ assert.equal(api.openAiGlossyDecision({...labelledCase,analysis:{...labelledAnalysis,wording}}).eligible,false);
+const ageLabels={...labelledAnalysis,wording:'Sample Child\n5 Tahun',
+ wording_sources:[{id:'buyer_note',text:'Name: Sample Child\nUmur: 5 Tahun'}]};
+assert.equal(api.openAiGlossyDecision({...labelledCase,note:'Name: Sample Child\nUmur: 5 Tahun',messages:[],analysis:ageLabels}).wording,ageLabels.wording);
+
 // Exercise the worker paths with actual field/comment writes and an unavailable model.
 for(const fixture of [
+ {note:'',messages:labelledMessages,expected:labelledAnalysis.wording,analysis:labelledAnalysis},
  {note,messages,expected:wording,analysis:{...analysis,wording_sources:[{id:'m3',text:wording}]}},
  {note,messages:directMessages,expected:directWording,analysis:{...directAnalysis,wording:directWording,wording_sources:[{id:'m3',text:directWording}]}},
  {note:deliveryNote,messages:[],expected:deliveryWording,analysis:{...deliveryAnalysis,wording_sources:[{id:'buyer_note',text:deliveryWording}]}},

@@ -395,3 +395,11 @@ node scripts/check-autobrief-ai-confirm.mjs. The group regression exercises
 glossy/acrylic/edible assignment across mixed orders, source quote validation,
 media identity, cached replay and provider errors. Actual edible and acrylic
 preview entry points are also exercised with controlled transports.
+
+## Labels inside quoted AI evidence — 20 November 2026
+
+OpenAI may quote a whole source line such as Nama followed by the requested
+name while selecting just the name for print. Evidence comparison accepts
+this removal of leading field labels on each source line. It keeps the
+original quote in the audit and never rewrites the model wording. Changed
+names, ages, additional greetings and unrelated source IDs remain rejected.

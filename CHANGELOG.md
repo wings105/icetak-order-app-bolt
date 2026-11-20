@@ -1,3 +1,7 @@
+# 2026-11-20 — OpenAI wording evidence labels
+
+- [PRODUCTION] AutoBrief v111 accepts OpenAI wording when exact source quotes include removable name/age field labels. Customer names, age values and source IDs remain verified. Controlled worker tests cover split messages, label removal and rejection of changed names or ages.
+
 # 2026-11-19 — Mixed order chat allocation
 
 - [PRODUCTION] AutoBrief v110 adds OpenAI allocation of shared buyer chat across active orders and mixed glossy, acrylic, edible and wafer tasks. The authenticated Inbox gateway supplies the bounded group, and each category worker receives verified selected evidence. Allocation reasons and source IDs are saved in the brief.

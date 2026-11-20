@@ -1,3 +1,9 @@
+# 2026-11-20 — Wording evidence labels
+
+AutoBrief v111 validates exact customer evidence with optional field labels.
+OpenAI wording can omit Nama/Name/Umur/Age labels while retaining the original
+name and age. The cached current-input analysis can pass this verification.
+
 # 2026-11-19 — OpenAI mixed order context
 
 AutoBrief v110 and Inbox task-brief-media v12 are active. OpenAI selects
