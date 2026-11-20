@@ -51,7 +51,13 @@ async function bytesAt(url,headers={}){
 }
 const b64=bytes=>{let s='';for(let i=0;i<bytes.length;i+=8192)s+=String.fromCharCode(...bytes.slice(i,i+8192));return btoa(s);};
 async function collect(token,job){
- const task=await getTask(token,job.task_id);guard(task,job.stage==='audit'||!!job.data.attachment_id);
+ const task=await getTask(token,job.task_id);
+ // A stored generation is a delivery receipt. AutoBrief refreshes cannot block upload.
+ if(['deliver','audit','qc'].includes(job.stage)&&job.data.storage_path){
+  if(String(task.id)!==job.task_id)throw Error('TASK_ID_MISMATCH');
+  return {task,source:null,payload:null,references:[],signature:job.data.context_hash,filename:'Acrylic_AI_'+job.task_id+'.png'};
+ }
+ guard(task,job.stage==='audit'||!!job.data.attachment_id);
  const source=await rpc('source',{task_id:job.task_id});if(!source||source.source_token!==job.source_token||Date.parse(source.eligible_at)>Date.now())throw Error('AUTOBRIEF_CHANGED_OR_NOT_READY');
  const comments=await allComments(token,job.task_id),filename='Acrylic_AI_'+job.task_id+'.png';
  const references=[];
@@ -134,7 +140,7 @@ async function process(job,token,config){
    const fresh=await getTask(token,job.task_id);if(!attachment?.id||!(fresh.attachments||[]).some(a=>String(a.id)===String(attachment.id)))return save({state:'uncertain',error:'ATTACHMENT_READBACK_PENDING'});
    await save({release:false,data:{attachment_id:String(attachment.id),attachment_url:attachment.url||attachment.download_url}});
    await active();const latest=await collect(token,job);
-   if(review(latest.task)?.id!==CF.done){guard(latest.task);await cu(token,'task/'+job.task_id+'/field/'+CF.review,'POST',{value:CF.done});}
+   if(review(latest.task)?.id!==CF.done){await cu(token,'task/'+job.task_id+'/field/'+CF.review,'POST',{value:CF.done});}
    const checked=await getTask(token,job.task_id);if(review(checked)?.id!==CF.done)throw Error('CF_READBACK_PENDING');
    return save({stage:'audit'});
   }
@@ -154,7 +160,7 @@ async function process(job,token,config){
 async function store(path,bytes){const r=await fetch(BASE+'/storage/v1/object/'+BUCKET+'/'+path,{method:'POST',headers:{apikey:KEY,authorization:'Bearer '+KEY,'content-type':'image/png','x-upsert':'false'},body:bytes,signal:AbortSignal.timeout(45000)});if(!r.ok&&r.status!==409&&r.status!==400)throw Error('STORAGE_WRITE_'+r.status);const check=await stored(path);if(await sha(b64(check.bytes))!==await sha(b64(bytes)))throw Error('STORAGE_READBACK_MISMATCH');}
 const stored=path=>{if(!/^[a-zA-Z0-9_-]+\/[a-f0-9]{32}\.png$/.test(path||''))throw Error('STORAGE_PATH_INVALID');return bytesAt(BASE+'/storage/v1/object/'+BUCKET+'/'+path,{apikey:KEY,authorization:'Bearer '+KEY});};
 Deno.serve(async req=>{
- if(req.method==='GET')return Response.json({service:'acrylic-auto-image',version:5,qc_mode:'manual'});
+ if(req.method==='GET')return Response.json({service:'acrylic-auto-image',version:6,qc_mode:'manual'});
  if(req.method!=='POST')return Response.json({error:'METHOD_NOT_ALLOWED'},{status:405});
  try{
   const token=await setting('order_brief_worker_token'),given=req.headers.get('x-order-brief-token')||'';
