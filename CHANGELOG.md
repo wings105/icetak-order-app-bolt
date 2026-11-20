@@ -1,3 +1,7 @@
+# 2026-11-20 — Birthday age intent
+
+- [PRODUCTION] AutoBrief v112 tells OpenAI that a buyer name with Turn/Turns and an age in birthday-topper checkout notes or order chat is explicit printable wording. The model preserves the supplied phrase and line breaks. Changed policy inputs invalidate cached analysis.
+
 # 2026-11-20 — OpenAI wording evidence labels
 
 - [PRODUCTION] AutoBrief v111 accepts OpenAI wording when exact source quotes include removable name/age field labels. Customer names, age values and source IDs remain verified. Controlled worker tests cover split messages, label removal and rejection of changed names or ages.

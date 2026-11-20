@@ -181,6 +181,8 @@ for(const fixture of [
    if(p.endsWith('/icetak_record_order_brief')){stored=b;return Response.json({ok:true});}
   }
   if(u.hostname==='api.openai.com'){
+   assert.match(b.instructions,/a buyer-supplied name with an age phrase.*explicit print wording/);
+   assert.match(b.instructions,/do not convert Turn to Turns/);
    if(fixture.ambiguous){const data=JSON.parse(b.input[0].content[0].text);assert.deepEqual(data.verified_customer_messages,[]);assert.equal(data.checkout_note,note);}
    if(!analysis)return Response.json({error:{code:'test_unavailable'}},{status:503});
    return Response.json({model:'test-model',output:[{content:[{type:'output_text',text:JSON.stringify({...analysis,summary:'Verified customer wording.'})}]}]});
