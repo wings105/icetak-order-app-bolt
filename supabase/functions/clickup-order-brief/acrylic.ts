@@ -170,6 +170,11 @@ async function acrylicFollowup(scope:Obj,ctx:Obj,task:Obj,token:string,bridge:st
  const fresh=await d.clickup(token,"task/"+task.id),selected=selection(fresh);
  if(norm(fresh.status?.status)!=="acrylic"||checked(field(fresh,CF.confirmed))||field(fresh,CF.name)?.value||
   (selected.id&&selected.id!==CF.ai&&norm(selected.name)!=="follow up1"))return {blocked:"TASK_CHANGED_OR_STAFF_REVIEW"};
+ const latestScope=await d.db("rpc/icetak_acrylic_brief_scope",{p_task_id:task.id});
+ if(!latestScope?.eligible||latestScope.note)return {blocked:"ORDER_CHANGED_BEFORE_SEND"};
+ latestScope.phone=scope.phone;
+ const latestContext=await context(latestScope,bridge,d);
+ if(latestContext.ambiguous||latestContext.truncated||(latestContext.messages||[]).some((m:Obj)=>m.direction==="inbound"))return {blocked:"CUSTOMER_REPLIED_BEFORE_SEND"};
  const receipt=await call({action:"send",phase:"first",profile:"acrylic",...identity,target_sku:scope.target.sku,target_product_id:scope.target.product_id,revision:inspected.revision});
  if(receipt.delivery?.state==="sent"){
   const option=field(fresh,CF.review)?.type_config?.options?.find((o:Obj)=>norm(o.name)==="follow up1");
