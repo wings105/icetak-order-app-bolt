@@ -788,15 +788,24 @@ function openAiGlossyDecision(input:Obj):Obj{
  const wording=string(analysis.wording,255);
  // Confirm only the model-selected source text, with narrow ordinary-word typo exceptions.
  // This compares evidence without rewriting the model's wording or applying a template.
- const before=original.split(" "),after=surface(wording).split(" ");
+ // A source quote may include field labels that OpenAI correctly excludes from print.
+ // Compare both source forms; the stored wording still comes directly from OpenAI.
+ const withoutLabels=surface(spans.map((span:Obj)=>String(span.text).split(/\r?\n/).map((line:string)=>
+  line.replace(/^\s*(?:custom\s*name|nama\s*custom|nama|name|umur|usia|age|wording|tulisan|text)\s*(?:[:=：-]\s*|\s+)(?=\S)/i,"")
+ ).join("\n")).join(" "));
+ const after=surface(wording).split(" ");
  const permitted:Record<string,string>={brithday:"birthday",birthdy:"birthday",birtday:"birthday",bithday:"birthday",
   birthay:"birthday",happpy:"happy",hapy:"happy",annivesary:"anniversary",anniverary:"anniversary",congradulations:"congratulations"};
- if(!wording||before.length!==after.length||before.some((word,i)=>{
-  if(word===after[i])return false;
-  const old=word.match(/^([^\p{L}]*)([A-Za-z]+)([^\p{L}]*)$/u);
-  const next=after[i].match(/^([^\p{L}]*)([A-Za-z]+)([^\p{L}]*)$/u);
-  return !old||!next||old[1]!==next[1]||old[3]!==next[3]||permitted[old[2].toLowerCase()]!==next[2].toLowerCase();
- }))return no("AI_WORDING_NOT_GROUNDED");
+ const grounded=[original,withoutLabels].some(candidate=>{
+  const before=candidate.split(" ");
+  return before.length===after.length&&before.every((word,i)=>{
+   if(word===after[i])return true;
+   const old=word.match(/^([^\p{L}]*)([A-Za-z]+)([^\p{L}]*)$/u);
+   const next=after[i].match(/^([^\p{L}]*)([A-Za-z]+)([^\p{L}]*)$/u);
+   return !!old&&!!next&&old[1]===next[1]&&old[3]===next[3]&&permitted[old[2].toLowerCase()]===next[2].toLowerCase();
+  });
+ });
+ if(!wording||!grounded)return no("AI_WORDING_NOT_GROUNDED");
  if(existingWord&&![wording,original,...sources.values()].some(value=>normalized(value)===normalized(existingWord)))
   return no("STAFF_WORDING_PROTECTED");
  const noteUsed=spans.some((span:Obj)=>span.id==="buyer_note");
@@ -807,7 +816,7 @@ function openAiGlossyDecision(input:Obj):Obj{
  return {eligible:true,reason:noteUsed?"AI_90_WITH_EXACT_BUYER_NOTE":"OPENAI_GLOSSY_WORDING",
   wording,original_wording:original,confidence:analysis.confidence,instruction:deliveryInstruction||instruction,
   delivery_instruction:deliveryInstruction,evidence_ids:[...new Set(spans.map((span:Obj)=>span.id).filter((id:string)=>id!=="buyer_note"))],
-  wording_sources:spans,review_requested:analysis.review_requested===true};
+  evidence_policy:"exact_source_with_optional_field_labels",wording_sources:spans,review_requested:analysis.review_requested===true};
 }
 
 function readingSummary(input:Obj):Obj{
