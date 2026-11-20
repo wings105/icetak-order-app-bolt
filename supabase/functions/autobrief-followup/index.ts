@@ -225,7 +225,7 @@ async function send(input:Obj,config:Obj){
    ctx=await inspect(input,config,true);
   const stopped=phaseGuard(ctx,phase);
   if(stopped)return out({ok:true,skipped:true,reason:stopped,order_card:card});
-  if(!ctx.product_items.some((x:Obj)=>x.product_id===s(input.target_product_id)&&referenceSku(x.sku)===referenceSku(s(input.target_sku))))throw Error('TARGET_PRODUCT_NOT_VERIFIED');
+  if(!acrylicTarget(input,ctx)&&!ctx.product_items.some((x:Obj)=>x.product_id===s(input.target_product_id)&&referenceSku(x.sku)===referenceSku(s(input.target_sku))))throw Error('TARGET_PRODUCT_NOT_VERIFIED');
  }
  const claimed=await delivery('claim',ctx,phase,{text});
  if(!claimed.claimed)return out({ok:['sent','manual'].includes(claimed.state),delivery:claimed,order_card:card,duplicate:true});
