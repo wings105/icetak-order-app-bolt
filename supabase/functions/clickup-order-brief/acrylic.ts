@@ -154,6 +154,30 @@ export function checkoutCanConfirm(scope:Obj,rules:Obj,ctx:Obj):boolean {
   rules.units.every((unit:Obj)=>unit.evidence_ids.includes("buyer_note")&&isClearCheckoutWording(unit.wording));
 }
 
+
+async function acrylicFollowup(scope:Obj,ctx:Obj,task:Obj,token:string,bridge:string,d:AcrylicDeps):Promise<Obj>{
+ if(scope.provider!=="shopee"||scope.note||field(task,CF.name)?.value||checked(field(task,CF.confirmed))||
+  ctx.ambiguous||ctx.truncated||(ctx.messages||[]).some((m:Obj)=>m.direction==="inbound"))return {skipped:true};
+ if(await d.db("private_runtime_settings?setting_key=eq.order_brief_followup_enabled&select=setting_value&limit=1").then((r:Obj[])=>r[0]?.setting_value)!=="true")return {blocked:"DISABLED"};
+ const call=async(body:Obj)=>{
+  const response=await fetch(d.inbox+"/functions/v1/autobrief-followup",{method:"POST",headers:{"content-type":"application/json","x-admin-window-token":bridge},body:JSON.stringify(body),signal:AbortSignal.timeout(120000)});
+  const value=await response.json();return response.ok?value:{blocked:value.error||"FOLLOWUP_UNAVAILABLE"};
+ };
+ const identity={shop_id:String(scope.shop_id),order_sn:scope.order_no,buyer_user_id:String(scope.buyer_user_id)};
+ const inspected=await call({action:"inspect",...identity});
+ if(!inspected.available)return inspected;
+ if(inspected.buyer_note||(inspected.messages||[]).some((m:Obj)=>m.direction==="inbound"))return {blocked:"CUSTOMER_DETAIL_AVAILABLE"};
+ const fresh=await d.clickup(token,"task/"+task.id),selected=selection(fresh);
+ if(norm(fresh.status?.status)!=="acrylic"||checked(field(fresh,CF.confirmed))||field(fresh,CF.name)?.value||
+  (selected.id&&selected.id!==CF.ai&&norm(selected.name)!=="follow up1"))return {blocked:"TASK_CHANGED_OR_STAFF_REVIEW"};
+ const receipt=await call({action:"send",phase:"first",profile:"acrylic",...identity,target_sku:scope.target.sku,target_product_id:scope.target.product_id,revision:inspected.revision});
+ if(receipt.delivery?.state==="sent"){
+  const option=field(fresh,CF.review)?.type_config?.options?.find((o:Obj)=>norm(o.name)==="follow up1");
+  if(option){await d.clickup(token,"task/"+task.id+"/field/"+CF.review,"POST",{value:option.id});receipt.cf="follow up1";}
+ }
+ return receipt;
+}
+
 export async function processAcrylic(job:Obj,token:string,bridge:string,d:AcrylicDeps,preview=false):Promise<Obj>{
  const id=job.task_id,fp=job.source_fingerprint,previous=job.brief?.profile===ACRYLIC_VERSION?job.brief:{};
  let brief:Obj={},state="review",error="",commentId=previous.comment_id||null;
@@ -259,6 +283,10 @@ export async function processAcrylic(job:Obj,token:string,bridge:string,d:Acryli
    }
    if(commentId)await d.clickup(token,"comment/"+commentId,"PUT",body);
    else {const posted=await d.clickup(token,"task/"+id+"/comment","POST",body);if(!posted.id)throw Error("COMMENT_UNCERTAIN");commentId=String(posted.id);}
+  }
+  if(!rules.ready&&!scope.note&&!rules.wording){
+   brief.followup=await acrylicFollowup(scope,ctx,task,token,bridge,d);
+   if(brief.followup.cf)brief.field_receipts.followup=brief.followup.cf;
   }
   brief.comment_id=commentId;
   if(rules.ready&&!checked(field(task,CF.confirmed))){
