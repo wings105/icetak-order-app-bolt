@@ -403,3 +403,11 @@ name while selecting just the name for print. Evidence comparison accepts
 this removal of leading field labels on each source line. It keeps the
 original quote in the audit and never rewrites the model wording. Changed
 names, ages, additional greetings and unrelated source IDs remain rejected.
+
+## Birthday age intent — 20 November 2026
+
+For custom birthday toppers, a name together with Turn, Turns, Turning or
+an age with Tahun/years old in a buyer note or relevant chat is an explicit
+wording request. OpenAI assesses completeness without demanding a separate
+print instruction. It retains the supplied phrase, numbers and language.
+The changed input policy invalidates stale cached analysis.

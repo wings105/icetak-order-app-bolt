@@ -1,3 +1,9 @@
+# 2026-11-20 — Birthday age intent
+
+AutoBrief v112 clarifies common birthday age phrases to OpenAI. Names with
+Turn/Turns or age-unit phrases are explicit custom topper wording. Cached
+analysis refreshes under the new policy while source verification remains.
+
 # 2026-11-20 — Wording evidence labels
 
 AutoBrief v111 validates exact customer evidence with optional field labels.
