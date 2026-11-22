@@ -420,3 +420,16 @@ OpenAI preserves the source wording and does not add a unit or greeting.
 Conflicting evidence or numbers explicitly referring to quantity, date,
 order reference or size remain for review. The input revision refreshes
 stale model analysis and the worker checks the quoted wording as before.
+
+## Multiple names and physical quantity — 23 November 2026
+
+For glossy custom birthday toppers, purchased quantity determines the
+physical sets. One set with two names/ages uses both together in one design.
+Two sets with two distinct names/ages use one paired name/age per set.
+OpenAI preserves all printable wording and records an explicit designer
+allocation instruction. This internal note does not request a customer
+preview. A single shared name still applies to both sets unless instructed
+otherwise. Explicit customer allocation takes precedence. The same policy
+is supplied to the mixed-order allocation stage. Source signatures refresh
+under the changed policy. Designer instructions continue through the normal
+manual artwork path when the template needs layout review.

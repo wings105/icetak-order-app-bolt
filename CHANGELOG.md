@@ -1,3 +1,7 @@
+# 2026-11-23 — Names follow purchased quantity
+
+- [PRODUCTION] AutoBrief v116 follows purchased birthday-topper quantity when several names are supplied. One set includes both names/ages together; two sets with two names allocate one name/age per set. OpenAI records the designer allocation instruction and preserves the full printable wording.
+
 # 2026-11-23 — Bare birthday age wording
 
 - [PRODUCTION] AutoBrief v115 tells OpenAI that a customer name followed by a bare number is explicit birthday name and age wording. It preserves the original phrase and refreshes cached analysis under the new policy.

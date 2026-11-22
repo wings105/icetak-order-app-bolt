@@ -1,3 +1,9 @@
+# 2026-11-23 — Names follow purchased quantity
+
+AutoBrief v116 instructs OpenAI to allocate multiple birthday names according
+to purchased quantity and include a designer note. A single set can contain
+both names and ages; two sets can use one matched name/age each.
+
 # 2026-11-23 — Bare birthday age wording
 
 AutoBrief v115 interprets a buyer-supplied name followed by a bare number
