@@ -123,6 +123,15 @@ for(const change of [
 ])assert.equal(api.aiEvidenceConfirmation({...deliveryCase,...change}).eligible,false,JSON.stringify(change));
 
 const bareAgeAnalysis={...analysis,wording:'SAMPLE CHILD 4',confidence:98,instruction:'',evidence_ids:[],wording_sources:[{id:'buyer_note',text:'SAMPLE CHILD 4'}]};
+const combinedNames='happy birthday\nSAMPLE ONE 6\nSAMPLE TWO 4';
+const combineInstruction='Nota designer: 1 set sahaja. Letak SAMPLE ONE 6 dan SAMPLE TWO 4 bersama pada satu design.';
+const separateInstruction='Nota designer: 2 set berasingan. Set 1: SAMPLE ONE 6. Set 2: SAMPLE TWO 4.';
+const combinedAnalysis={...analysis,wording:combinedNames,confidence:98,instruction:combineInstruction,review_requested:false,evidence_ids:[],wording_sources:[{id:'buyer_note',text:combinedNames}]};
+const combinedCase={...base,product:{sku:'CN1001',product_id:'1111111111',quantity:1},note:combinedNames,messages:[],analysis:combinedAnalysis};
+assert.equal(api.openAiGlossyDecision(combinedCase).instruction,combineInstruction);
+assert.equal(api.openAiGlossyDecision(combinedCase).wording,combinedNames);
+const separateAnalysis={...combinedAnalysis,instruction:separateInstruction};
+assert.equal(api.openAiGlossyDecision({...combinedCase,product:{...combinedCase.product,quantity:2},analysis:separateAnalysis}).instruction,separateInstruction);
 const originalPrint='Happy 15th Brithday Sample Child';
 const correctedPrint='Happy 15th Birthday Sample Child';
 const chineseNote='请帮我写'+originalPrint;
@@ -158,6 +167,8 @@ for(const fixture of [
  {note:deliveryNote,messages:[],expected:deliveryWording,analysis:{...deliveryAnalysis,wording_sources:[{id:'buyer_note',text:deliveryWording}]}},
  {note:splitNote,messages:splitMessages,expected:splitWording,analysis:{...splitAnalysis,wording:splitWording,wording_sources:[{id:'buyer_note',text:'SAMPLE CHILD'},{id:'split1',text:'12 Tahun'}]}},
  {note:'SAMPLE CHILD 4',messages:[],expected:'SAMPLE CHILD 4',analysis:bareAgeAnalysis},
+ {note:combinedNames,messages:[],expected:combinedNames,analysis:combinedAnalysis},
+ {note:combinedNames,messages:[],expected:combinedNames,analysis:separateAnalysis,quantity:2},
  {note:chineseNote,messages:[],expected:correctedPrint,analysis:chineseAnalysis},
  {note:chineseNote,messages:[],expected:correctedPrint,analysis:chineseAnalysis,ambiguous:true},
  {note:'',messages:[],expected:'',analysis:null,ambiguous:true},
@@ -177,7 +188,7 @@ for(const fixture of [
    if(p.endsWith('/ai_clickup_work_snapshots'))return Response.json(u.searchParams.has('task_id')?[{task_id:id,list_id:'18375902',task_name:'1x '+items[index].item_sku,marketplace_order_id:orderId,clickup_status:'design editing -topper',order_reference:'261001ABCDEFGH'}]:siblings);
    if(p.endsWith('/task_detail_automation'))return Response.json([{data:{missing:[],info_status:'ready'}}]);
    if(p.endsWith('/marketplace_orders'))return Response.json(u.searchParams.has('id')&&u.searchParams.get('id').startsWith('eq.')?[{placed_at:'2026-10-01T00:05:00Z',current_status:'READY_TO_SHIP',buyer_user_id:'123456',shop_id:'123',order_sn:'261001ABCDEFGH',buyer_message:note}]:[]);
-   if(p.endsWith('/marketplace_order_items'))return Response.json(items);
+   if(p.endsWith('/marketplace_order_items'))return Response.json(items.map(item=>({...item,quantity:fixture.quantity||item.quantity})));
    if(p.endsWith('/product_channel_listings'))return Response.json(catalogue.map(c=>({...c,shop_id:'123'})));
    if(p.endsWith('/products'))return Response.json(catalogue.map(c=>({id:c.product_id,parent_sku:c.sku,name:c.title})));
    if(p.endsWith('/icetak_record_order_brief')){stored=b;return Response.json({ok:true});}
@@ -185,6 +196,9 @@ for(const fixture of [
   if(u.hostname==='api.openai.com'){
    assert.match(b.instructions,/a buyer-supplied name with an age phrase.*explicit print wording/);
    assert.match(b.instructions,/do not convert Turn to Turns/);
+   assert.match(b.instructions,/both names and ages belong together on ONE design/);
+   assert.match(b.instructions,/assign one name with its paired age to each separate set/);
+   assert.equal(JSON.parse(b.input[0].content[0].text).target_product.quantity,fixture.quantity||1);
    assert.match(b.instructions,/a standalone number is explicit name and birthday age wording/);
    assert.match(b.instructions,/do not append Tahun, years old, Turn or a greeting/);
    if(fixture.ambiguous){const data=JSON.parse(b.input[0].content[0].text);assert.deepEqual(data.verified_customer_messages,[]);assert.equal(data.checkout_note,note);}
@@ -220,6 +234,7 @@ for(const fixture of [
   continue;
  }
  if(fixture.ambiguous)assert.equal(stored.p_brief.ai_confirmation_rule.evidence_scope,'order_buyer_note');
+ if(note===combinedNames)assert.equal(stored.p_brief.instruction,analysis.instruction);
  if(note===deliveryNote)assert.equal(stored.p_brief.delivery_instruction,deliveryInstruction);
  assert.equal(result.state,'completed',JSON.stringify({result,brief:stored?.p_brief}));
  assert.equal(stored.p_brief.wording,expected);assert.equal(stored.p_brief.confidence,analysis.confidence);
