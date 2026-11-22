@@ -411,3 +411,12 @@ an age with Tahun/years old in a buyer note or relevant chat is an explicit
 wording request. OpenAI assesses completeness without demanding a separate
 print instruction. It retains the supplied phrase, numbers and language.
 The changed input policy invalidates stale cached analysis.
+
+## Bare birthday ages — 23 November 2026
+
+For custom birthday toppers, buyer-supplied name plus a standalone number
+is explicit name/age wording without requiring an age label or unit.
+OpenAI preserves the source wording and does not add a unit or greeting.
+Conflicting evidence or numbers explicitly referring to quantity, date,
+order reference or size remain for review. The input revision refreshes
+stale model analysis and the worker checks the quoted wording as before.

@@ -122,6 +122,7 @@ for(const change of [
  {existingWord:'Staff approved wording'}
 ])assert.equal(api.aiEvidenceConfirmation({...deliveryCase,...change}).eligible,false,JSON.stringify(change));
 
+const bareAgeAnalysis={...analysis,wording:'SAMPLE CHILD 4',confidence:98,instruction:'',evidence_ids:[],wording_sources:[{id:'buyer_note',text:'SAMPLE CHILD 4'}]};
 const originalPrint='Happy 15th Brithday Sample Child';
 const correctedPrint='Happy 15th Birthday Sample Child';
 const chineseNote='请帮我写'+originalPrint;
@@ -156,6 +157,7 @@ for(const fixture of [
  {note,messages:directMessages,expected:directWording,analysis:{...directAnalysis,wording:directWording,wording_sources:[{id:'m3',text:directWording}]}},
  {note:deliveryNote,messages:[],expected:deliveryWording,analysis:{...deliveryAnalysis,wording_sources:[{id:'buyer_note',text:deliveryWording}]}},
  {note:splitNote,messages:splitMessages,expected:splitWording,analysis:{...splitAnalysis,wording:splitWording,wording_sources:[{id:'buyer_note',text:'SAMPLE CHILD'},{id:'split1',text:'12 Tahun'}]}},
+ {note:'SAMPLE CHILD 4',messages:[],expected:'SAMPLE CHILD 4',analysis:bareAgeAnalysis},
  {note:chineseNote,messages:[],expected:correctedPrint,analysis:chineseAnalysis},
  {note:chineseNote,messages:[],expected:correctedPrint,analysis:chineseAnalysis,ambiguous:true},
  {note:'',messages:[],expected:'',analysis:null,ambiguous:true},
@@ -183,6 +185,8 @@ for(const fixture of [
   if(u.hostname==='api.openai.com'){
    assert.match(b.instructions,/a buyer-supplied name with an age phrase.*explicit print wording/);
    assert.match(b.instructions,/do not convert Turn to Turns/);
+   assert.match(b.instructions,/a standalone number is explicit name and birthday age wording/);
+   assert.match(b.instructions,/do not append Tahun, years old, Turn or a greeting/);
    if(fixture.ambiguous){const data=JSON.parse(b.input[0].content[0].text);assert.deepEqual(data.verified_customer_messages,[]);assert.equal(data.checkout_note,note);}
    if(!analysis)return Response.json({error:{code:'test_unavailable'}},{status:503});
    return Response.json({model:'test-model',output:[{content:[{type:'output_text',text:JSON.stringify({...analysis,summary:'Verified customer wording.'})}]}]});

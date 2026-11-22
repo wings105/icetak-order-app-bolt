@@ -1,3 +1,7 @@
+# 2026-11-23 — Bare birthday age wording
+
+- [PRODUCTION] AutoBrief v115 tells OpenAI that a customer name followed by a bare number is explicit birthday name and age wording. It preserves the original phrase and refreshes cached analysis under the new policy.
+
 # 2026-11-20 — Birthday age intent
 
 - [PRODUCTION] AutoBrief v112 tells OpenAI that a buyer name with Turn/Turns and an age in birthday-topper checkout notes or order chat is explicit printable wording. The model preserves the supplied phrase and line breaks. Changed policy inputs invalidate cached analysis.
