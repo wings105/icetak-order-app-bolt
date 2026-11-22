@@ -1,3 +1,9 @@
+# 2026-11-23 — Bare birthday age wording
+
+AutoBrief v115 interprets a buyer-supplied name followed by a bare number
+as birthday name and age. The model preserves the number without adding
+Turn, years old or Tahun. Changed policy inputs refresh cached analysis.
+
 # 2026-11-20 — Birthday age intent
 
 AutoBrief v112 clarifies common birthday age phrases to OpenAI. Names with
