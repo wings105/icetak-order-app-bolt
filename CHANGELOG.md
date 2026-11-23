@@ -1,3 +1,7 @@
+# 2026-11-23 — Shared target allocation handoff
+
+- [PRODUCTION] AutoBrief v117 passes verified task allocation into the glossy wording decision. A shared name and age applies to all custom-name toppers in the same order, including different SKUs with the same theme, unless the buyer supplies distinct item instructions.
+
 # 2026-11-23 — Names follow purchased quantity
 
 - [PRODUCTION] AutoBrief v116 follows purchased birthday-topper quantity when several names are supplied. One set includes both names/ages together; two sets with two names allocate one name/age per set. OpenAI records the designer allocation instruction and preserves the full printable wording.

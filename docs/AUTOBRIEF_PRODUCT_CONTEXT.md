@@ -433,3 +433,14 @@ otherwise. Explicit customer allocation takes precedence. The same policy
 is supplied to the mixed-order allocation stage. Source signatures refresh
 under the changed policy. Designer instructions continue through the normal
 manual artwork path when the template needs layout review.
+
+## Shared wording across custom designs — 23 November 2026
+
+The glossy wording model receives the verified group assignment for its
+target task/SKU, including note spans, message IDs and the assignment reason.
+A single shared name/age applies to all custom-name toppers in the same
+order, including different designs sharing a theme. Distinct per-item
+instructions take precedence. Duplicate themes alone are not an ambiguity.
+The wording cache includes allocation evidence so an outdated assignment
+cannot reuse the previous model decision. Actual worker regression covers
+two same-theme SKUs with one shared name/age through both model stages.

@@ -167,6 +167,7 @@ for(const fixture of [
  {note:deliveryNote,messages:[],expected:deliveryWording,analysis:{...deliveryAnalysis,wording_sources:[{id:'buyer_note',text:deliveryWording}]}},
  {note:splitNote,messages:splitMessages,expected:splitWording,analysis:{...splitAnalysis,wording:splitWording,wording_sources:[{id:'buyer_note',text:'SAMPLE CHILD'},{id:'split1',text:'12 Tahun'}]}},
  {note:'SAMPLE CHILD 4',messages:[],expected:'SAMPLE CHILD 4',analysis:bareAgeAnalysis},
+ {note:'SAMPLE CHILD 4',messages:[],expected:'SAMPLE CHILD 4',analysis:bareAgeAnalysis,sharedAllocation:true},
  {note:combinedNames,messages:[],expected:combinedNames,analysis:combinedAnalysis},
  {note:combinedNames,messages:[],expected:combinedNames,analysis:separateAnalysis,quantity:2},
  {note:chineseNote,messages:[],expected:correctedPrint,analysis:chineseAnalysis},
@@ -185,15 +186,34 @@ for(const fixture of [
   if(u.hostname==='order.test'){
    if(p.endsWith('/private_runtime_settings'))return Response.json([{setting_value:u.searchParams.get('setting_key')==='eq.order_brief_followup_enabled'?'true':'test'}]);
    if(p.endsWith('/clickup_autobrief_routes'))return Response.json([{profile:'glossy',initial_status:'design editing -topper',task_created_at:'2026-10-01T00:00:00Z'}]);
+   if(p.endsWith('/ai_clickup_work_snapshots')&&fixture.sharedAllocation&&u.searchParams.has('order_reference'))return Response.json([
+    {task_id:id,task_name:'1x CN1001',order_reference:'261001ABCDEFGH',clickup_status:'design editing -topper'},
+    {task_id:'second-task',task_name:'1x CN1002',order_reference:'261001ABCDEFGH',clickup_status:'design editing -topper'}
+   ]);
    if(p.endsWith('/ai_clickup_work_snapshots'))return Response.json(u.searchParams.has('task_id')?[{task_id:id,list_id:'18375902',task_name:'1x '+items[index].item_sku,marketplace_order_id:orderId,clickup_status:'design editing -topper',order_reference:'261001ABCDEFGH'}]:siblings);
    if(p.endsWith('/task_detail_automation'))return Response.json([{data:{missing:[],info_status:'ready'}}]);
    if(p.endsWith('/marketplace_orders'))return Response.json(u.searchParams.has('id')&&u.searchParams.get('id').startsWith('eq.')?[{placed_at:'2026-10-01T00:05:00Z',current_status:'READY_TO_SHIP',buyer_user_id:'123456',shop_id:'123',order_sn:'261001ABCDEFGH',buyer_message:note}]:[]);
-   if(p.endsWith('/marketplace_order_items'))return Response.json(items.map(item=>({...item,quantity:fixture.quantity||item.quantity})));
+   if(p.endsWith('/marketplace_order_items'))return Response.json(fixture.sharedAllocation?[{...items[0],title:'Custom Name Spiderman Topper'}, {...items[0],item_sku:'CN1002',provider_item_id:'2222222222',title:'Custom Name Spiderman Topper Design 2'}]:items.map(item=>({...item,quantity:fixture.quantity||item.quantity})));
    if(p.endsWith('/product_channel_listings'))return Response.json(catalogue.map(c=>({...c,shop_id:'123'})));
    if(p.endsWith('/products'))return Response.json(catalogue.map(c=>({id:c.product_id,parent_sku:c.sku,name:c.title})));
    if(p.endsWith('/icetak_record_order_brief')){stored=b;return Response.json({ok:true});}
   }
   if(u.hostname==='api.openai.com'){
+   const modelInput=JSON.parse(b.input[0].content[0].text);
+   if(modelInput.target){
+    assert.equal(fixture.sharedAllocation,true);
+    return Response.json({model:'test-model',output:[{content:[{type:'output_text',text:JSON.stringify({
+     task_id:id,confidence:98,needs_review:false,reason:'Shared order name applies to each custom topper',
+     messages:[],note_spans:[note],print:{}
+    })}]}]});
+   }
+   if(fixture.sharedAllocation){
+    assert.equal(modelInput.order_items.length,2);
+    assert.equal(modelInput.verified_item_allocation.task_id,id);
+    assert.equal(modelInput.verified_item_allocation.target_sku,'CN1001');
+    assert.deepEqual(modelInput.verified_item_allocation.note_spans,[note]);
+    assert.match(b.instructions,/Duplicate themes alone do not make a shared name ambiguous/);
+   }
    assert.match(b.instructions,/a buyer-supplied name with an age phrase.*explicit print wording/);
    assert.match(b.instructions,/do not convert Turn to Turns/);
    assert.match(b.instructions,/both names and ages belong together on ONE design/);
@@ -206,7 +226,11 @@ for(const fixture of [
    return Response.json({model:'test-model',output:[{content:[{type:'output_text',text:JSON.stringify({...analysis,summary:'Verified customer wording.'})}]}]});
   }
   if(u.hostname.endsWith('.supabase.co')){
-   if(b.action==='group_context')return Response.json({ok:true,available:false,reason:'GROUP_ORDER_IDENTITY_UNAVAILABLE'});
+   if(b.action==='group_context')return Response.json(fixture.sharedAllocation?{
+    ok:true,available:true,order_no:'261001ABCDEFGH',
+    orders:[{order_no:'261001ABCDEFGH',placed_at:'2026-10-01T00:05:00Z',items:[{sku:'CN1001'},{sku:'CN1002'}]}],
+    messages:[],truncated:false
+   }:{ok:true,available:false,reason:'GROUP_ORDER_IDENTITY_UNAVAILABLE'});
    if(b.action==='buyer_note')return Response.json({ok:true,available:true,order_sn:'261001ABCDEFGH',shop_id:'123',buyer_note:note});
    if(b.action==='order_proof'&&fixture.ambiguous)return Response.json({ok:true,matched:false,reason:'MULTIPLE_LINKED_ORDERS'});
    if(b.action==='context'&&fixture.ambiguous)return Response.json({ok:true,contexts:{['shopee:'+orderId]:{messages:[],bindings:[],ambiguous:true}}});
@@ -234,6 +258,7 @@ for(const fixture of [
   continue;
  }
  if(fixture.ambiguous)assert.equal(stored.p_brief.ai_confirmation_rule.evidence_scope,'order_buyer_note');
+ if(fixture.sharedAllocation){assert.equal(stored.p_brief.group_assignment.ok,true);assert.equal(stored.p_brief.confidence,98);}
  if(note===combinedNames)assert.equal(stored.p_brief.instruction,analysis.instruction);
  if(note===deliveryNote)assert.equal(stored.p_brief.delivery_instruction,deliveryInstruction);
  assert.equal(result.state,'completed',JSON.stringify({result,brief:stored?.p_brief}));
