@@ -1,3 +1,9 @@
+# 2026-11-23 — Shared target allocation handoff
+
+AutoBrief v117 carries verified group-allocation evidence into the glossy
+wording model and cache signature. Shared custom-name wording applies to
+each custom-name topper in the same order unless buyer instructions differ.
+
 # 2026-11-23 — Names follow purchased quantity
 
 AutoBrief v116 instructs OpenAI to allocate multiple birthday names according

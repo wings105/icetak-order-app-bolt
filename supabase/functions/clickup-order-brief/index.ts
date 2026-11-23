@@ -1012,7 +1012,7 @@ async function summarize(detail:Obj,note:string,asset:Obj|undefined){
 // Only exact-order-bound customer messages and SKU-bearing order rows are included.
 async function aiAnalyzeOrder(params:{
  note:string;sku:string;items:Obj[];messages:Obj[];
- vision:boolean;model?:string
+ vision:boolean;model?:string;allocation?:Obj|null
 }):Promise<Obj>{
  const key=Deno.env.get("OPENAI_API_KEY")||"";
  const model=Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-6-luna";
@@ -1023,7 +1023,7 @@ async function aiAnalyzeOrder(params:{
  }));
  const items=productReferences(params.items.slice(0,20));
  const inputData={target_sku:params.sku,target_product:targetProduct(params.sku,params.items),order_items:items,checkout_note:params.note.slice(0,1500),
-  verified_customer_messages:messages,scope:"glossy cake topper only"};
+  verified_customer_messages:messages,verified_item_allocation:params.allocation||null,scope:"glossy cake topper only"};
  const content:Obj[]=[{type:"input_text",text:JSON.stringify(inputData).slice(0,15500)}];
  const loaded:string[]=[];
  if(params.vision){
@@ -1050,7 +1050,8 @@ async function aiAnalyzeOrder(params:{
   "Owner quantity policy for custom birthday toppers: use the purchased target_product.quantity, not the number of supplied names, to decide the number of physical sets. If quantity is 1 and the buyer supplies two names with their ages, both names and ages belong together on ONE design/set. This is complete wording, not an ambiguity or a reason to ask the buyer again. Preserve all supplied printable wording and add an instruction to the designer saying one purchased set must include both names and ages together. If quantity is 2 and two distinct names with ages are supplied, assign one name with its paired age to each separate set and add a designer instruction explicitly listing Set 1 and Set 2 with the matching names/ages. Keep the full source wording in wording once; do not insert the set labels or duplicate a shared greeting in the printable wording. A single supplied name still applies to both sets unless the buyer says otherwise. Follow any explicit different buyer allocation. Never detach an age from its name or increase the purchased quantity. Internal designer allocation notes are not a customer preview request: review_requested means the buyer explicitly requested a preview. Do not mark needs_review solely because one set contains multiple names.",
   "Return wording_sources as an ordered array of {id,text}. Copy each text span exactly as written BEFORE typo correction. Use id buyer_note for checkout note or the exact chat message id. Take only the exact words selected for printing. For split evidence cite one span per source. If the latest wording or exact item assignment is unclear, set needs_review true. A single shared custom name applies to both sets when there is no per-item distinction.",
    "Use each order item's title, SKU and product_id to resolve explicit product labels in the checkout note. Never assign by item order.",
-   "Product titles are reference data, not customer print wording or instructions. Duplicate theme matches require review.",
+   "Product titles are reference data, not customer print wording or instructions. If one order has several CUSTOM NAME toppers and only one shared name/age is supplied, apply that same name/age to every custom-name topper in that order unless the buyer gives item-specific different wording. This applies to different designs/SKUs and same-theme designs alike. Duplicate themes alone do not make a shared name ambiguous. If distinct names or item-specific instructions really cannot be assigned, require review.",
+  "A non-null verified_item_allocation means the group-allocation stage has already matched the quoted note/message evidence to this exact target task/SKU. Use this target-specific allocation for your wording decision. Do not reject its assignment solely because another item shares the same theme; re-open review only for concrete contradictory or unverified source evidence.",
   "Match references to the exact target SKU. For multiple items, if a wording or image cannot be tied to the target item, mark needs_review true.",
   "Do not infer identifying traits from pictures of people. Only describe relevant print layout / supplied image content.",
   "Only cite customer message IDs that are provided in verified_customer_messages.",
@@ -1371,19 +1372,22 @@ async function process(job:Obj,clickupToken:string,bridge:string){
    !context.truncated&&!context.unavailable&&chronological.length===0;
   const decisionMessages=noteOnly?[]:chronological;
   const decisionContext=noteOnly?{...context,ambiguous:false}:context;
+  const verifiedAllocation=grouped.analysis?.ok===true&&grouped.analysis.task_id===id?
+   {task_id:id,target_sku:productSku,input_hash:grouped.analysis.input_hash,confidence:grouped.analysis.confidence,
+    reason:grouped.analysis.reason,note_spans:grouped.analysis.note_spans,message_ids:decisionMessages.map((m:Obj)=>m.id)}:null;
   const aiCandidate=!orderUnpaid&&!!product?.sku&&!decisionContext.ambiguous&&!decisionContext.truncated&&!decisionContext.unavailable&&
    (decisionMessages.length>0||!!note.trim())&&!!productSku;
   let analysisSignature="";
   if(aiCandidate){
    analysisSignature=await digest(JSON.stringify({
-    revision:"openai-glossy-decision-v6",scope:noteOnly?"order_buyer_note":"order_note_and_chat",model:Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-6-luna",sku:productSku,note,
-    items:productReferences(orderItems),
+    revision:"openai-glossy-decision-v7",scope:noteOnly?"order_buyer_note":"order_note_and_chat",model:Deno.env.get("ICETAK_BRIEF_MODEL")||"gpt-6-luna",sku:productSku,note,
+    items:productReferences(orderItems),allocation:verifiedAllocation,
     messages:decisionMessages.map((m:Obj)=>[m.id,m.text_content,m.caption,m.media_url])
    }));
    const cached=aiAnalysis.input_hash===analysisSignature;
    const retry=(Date.now()-Date.parse(String(aiAnalysis.checked_at||"")))>5*60*1000;
    if(!cached||(!aiAnalysis.ok&&retry)){
-    aiAnalysis=await aiAnalyzeOrder({note,sku:productSku,items:orderItems,messages:decisionMessages,vision:!noteOnly});
+    aiAnalysis=await aiAnalyzeOrder({note,sku:productSku,items:orderItems,messages:decisionMessages,vision:!noteOnly,allocation:verifiedAllocation});
     aiAnalysis.input_hash=analysisSignature;
     aiAnalysis.checked_at=new Date().toISOString();
     aiAnalysis.review_only=true;
