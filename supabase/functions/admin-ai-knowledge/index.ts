@@ -25,6 +25,12 @@ Deno.serve(async req=>{
    const [rows,styles]=await Promise.all([db(`reply_knowledge?select=*&order=updated_at.desc,id&limit=51&offset=${Math.floor(offset)}${filter}`),db('reply_style?select=*&order=channel')]);
    return out({ok:true,rows:rows.slice(0,50),has_more:rows.length>50,styles,can_manage:owner});
   }
+  if(action==='historical_access')return out({ok:owner},owner?200:403);
+  if(action==='examples'){
+   if(!owner)return out({ok:false,error:'Akses owner diperlukan'},403);
+   const response=await fetch('https://uujcqcsfghqkukaydruc.supabase.co/functions/v1/whatsapp-knowledge-examples',{method:'POST',headers:{authorization,'content-type':'application/json'},body:JSON.stringify({search:b.search,category:b.category,offset:b.offset}),signal:AbortSignal.timeout(25000)});
+   return out(await response.json(),response.status);
+  }
   if(action==='history'){
    if(!/^[0-9a-f-]{36}$/i.test(b.id||''))return out({ok:false},400);
    return out({ok:true,events:await db(`reply_knowledge_events?article_id=eq.${b.id}&select=id,action,actor,version,created_at,snapshot&order=id.desc&limit=10`)});

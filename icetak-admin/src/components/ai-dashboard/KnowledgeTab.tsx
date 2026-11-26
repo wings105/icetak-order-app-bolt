@@ -1,3 +1,4 @@
+import WhatsAppExamples from './WhatsAppExamples';
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import './KnowledgeTab.css';
@@ -25,12 +26,13 @@ export default function KnowledgeTab({api=knowledgeApi,onDirtyChange=()=>{},onBu
  const save=async(action:string)=>{if(busy)return;setBusy(true);setError('');setNotice('');try{const d=await api({action,id:selected?.id,version:selected?.version,draft:form});setSelected(d.row);setForm(structuredClone(d.row.draft));setDirty(false);setNotice(action==='publish'?'Diterbitkan — tersedia untuk suggestion Inbox.':action==='unpublish'?'Artikel ditarik daripada suggestion.':'Draf disimpan. Terbitkan untuk digunakan oleh AI.');await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
  const history=async()=>{if(!selected)return;setBusy(true);try{setEvents((await api({action:'history',id:selected.id})).events);}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
  const style=async(s:Data,reset=false)=>{if(reset&&!window.confirm('Padam gaya yang dipelajari untuk saluran ini? Knowledge kekal tersedia.'))return;setBusy(true);setError('');try{await api({action:reset?'reset_style':'style',channel:s.channel,enabled:!s.enabled});await load();setNotice(reset?'Gaya kembali kepada bahasa formal standard.':'Tetapan pembelajaran dikemas kini.');}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
+ const [historySource,setHistorySource]=useState('');
  const examples=[
   ['Penyimpanan','Kena simpan dlm peti ka','edible image'],
   ['Fail dan design','Perlu PDF atau format apa ya?',''],
   ['Edible Image','Edible boleh makan ke?','edible image']
  ];
- const resetTest=()=>{setTest(null);setTesting(false);testSeq.current++;};
+ const resetTest=()=>{setHistorySource('');setTest(null);setTesting(false);testSeq.current++;};
  const correct=async()=>{
   if(busy||!discard())return;
   setBusy(true);
@@ -39,7 +41,7 @@ export default function KnowledgeTab({api=knowledgeApi,onDirtyChange=()=>{},onBu
    const result=source?await api({action:'list',search:source.title}):null;
    const row=result?.rows.find((item:Data)=>item.id===source.id);
    if(source&&!row)throw Error('Artikel telah berubah. Uji semula soalan.');
-   const draft=row?structuredClone(row.draft):{...blank(),title:question,channels:[channel],source:'Ujian admin'};
+   const draft=row?structuredClone(row.draft):{...blank(),title:question,channels:[channel],source:historySource||'Ujian admin'};
    draft.aliases=Array.from(new Set([...draft.aliases.split('\n'),question].filter(Boolean))).join('\n');
    setSelected(row||null);setForm(draft);setDirty(true);setEvents([]);setNotice('Semak kategori dan jawapan, kemudian simpan dan terbitkan.');
    editor.current?.scrollIntoView({behavior:'smooth',block:'start'});
@@ -66,6 +68,7 @@ export default function KnowledgeTab({api=knowledgeApi,onDirtyChange=()=>{},onBu
    <p className="kb-hint">AI menggunakan versi diterbitkan. Status order dan bayaran sentiasa dirujuk daripada rekod order sebenar.</p>
    {selected&&<><button disabled={busy} onClick={history}>Lihat sejarah versi</button>{events.length>0&&<ul className="kb-history">{events.map(e=><li key={e.id}><b>v{e.version} · {e.action}</b> — {e.actor}<small>{new Date(e.created_at).toLocaleString('ms-MY',{timeZone:'Asia/Kuala_Lumpur'})}</small><details><summary>Kandungan versi</summary><p>{e.snapshot.draft?.answer}</p></details></li>)}</ul>}</>}
   </div></div>
+  {canManage&&<WhatsAppExamples api={api} onTest={row=>{resetTest();setQuestion(row.question.slice(0,1000));setChannel('whatsapp');setContext('');setHistorySource('WhatsApp · mesej '+row.id);document.getElementById('kb-test-heading')?.scrollIntoView({behavior:'smooth'});}}/>}
   <div className="kb-bottom"><section className="kb-panel"><h2>Pembelajaran gaya</h2><p>Belajar selepas balasan admin berjaya dihantar. Balasan yang disalin tanpa perubahan dan mesej automatik tidak dijadikan latihan.</p>{styles.map(s=><div className="kb-style" key={s.channel}><div><b>{s.channel==='whatsapp'?'WhatsApp':'Shopee'}</b><small>{s.samples} balasan dipelajari · gaya v{s.version}</small><span>{Object.values(s.preferences||{}).filter(v=>v!=='none').join(' · ')||'Bahasa formal standard'}</span></div><button aria-pressed={s.enabled} disabled={!canManage||busy} onClick={()=>style(s)}>{s.enabled?'Aktif':'Dimatikan'}</button><button disabled={!canManage||busy} onClick={()=>style(s,true)}>Reset</button></div>)}<p className="kb-hint">Corak gaya digunakan selepas 3 contoh sepadan. Harga, stok dan polisi tidak diubah daripada chat. Ayat FAQ yang mengekalkan fakta boleh dipelajari sebagai variasi.</p><button disabled={busy||loading} onClick={()=>load()}>Muat semula statistik</button></section>
   <section className="kb-panel"><h2 id="kb-test-heading">Ujian balasan AI</h2><div className="kb-actions">{examples.map(([category,q,c])=><button key={q} onClick={()=>{resetTest();setQuestion(q);setContext(c);setChannel('whatsapp');}}>{category} · {q}</button>)}</div><label>Soalan pelanggan<textarea rows={3} maxLength={1000} value={question} onChange={e=>{setQuestion(e.target.value);resetTest();}} placeholder="Edible image boleh makan ke?"/></label><label>Konteks produk · jika perlu<input value={context} maxLength={1000} onChange={e=>{setContext(e.target.value);resetTest();}} placeholder="Contoh: pelanggan bertanya tentang edible"/></label><div className="kb-actions"><select aria-label="Saluran ujian" value={channel} onChange={e=>{setChannel(e.target.value);resetTest();}}><option value="whatsapp">WhatsApp</option><option value="shopee">Shopee</option></select><button className="kb-primary" onClick={runTest} disabled={!question.trim()||testing}>{testing?'Menyemak…':'Uji soalan'}</button></div>{test&&<div className="kb-test" role="status"><p>{test.text||'Tiada padanan yang cukup jelas. AI akan guna SOP dan konteks order dalam Inbox.'}</p>{test.sources?.map((s:Data)=><small key={s.id}>Rujukan: {s.title} · v{s.version}<br/>{s.source}</small>)}<small>{test.note}</small>{canManage&&<button disabled={busy} onClick={correct}>{test.sources?.length?'Betulkan kategori atau jawapan':'Tambah jawapan untuk soalan ini'}</button>}</div>}</section></div>
  </section>;
