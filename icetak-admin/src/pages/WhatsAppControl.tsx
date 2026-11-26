@@ -1,3 +1,4 @@
+import AdminWhatsAppNotifications from './AdminWhatsAppNotifications';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { IconRefresh } from '../components/Icons';
@@ -38,7 +39,7 @@ function ruleHealth(rule: AnyRow, templates: AnyRow[]): RuleHealth {
 }
 
 export default function WhatsAppControl() {
-  const [tab, setTab] = useState<'overview'|'settings'|'rules'|'draft-followup'|'test'|'queue'>('overview');
+  const [tab, setTab] = useState<'overview'|'settings'|'rules'|'draft-followup'|'test'|'queue'|'admin'>('overview');
   const [data, setData] = useState<Snapshot>({});
   const [summary, setSummary] = useState<Summary>({});
   const [loading, setLoading] = useState(true);
@@ -124,10 +125,11 @@ export default function WhatsAppControl() {
   return <div className="fade-in">
     <div className="page-header"><div><div className="page-label">WhatsApp</div><h1 className="page-title">Control Center</h1><p className="page-subtitle">Single V2 control for WasapFlow, rules, health, tests and queue</p></div><button className="btn btn-outline" onClick={() => void load()}><IconRefresh size={16}/> Refresh</button></div>
     <div className="stats-grid"><Stat label="WasapFlow" value={connected ? 'Connected' : 'Need Config'} /><Stat label="Approved Templates" value={String(approved.length)} /><Stat label="Pending Queue" value={String(pending)} /><Stat label="Failed" value={String(summary.failed || 0)} /></div>
-    <div className="filter-tabs" style={{ marginBottom: 14 }}>{([['overview','Overview'],['settings','Connection'],['rules','Notification Rules'],['draft-followup','Draft Follow-up'],['test','Send Test'],['queue','Queue & Logs']] as const).map(([k,l]) => <button key={k} className={`filter-tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>)}</div>
+    <div className="filter-tabs" style={{ marginBottom: 14 }}>{([['overview','Overview'],['admin','Notifikasi Admin'],['settings','Connection'],['rules','Notification Rules'],['draft-followup','Draft Follow-up'],['test','Send Test'],['queue','Queue & Logs']] as const).map(([k,l]) => <button key={k} className={`filter-tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>)}</div>
     {notice && <div style={{ marginBottom: 12, padding: 10, borderRadius: 10, background: '#ecfdf3', color: '#067647', fontWeight: 700 }}>{notice}</div>}
     {error && <div style={{ marginBottom: 12, padding: 10, borderRadius: 10, background: '#fef3f2', color: '#b42318' }}>{error}</div>}
     {loading ? <div className="panel"><div className="loading"><span className="spinner" /></div></div> : <>
+      {tab === 'admin' && <AdminWhatsAppNotifications />}
       {tab === 'overview' && <Overview data={data} onProcess={() => void processQueue()} onSync={() => void syncTemplates()} busy={busy} />}
       {tab === 'settings' && <SettingsPanel status={data.status || {}} onSaved={async () => { setNotice('WhatsApp settings saved.'); await load(); }} />}
       {tab === 'rules' && <RulesPanel rules={data.rules || []} templates={approved} onSaved={async () => { setNotice('Notification rule saved.'); await load(); }} />}

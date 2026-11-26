@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { sendAdminWhatsApp } from '../_shared/admin-whatsapp.ts';
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -19,17 +20,18 @@ const digits = (v) => {
   return d;
 };
 const wa = (v) => digits(v) ? `https://wa.me/${digits(v)}` : '';
+const isCashCounterReview = (order) => {
+  const paid = ['paid', 'matched', 'payment_received', 'success', 'completed'].includes(t(order?.payment_status).toLowerCase())
+    || t(order?.payment).toLowerCase() === 'paid';
+  const cash = t(order?.payment_status).toLowerCase() === 'cash_counter'
+    || ['cash at counter', 'cash counter', 'cash', 'counter', 'pay at pickup'].includes(t(order?.payment_method || order?.payment).toLowerCase());
+  return ['customer', 'customer_portal'].includes(t(order?.source).toLowerCase())
+    && !order?.production_approved && !paid && cash
+    && t(order?.delivery_method || order?.delivery).toLowerCase().includes('pickup')
+    && !['completed', 'delivered', 'customer collected'].includes(t(order?.status).toLowerCase())
+    && !['collected', 'delivered', 'completed'].includes(t(order?.fulfillment_stage).toLowerCase());
+};
 const isCancelled = (order) => `${order?.status || ''} ${order?.admin_status || ''} ${order?.fulfillment_stage || ''}`.toLowerCase().includes('cancel');
-
-async function fetchTimed(url, init = {}, timeoutMs = 15000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 async function secret(k) {
   const { data } = await db.from('private_runtime_settings').select('setting_value').eq('setting_key', k).maybeSingle();
@@ -46,24 +48,6 @@ async function auth(req) {
   const k = req.headers.get('x-admin-order-token') || '';
   return Boolean(k && k === await secret('qrpay_ai_worker_token'));
 }
-async function provider(path, payload) {
-  const base = await setting('base_url') || 'https://officialapi.wasapflow.com/bridge/v1';
-  const partner = await setting('partner_key');
-  const waba = await setting('waba_id');
-  if (!partner || !waba) throw new Error('WasapFlow credential belum lengkap');
-  const r = await fetchTimed(`${base}${path}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-partner-key': partner, 'x-waba-id': waba },
-    body: JSON.stringify(payload),
-  }, 15000);
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok || j.success === false) throw new Error(j?.error?.message || j?.message || `WasapFlow ${r.status}`);
-  return j;
-}
-async function send(to, text) {
-  return provider('/messages/send', { to: digits(to), text, preview_url: true });
-}
-
 async function markCancelled(queueId, reason) {
   await db.from('admin_order_notification_queue').update({
     status: 'cancelled',
@@ -125,7 +109,8 @@ async function finalNotification(id) {
     return { sent: false, cancelled: true, reason: 'order_cancelled_before_admin_notification' };
   }
 
-  const { data: items } = await db.from('order_items').select('title,qty,price,size,style,wording,custom_text,customization').eq('order_id', o.id).order('created_at');
+  const { data: items, error: itemsError } = await db.from('order_items').select('title,qty,price,size,style,wording,custom_text,customization').eq('order_id', o.id).order('sort_index');
+  if (itemsError) throw itemsError;
   const { data: pay } = await db.from('payment_transactions').select('*').eq('order_id', o.id).order('paid_at', { ascending: false }).limit(1).maybeSingle();
   const { data: tasks } = await db.from('clickup_tasks').select('clickup_task_id,url').eq('order_id', o.id);
   const phone = digits(o.delivery_phone);
@@ -134,9 +119,11 @@ async function finalNotification(id) {
   for (const [i, x] of (items || []).entries()) if (!t(x.size)) missing.push(`Item ${i + 1} size/variation`);
 
   const auto = Boolean(o.production_approved);
-  const status = auto ? '🟢 ORDER AUTO CREATED' : '🟡 ORDER CREATED · CHECK NEEDED';
+  const cashReview = isCashCounterReview(o);
+  const status = cashReview ? '🟡 CASH AT COUNTER · PERLU KELULUSAN PRODUCTION' : auto ? '🟢 ORDER AUTO CREATED' : '🟡 ORDER CREATED · CHECK NEEDED';
   const base = await publicBase();
-  const orderLink = `${base}/?admin=v2&order=${encodeURIComponent(o.public_token)}`;
+  const orderLink = `${base}/?admin=v2&order=${encodeURIComponent(o.order_no || o.order_id || o.id)}`;
+  const queueLink = `${base}/?admin=v2&view=clickup-queue&queue_order=${encodeURIComponent(o.order_no || o.order_id || o.id)}`;
   const customerLink = `${base}/?order=${encodeURIComponent(o.public_token)}`;
   const itemText = (items || []).map((x, i) => [
     `${i + 1}. ${x.title}`,
@@ -155,20 +142,31 @@ async function finalNotification(id) {
     '',
     `Customer: ${o.delivery_name || 'Customer'}`,
     `Phone: ${phone || '-'}`,
-    `Payment: QRPay · RM${Number(pay?.amount ?? o.total ?? 0).toFixed(2)}`,
+    cashReview ? `Payment: Cash at Counter · BELUM BAYAR · RM${Number(o.total || 0).toFixed(2)}` : `Payment: ${o.payment_method || 'QRPay'} · RM${Number(pay?.amount ?? o.total ?? 0).toFixed(2)}`,
     `Delivery: ${String(o.delivery_method || o.delivery || '-').toUpperCase()}`,
     `Date: ${o.date_need || '⚠️ belum pasti'}`,
     '',
     'ORDER',
     itemText || '-',
     '',
-    'AI CHECK',
-    `Customer: ${cm ? `${cm[1]}%` : '-'}`,
-    `Order detail: ${cm ? `${cm[2]}%` : '-'}`,
-    `Payment: ${pay?.transaction_id ? 'Matched ✓' : 'Check'}`,
-    `Missing: ${missing.length ? missing.join(', ') : 'None'}`,
+    ...(cashReview ? [
+      'TINDAKAN ADMIN',
+      'Semak item, wording dan tarikh diperlukan.',
+      'Jika betul, tekan Confirm Production sebagai admin.',
+      'Tidak perlu tunggu customer tekan pengesahan.',
+      'Tekan pautan queue di bawah → Confirm Production.',
+      'Production boleh mula sebelum bayaran diterima.',
+      'Confirm Cash Paid hanya selepas duit diterima.',
+    ] : [
+      'AI CHECK',
+      `Customer: ${cm ? `${cm[1]}%` : '-'}`,
+      `Order detail: ${cm ? `${cm[2]}%` : '-'}`,
+      `Payment: ${pay?.transaction_id ? 'Matched ✓' : 'Check'}`,
+      `Missing: ${missing.length ? missing.join(', ') : 'None'}`,
+    ]),
     '',
-    `Admin / Edit Order: ${orderLink}`,
+    cashReview ? `✅ BUKA QUEUE UNTUK APPROVE: ${queueLink}` : '',
+    `${cashReview ? 'Detail / Edit Order' : 'Admin / Edit Order'}: ${orderLink}`,
     `Customer Order Link: ${customerLink}`,
     phone ? `WhatsApp Customer: ${wa(phone)}` : '',
     click.length ? `ClickUp: ${click.join('\n')}` : auto ? 'ClickUp: sedang dibuat' : 'Production: belum dilepaskan',
@@ -186,11 +184,18 @@ async function finalNotification(id) {
     return { sent: false, cancelled: true, reason: 'order_cancelled_during_admin_notification_prepare' };
   }
 
-  const admin = await setting('admin_order_notify_phone') || '60129554732';
-  const sent = await send(admin, msg);
+  let sent;
+  try {
+    sent = await sendAdminWhatsApp('admin_order_result', msg, `admin-order-result:${id}`);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    if (reason !== 'admin_notification_off' && reason !== 'whatsapp_master_off') throw error;
+    await markCancelled(id, reason);
+    return { sent: false, cancelled: true, reason };
+  }
   await db.from('admin_order_notification_queue').update({
     status: 'sent',
-    provider_message_id: sent?.message_id || sent?.id || null,
+    provider_message_id: sent.message_id,
     sent_at: new Date().toISOString(),
     locked_at: null,
     last_error: null,
