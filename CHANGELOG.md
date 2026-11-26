@@ -1,3 +1,7 @@
+# 2026-11-26 — Combined AWB and order reference print
+
+- [VERIFIED] The AWB preview offers a separate one-sheet A4 print action. A controlled Chromium PDF contained one A6 label above four labelled reference images on a single A4 page. Physical printer acceptance remains pending.
+
 # 2026-11-23 — Shared target allocation handoff
 
 - [PRODUCTION] AutoBrief v117 passes verified task allocation into the glossy wording decision. A shared name and age applies to all custom-name toppers in the same order, including different SKUs with the same theme, unless the buyer supplies distinct item instructions.

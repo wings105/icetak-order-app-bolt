@@ -52,3 +52,16 @@ body.awb-preview-page{margin:0;background:#edf0f3;color:#111;font-family:Arial,H
 .awb-copy-sku:focus-visible{outline:2px solid #245b49;outline-offset:2px}
 .awb-copy-sku:disabled{opacity:.5;cursor:wait}
 @media screen and (max-width:820px){.awb-sku{font-size:clamp(6px,1.2vw,10px);gap:3px;margin-top:3px}.awb-copy-sku{width:18px;height:18px}}
+
+.awb-combined-sheet{position:absolute;left:-220mm;top:0;width:210mm;height:296.8mm;padding:7mm;display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:3mm;background:white}
+.awb-combined-sheet canvas{display:block}
+.awb-combined-sheet>strong{font:600 10pt Arial;overflow-wrap:anywhere}
+.awb-combined-grid{display:grid;min-height:0;gap:2mm}
+.awb-combined-grid .awb-item{gap:1mm}
+.awb-combined-grid .awb-item h1{font-size:8pt}
+.awb-combined-grid .awb-customize-name{font-size:7pt}
+@media print{
+ .awb-combined-sheet{display:none}
+ .awb-combined-print #app{display:none!important}
+ .awb-combined-print .awb-combined-sheet{display:grid;position:static}
+}

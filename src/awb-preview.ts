@@ -9,6 +9,7 @@ const env=(import.meta as any).env||{};
 const base=env.VITE_SUPABASE_URL||'https://buivecgahhmrhlmfujgt.supabase.co';
 let generation=0;
 let printingAwb=false;
+let referenceReady=false;
 let sendingAction=false;
 let actionControls:ReturnType<typeof bindTaskActions>|undefined;
 let copyFeedbackTimer:ReturnType<typeof setTimeout>;
@@ -41,22 +42,30 @@ function renderAwbLinks(items:Item[]){
  const unique=new Map<string,Item>();
  for(const item of items){try{const u=new URL(item.awb_url||'');if(u.protocol==='https:'&&!u.username&&!u.password&&!unique.has(u.href))unique.set(u.href,item);}catch{}}
  const awbs=Array.from(unique.values());
- root.querySelector('#awb-links')!.innerHTML=awbs.map((_,i)=>`<button class="awb-link" data-awb-index="${i}" type="button">Print AWB${awbs.length>1?` ${i+1}`:''}</button>`).join('');
+ root.querySelector('#awb-links')!.innerHTML=awbs.map((_,i)=>`<button class="awb-link" data-awb-index="${i}" type="button">Print AWB${awbs.length>1?` ${i+1}`:''}</button><button class="awb-link" data-combined-index="${i}" type="button" disabled>Print AWB${awbs.length>1?` ${i+1}`:''} + Reference (1 A4)</button>`).join('');
  root.querySelector('#awb-link-status')!.textContent=awbs.length?'Print AWB: terus buka popup print untuk AWB.':'AWB link belum tersedia dalam task.';
+ for(const button of root.querySelectorAll<HTMLButtonElement>('[data-combined-index]'))button.addEventListener('click',()=>void printAwb(awbs[Number(button.dataset.combinedIndex)],button,true));
  for(const button of root.querySelectorAll<HTMLButtonElement>('[data-awb-index]'))button.addEventListener('click',()=>void printAwb(awbs[Number(button.dataset.awbIndex)],button));
 }
-async function printAwb(item:Item,button:HTMLButtonElement){
- if(printingAwb||sendingAction)return;printingAwb=true;notifyParentBusy();actionControls?.setBusy(true);
+function syncCombined(){
+ for(const button of root.querySelectorAll<HTMLButtonElement>('[data-combined-index]'))button.disabled=!referenceReady||printingAwb||sendingAction;
+}
+async function printAwb(item:Item,button:HTMLButtonElement,combined=false){
+ if(printingAwb||sendingAction||(combined&&!referenceReady))return;printingAwb=true;syncCombined();notifyParentBusy();actionControls?.setBusy(true);
  const current=generation,label=button.textContent;
  const controls=Array.from(root.querySelectorAll<HTMLButtonElement>('[data-awb-index],#awb-refresh'));
  controls.forEach(control=>control.disabled=true);button.textContent='Memuat AWB…';
  const status=root.querySelector<HTMLElement>('#awb-link-status')!;status.textContent='Memuat PDF AWB untuk cetak…';
- try{await printAwbPdf(base,orderId,item.task_id);if(current===generation)status.textContent='Popup print AWB dibuka.';}
+ try{
+  if(combined){
+   const {printCombined}=await import('./awb-combined-print');
+   await printCombined(base,orderId,item.task_id,root.querySelectorAll<HTMLElement>('.awb-item'));
+  }else await printAwbPdf(base,orderId,item.task_id);if(current===generation)status.textContent='Popup print AWB dibuka.';}
  catch(error){if(current===generation){status.textContent=error instanceof Error?error.message:'Print AWB gagal. Cuba semula.';const link=document.createElement('a');link.href=item.awb_url!;link.target='_blank';link.rel='noopener noreferrer';link.textContent=' Buka PDF';status.append(link);}}
- finally{printingAwb=false;notifyParentBusy();actionControls?.setBusy(false);if(current===generation){controls.forEach(control=>control.disabled=false);button.textContent=label;}}
+ finally{printingAwb=false;syncCombined();notifyParentBusy();actionControls?.setBusy(false);if(current===generation){controls.forEach(control=>control.disabled=false);button.textContent=label;}}
 }
 async function load(){
- if(printingAwb||sendingAction)return;actionControls=undefined;
+ if(printingAwb||sendingAction)return;actionControls=undefined;referenceReady=false;
  const current=++generation; toolbar('Memuat preview…');
  const content=root.querySelector<HTMLElement>('#awb-content')!;
  try{
@@ -74,7 +83,7 @@ async function load(){
    }).join('')}</main>`);
   }
   content.innerHTML=pages.join('');
-  actionControls=bindTaskActions(root,base,orderId,data.items.map(item=>item.task_id),data.actions,busy=>{sendingAction=busy;notifyParentBusy();for(const control of root.querySelectorAll<HTMLButtonElement>('#awb-refresh,[data-awb-index]'))control.disabled=busy;});
+  actionControls=bindTaskActions(root,base,orderId,data.items.map(item=>item.task_id),data.actions,busy=>{sendingAction=busy;syncCombined();notifyParentBusy();for(const control of root.querySelectorAll<HTMLButtonElement>('#awb-refresh,[data-awb-index]'))control.disabled=busy;});
   for(const button of content.querySelectorAll<HTMLButtonElement>('[data-copy-index]'))button.addEventListener('click',()=>void copyText(data.items[Number(button.dataset.copyIndex)].title,button));
   for(const button of content.querySelectorAll<HTMLButtonElement>('[data-sku-index]'))button.addEventListener('click',()=>void copyText(data.items[Number(button.dataset.skuIndex)].sku!,button,'SKU'));
   const images=Array.from(content.querySelectorAll<HTMLImageElement>('img'));
@@ -89,6 +98,7 @@ async function load(){
   const failed=statuses.filter(ok=>!ok).length;
   const ready=data.items.filter(item=>item.images.length).length;
   root.querySelector('#awb-status')!.textContent=`${ready}/${data.items.length} item ada preview${failed?` · ${failed} gambar gagal dimuat`:''}`;
+  referenceReady=failed===0;syncCombined();
   (root.querySelector('#awb-print') as HTMLButtonElement).disabled=failed>0||ready===0;
  }catch(error){
   if(current!==generation)return;
