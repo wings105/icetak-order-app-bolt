@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { sendAdminWhatsApp } from '../_shared/admin-whatsapp.ts';
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -35,66 +36,6 @@ async function auth(req: Request) {
   return Boolean(token && token === await secret('qrpay_ai_worker_token'));
 }
 
-async function fetchTimed(url: string, init: RequestInit = {}, timeoutMs = 15000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function provider(path: string, payload: unknown) {
-  const base = await setting('base_url') || 'https://officialapi.wasapflow.com/bridge/v1';
-  const partner = await setting('partner_key');
-  const waba = await setting('waba_id');
-  if (!partner || !waba) throw new Error('WasapFlow credential belum lengkap');
-  const response = await fetchTimed(`${base}${path}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-partner-key': partner, 'x-waba-id': waba },
-    body: JSON.stringify(payload),
-  });
-  const json = await response.json().catch(() => ({}));
-  if (!response.ok || json.success === false) {
-    throw new Error(json?.error?.message || json?.message || `WasapFlow ${response.status}`);
-  }
-  return json;
-}
-
-async function send(to: string, text: string) {
-  return provider('/messages/send', { to: digits(to), text, preview_url: false });
-}
-
-async function sendWindowWarning(to: string, text: string) {
-  const phone = digits(to);
-  try {
-    const result = await provider('/messages/interactive', {
-      to: phone,
-      interactive: {
-        type: 'button',
-        body: { text },
-        action: {
-          buttons: [
-            {
-              type: 'reply',
-              reply: {
-                id: 'refresh_admin_window',
-                title: 'Refresh 24 Jam',
-              },
-            },
-          ],
-        },
-      },
-    });
-    return { ...result, delivery_mode: 'interactive' };
-  } catch (error) {
-    console.warn('Interactive admin window warning failed; falling back to text', error);
-    const fallback = await send(phone, `${text}\n\nJika button tidak tersedia, reply apa sahaja pada chat ini untuk refresh 24 jam.`);
-    return { ...fallback, delivery_mode: 'text_fallback' };
-  }
-}
-
 function formatMY(iso: string) {
   return new Intl.DateTimeFormat('en-MY', {
     timeZone: 'Asia/Kuala_Lumpur',
@@ -120,7 +61,6 @@ function warningText(level: '6h' | '2h' | '30m', expiresAt: string, remainingMs:
     `Baki free-form sebenar: *${remaining}*`,
     `Window dijangka tamat: *${expiry}*`,
     '',
-    'Tekan *Refresh 24 Jam* untuk reset semula window admin.',
   ].join('\n');
   if (level === '2h') return [
     '🟠 *URGENT — WHATSAPP WINDOW*',
@@ -128,7 +68,6 @@ function warningText(level: '6h' | '2h' | '30m', expiresAt: string, remainingMs:
     `Baki free-form sebenar: *${remaining}*`,
     `Window dijangka tamat: *${expiry}*`,
     '',
-    'Tekan *Refresh 24 Jam* sekarang untuk reset semula window admin.',
   ].join('\n');
   return [
     '🔴 *CRITICAL — WHATSAPP WINDOW*',
@@ -136,7 +75,6 @@ function warningText(level: '6h' | '2h' | '30m', expiresAt: string, remainingMs:
     `Baki free-form sebenar: *${remaining}*`,
     `Window dijangka tamat: *${expiry}*`,
     '',
-    'Tekan *Refresh 24 Jam* sekarang.',
   ].join('\n');
 }
 
@@ -248,9 +186,11 @@ async function checkWindow() {
   }
 
   const message = warningText(level, state.window_expires_at, remainingMs);
-  const result = await sendWindowWarning(admin, message);
+  const result = await sendAdminWhatsApp('admin_whatsapp_window_warning',
+    `${message}\n\nReply apa sahaja pada chat ini untuk buka semula window 24 jam.`,
+    `window:${admin}:${state.window_expires_at}:${level}`, admin);
   const sentAt = new Date().toISOString();
-  const providerMessageId = result?.message_id || result?.id || null;
+  const providerMessageId = result.message_id;
 
   const patch: Record<string, unknown> = {
     [sentColumn]: sentAt,
@@ -275,7 +215,7 @@ async function checkWindow() {
     status: 'open',
     warning_sent: true,
     warning_level: level,
-    delivery_mode: result?.delivery_mode || null,
+    delivery_mode: result.mode,
     remaining_minutes: Math.ceil(remainingMs / 60000),
     window_expires_at: state.window_expires_at,
   };

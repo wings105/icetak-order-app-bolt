@@ -313,6 +313,126 @@ async function approvedPickupPaymentTemplate(name: string) {
   return template;
 }
 
+const ADMIN_NOTIFICATION_EVENTS = new Set([
+  'admin_draft_review', 'manual_admin_draft_resend', 'admin_order_result', 'qrpay_unmatched_review',
+  'admin_qrpay_summary', 'admin_payment_attention', 'admin_daily_business_report',
+  'finance_bill_reminder', 'admin_shipping_attention', 'admin_pending_pickup',
+  'admin_postage_preparation', 'parceldaily_low_credit', 'admin_stock_low_alert',
+  'admin_stock_reserve_review', 'icetak_design_due_summary', 'shopee_clickup_audit',
+  'admin_ai_learning', 'admin_whatsapp_window_warning', 'admin_notification_test',
+]);
+
+async function sendAdminNotification(req: Request, body: Record<string, any>, event: string) {
+  if (!K || req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') !== K) {
+    // The queue UI uses the admin JWT. Re-read the claimed job to prevent arbitrary recipient or message changes.
+    const id = String(body.queue_id || '');
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ ok: false, error: 'admin_queue_job_required' }, 403);
+    const jobs = await rest(`notification_queue?id=eq.${id}&status=eq.processing&select=event_type,payload,idempotency_key`);
+    const job = jobs?.[0];
+    if (!job || job.event_type !== event) return json({ ok: false, error: 'admin_queue_job_required' }, 403);
+    body = { ...job.payload, idempotency_key: job.idempotency_key };
+  }
+
+  const key = String(body.idempotency_key || '');
+  const draft = body.vars || {};
+  const fallback = event === 'manual_admin_draft_resend' && draft.order_link
+    ? ['Semakan draf order iCetak', draft.order_id, draft.customer_name, draft.total, draft.date_need, draft.order_link]
+      .filter(Boolean).join('\n')
+    : '';
+  const text = String(body.text || fallback).trim();
+  if (!key || key.length > 300 || !text) return json({ ok: false, error: 'freeform_message_empty_or_key_missing' }, 400);
+  const delivery = (args: Record<string, unknown>) => rest('rpc/icetak_admin_whatsapp_delivery', {
+    method: 'POST', body: JSON.stringify({ p_event: event, p_key: key, ...args }),
+  });
+  const claim = await delivery({});
+  if (claim.status === 'accepted') {
+    return json({ ok: true, duplicate: true, mode: 'text', to: claim.phone, message_id: claim.provider_message_id });
+  }
+  if (!claim.id || claim.status !== 'sending') {
+    const error = claim.status === 'uncertain' ? 'admin_whatsapp_uncertain'
+      : claim.status === 'sending' ? 'admin_whatsapp_in_progress' : claim.detail;
+    return json({ ok: false, error }, claim.status === 'uncertain' ? 502 : 409);
+  }
+
+  const finish = async (status: string, detail: string | null = null, providerId: string | null = null) =>
+    await delivery({ p_action: 'finish', p_id: claim.id, p_status: status, p_detail: detail, p_provider_id: providerId });
+  if (body.expected_admin_phone && body.expected_admin_phone !== claim.phone) {
+    await finish('paused', 'admin_phone_changed');
+    return json({ ok: false, error: 'admin_phone_changed' }, 409);
+  }
+  if (event === 'finance_bill_reminder') {
+    try {
+      const allowed = await rest('rpc/finance_billing_dispatch_allowed', {
+        method: 'POST', body: JSON.stringify({ p_bill_id: body.vars?.bill_id }),
+      });
+      if (allowed !== true) {
+        await finish('paused', 'billing_closed_or_paused');
+        return json({ ok: false, error: 'billing_closed_or_paused' }, 409);
+      }
+    } catch {
+      await finish('failed', 'billing_guard_unavailable');
+      return json({ ok: false, error: 'billing_guard_unavailable' }, 503);
+    }
+  }
+  const window = await windowStatus(claim.phone);
+  if (window.can_send_freeform !== true) {
+    await finish('window_closed', 'admin_whatsapp_window_closed');
+    return json({ ok: false, error: 'admin_whatsapp_window_closed' }, 409);
+  }
+
+  const [enabled, phone, rules, nativeRule, base, partner, waba] = await Promise.all([
+    setting('enabled'), setting('admin_order_notify_phone'),
+    rest(`admin_whatsapp_notifications?event_type=eq.${event}&select=enabled`),
+    rest(`whatsapp_notification_rules?event_type=eq.${event}&select=enabled,freeform_enabled`),
+    setting('base_url'), setting('partner_key'), setting('waba_id'),
+  ]).catch(() => []);
+  if (!enabledValue(enabled) || phoneOf(phone) !== claim.phone || !rules?.[0]?.enabled ||
+      nativeRule?.[0]?.enabled === false || nativeRule?.[0]?.freeform_enabled === false || !partner || !waba) {
+    await finish('paused', 'admin_whatsapp_settings_changed_or_incomplete');
+    return json({ ok: false, error: 'admin_whatsapp_settings_changed_or_incomplete' }, 409);
+  }
+
+  const payload = { to: claim.phone, text, preview_url: false };
+  let result: Record<string, any>;
+  let providerId: string;
+  try {
+    const response = await fetchTimed(`${base || 'https://officialapi.wasapflow.com/bridge/v1'}/messages/send`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-partner-key': partner, 'x-waba-id': waba },
+      body: JSON.stringify(payload),
+    });
+    result = await response.json().catch(() => ({}));
+    if (response.status >= 500) throw new Error('provider acceptance unknown');
+    if (!response.ok || result.success === false) {
+      const detail = `provider_rejected_${response.status}`;
+      await finish('failed', detail);
+      return json({ ok: false, error: detail }, 409);
+    }
+    providerId = String(result.message_id || result.id || result.data?.message_id || '');
+    if (!providerId) throw new Error('missing provider ID');
+  } catch {
+    await finish('uncertain', 'admin_whatsapp_uncertain').catch(() => null);
+    return json({ ok: false, error: 'admin_whatsapp_uncertain' }, 502);
+  }
+
+  try {
+    await finish('accepted', null, providerId);
+  } catch {
+    return json({ ok: false, error: 'admin_whatsapp_uncertain' }, 502);
+  }
+
+  const logged = await logOutbox({
+    event_type: event, phone: claim.phone, recipient_type: 'phone',
+    mode: 'text', message_type: 'text', status: 'sent', body: text,
+    provider_message_id: providerId, sent_at: new Date().toISOString(),
+    source: 'admin_whatsapp', idempotency_key: key, can_send_freeform: true,
+    decision_reason: '24h_window_open', inbox_sync_status: 'pending',
+    request_payload: payload, response_payload: result,
+  });
+  if (logged?.[0]) await mirrorWhatsApp(rest, logged[0]).catch(() => null);
+  return json({ ok: true, mode: 'text', to: claim.phone, message_id: providerId, decision_reason: '24h_window_open' });
+}
+
 Deno.serve(async (req) => {
   let logId = '';
   try {
@@ -321,6 +441,10 @@ Deno.serve(async (req) => {
     if (!await authorized(req)) return json({ ok: false, error: 'Unauthorized' }, 401);
 
     const body = await req.json().catch(() => ({}));
+    const adminEvent = String(body.event_type || '');
+    if (ADMIN_NOTIFICATION_EVENTS.has(adminEvent) || /^admin_custom_[a-f0-9]{32}$/.test(adminEvent)) {
+      return await sendAdminNotification(req, body, adminEvent);
+    }
     const rawTo = String(body.to || '').trim();
     const bsuid = String(body.bsuid || body.user_id || body.recipient_bsuid || body.recipient || (/^[A-Z]{2}\./i.test(rawTo) ? rawTo : '')).trim();
     const phone = phoneOf(body.phone || (/^[A-Z]{2}\./i.test(rawTo) ? '' : rawTo));
@@ -329,17 +453,6 @@ Deno.serve(async (req) => {
     const recipient = validPhone ? { to: validPhone } : { user_id: bsuid };
 
     const eventType = body.event_type || 'manual';
-    // Recheck the admin-only digest at dispatch time, including after queue delays.
-    if (eventType === 'admin_pending_pickup') {
-      if (!enabledValue(await setting('enabled'))) return json({ ok: false, error: 'admin_pickup_disabled' }, 409);
-      const adminPhone = phoneOf(await setting('admin_order_notify_phone'));
-      if (!validPhone || validPhone !== adminPhone || bsuid) return json({ ok: false, error: 'admin_pickup_recipient_mismatch' }, 409);
-    }
-    if (eventType === 'finance_bill_reminder') {
-      if (!enabledValue(await setting('enabled'))) return json({ok:false,error:'billing_master_disabled'},409);
-      const allowed = await rest('rpc/finance_billing_dispatch_allowed', {method:'POST',body:JSON.stringify({p_bill_id:body.vars?.bill_id})});
-      if (allowed !== true) return json({ok:false,error:'billing_closed_or_paused'},409);
-    }
     const vars = { ...(body.vars || body) };
     if (vars.otp && !vars.otp_code) vars.otp_code = vars.otp;
     if (!vars.expiry_minutes) vars.expiry_minutes = '10';
@@ -370,7 +483,6 @@ Deno.serve(async (req) => {
       if (!preflight.ok) return json({ ok: false, error: preflight.error }, 409);
     }
     const canSendFreeform = Boolean(window.can_send_freeform);
-    if (eventType === 'finance_bill_reminder' && !canSendFreeform) return json({ok:false,error:'billing_window_closed'},409);
     const mode = body.mode && body.mode !== 'auto'
       ? body.mode
       : canSendFreeform && rule.freeform_enabled !== false ? 'text' : 'template';

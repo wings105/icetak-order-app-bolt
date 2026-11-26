@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { sendAdminWhatsApp } from '../_shared/admin-whatsapp.ts';
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -12,7 +13,6 @@ async function setting(k:string){const {data}=await db.from('whatsapp_settings')
 async function sha(v:string){return new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v)))}
 async function safeEqual(a:string,b:string){if(!a||!b)return false;const [x,y]=await Promise.all([sha(a),sha(b)]);let diff=x.length^y.length;for(let i=0;i<Math.max(x.length,y.length);i++)diff|=(x[i]??0)^(y[i]??0);return diff===0}
 async function auth(req:Request){return safeEqual(req.headers.get('x-payment-order-alert-token')||'',await secret('qrpay_ai_worker_token'))}
-async function send(to:string,text:string){const base=await setting('base_url')||'https://officialapi.wasapflow.com/bridge/v1',partner=await setting('partner_key'),waba=await setting('waba_id');if(!partner||!waba)throw new Error('WasapFlow credential belum lengkap');const r=await fetch(`${base}/messages/send`,{method:'POST',headers:{'content-type':'application/json','x-partner-key':partner,'x-waba-id':waba},body:JSON.stringify({to:digits(to),text,preview_url:true})});const j=await r.json().catch(()=>({}));if(!r.ok||j.success===false)throw new Error(j?.error?.message||j?.message||`WasapFlow ${r.status}`);return j}
 function money(v:any){return `RM${Number(v||0).toFixed(2)}`}
 function localDate(iso:any){try{return new Intl.DateTimeFormat('ms-MY',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Kuala_Lumpur'}).format(new Date(iso))}catch{return t(iso)}}
 function ageMins(iso:any){return Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/60000))}
@@ -52,8 +52,7 @@ Deno.serve(async (req)=>{
     const app=(await setting('customer_app_base_url')||'https://shop.decocake.my').replace(/\/$/,'');
     const lines=active.map((a:any,i:number)=>{const p:any=pm.get(a.transaction_id)||{},d:any=dm.get(a.transaction_id)||{};const phone=digits(d.customer_phone||p?.raw_payload?.matched_phone||p?.raw_payload?.phone||'');const paidAt=p.paid_at||p.created_at;const mins=ageMins(paidAt);const draftState=[t(d.status),t(d.customer_status)].filter(Boolean).join(' / ');const review=t(d.review_token)?`${app}/qrpay-draft.html?token=${encodeURIComponent(t(d.review_token))}`:'';return [`${i+1}. *${money(p.amount)} · ${a.transaction_id}*`,phone?`Phone: ${phone}`:'Phone: belum jumpa',`Paid: ${localDate(paidAt)} · ${mins} minit lalu`,draftState?`Draft: ${draftState}`:'Draft: belum jumpa',review?`Admin draft: ${review}`:''].filter(Boolean).join('\n')}).join('\n\n');
     const msg=[`🚨 *PAYMENT PAID — ORDER BELUM TERBINA*`,`Admin attention diperlukan: ${active.length} transaksi sudah >15 minit tetapi masih tiada Order ID.`,``,lines,``,`Semak QRPay: ${app}/?admin=v2&view=qrpay-summary`,``,`Alert ini dihantar sekali. Bila Order ID berjaya linked, status auto-resolve.`].join('\n');
-    const admin=await setting('admin_order_notify_phone')||'60129554732';
-    const sent=await send(admin,msg);
+    const sent=await sendAdminWhatsApp('admin_payment_attention',msg,active.map((row:any)=>row.id).sort().join(','));
     const now=new Date().toISOString();
     await db.from('payment_order_attention_alerts').update({status:'sent',sent_at:now,locked_at:null,provider_message_id:sent?.message_id||sent?.id||sent?.data?.message_id||null,last_error:null,updated_at:now}).in('id',active.map((x:any)=>x.id)).eq('status','sending');
     return out({ok:true,processed:active.length,message_id:sent?.message_id||sent?.id||sent?.data?.message_id||null});

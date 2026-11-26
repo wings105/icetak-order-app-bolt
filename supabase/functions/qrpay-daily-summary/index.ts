@@ -1,3 +1,4 @@
+import { sendAdminWhatsApp } from '../_shared/admin-whatsapp.ts';
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
@@ -92,21 +93,6 @@ function buildMessage(summary: Summary, slot: string) {
   return lines.join("\n");
 }
 
-async function sendText(phone: string, text: string) {
-  const [base, partnerKey, wabaId] = await Promise.all([
-    setting("whatsapp_settings", "base_url"), setting("whatsapp_settings", "partner_key"), setting("whatsapp_settings", "waba_id"),
-  ]);
-  if (!partnerKey || !wabaId) throw new Error("WasapFlow credentials incomplete");
-  const response = await fetch(`${base || "https://officialapi.wasapflow.com/bridge/v1"}/messages/send`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-partner-key": partnerKey, "x-waba-id": wabaId },
-    body: JSON.stringify({ to: digits(phone), text, preview_url: true }),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || data?.success === false) throw new Error(data?.error?.message || data?.message || `WasapFlow ${response.status}`);
-  return data;
-}
-
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ success: false, error: "POST required" }, 405);
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return json({ success: false, error: "Runtime not configured" }, 500);
@@ -129,9 +115,9 @@ Deno.serve(async (req) => {
       try {
         summary = await rpc("finance_admin_qrpay_daily", { p_date: run.summary_date }) as Summary;
         message = buildMessage(summary, run.slot);
-        const sent = await sendText(recipient, message);
-        const messageId = String(sent?.message_id || sent?.id || sent?.data?.message_id || "");
-        await rpc("finance_complete_qrpay_daily_summary", { p_run_id: run.id, p_success: true, p_recipient_phone: recipient, p_provider_message_id: messageId || null, p_error: null, p_snapshot: summary, p_message_preview: message });
+        const sent = await sendAdminWhatsApp("admin_qrpay_summary", message, `qrpay-summary:${run.id}`);
+        const messageId = sent.message_id;
+        await rpc("finance_complete_qrpay_daily_summary", { p_run_id: run.id, p_success: true, p_recipient_phone: sent.to, p_provider_message_id: messageId || null, p_error: null, p_snapshot: summary, p_message_preview: message });
         results.push({ id: run.id, success: true, message_id: messageId || null });
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);

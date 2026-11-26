@@ -1,3 +1,4 @@
+import { sendAdminWhatsApp } from '../_shared/admin-whatsapp.ts';
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -29,13 +30,6 @@ function json(data: unknown, status = 200) {
 
 function text(value: unknown) {
   return String(value ?? "").trim();
-}
-
-function digits(value: unknown) {
-  let phone = text(value).replace(/\D/g, "");
-  if (phone.startsWith("0")) phone = `60${phone.slice(1)}`;
-  else if (phone.startsWith("1")) phone = `60${phone}`;
-  return phone;
 }
 
 function errorMessage(value: unknown) {
@@ -83,7 +77,7 @@ async function validScheduleToken(req: Request) {
     .eq("setting_key", "qrpay_ai_worker_token")
     .maybeSingle();
 
-  return !error && Boolean(data?.setting_value) && supplied === data.setting_value;
+  return !error && Boolean(data?.setting_value) && supplied === data?.setting_value;
 }
 
 function canView(admin: Admin) {
@@ -248,46 +242,10 @@ function notificationMessage(run: JsonObject, appBase: string) {
 
 async function sendNotification(run: JsonObject) {
   const settings = await whatsappSettings();
-  const partner = text(settings.get("partner_key"));
-  const waba = text(settings.get("waba_id"));
-  const adminPhone = digits(settings.get("admin_order_notify_phone") || "60129554732");
-  const base = text(settings.get("base_url")) || "https://officialapi.wasapflow.com/bridge/v1";
   const appBase = text(settings.get("customer_app_base_url")) || "https://shop.decocake.my";
-
-  if (!partner || !waba || !adminPhone) {
-    throw new Error("WasapFlow/admin WhatsApp belum lengkap");
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-  let response: Response;
-
-  try {
-    response = await fetch(`${base.replace(/\/$/, "")}/messages/send`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-partner-key": partner,
-        "x-waba-id": waba,
-      },
-      body: JSON.stringify({
-        to: adminPhone,
-        text: notificationMessage(run, appBase),
-        preview_url: false,
-      }),
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
-
-  const payload = await response.json().catch(() => ({})) as JsonObject;
-  if (!response.ok || payload.success === false) {
-    const nested = payload.error as JsonObject | undefined;
-    throw new Error(text(nested?.message || payload.message) || `WasapFlow ${response.status}`);
-  }
-
-  const providerMessageId = text(payload.message_id || payload.id) || null;
+  const { message_id: providerMessageId } = await sendAdminWhatsApp(
+    "admin_ai_learning", notificationMessage(run, appBase), `ai-learning:${run.id}`,
+  );
   const { error } = await db.from("qrpay_ai_learning_runs")
     .update({
       notification_status: "sent",
