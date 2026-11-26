@@ -1,0 +1,9 @@
+.awb-combined-sheet.awb-fixed-reference{padding:5mm 10mm 0;grid-template-columns:190mm;align-content:start;gap:2mm}
+.awb-fixed-reference .awb-combined-header{display:flex;align-items:flex-start;gap:3mm}
+.awb-fixed-reference .awb-combined-header canvas{flex:none}
+.awb-fixed-reference .awb-combined-header strong{min-width:0;overflow-wrap:anywhere;font:600 10pt Arial}
+/* Same 190 x 277 mm print area, minus three 3 mm gutters in each axis, divided by four. */
+.awb-fixed-reference .awb-combined-grid{grid-template-columns:repeat(4,45.25mm);grid-auto-rows:67mm;gap:3mm;align-content:start}
+.awb-fixed-reference .awb-combined-grid .awb-item{gap:1.5mm}
+.awb-fixed-reference .awb-combined-grid .awb-item h1{font-size:11px}
+.awb-fixed-reference .awb-combined-grid .awb-customize-name{font-size:10px}

@@ -1,10 +1,12 @@
 import {getDocument, GlobalWorkerOptions} from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import {loadAwbBlob} from './awb-pdf-print';
+import './awb-fixed-reference.css';
 
 GlobalWorkerOptions.workerSrc = workerUrl;
 
 export async function printCombined(base:string, orderId:string, taskId:string, items:NodeListOf<HTMLElement>) {
+ if (items.length > 8) throw new Error('Lebih daripada 8 task. Gunakan Print AWB dan Print / Save PDF secara berasingan.');
  const blob = await loadAwbBlob(base, orderId, taskId);
  const pdf = getDocument({data:await blob.arrayBuffer(), isEvalSupported:false, useWasm:false});
  const canvas = document.createElement('canvas');
@@ -28,24 +30,26 @@ export async function printCombined(base:string, orderId:string, taskId:string, 
  }
 
  const sheet = document.createElement('article');
- sheet.className = 'awb-combined-sheet';
+ sheet.className = 'awb-combined-sheet awb-fixed-reference';
+ sheet.style.gridTemplateRows = `${canvas.style.height} max-content`;
+ const header = document.createElement('header');
+ header.className = 'awb-combined-header';
  const heading = document.createElement('strong');
  heading.textContent = 'Reference Order · ' + orderId;
+ header.append(canvas,heading);
  const grid = document.createElement('div');
  grid.className = 'awb-combined-grid';
- const columns = Math.ceil(Math.sqrt(items.length * 1.5));
- grid.style.gridTemplateColumns = `repeat(${Math.min(columns,items.length)},minmax(0,1fr))`;
- grid.style.gridTemplateRows = `repeat(${Math.ceil(items.length/columns)},minmax(0,1fr))`;
  for (const item of items) {
   const copy = item.cloneNode(true) as HTMLElement;
   copy.querySelectorAll('.awb-task-action-area,button').forEach(control=>control.remove());
   grid.append(copy);
  }
- sheet.append(canvas,heading,grid);
+ sheet.append(header,grid);
  document.body.append(sheet);
  try {
   await Promise.all(Array.from(grid.querySelectorAll('img'),img=>img.decode()));
-  // Measure the actual print layout before opening the dialog, including long names.
+  if (heading.getBoundingClientRect().bottom > grid.getBoundingClientRect().top || sheet.scrollHeight > sheet.clientHeight + 1)
+   throw new Error('Reference terlalu padat untuk satu A4. Gunakan Print / Save PDF.');
   for (const item of grid.children) {
    const images = item.querySelector('.awb-images')!;
    if (images.clientHeight < 12 || item.scrollHeight > item.clientHeight + 1 || grid.scrollHeight > grid.clientHeight + 1)
