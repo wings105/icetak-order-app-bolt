@@ -1,3 +1,4 @@
+import {productReply} from '../_shared/shop-reply.ts';
 import { chooseKnowledge,styleReply } from '../_shared/reply-knowledge.ts';
 const url=Deno.env.get('SUPABASE_URL')||'',key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const cors={'access-control-allow-origin':'*','access-control-allow-methods':'POST,OPTIONS','access-control-allow-headers':'content-type,authorization,apikey,x-client-info','cache-control':'no-store'};
@@ -37,6 +38,7 @@ Deno.serve(async req=>{
   }
   if(action==='test'){
    if(typeof b.text!=='string'||!b.text.trim()||b.text.length>1000||!['whatsapp','shopee'].includes(b.channel))return out({ok:false,error:'Semak soalan dan saluran'},400);
+   const catalog=await productReply(b.text,String(b.context||'').slice(0,1000),(n,data)=>db('rpc/'+n,data));if(catalog)return out({ok:true,text:catalog,sources:[],engine:'Katalog produk',note:'Harga dan pilihan daripada halaman produk iCetak.'});
    const [articles,profiles]=await Promise.all([db('reply_knowledge?published=not.is.null&select=id,published,published_version&limit=200'),db(`reply_style?channel=eq.${b.channel}&select=*&limit=1`)]);
    const a=chooseKnowledge(b.text,articles,b.channel,String(b.context||'').slice(0,1000));
    return out({ok:true,text:a?styleReply(a.published.answer,profiles[0]):'',sources:a?[{id:a.id,title:a.published.title,version:a.published_version,source:a.published.source}]:[],note:'Ujian FAQ sahaja. Status order diperiksa daripada order sebenar dalam Inbox.'});

@@ -1,3 +1,4 @@
+import {productReply} from './shop-reply.ts';
 type Data=Record<string,any>;
 export const formal=(text:string)=>text.replace(/\bnk\b|\bnak\b/gi,'ingin').replace(/\bdh\b|\bdah\b/gi,'sudah').replace(/\btp\b/gi,'tetapi').replace(/\btak\b/gi,'tidak').replace(/\bbagi\b/gi,'berikan').replace(/\bkn\b/gi,'kan').replace(/\bxde\b/gi,'tiada');
 const norm=(s:string)=>formal(s.toLowerCase()).replace(/\b(?:saya|kami)\b/g,'kami').replace(/\b(?:hantar|berikan)\b/g,'berikan').replace(/^(?:baik|salam|assalamualaikum)[,.!\s]+/,'').replace(/terima kasih[.!\s]*$/,'').replace(/[^a-z0-9]+/g,' ').trim();
@@ -47,14 +48,15 @@ export async function knowledgeReply(c:Data,analysis:Data,read:(path:string)=>Pr
  const [profiles,articles]=await Promise.all([read(`reply_style?channel=eq.${c.channel}&select=enabled,preferences,version,samples&limit=1`),eligible?read('reply_knowledge?published=not.is.null&select=id,published,published_version&order=updated_at.desc&limit=200'):Promise.resolve([])]);
  const profile=profiles[0]||{};const cutoff=Date.parse(latest?.created_at||'')-48*3600000;
  const context=messages.filter((m:Data)=>Date.parse(m.created_at||'')>=cutoff).map((m:Data)=>m.text_content||m.caption||'').join(' ');
- const article=eligible?chooseKnowledge(query,articles,c.channel,context):null;
+ const catalog=!acknowledgement&&!['shipping','payment','complaint'].includes(analysis.intent)?await productReply(query,messages.slice(0,-1).reverse().filter((m:Data)=>Date.parse(m.created_at||'')>=cutoff).map((m:Data)=>m.text_content||m.caption||'').join('\n'),rpc):'';
+ const article=!catalog&&eligible?chooseKnowledge(query,articles,c.channel,context):null;
  let text=analysis.suggestion;let sources:Data[]=[];
  if(article){text=article.published.answer;sources=[{id:article.id,version:article.published_version,title:article.published.title,source:article.published.source}];
   if(profile.enabled!==false){const variants=await read(`reply_wording?article_id=eq.${article.id}&article_version=eq.${article.published_version}&channel=eq.${c.channel}&uses=gte.3&select=text&limit=1`);if(variants[0]&&safeWording(variants[0].text,text))text=variants[0].text;}
  }
- text=styleReply(text,profile);
+ text=catalog||styleReply(text,profile);
  if(text&&rpc)await rpc('reply_suggestion_remember',{p_data:{conversation_id:c.id,inbound_revision:String(c.inbound_revision||''),text,article_id:article?.id||null,article_version:article?.published_version||null}});
- return {text,knowledge_sources:sources,style_version:profile.version||0,engine:sources.length?'Knowledge + SOP':'SOP + gaya balasan'};
+ return {text,knowledge_sources:sources,style_version:profile.version||0,engine:catalog?'Katalog produk':sources.length?'Knowledge + SOP':'SOP + gaya balasan'};
 }
 export async function learnReplies(items:Data[],read:(path:string)=>Promise<Data[]>,rpc:(name:string,body:unknown)=>Promise<any>){
  const results=[];
