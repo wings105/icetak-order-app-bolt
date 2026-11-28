@@ -1,0 +1,17 @@
+.awb-bulk #app{max-width:none;margin:0}
+.batch-bar,#orders{width:min(210mm,96%);margin:12px auto;padding:14px;background:white;border-radius:8px}
+.batch-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.batch-bar h1{margin:0 auto 0 0;font-size:22px}
+.batch-bar button{padding:10px 14px;border:0;border-radius:6px;background:#245b49;color:white;cursor:pointer}
+.batch-bar button:disabled{opacity:.5}
+.batch-bar p{width:100%;margin:4px 0 0}
+#orders label{display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid #eee}
+#orders label span{margin-left:auto}
+.awb-bulk #pages{overflow:auto}
+.awb-bulk #pages .awb-combined-sheet{position:static;margin:12px auto}
+.awb-bulk #pages .awb-combined-sheet[hidden]{display:none}
+@media print{
+ .awb-bulk .batch-bar,.awb-bulk #orders{display:none}
+ .awb-bulk #pages{overflow:visible}
+ .awb-bulk #pages .awb-combined-sheet{display:grid;margin:0;break-before:page;break-inside:avoid}
+}

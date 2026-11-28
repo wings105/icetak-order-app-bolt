@@ -1,3 +1,7 @@
+# 2026-11-28 — Office bulk AWB print
+
+- [VERIFIED] The office page previews selected A4 sheets, groups shared AWBs and completes only explicitly confirmed tasks. Controlled Chromium checks covered selection, a missing label, two-page and one-page PDF output, and task-scoped completion. Physical printer QA remains pending.
+
 # 2026-11-26 — Combined AWB and order reference print
 
 - [VERIFIED] The AWB preview offers a separate one-sheet A4 print action. A controlled Chromium PDF contained one A6 label above four labelled reference images on a single A4 page. Physical printer acceptance remains pending.

@@ -80,3 +80,9 @@ PRODUCTION: PR #79 release `818130dfbef0074d6db76a5b23505e8f5546abf7` passed Wor
 ## Combined A4 print
 
 Each distinct AWB has a separate Print AWB + Reference (1 A4) button. It loads the selected task PDF using the existing proxy and places the full label within A6 at 300 dpi above the order ID and all reference cells. Orientation follows the AWB. Multi-page labels, failed images and references too dense for the available space use the existing separate print controls. Printing performs no task update.
+
+## Office bulk printing
+
+Open the separately provisioned office link once in the production browser. The fragment holds a revocable bearer credential for the queue. The page remembers it on that browser and removes it from the address bar. Disable its hash in awb_office_devices to revoke access. The ordinary /?awbbulk shortcut also appears in Task Workspace.
+
+The queue groups ORDER LIST tasks in Print Alamat or Print AWB by order reference. Each distinct AWB gets one sheet. Ready orders start selected and failed previews show an error beside the order. Print opens a single dialog and freezes the selected group for completion. After checking the pages, deselect failed prints and choose Complete. Completion rechecks queue membership and calls the existing signed per-task action with stable request IDs. Reload starts a new batch.

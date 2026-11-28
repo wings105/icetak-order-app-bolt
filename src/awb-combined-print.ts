@@ -5,7 +5,7 @@ import './awb-fixed-reference.css';
 
 GlobalWorkerOptions.workerSrc = workerUrl;
 
-export async function printCombined(base:string, orderId:string, taskId:string, items:NodeListOf<HTMLElement>) {
+export async function prepareCombined(base:string, orderId:string, taskId:string, items:Iterable<HTMLElement> & {length:number}) {
  if (items.length > 8) throw new Error('Lebih daripada 8 task. Gunakan Print AWB dan Print / Save PDF secara berasingan.');
  const blob = await loadAwbBlob(base, orderId, taskId);
  const pdf = getDocument({data:await blob.arrayBuffer(), isEvalSupported:false, useWasm:false});
@@ -55,6 +55,13 @@ export async function printCombined(base:string, orderId:string, taskId:string, 
    if (images.clientHeight < 12 || item.scrollHeight > item.clientHeight + 1 || grid.scrollHeight > grid.clientHeight + 1)
     throw new Error('Reference terlalu padat untuk satu A4. Gunakan Print gambar order.');
   }
+  return sheet;
+ } catch(error) {sheet.remove();throw error;}
+}
+
+export async function printCombined(base:string,orderId:string,taskId:string,items:NodeListOf<HTMLElement>) {
+ const sheet=await prepareCombined(base,orderId,taskId,items);
+ try {
   document.body.classList.add('awb-combined-print');
   window.print();
  } finally {
