@@ -131,6 +131,8 @@ const parcelBadge = (row: TrackingRow): Badge => {
   const normalized = slug(row.normalized_status);
   const raw = String(row.status || '').trim().toLowerCase();
 
+  if (normalized === 'lost' || raw === 'lost') return { label: 'Lost', cls: 'badge-error' };
+
   if (
     ['cancelled', 'canceled', 'failed', 'exception'].includes(normalized) ||
     raw.includes('cancel') || raw.includes('fail') || raw.includes('exception')
@@ -240,7 +242,7 @@ export default function Shipping() {
   )).sort(), [rows]);
 
   const parcelStatuses = useMemo(() => {
-    const preferred = ['Pending Pickup', 'In Transit', 'Out for Delivery', 'Delivered', 'Cancelled', 'Problem'];
+    const preferred = ['Pending Pickup', 'In Transit', 'Out for Delivery', 'Delivered', 'Lost', 'Cancelled', 'Problem'];
     const found = Array.from(new Set(rows.map((row) => parcelBadge(row).label).filter(Boolean)));
     return [
       ...preferred.filter((status) => found.includes(status)),
@@ -350,6 +352,26 @@ export default function Shipping() {
     else {
       const linked = (data || {}) as { orderNo?: string };
       setNotice(`Tracking linked ke ${linked.orderNo || orderRef.trim()}.`);
+      await load(true);
+    }
+    setBusyId(null);
+  };
+
+  const markShipmentLost = async (row: TrackingRow) => {
+    if (slug(row.normalized_status) === 'lost' || String(row.status || '').trim().toLowerCase() === 'lost') return;
+    const confirmed = window.confirm(
+      `Tandakan parcel ${row.tracking_no} sebagai hilang?\n\nStatus ini akan direkodkan dalam sejarah shipment dan order.`,
+    );
+    if (!confirmed) return;
+
+    setBusyId(row.id);
+    setError(null);
+    const { data, error: markError } = await supabase.rpc('icetak_admin_mark_shipment_lost', {
+      p_shipment_id: row.id,
+    });
+    if (markError) setError(markError.message);
+    else {
+      setNotice(data?.alreadyLost ? 'Parcel ini sudah ditandakan hilang.' : 'Parcel ditandakan hilang.');
       await load(true);
     }
     setBusyId(null);
@@ -660,6 +682,9 @@ export default function Shipping() {
                                     <button className="btn btn-outline" disabled={busy} onClick={() => void trackingAction(row, 'retry_auto')}><IconRefresh size={14} /> Retry Auto</button>
                                   )}
                                 </>
+                              )}
+                              {slug(row.normalized_status) !== 'lost' && String(row.status || '').trim().toLowerCase() !== 'lost' && (
+                                <button className="btn btn-outline" disabled={busy} style={{ color: '#b42318', borderColor: '#fecdca' }} onClick={() => void markShipmentLost(row)}><IconAlert size={14} /> Mark as Lost</button>
                               )}
                               <button className="btn btn-outline" disabled={busy} style={{ color: '#b42318', borderColor: '#fecdca' }} onClick={() => void trackingAction(row, 'cancel')}><IconX size={14} /> Cancel</button>
                             </>
